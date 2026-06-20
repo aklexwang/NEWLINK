@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: newlink-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_TYPE
+        value: sqlite
+      - key: DATABASE_PATH
+        value: data/newlink.sqlite
+      - key: DEV_ADMIN_BYPASS
+        value: "true"
+      - key: TELEGRAM_BOT_TOKEN
+        value: "0000000000:AAH_placeholder"
+      - key: TELEGRAM_ADMIN_IDS
+        value: "123456789"
