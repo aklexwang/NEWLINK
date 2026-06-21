@@ -1,3 +1,4 @@
+import type { LinkType } from '../types/channel';
 import { linkTypeLabel } from '../utils/linkType';
 
 function formatCount(value: number): string {
@@ -12,7 +13,7 @@ interface RankingChannelCardProps {
   avatarUrl?: string | null;
   participantsCount: number;
   recommendCount: number;
-  linkType: string;
+  linkType: LinkType;
   username?: string | null;
   onOpen: () => void;
 }

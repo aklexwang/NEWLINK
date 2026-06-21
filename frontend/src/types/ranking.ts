@@ -1,3 +1,5 @@
+import type { LinkType } from './channel';
+
 export interface RankingChannel {
   id: string;
   title: string;
@@ -7,7 +9,7 @@ export interface RankingChannel {
   participantsCount: number;
   recommendCount: number;
   category: string;
-  linkType: string;
+  linkType: LinkType;
   source?: 'telegram' | 'tgstat';
 }
 
