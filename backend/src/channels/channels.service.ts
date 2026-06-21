@@ -288,6 +288,8 @@ export class ChannelsService implements OnModuleInit {
         | 'promotionClientTelegramId'
         | 'promotionClientName'
         | 'promotionTonAmount'
+        | 'avatarUrl'
+        | 'avatarApproved'
       >
     >,
   ) {
@@ -307,6 +309,13 @@ export class ChannelsService implements OnModuleInit {
       channel.promotedUntil = data.promotedUntil;
       channel.isPromoted = Boolean(data.promotedUntil);
     }
+    if (data.avatarUrl !== undefined) {
+      channel.avatarUrl = data.avatarUrl;
+      if (data.avatarApproved === undefined) {
+        channel.avatarApproved = Boolean(data.avatarUrl);
+      }
+    }
+    if (data.avatarApproved !== undefined) channel.avatarApproved = data.avatarApproved;
     if (data.status === ChannelStatus.ACTIVE && channel.avatarUrl) channel.avatarApproved = true;
     return this.channelRepository.save(channel);
   }

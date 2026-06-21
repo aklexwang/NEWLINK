@@ -8,6 +8,7 @@ import {
   updateAdminChannel,
 } from '../../api/admin';
 import { AdClientCells, AdClientDetail } from '../../components/admin/AdClientInfo';
+import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor';
 import {
   AdminEmptyState,
   AdminMessage,
@@ -95,6 +96,11 @@ export function AdminChannelsManagePage() {
     } catch {
       setMessage('저장에 실패했습니다.');
     }
+  };
+
+  const handleUpdateAvatar = (id: string, patch: { avatarUrl: string | null; avatarApproved: boolean }) => {
+    setChannels((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+    setMessage('아이콘이 저장되었습니다.');
   };
 
   const handleDelete = async (id: string, title: string) => {
@@ -235,6 +241,15 @@ export function AdminChannelsManagePage() {
                               </a>
 
                               {channel.isPromoted && <AdClientDetail channel={channel} />}
+
+                              <ChannelAvatarEditor
+                                key={`${channel.id}-${channel.avatarUrl ?? 'none'}`}
+                                channelId={channel.id}
+                                avatarUrl={channel.avatarUrl}
+                                avatarApproved={channel.avatarApproved}
+                                linkType={channel.linkType}
+                                onUpdated={(patch) => handleUpdateAvatar(channel.id, patch)}
+                              />
 
                               <div className="flex flex-wrap items-center gap-4">
                                 <div className="flex items-center gap-2">

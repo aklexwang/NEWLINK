@@ -6,6 +6,7 @@ import {
   updateAdminChannel,
 } from '../../api/admin';
 import { AdClientCells, AdClientDetail } from '../../components/admin/AdClientInfo';
+import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor';
 import {
   AdminEmptyState,
   AdminMessage,
@@ -118,6 +119,12 @@ export function AdminAdsManagePage() {
     } catch {
       setMessage('유형 저장에 실패했습니다.');
     }
+  };
+
+  const handleUpdateAvatar = (id: string, patch: { avatarUrl: string | null; avatarApproved: boolean }) => {
+    setPromoted((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+    setCandidates((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+    setMessage('아이콘이 저장되었습니다.');
   };
 
   const activeCount = promoted.filter((item) => isPromotionActive(item.isPromoted, item.promotedUntil)).length;
@@ -278,6 +285,14 @@ export function AdminAdsManagePage() {
                                 {channel.link}
                               </a>
                               <AdClientDetail channel={channel} />
+                              <ChannelAvatarEditor
+                                key={`${channel.id}-${channel.avatarUrl ?? 'none'}`}
+                                channelId={channel.id}
+                                avatarUrl={channel.avatarUrl}
+                                avatarApproved={channel.avatarApproved}
+                                linkType={channel.linkType}
+                                onUpdated={(patch) => handleUpdateAvatar(channel.id, patch)}
+                              />
                               <div className="flex flex-wrap items-center gap-4">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs text-slate-500">유형</span>

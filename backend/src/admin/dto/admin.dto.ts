@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateIf } from 'class-validator';
 import { ChannelStatus, LinkType } from '../../channels/channel.entity';
 
 export class ApproveChannelDto {
@@ -72,4 +72,14 @@ export class UpdateChannelDto {
   @Min(0)
   @IsOptional()
   promotionTonAmount?: number | null;
+
+  @ValidateIf((_o, value) => value !== null)
+  @IsString()
+  @IsOptional()
+  @MaxLength(1024)
+  avatarUrl?: string | null;
+
+  @IsBoolean()
+  @IsOptional()
+  avatarApproved?: boolean;
 }

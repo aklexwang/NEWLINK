@@ -62,6 +62,8 @@ export async function updateAdminChannel(
     promotionClientTelegramId?: number | null;
     promotionClientName?: string | null;
     promotionTonAmount?: number | null;
+    avatarUrl?: string | null;
+    avatarApproved?: boolean;
   }>,
 ) {
   const { data } = await apiClient.patch(`/admin/channels/${id}`, payload, {
@@ -125,6 +127,15 @@ export async function uploadCategoryIcon(file: File): Promise<string> {
     headers: devAdminHeaders,
   });
   return data.iconUrl;
+}
+
+export async function uploadChannelAvatar(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('icon', file);
+  const { data } = await apiClient.post<{ avatarUrl: string }>('/admin/channels/upload-avatar', formData, {
+    headers: devAdminHeaders,
+  });
+  return data.avatarUrl;
 }
 
 export async function updateCategory(

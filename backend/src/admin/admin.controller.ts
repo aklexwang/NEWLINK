@@ -1,19 +1,37 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   Param,
   Patch,
+  Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { existsSync, mkdirSync } from 'fs';
+import { extname, join } from 'path';
+import { randomBytes } from 'crypto';
 import { ChannelStatus } from '../channels/channel.entity';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { ChannelsService } from '../channels/channels.service';
 import { UsersService } from '../users/users.service';
 import { ApproveChannelDto, PromoteChannelDto, UpdateChannelDto } from './dto/admin.dto';
+
+const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
+const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']);
+
+function ensureChannelUploadDir() {
+  if (!existsSync(CHANNEL_UPLOAD_DIR)) {
+    mkdirSync(CHANNEL_UPLOAD_DIR, { recursive: true });
+  }
+}
 
 @Controller('admin/channels')
 @UseGuards(TelegramAuthGuard, TelegramAdminGuard)
@@ -44,6 +62,37 @@ export class AdminController {
     return Promise.all(
       channels.map((channel) => (channel.isPromoted ? this.withAdClient(channel) : channel)),
     );
+  }
+
+  @Post('upload-avatar')
+  @UseInterceptors(
+    FileInterceptor('icon', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          ensureChannelUploadDir();
+          cb(null, CHANNEL_UPLOAD_DIR);
+        },
+        filename: (_req, file, cb) => {
+          const ext = extname(file.originalname).toLowerCase() || '.png';
+          cb(null, `${Date.now()}-${randomBytes(6).toString('hex')}${ext}`);
+        },
+      }),
+      limits: { fileSize: 512 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!ALLOWED_MIME.has(file.mimetype)) {
+          cb(new BadRequestException('PNG, JPG, WEBP, GIF, SVG 이미지만 업로드할 수 있습니다.'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  uploadAvatar(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('이미지 파일을 선택해 주세요.');
+    }
+
+    return { avatarUrl: `/api/uploads/channels/${file.filename}` };
   }
 
   private async withAdClient(channel: Awaited<ReturnType<ChannelsService['findById']>>) {
@@ -110,6 +159,8 @@ export class AdminController {
       promotionClientTelegramId: dto.promotionClientTelegramId,
       promotionClientName: dto.promotionClientName,
       promotionTonAmount: dto.promotionTonAmount,
+      avatarUrl: dto.avatarUrl,
+      avatarApproved: dto.avatarApproved,
     });
   }
 
