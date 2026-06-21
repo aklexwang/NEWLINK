@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { getChannelPreview, updateAdminChannel, uploadChannelAvatar } from '../../api/admin';
+import { importChannelAvatarFromTelegram, updateAdminChannel, uploadChannelAvatar } from '../../api/admin';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 interface ChannelAvatarEditorProps {
@@ -50,14 +50,26 @@ export function ChannelAvatarEditor({
     setRefreshing(true);
     setError('');
     try {
-      const preview = await getChannelPreview(channelId);
-      if (!preview.avatarUrl) {
-        setError('텔레그램에서 아이콘을 가져오지 못했습니다.');
-        return;
-      }
-      await applyAvatar(preview.avatarUrl, true);
-    } catch {
-      setError('텔레그램 아이콘 불러오기에 실패했습니다.');
+      const updated = await importChannelAvatarFromTelegram(channelId);
+      onUpdated({
+        avatarUrl: updated.avatarUrl,
+        avatarApproved: updated.avatarApproved,
+      });
+      setUrlDraft(updated.avatarUrl ?? '');
+    } catch (err: unknown) {
+      const message =
+        err &&
+        typeof err === 'object' &&
+        'response' in err &&
+        err.response &&
+        typeof err.response === 'object' &&
+        'data' in err.response &&
+        err.response.data &&
+        typeof err.response.data === 'object' &&
+        'message' in err.response.data
+          ? String(err.response.data.message)
+          : '텔레그램 아이콘 불러오기에 실패했습니다.';
+      setError(message);
     } finally {
       setRefreshing(false);
     }

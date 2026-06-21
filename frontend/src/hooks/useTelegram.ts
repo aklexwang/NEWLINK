@@ -73,6 +73,26 @@ export function hapticSuccess(webApp: typeof WebApp, isLocalBrowser: boolean) {
   }
 }
 
+export function openTelegramChannel(webApp: typeof WebApp, isLocalBrowser: boolean, link: string) {
+  const url = link.startsWith('http') ? link : `https://${link}`;
+
+  if (isLocalBrowser) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  try {
+    if (typeof webApp.openTelegramLink === 'function') {
+      webApp.openTelegramLink(url);
+      return;
+    }
+  } catch {
+    // fall through
+  }
+
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 export async function openTonInvoice(invoiceLink: string): Promise<boolean> {
   if (!isRealTelegramEnv()) {
     window.alert('Telegram 앱에서만 결제가 가능합니다.');

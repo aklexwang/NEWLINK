@@ -11,6 +11,6 @@ import { TelegramPreviewService } from './telegram-preview.service';
   imports: [TypeOrmModule.forFeature([Channel, ChannelRecommendation]), UsersModule],
   controllers: [ChannelsController],
   providers: [ChannelsService, TelegramPreviewService],
-  exports: [ChannelsService],
+  exports: [ChannelsService, TelegramPreviewService],
 })
 export class ChannelsModule {}

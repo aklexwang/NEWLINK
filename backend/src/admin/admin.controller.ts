@@ -116,6 +116,11 @@ export class AdminController {
     };
   }
 
+  @Post(':id/import-avatar')
+  importAvatar(@Param('id') id: string) {
+    return this.channelsService.importAvatarFromTelegram(id);
+  }
+
   @Get(':id/preview')
   getPreview(@Param('id') id: string) {
     return this.channelsService.getPreview(id);

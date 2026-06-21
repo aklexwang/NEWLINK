@@ -8,7 +8,7 @@ import { AdminPendingPage } from './pages/admin/AdminPendingPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { HomePage } from './pages/HomePage';
 import { MyPage } from './pages/MyPage';
-import { SearchPage } from './pages/SearchPage';
+import { RankingPage } from './pages/RankingPage';
 import { SubmitPage } from './pages/SubmitPage';
 
 export default function App() {
@@ -25,7 +25,8 @@ export default function App() {
         </Route>
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/search" element={<SearchPage />} />
+          <Route path="/ranking" element={<RankingPage />} />
+          <Route path="/search" element={<Navigate to="/ranking" replace />} />
           <Route path="/submit" element={<SubmitPage />} />
           <Route path="/my" element={<MyPage />} />
         </Route>

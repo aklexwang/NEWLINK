@@ -1,15 +1,21 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomBytes } from 'crypto';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { extname, join } from 'path';
 import { Brackets, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from './channel.entity';
 import { ChannelRecommendation } from './channel-recommendation.entity';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
 import { TelegramPreviewService } from './telegram-preview.service';
+
+const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
 
 @Injectable()
 export class ChannelsService implements OnModuleInit {
@@ -67,6 +73,10 @@ export class ChannelsService implements OnModuleInit {
     if (preview.avatarUrl) channel.avatarUrl = preview.avatarUrl;
     if (preview.title && channel.status === ChannelStatus.PENDING) channel.title = preview.title;
     if (preview.description && channel.status === ChannelStatus.PENDING) channel.description = preview.description;
+    if (preview.memberCount) {
+      const parsed = Number.parseInt(preview.memberCount.replace(/\D/g, ''), 10);
+      if (Number.isFinite(parsed) && parsed > 0) channel.memberCount = parsed;
+    }
     return this.channelRepository.save(channel);
   }
 
@@ -82,6 +92,65 @@ export class ChannelsService implements OnModuleInit {
       link: channel.link,
       avatarApproved: channel.avatarApproved,
     };
+  }
+
+  async importAvatarFromTelegram(id: string) {
+    const channel = await this.findById(id);
+    const preview = await this.telegramPreviewService.fetchPreview(channel.link);
+
+    if (!preview.avatarUrl) {
+      throw new BadRequestException(
+        '텔레그램에서 아이콘을 가져오지 못했습니다. 공개 @username 링크인지 확인해 주세요.',
+      );
+    }
+
+    if (/telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)) {
+      throw new BadRequestException(
+        '유효한 채널 아이콘이 아닙니다. @username 공개 링크인지 확인해 주세요.',
+      );
+    }
+
+    channel.avatarUrl = await this.mirrorAvatarImage(preview.avatarUrl);
+    channel.avatarApproved = true;
+    return this.channelRepository.save(channel);
+  }
+
+  private async mirrorAvatarImage(sourceUrl: string): Promise<string> {
+    if (sourceUrl.startsWith('/api/uploads/')) return sourceUrl;
+
+    if (!existsSync(CHANNEL_UPLOAD_DIR)) {
+      mkdirSync(CHANNEL_UPLOAD_DIR, { recursive: true });
+    }
+
+    const res = await fetch(sourceUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      redirect: 'follow',
+    });
+
+    if (!res.ok) {
+      throw new BadRequestException('아이콘 이미지 다운로드에 실패했습니다.');
+    }
+
+    const contentType = res.headers.get('content-type') ?? 'image/jpeg';
+    const ext =
+      this.extFromContentType(contentType) ??
+      (extname(new URL(sourceUrl).pathname) || '.jpg');
+    const filename = `${Date.now()}-${randomBytes(6).toString('hex')}${ext}`;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    writeFileSync(join(CHANNEL_UPLOAD_DIR, filename), buffer);
+    return `/api/uploads/channels/${filename}`;
+  }
+
+  private extFromContentType(contentType: string): string | null {
+    if (contentType.includes('png')) return '.png';
+    if (contentType.includes('webp')) return '.webp';
+    if (contentType.includes('gif')) return '.gif';
+    if (contentType.includes('svg')) return '.svg';
+    if (contentType.includes('jpeg') || contentType.includes('jpg')) return '.jpg';
+    return null;
   }
 
   async search(dto: SearchChannelDto) {
@@ -318,6 +387,59 @@ export class ChannelsService implements OnModuleInit {
     if (data.avatarApproved !== undefined) channel.avatarApproved = data.avatarApproved;
     if (data.status === ChannelStatus.ACTIVE && channel.avatarUrl) channel.avatarApproved = true;
     return this.channelRepository.save(channel);
+  }
+
+  async getRanking(category?: string, limit = 50) {
+    const normalizedLimit = Math.min(Math.max(limit, 1), 100);
+
+    const qb = this.channelRepository
+      .createQueryBuilder('channel')
+      .where('channel.status = :status', { status: ChannelStatus.ACTIVE });
+
+    if (category && category !== 'all') {
+      qb.andWhere('channel.category = :category', { category });
+    }
+
+    const items = await qb.getMany();
+    items.sort((a, b) => {
+      const memberA = a.memberCount ?? 0;
+      const memberB = b.memberCount ?? 0;
+      if (memberB !== memberA) return memberB - memberA;
+      return b.recommendCount - a.recommendCount;
+    });
+
+    return items.slice(0, normalizedLimit).map((channel) => ({
+      id: channel.id,
+      title: channel.title,
+      username: this.extractUsername(channel.link),
+      link: channel.link,
+      avatarUrl: channel.avatarApproved ? channel.avatarUrl : null,
+      participantsCount: channel.memberCount ?? 0,
+      recommendCount: channel.recommendCount,
+      category: channel.category,
+      linkType: channel.linkType,
+    }));
+  }
+
+  async getRankingCounts(): Promise<Record<string, number>> {
+    const channels = await this.channelRepository.find({
+      where: { status: ChannelStatus.ACTIVE },
+      select: { category: true },
+    });
+
+    const counts: Record<string, number> = { all: channels.length };
+    for (const channel of channels) {
+      counts[channel.category] = (counts[channel.category] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  private extractUsername(link: string): string | null {
+    const match = link.match(/t\.me\/(@?[a-zA-Z0-9_]{4,})/i);
+    if (!match) return null;
+    const name = match[1];
+    if (name.startsWith('+')) return null;
+    return name.startsWith('@') ? name : `@${name}`;
   }
 
   async remove(id: string) {

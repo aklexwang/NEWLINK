@@ -67,6 +67,9 @@ export class Channel {
   @Column({ name: 'avatar_approved', default: false })
   avatarApproved: boolean;
 
+  @Column({ name: 'member_count', type: 'integer', nullable: true })
+  memberCount: number | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

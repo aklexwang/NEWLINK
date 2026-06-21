@@ -17,6 +17,18 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
   return data;
 }
 
+export async function importChannelAvatarFromTelegram(id: string): Promise<{
+  avatarUrl: string | null;
+  avatarApproved: boolean;
+}> {
+  const { data } = await apiClient.post<{ avatarUrl: string | null; avatarApproved: boolean }>(
+    `/admin/channels/${id}/import-avatar`,
+    {},
+    { headers: devAdminHeaders },
+  );
+  return data;
+}
+
 export async function getChannelPreview(id: string): Promise<ChannelPreview> {
   const { data } = await apiClient.get<ChannelPreview>(`/admin/channels/${id}/preview`, {
     headers: devAdminHeaders,

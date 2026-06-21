@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ChannelsModule } from './channels/channels.module';
 import { PaymentsModule } from './payments/payments.module';
+import { RankingModule } from './ranking/ranking.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     ChannelsModule,
     AdminModule,
     PaymentsModule,
+    RankingModule,
   ],
   controllers: [AppController],
 })

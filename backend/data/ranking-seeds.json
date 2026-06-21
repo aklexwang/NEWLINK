@@ -1,0 +1,57 @@
+{
+  "categories": [
+    {
+      "name": "뉴스",
+      "emoji": "📰",
+      "channels": [
+        "https://t.me/hankyung_fin",
+        "https://t.me/mainnews",
+        "https://t.me/sisainlive",
+        "https://t.me/newstapa",
+        "https://t.me/bloter_news",
+        "https://t.me/economy_trending",
+        "https://t.me/Journal_List"
+      ]
+    },
+    {
+      "name": "커뮤니티",
+      "emoji": "👥",
+      "channels": [
+        "https://t.me/documankr",
+        "https://t.me/ththlink",
+        "https://t.me/channelmodoo",
+        "https://t.me/banjang9"
+      ]
+    },
+    {
+      "name": "쇼핑",
+      "emoji": "🛒",
+      "channels": [
+        "https://t.me/dodosneaker",
+        "https://t.me/realcurator"
+      ]
+    },
+    {
+      "name": "교육",
+      "emoji": "📚",
+      "channels": [
+        "https://t.me/sunstudy",
+        "https://t.me/sejongdata2013"
+      ]
+    },
+    {
+      "name": "엔터테인먼트",
+      "emoji": "🎬",
+      "channels": [
+        "https://t.me/documankr"
+      ]
+    },
+    {
+      "name": "기타",
+      "emoji": "📁",
+      "channels": [
+        "https://t.me/budongsanjob"
+      ]
+    }
+  ]
+}

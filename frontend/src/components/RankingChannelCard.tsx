@@ -1,0 +1,69 @@
+import { linkTypeLabel } from '../utils/linkType';
+
+function formatCount(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  return value.toLocaleString('ko-KR');
+}
+
+interface RankingChannelCardProps {
+  rank: number;
+  title: string;
+  avatarUrl?: string | null;
+  participantsCount: number;
+  recommendCount: number;
+  linkType: string;
+  username?: string | null;
+  onOpen: () => void;
+}
+
+export function RankingChannelCard({
+  rank,
+  title,
+  avatarUrl,
+  participantsCount,
+  recommendCount,
+  linkType,
+  username,
+  onOpen,
+}: RankingChannelCardProps) {
+  const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
+  const statLabel =
+    participantsCount > 0
+      ? `구독자 ${formatCount(participantsCount)}`
+      : `추천 ${recommendCount.toLocaleString('ko-KR')}`;
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-black/[0.03]"
+    >
+      <div className="flex w-8 shrink-0 items-center justify-center text-[15px] font-bold text-tg-hint">
+        {medal ?? rank}
+      </div>
+
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-tg-secondary ring-1 ring-black/5">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-xl">{linkType === 'group' ? '👥' : '📢'}</span>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[16px] font-semibold leading-tight text-tg-text">{title}</p>
+        <p className="mt-0.5 truncate text-[13px] text-tg-hint">
+          {statLabel}
+          {username ? ` · ${username}` : ''}
+          {' · '}
+          {linkTypeLabel(linkType)}
+        </p>
+      </div>
+
+      <span className="shrink-0 rounded-full bg-tg-open-bg px-3 py-1.5 text-[14px] font-semibold text-tg-open-text">
+        Open
+      </span>
+    </button>
+  );
+}

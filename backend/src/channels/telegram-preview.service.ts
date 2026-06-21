@@ -17,12 +17,21 @@ export class TelegramPreviewService {
   async fetchPreview(link: string): Promise<TelegramPreview> {
     const normalized = this.normalizeLink(link);
     const scraped = await this.scrapeTelegramPage(normalized);
-    if (scraped.avatarUrl) return scraped;
+    if (scraped.avatarUrl && !this.isGenericTelegramLogo(scraped.avatarUrl)) {
+      return scraped;
+    }
 
-    const username = this.extractUsername(link);
+    const username = this.extractUsername(normalized);
     if (username) {
+      const userpicUrl = await this.fetchUserpic(username);
+      if (userpicUrl) {
+        return { ...scraped, avatarUrl: userpicUrl };
+      }
+
       const fromBot = await this.fetchViaBotApi(username);
-      if (fromBot.avatarUrl) return fromBot;
+      if (fromBot.avatarUrl) {
+        return { ...fromBot, memberCount: scraped.memberCount ?? fromBot.memberCount };
+      }
     }
 
     return scraped;
@@ -58,7 +67,9 @@ export class TelegramPreviewService {
       return {
         title: this.metaContent(html, 'og:title'),
         description: this.metaContent(html, 'og:description'),
-        avatarUrl: this.metaContent(html, 'og:image'),
+        avatarUrl:
+          this.metaContent(html, 'og:image') ??
+          this.metaContent(html, 'twitter:image'),
         memberCount: this.extractMemberCount(html),
       };
     } catch (error) {
@@ -85,7 +96,33 @@ export class TelegramPreviewService {
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, '');
+  }
+
+  private isGenericTelegramLogo(url: string): boolean {
+    return /telegram\.org\/img\/t_logo/i.test(url);
+  }
+
+  private async fetchUserpic(username: string): Promise<string | null> {
+    const url = `https://t.me/i/userpic/320/${username}.jpg`;
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        redirect: 'follow',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+      const contentType = res.headers.get('content-type') ?? '';
+      if (res.ok && contentType.startsWith('image/')) {
+        return res.url || url;
+      }
+    } catch (error) {
+      this.logger.warn(`Userpic fetch failed for @${username}: ${error}`);
+    }
+    return null;
   }
 
   private extractMemberCount(html: string): string | null {
