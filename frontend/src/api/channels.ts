@@ -1,6 +1,6 @@
+import { isAxiosError } from 'axios';
 import { apiClient } from './client';
 import type { Channel, CreateChannelPayload, SearchResult } from '../types/channel';
-
 const authHeaders =
   import.meta.env.DEV && import.meta.env.VITE_DEV_ADMIN === 'true'
     ? { 'X-Dev-Admin': 'true' }
@@ -15,6 +15,18 @@ export async function searchChannels(params: {
   return data;
 }
 
+export async function getPromotedChannels(): Promise<Channel[]> {
+  try {
+    const { data } = await apiClient.get<Channel[]>('/channels/promoted');
+    return data;
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 404) {
+      const { data } = await apiClient.get<SearchResult>('/channels/search', { params: { limit: 100 } });
+      return data.items.filter((channel) => channel.isPromoted);
+    }
+    throw error;
+  }
+}
 export async function getMyRecommendedIds(): Promise<string[]> {
   const { data } = await apiClient.get<string[]>('/channels/my-recommendations', {
     headers: authHeaders,

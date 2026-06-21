@@ -193,6 +193,19 @@ export class ChannelsService implements OnModuleInit {
     return { items: activeItems, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  async findActivePromoted(limit = 50): Promise<Channel[]> {
+    const now = new Date();
+    return this.channelRepository
+      .createQueryBuilder('channel')
+      .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
+      .andWhere('channel.is_promoted = :promoted', { promoted: true })
+      .andWhere('(channel.promoted_until IS NULL OR channel.promoted_until > :now)', { now })
+      .orderBy('channel.promoted_until', 'ASC')
+      .addOrderBy('channel.recommend_count', 'DESC')
+      .limit(limit)
+      .getMany();
+  }
+
   async findById(id: string): Promise<Channel> {
     const channel = await this.channelRepository.findOne({ where: { id } });
     if (!channel) throw new NotFoundException('Channel not found');

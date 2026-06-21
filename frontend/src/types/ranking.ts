@@ -21,4 +21,5 @@ export interface RankingCategoryItem {
 export interface RankingStatus {
   source: 'telegram' | 'tgstat';
   label: string;
+  hint?: string;
 }

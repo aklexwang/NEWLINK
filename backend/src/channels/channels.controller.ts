@@ -26,6 +26,11 @@ export class ChannelsController {
     return this.channelsService.search(dto);
   }
 
+  @Get('promoted')
+  promoted() {
+    return this.channelsService.findActivePromoted();
+  }
+
   @Get('my-recommendations')
   @UseGuards(TelegramAuthGuard)
   myRecommendations(@TelegramUserParam() user: TelegramUser) {

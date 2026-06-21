@@ -1,12 +1,32 @@
 import { useCallback, useEffect, useState } from 'react';
-import { searchChannels } from '../api/channels';
-import { CategoryChips } from '../components/CategoryChips';
+import { getPromotedChannels, searchChannels } from '../api/channels';
 import { ChannelList } from '../components/ChannelList';
+import { PromotedShortcuts } from '../components/PromotedShortcuts';
 import { SearchBar } from '../components/SearchBar';
 import { useCategories } from '../hooks/useCategories';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
-import { hapticSuccess, notifyUser, useTelegram } from '../hooks/useTelegram';
-import type { Channel } from '../types/channel';
+import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
+
+type HomeView = 'promoted' | 'search';
+
+function HomeLogo({ compact = false }: { compact?: boolean }) {
+  return (
+    <header className={`flex flex-col items-center ${compact ? 'pb-2' : ''}`}>
+      <h1
+        className={`select-none font-black uppercase leading-none ${
+          compact
+            ? 'pr-[0.18em] text-[20px] tracking-[0.18em]'
+            : 'pr-[0.22em] text-[40px] tracking-[0.22em]'
+        }`}
+      >
+        <span className="bg-gradient-to-br from-[#2b8fd9] via-tg-link to-[#155fa8] bg-clip-text text-transparent">
+          NEW
+        </span>
+        <span className="text-[#202124]">LINK</span>
+      </h1>
+    </header>
+  );
+}
 
 export function HomePage() {
   const { webApp, isLocalBrowser } = useTelegram();
@@ -14,29 +34,63 @@ export function HomePage() {
   const { recommendedIds, load: loadRecommended, recommend } = useMyRecommendations();
   const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
-  const [category, setCategory] = useState('');
   const [query, setQuery] = useState('');
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [view, setView] = useState<HomeView>('promoted');
+  const [promotedChannels, setPromotedChannels] = useState<Awaited<ReturnType<typeof getPromotedChannels>>>([]);
+  const [searchChannelsList, setSearchChannelsList] = useState<Awaited<ReturnType<typeof getPromotedChannels>>>([]);
+  const [promotedLoading, setPromotedLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const fetchChannels = useCallback(async () => {
-    setIsLoading(true);
+  const loadPromoted = useCallback(async () => {
+    setPromotedLoading(true);
     try {
-      const result = await searchChannels({
-        q: query.trim() || undefined,
-        category: category || undefined,
-      });
-      setChannels(result.items);
+      const items = await getPromotedChannels();
+      setPromotedChannels(items);
+      setView('promoted');
     } catch {
-      notify('목록을 불러오지 못했습니다.');
+      notifyUser(webApp, isLocalBrowser, 'Promoted 목록을 불러오지 못했습니다.');
+      setPromotedChannels([]);
     } finally {
-      setIsLoading(false);
+      setPromotedLoading(false);
     }
-  }, [category, query]);
+  }, [webApp, isLocalBrowser]);
+
+  const loadSearch = useCallback(
+    async (keyword: string) => {
+      setSearchLoading(true);
+      try {
+        const result = await searchChannels({ q: keyword });
+        setSearchChannelsList(result.items);
+        setView('search');
+      } catch {
+        notifyUser(webApp, isLocalBrowser, '검색 결과를 불러오지 못했습니다.');
+        setSearchChannelsList([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    },
+    [webApp, isLocalBrowser],
+  );
 
   useEffect(() => {
-    fetchChannels();
-  }, [category]);
+    void loadPromoted();
+  }, [loadPromoted]);
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    if (!value.trim() && view === 'search') {
+      void loadPromoted();
+    }
+  };
+
+  const handleSearch = () => {
+    const keyword = query.trim();
+    if (keyword) {
+      void loadSearch(keyword);
+      return;
+    }
+    void loadPromoted();
+  };
 
   const handleRecommend = async (id: string) => {
     if (recommendedIds.has(id)) {
@@ -45,7 +99,11 @@ export function HomePage() {
     }
     try {
       await recommend(id);
-      await fetchChannels();
+      if (view === 'search') {
+        await loadSearch(query.trim());
+      } else {
+        await loadPromoted();
+      }
       hapticSuccess(webApp, isLocalBrowser);
     } catch {
       notify('이미 추천했거나 추천 처리에 실패했습니다.');
@@ -53,24 +111,59 @@ export function HomePage() {
     }
   };
 
+  const handleOpenChannel = (link: string) => {
+    openTelegramChannel(webApp, isLocalBrowser, link);
+  };
+
+  if (view === 'search') {
+    return (
+      <div className="flex min-h-[calc(100dvh-68px)] flex-col">
+        <div className="sticky top-0 z-10 border-b border-black/[0.04] bg-tg-bg/95 px-4 pb-3 pt-4 backdrop-blur-md">
+          <HomeLogo compact />
+          <SearchBar
+            value={query}
+            onChange={handleQueryChange}
+            onSearch={handleSearch}
+            isLoading={searchLoading}
+            variant="google"
+            className="mt-2 max-w-none px-0"
+          />
+        </div>
+
+        <ChannelList
+          channels={searchChannelsList}
+          isLoading={searchLoading}
+          recommendedIds={recommendedIds}
+          categoryEmojis={searchCategories}
+          onRecommend={handleRecommend}
+          sectionTitle="검색 결과"
+          emptyMessage="검색 결과가 없습니다."
+        />
+      </div>
+    );
+  }
+
   return (
-    <>
-      <header className="flex items-center gap-1.5 px-4 pb-1 pt-5">
-        <h1 className="text-[22px] font-bold tracking-tight text-tg-text">NEWLINK</h1>
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-tg-link text-[11px] font-bold text-white">✓</span>
-      </header>
+    <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-white">
+      <div className="flex flex-1 flex-col items-center px-6 pb-12 pt-[15vh]">
+        <HomeLogo />
 
-      <SearchBar value={query} onChange={setQuery} onSearch={fetchChannels} isLoading={isLoading} />
+        <SearchBar
+          value={query}
+          onChange={handleQueryChange}
+          onSearch={handleSearch}
+          isLoading={searchLoading}
+          variant="google"
+          className="mt-9 w-full"
+        />
 
-      <CategoryChips categories={searchCategories} selected={category} onSelect={setCategory} />
-
-      <ChannelList
-        channels={channels}
-        isLoading={isLoading}
-        recommendedIds={recommendedIds}
-        categoryEmojis={searchCategories}
-        onRecommend={handleRecommend}
-      />
-    </>
+        <PromotedShortcuts
+          channels={promotedChannels}
+          categoryEmojis={searchCategories}
+          isLoading={promotedLoading}
+          onOpen={handleOpenChannel}
+        />
+      </div>
+    </div>
   );
 }

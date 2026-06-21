@@ -27,8 +27,14 @@
       "name": "쇼핑",
       "emoji": "🛒",
       "channels": [
+        "https://t.me/hotdeal_kr",
+        "https://t.me/jirum",
+        "https://t.me/saledoctors",
+        "https://t.me/ruliweb_hotdeal",
         "https://t.me/dodosneaker",
-        "https://t.me/realcurator"
+        "https://t.me/HotDeal_Alerts",
+        "https://t.me/community_hotdeal",
+        "https://t.me/coupang_dealsbot"
       ]
     },
     {
@@ -50,7 +56,8 @@
       "name": "기타",
       "emoji": "📁",
       "channels": [
-        "https://t.me/budongsanjob"
+        "https://t.me/budongsanjob",
+        "https://t.me/realcurator"
       ]
     }
   ]

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getRankingCategories, getRankingChannels, getRankingStatus } from '../api/ranking';
-import { CategoryChips } from '../components/CategoryChips';
+import { RankingCategoryPicker } from '../components/RankingCategoryPicker';
 import { RankingChannelCard } from '../components/RankingChannelCard';
 import { openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import type { RankingCategoryItem, RankingChannel } from '../types/ranking';
@@ -12,23 +12,18 @@ export function RankingPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState<RankingCategoryItem[]>([]);
   const [channels, setChannels] = useState<RankingChannel[]>([]);
-  const [sourceLabel, setSourceLabel] = useState('텔레그램 · 구독자 순');
+  const [sourceLabel, setSourceLabel] = useState('텔레그램 인기 채널 · 구독자 순');
+  const [sourceHint, setSourceHint] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const chipCategories = categories.map((category) => ({
-    id: category.id,
-    label: category.id === 'all' ? category.name : `${category.name} (${category.count})`,
-    emoji: category.emoji,
-    iconUrl: null as string | null,
-  }));
 
   useEffect(() => {
     setCategoriesLoading(true);
     Promise.all([getRankingStatus(), getRankingCategories()])
       .then(([status, items]) => {
         setSourceLabel(status.label);
+        setSourceHint(status.hint ?? '');
         setCategories(items);
       })
       .catch(() => setCategories([]))
@@ -74,24 +69,25 @@ export function RankingPage() {
 
   return (
     <div className="flex min-h-[calc(100dvh-68px)] flex-col">
-      <header className="bg-tg-bg px-4 pb-1 pt-5">
+      <header className="bg-tg-bg px-4 pb-2 pt-5">
         <h1 className="text-[22px] font-bold tracking-tight text-tg-text">랭킹</h1>
         <p className="mt-1 text-[13px] text-tg-hint">{sourceLabel}</p>
+        {sourceHint && <p className="mt-1 text-[11px] leading-snug text-tg-hint/80">{sourceHint}</p>}
       </header>
 
       {categoriesLoading ? (
-        <div className="flex h-14 items-center px-4">
-          <div className="h-10 w-full animate-pulse rounded-xl bg-tg-secondary" />
+        <div className="border-b border-black/[0.06] bg-white px-4 py-3">
+          <div className="h-16 animate-pulse rounded-2xl bg-tg-secondary" />
         </div>
       ) : categories.length === 0 ? (
         <p className="px-4 py-3 text-sm text-tg-hint">
           랭킹 카테고리가 없습니다. backend/data/ranking-seeds.json 을 확인해 주세요.
         </p>
       ) : (
-        <CategoryChips
-          categories={chipCategories}
-          selected={selectedCategory === 'all' ? '' : selectedCategory}
-          onSelect={(id) => setSelectedCategory(id || 'all')}
+        <RankingCategoryPicker
+          categories={categories}
+          selected={selectedCategory}
+          onSelect={setSelectedCategory}
         />
       )}
 
