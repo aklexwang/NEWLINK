@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import type { Channel } from '../types/channel';
 import { linkTypeBadgeClass, linkTypeLabel } from '../utils/linkType';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 import { CategoryIcon } from './CategoryIcon';
 
 interface ChannelCardProps {
@@ -12,14 +14,22 @@ interface ChannelCardProps {
 
 export function ChannelCard({ channel, emoji, iconUrl, recommended, onRecommend }: ChannelCardProps) {
   const promoted = channel.isPromoted;
-  const showChannelAvatar = Boolean(channel.avatarApproved && channel.avatarUrl);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const avatarSrc = resolveMediaUrl(channel.avatarUrl);
+  const showChannelAvatar = Boolean(channel.avatarApproved && avatarSrc && !avatarFailed);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [channel.id, avatarSrc]);
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       {showChannelAvatar ? (
         <img
-          src={channel.avatarUrl!}
+          src={avatarSrc}
           alt=""
+          referrerPolicy="no-referrer"
+          onError={() => setAvatarFailed(true)}
           className={`h-12 w-12 shrink-0 rounded-full object-cover ${
             promoted ? 'ring-2 ring-amber-300' : 'ring-1 ring-black/5'
           }`}

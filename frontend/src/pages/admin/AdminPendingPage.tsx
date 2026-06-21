@@ -8,6 +8,7 @@ import {
 import { ChannelPreviewModal } from '../../components/ChannelPreviewModal';
 import { ReporterTonPanel } from '../../components/ReporterTonPanel';
 import type { ChannelPreview, PendingChannel } from '../../types/channel';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 export function AdminPendingPage() {
   const [pending, setPending] = useState<PendingChannel[]>([]);
@@ -93,7 +94,12 @@ export function AdminPendingPage() {
               <article key={item.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
                 <div className="mb-3 flex items-start gap-3">
                   {item.avatarUrl ? (
-                    <img src={item.avatarUrl} alt="" className="h-14 w-14 shrink-0 rounded-full object-cover ring-1 ring-black/5" />
+                    <img
+                      src={resolveMediaUrl(item.avatarUrl)}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      className="h-14 w-14 shrink-0 rounded-full object-cover ring-1 ring-black/5"
+                    />
                   ) : (
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl">📢</div>
                   )}

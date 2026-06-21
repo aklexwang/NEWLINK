@@ -1,4 +1,5 @@
 import type { ChannelPreview } from '../types/channel';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 
 interface ChannelPreviewModalProps {
   preview: ChannelPreview | null;
@@ -26,8 +27,9 @@ export function ChannelPreviewModal({ preview, loading, onClose, onApprove }: Ch
             <div className="flex flex-col items-center px-6 pb-4 pt-8 text-center">
               {preview.avatarUrl ? (
                 <img
-                  src={preview.avatarUrl}
+                  src={resolveMediaUrl(preview.avatarUrl)}
                   alt=""
+                  referrerPolicy="no-referrer"
                   className="h-24 w-24 rounded-full object-cover ring-2 ring-white/10"
                 />
               ) : (

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 export function AdminTableShell({ children }: { children: ReactNode }) {
   return (
@@ -41,7 +42,14 @@ export function AdminTable({ children }: { children: ReactNode }) {
 
 export function ChannelAvatar({ channel }: { channel: { avatarUrl?: string | null; avatarApproved?: boolean; linkType?: string; title: string } }) {
   if (channel.avatarUrl && channel.avatarApproved) {
-    return <img src={channel.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover ring-1 ring-black/5" />;
+    return (
+      <img
+        src={resolveMediaUrl(channel.avatarUrl)}
+        alt=""
+        referrerPolicy="no-referrer"
+        className="h-9 w-9 rounded-full object-cover ring-1 ring-black/5"
+      />
+    );
   }
   return (
     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm">
