@@ -5,6 +5,7 @@ import {
   deleteAdminChannel,
   getAdminCategories,
   getAdminChannels,
+  promoteChannel,
   rejectChannel,
   updateAdminChannel,
 } from '../../api/admin';
@@ -23,6 +24,13 @@ import {
 import type { Channel, LinkType } from '../../types/channel';
 import type { CategoryItem } from '../../types/categoryItem';
 import { linkTypeBadgeClass, linkTypeLabel } from '../../utils/linkType';
+import {
+  dateInputToPromotedUntil,
+  defaultPromoteDateInput,
+  formatPromotedUntil,
+  isPromotionActive,
+  toDateInputValue,
+} from '../../utils/promotion';
 
 type StatusFilter = '' | 'pending' | 'active' | 'rejected';
 
@@ -68,6 +76,7 @@ export function AdminLinksManagePage({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [promoteDates, setPromoteDates] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,6 +94,15 @@ export function AdminLinksManagePage({
       setChannels(items);
       setCountSource(countItems);
       setCategories(categoryItems.filter((c) => c.isActive));
+      setPromoteDates((prev) => {
+        const next = { ...prev };
+        for (const item of items) {
+          if (next[item.id] === undefined) {
+            next[item.id] = toDateInputValue(item.promotedUntil) || defaultPromoteDateInput();
+          }
+        }
+        return next;
+      });
       setMessage('');
     } catch {
       setMessage(`${itemLabel} 목록을 불러오지 못했습니다.`);
@@ -142,8 +160,35 @@ export function AdminLinksManagePage({
     await load();
   };
 
+  const handleAddToAds = async (channel: Channel, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (channel.status !== 'active') {
+      setMessage('승인된 항목만 광고로 등록할 수 있습니다.');
+      return;
+    }
+    const date = promoteDates[channel.id] || defaultPromoteDateInput();
+    try {
+      await promoteChannel(channel.id, dateInputToPromotedUntil(date));
+      setMessage(`"${channel.title}"을(를) 광고로 등록했습니다.`);
+      await load();
+    } catch {
+      setMessage('광고 추가에 실패했습니다.');
+    }
+  };
+
+  const handleRemoveFromAds = async (channel: Channel, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      await updateAdminChannel(channel.id, { isPromoted: false, promotedUntil: null });
+      setMessage('광고 노출을 해제했습니다.');
+      await load();
+    } catch {
+      setMessage('광고 해제에 실패했습니다.');
+    }
+  };
+
   const categoryOptions = categories.map((c) => c.name);
-  const colCount = showTypeColumn ? 8 : 7;
+  const colCount = (showTypeColumn ? 8 : 7) + 1;
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { '': countSource.length };
@@ -243,6 +288,7 @@ export function AdminLinksManagePage({
                   <AdminTh className="w-16">상태</AdminTh>
                   <AdminTh className="w-12">👍</AdminTh>
                   <AdminTh className="min-w-[100px]">광고 의뢰</AdminTh>
+                  <AdminTh className="w-24">광고</AdminTh>
                   <AdminTh className="w-10" />
                 </tr>
               </thead>
@@ -278,6 +324,27 @@ export function AdminLinksManagePage({
                         <AdminTd><span className="text-xs tabular-nums">{channel.recommendCount}</span></AdminTd>
                         <AdminTd>
                           {channel.isPromoted ? <AdClientCells channel={channel} /> : <span className="text-xs text-slate-400">-</span>}
+                        </AdminTd>
+                        <AdminTd>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            {channel.status === 'active' ? (
+                              isPromotionActive(channel.isPromoted, channel.promotedUntil) ? (
+                                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-700">
+                                  노출 중
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleAddToAds(channel, e)}
+                                  className="rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-purple-700"
+                                >
+                                  광고 추가
+                                </button>
+                              )
+                            ) : (
+                              <span className="text-xs text-slate-400">-</span>
+                            )}
+                          </div>
                         </AdminTd>
                         <AdminTd>
                           <span className={`inline-block text-slate-400 transition ${expanded ? 'rotate-180' : ''}`}>▼</span>
@@ -345,6 +412,43 @@ export function AdminLinksManagePage({
                                   ))}
                                 </select>
                               </div>
+
+                              {channel.status === 'active' && (
+                                <div className="rounded-xl bg-purple-50 px-3 py-3 ring-1 ring-purple-100">
+                                  <p className="text-xs font-semibold text-purple-900">홈 Promoted 광고</p>
+                                  {isPromotionActive(channel.isPromoted, channel.promotedUntil) && channel.promotedUntil && (
+                                    <p className="mt-1 text-[11px] text-purple-700">
+                                      노출 종료: {formatPromotedUntil(channel.promotedUntil)}
+                                    </p>
+                                  )}
+                                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                                    <input
+                                      type="date"
+                                      value={promoteDates[channel.id] ?? defaultPromoteDateInput()}
+                                      onChange={(e) =>
+                                        setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))
+                                      }
+                                      className="rounded-lg bg-white px-3 py-1.5 text-xs ring-1 ring-black/10"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleAddToAds(channel, e)}
+                                      className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700"
+                                    >
+                                      {channel.isPromoted ? '광고 기간 변경' : '광고 추가하기'}
+                                    </button>
+                                    {channel.isPromoted && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => handleRemoveFromAds(channel, e)}
+                                        className="rounded-lg bg-white px-3 py-1.5 text-xs ring-1 ring-black/10"
+                                      >
+                                        광고 해제
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
 
                               <div className="flex flex-wrap gap-2">
                                 {channel.status === 'pending' && (
