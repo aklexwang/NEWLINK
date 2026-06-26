@@ -1,9 +1,14 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AppLayout } from './components/AppLayout';
+import { AdminAutoManagePage } from './pages/admin/AdminAutoManagePage';
 import { AdminAdsManagePage } from './pages/admin/AdminAdsManagePage';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
+import { AdminChannelRegisterPage } from './pages/admin/AdminChannelRegisterPage';
+import { AdminCategoryLinksPage } from './pages/admin/AdminCategoryLinksPage';
 import { AdminChannelsManagePage } from './pages/admin/AdminChannelsManagePage';
+import { AdminGroupRegisterPage } from './pages/admin/AdminGroupRegisterPage';
+import { AdminGroupsManagePage } from './pages/admin/AdminGroupsManagePage';
 import { AdminPendingPage } from './pages/admin/AdminPendingPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { HomePage } from './pages/HomePage';
@@ -18,7 +23,13 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="pending" replace />} />
           <Route path="pending" element={<AdminPendingPage />} />
+          <Route path="auto-manage" element={<AdminAutoManagePage />} />
+          <Route path="by-category" element={<AdminCategoryLinksPage />} />
+          <Route path="register" element={<Navigate to="channels/register" replace />} />
+          <Route path="channels/register" element={<AdminChannelRegisterPage />} />
           <Route path="channels" element={<AdminChannelsManagePage />} />
+          <Route path="groups/register" element={<AdminGroupRegisterPage />} />
+          <Route path="groups" element={<AdminGroupsManagePage />} />
           <Route path="ads" element={<AdminAdsManagePage />} />
           <Route path="categories" element={<AdminCategoriesPage />} />
           <Route path="users" element={<AdminUsersPage />} />

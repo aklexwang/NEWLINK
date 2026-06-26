@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Channel } from '../types/channel';
 import { linkTypeLabel } from '../utils/linkType';
-import { resolveMediaUrl } from '../utils/mediaUrl';
+import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { CategoryIcon } from './CategoryIcon';
 
 interface CategoryChip {
@@ -62,13 +62,14 @@ function ShortcutItem({
   onOpen: (link: string) => void;
 }) {
   const meta = getCategoryMeta(categoryEmojis, channel.category);
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  const avatarSrc = resolveMediaUrl(channel.avatarUrl);
-  const showAvatar = Boolean(channel.avatarApproved && avatarSrc && !avatarFailed);
+  const avatarSources = useMemo(() => getChannelAvatarSources(channel), [channel]);
+  const [sourceIndex, setSourceIndex] = useState(0);
 
   useEffect(() => {
-    setAvatarFailed(false);
-  }, [channel.id, avatarSrc]);
+    setSourceIndex(0);
+  }, [channel.id, avatarSources]);
+
+  const currentSrc = avatarSources[sourceIndex];
 
   return (
     <button
@@ -77,12 +78,16 @@ function ShortcutItem({
       className="group mx-auto flex w-[88px] flex-col items-center gap-3 active:scale-[0.97]"
     >
       <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f1f3f4] transition group-hover:bg-[#e8eaed]">
-        {showAvatar ? (
+        {currentSrc ? (
           <img
-            src={avatarSrc}
+            src={currentSrc}
             alt=""
             referrerPolicy="no-referrer"
-            onError={() => setAvatarFailed(true)}
+            onError={() => {
+              if (sourceIndex + 1 < avatarSources.length) {
+                setSourceIndex((index) => index + 1);
+              }
+            }}
             className="h-full w-full object-cover"
           />
         ) : (

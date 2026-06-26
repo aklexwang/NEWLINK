@@ -39,9 +39,21 @@ export function AdminSidebar() {
             </span>
           )}
         </NavLink>
+        <NavLink to="/admin/auto-manage" className={linkClass}>
+          <span className="text-base">🔄</span>
+          <span>자동관리</span>
+        </NavLink>
+        <NavLink to="/admin/by-category" className={linkClass}>
+          <span className="text-base">📁</span>
+          <span>카테고리별</span>
+        </NavLink>
         <NavLink to="/admin/channels" className={linkClass}>
           <span className="text-base">📢</span>
           <span>채널 관리</span>
+        </NavLink>
+        <NavLink to="/admin/groups" className={linkClass}>
+          <span className="text-base">👥</span>
+          <span>그룹 관리</span>
         </NavLink>
         <NavLink to="/admin/ads" className={linkClass}>
           <span className="text-base">⭐</span>
@@ -57,8 +69,8 @@ export function AdminSidebar() {
           <span>회원 관리</span>
         </NavLink>
         <NavLink to="/admin/categories" className={linkClass}>
-          <span className="text-base">📁</span>
-          <span>카테고리</span>
+          <span className="text-base">⚙️</span>
+          <span>카테고리 설정</span>
         </NavLink>
       </nav>
 

@@ -46,10 +46,44 @@ export async function getAdminChannels(params?: {
   status?: string;
   q?: string;
   category?: string;
+  linkType?: 'channel' | 'group';
 }): Promise<Channel[]> {
   const { data } = await apiClient.get<Channel[]>('/admin/channels/all', {
     headers: devAdminHeaders,
     params,
+  });
+  return data;
+}
+
+export interface AdminChannelLookup {
+  link: string;
+  title: string;
+  description: string;
+  avatarUrl: string | null;
+  memberCount: string | null;
+  alreadyRegistered: boolean;
+  existingChannelId: string | null;
+  existingStatus: string | null;
+}
+
+export async function lookupAdminChannel(link: string): Promise<AdminChannelLookup> {
+  const { data } = await apiClient.get<AdminChannelLookup>('/admin/channels/lookup', {
+    headers: devAdminHeaders,
+    params: { link },
+  });
+  return data;
+}
+
+export async function registerAdminChannel(payload: {
+  title: string;
+  link: string;
+  linkType: 'channel' | 'group';
+  category: string;
+  description?: string;
+  isPromoted?: boolean;
+}): Promise<Channel> {
+  const { data } = await apiClient.post<Channel>('/admin/channels/register', payload, {
+    headers: devAdminHeaders,
   });
   return data;
 }
@@ -132,21 +166,30 @@ export async function createCategory(payload: {
   return data;
 }
 
+async function postFormData<T>(url: string, formData: FormData): Promise<T> {
+  const { data } = await apiClient.post<T>(url, formData, {
+    headers: devAdminHeaders,
+    transformRequest: (payload, headers) => {
+      if (payload instanceof FormData) {
+        delete headers['Content-Type'];
+      }
+      return payload;
+    },
+  });
+  return data;
+}
+
 export async function uploadCategoryIcon(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('icon', file);
-  const { data } = await apiClient.post<{ iconUrl: string }>('/admin/categories/upload-icon', formData, {
-    headers: devAdminHeaders,
-  });
+  const data = await postFormData<{ iconUrl: string }>('/admin/categories/upload-icon', formData);
   return data.iconUrl;
 }
 
 export async function uploadChannelAvatar(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('icon', file);
-  const { data } = await apiClient.post<{ avatarUrl: string }>('/admin/channels/upload-avatar', formData, {
-    headers: devAdminHeaders,
-  });
+  const data = await postFormData<{ avatarUrl: string }>('/admin/channels/upload-avatar', formData);
   return data.avatarUrl;
 }
 
@@ -164,5 +207,91 @@ export async function deleteCategory(id: string) {
   const { data } = await apiClient.delete(`/admin/categories/${id}`, {
     headers: devAdminHeaders,
   });
+  return data;
+}
+
+export interface AutoManageStatus {
+  sources: string[];
+  tgstatConfigured: boolean;
+  label: string;
+  hint: string;
+}
+
+export interface ImportCandidate {
+  id: string;
+  link: string;
+  title: string;
+  category: string;
+  linkType: 'channel' | 'group';
+  participantsCount: number;
+  avatarUrl: string | null;
+  source: string;
+  status: 'pending' | 'published' | 'skipped';
+  publishedChannelId: string | null;
+  fetchedAt: string;
+  publishedAt: string | null;
+  alreadyOnMemberPage: boolean;
+}
+
+export interface AutoManageCategory {
+  id: string;
+  name: string;
+  emoji: string;
+  count: number;
+}
+
+export async function getAutoManageStatus(): Promise<AutoManageStatus> {
+  const { data } = await apiClient.get<AutoManageStatus>('/admin/auto-manage/status', {
+    headers: devAdminHeaders,
+  });
+  return data;
+}
+
+export async function getAutoManageCategories(): Promise<AutoManageCategory[]> {
+  const { data } = await apiClient.get<AutoManageCategory[]>('/admin/auto-manage/categories', {
+    headers: devAdminHeaders,
+  });
+  return data;
+}
+
+export async function syncAutoManageCandidates(category?: string) {
+  const { data } = await apiClient.post<{ created: number; updated: number; total: number }>(
+    '/admin/auto-manage/sync',
+    {},
+    {
+      headers: devAdminHeaders,
+      params: category ? { category } : undefined,
+    },
+  );
+  return data;
+}
+
+export async function getAutoManageCandidates(params?: {
+  status?: string;
+  category?: string;
+  source?: string;
+}): Promise<ImportCandidate[]> {
+  const { data } = await apiClient.get<ImportCandidate[]>('/admin/auto-manage/candidates', {
+    headers: devAdminHeaders,
+    params,
+  });
+  return data;
+}
+
+export async function publishAutoManageCandidates(ids: string[]) {
+  const { data } = await apiClient.post<{ id: string; ok: boolean; message?: string }[]>(
+    '/admin/auto-manage/publish',
+    { ids },
+    { headers: devAdminHeaders },
+  );
+  return data;
+}
+
+export async function skipAutoManageCandidates(ids: string[]) {
+  const { data } = await apiClient.post<{ ok: boolean; count: number }>(
+    '/admin/auto-manage/skip',
+    { ids },
+    { headers: devAdminHeaders },
+  );
   return data;
 }

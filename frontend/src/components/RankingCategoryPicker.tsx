@@ -25,67 +25,55 @@ export function RankingCategoryPicker({
     return categories.filter((category) => category.name.toLowerCase().includes(keyword));
   }, [categories, query]);
 
-  const handleSelect = (id: string) => {
-    onSelect(id);
+  const close = () => {
     setOpen(false);
     setQuery('');
+  };
+
+  const handleSelect = (id: string) => {
+    onSelect(id);
+    close();
   };
 
   if (!selectedCategory) return null;
 
   return (
-    <>
-      <div className="border-b border-black/[0.06] bg-white px-4 py-3">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-3 rounded-2xl border border-black/[0.06] bg-tg-bg px-3.5 py-3 text-left active:scale-[0.99]"
+    <div className="relative z-30 border-b border-black/[0.06] bg-white px-4 py-3">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 rounded-2xl border border-black/[0.06] bg-tg-bg px-3.5 py-3 text-left active:scale-[0.99]"
+      >
+        <CategoryIcon emoji={selectedCategory.emoji} iconUrl={selectedCategory.iconUrl} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] text-tg-hint">카테고리</p>
+          <p className="truncate text-[15px] font-semibold text-tg-text">
+            {selectedCategory.name}
+            {selectedCategory.id !== 'all' && (
+              <span className="ml-1 text-[13px] font-normal text-tg-hint">
+                · {selectedCategory.count}개
+              </span>
+            )}
+          </p>
+        </div>
+        <span
+          className={`shrink-0 rounded-full bg-tg-open-bg px-3 py-1.5 text-xs font-medium text-tg-link transition-transform ${open ? 'rotate-180' : ''}`}
         >
-          <CategoryIcon emoji={selectedCategory.emoji} size="md" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] text-tg-hint">카테고리</p>
-            <p className="truncate text-[15px] font-semibold text-tg-text">
-              {selectedCategory.name}
-              {selectedCategory.id !== 'all' && (
-                <span className="ml-1 text-[13px] font-normal text-tg-hint">
-                  · {selectedCategory.count}개
-                </span>
-              )}
-            </p>
-          </div>
-          <span className="shrink-0 rounded-full bg-tg-open-bg px-3 py-1.5 text-xs font-medium text-tg-link">
-            변경
-          </span>
-        </button>
-      </div>
+          ▼
+        </span>
+      </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 mx-auto max-w-lg">
+        <>
           <button
             type="button"
             aria-label="닫기"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => {
-              setOpen(false);
-              setQuery('');
-            }}
+            className="fixed inset-0 z-40 bg-black/25"
+            onClick={close}
           />
-          <div className="absolute inset-x-0 bottom-0 flex max-h-[78dvh] flex-col rounded-t-3xl bg-tg-bg shadow-2xl">
-            <div className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3">
-              <p className="text-[17px] font-bold text-tg-text">카테고리 선택</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  setQuery('');
-                }}
-                className="rounded-full bg-tg-secondary px-3 py-1.5 text-sm text-tg-text"
-              >
-                닫기
-              </button>
-            </div>
-
-            <div className="px-4 py-3">
+          <div className="absolute inset-x-4 top-[calc(100%+4px)] z-50 flex max-h-[min(70dvh,520px)] flex-col overflow-hidden rounded-2xl border border-black/[0.08] bg-tg-bg shadow-2xl animate-[dropdown-down_0.2s_ease-out]">
+            <div className="border-b border-black/[0.06] px-4 py-3">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -94,11 +82,11 @@ export function RankingCategoryPicker({
               />
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
               {filtered.length === 0 ? (
                 <p className="py-8 text-center text-sm text-tg-hint">검색 결과가 없습니다.</p>
               ) : (
-                <div className="grid grid-cols-3 gap-2.5 pb-2">
+                <div className="grid grid-cols-3 gap-2.5">
                   {filtered.map((category) => {
                     const active = category.id === selected;
                     return (
@@ -112,7 +100,7 @@ export function RankingCategoryPicker({
                             : 'border-black/[0.06] bg-white'
                         }`}
                       >
-                        <CategoryIcon emoji={category.emoji} size="md" />
+                        <CategoryIcon emoji={category.emoji} iconUrl={category.iconUrl} size="md" />
                         <div className="min-w-0 w-full">
                           <p
                             className={`truncate text-xs font-semibold ${
@@ -130,8 +118,8 @@ export function RankingCategoryPicker({
               )}
             </div>
           </div>
-        </div>
+        </>
       )}
-    </>
+    </div>
   );
 }

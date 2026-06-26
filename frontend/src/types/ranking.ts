@@ -10,18 +10,19 @@ export interface RankingChannel {
   recommendCount: number;
   category: string;
   linkType: LinkType;
-  source?: 'telegram' | 'tgstat';
+  source?: 'database' | 'telegram' | 'tgstat';
 }
 
 export interface RankingCategoryItem {
   id: string;
   name: string;
   emoji: string;
+  iconUrl?: string | null;
   count: number;
 }
 
 export interface RankingStatus {
-  source: 'telegram' | 'tgstat';
+  source: 'database' | 'tgstat';
   label: string;
   hint?: string;
 }

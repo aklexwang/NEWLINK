@@ -30,8 +30,20 @@ export function CategoryIconPicker({
     try {
       const url = await uploadCategoryIcon(file);
       onIconUrlChange(url);
-    } catch {
-      setError('이미지 업로드에 실패했습니다.');
+    } catch (err: unknown) {
+      const message =
+        err &&
+        typeof err === 'object' &&
+        'response' in err &&
+        err.response &&
+        typeof err.response === 'object' &&
+        'data' in err.response &&
+        err.response.data &&
+        typeof err.response.data === 'object' &&
+        'message' in err.response.data
+          ? String(err.response.data.message)
+          : '이미지 업로드에 실패했습니다. (512KB 이하 PNG/JPG 등)';
+      setError(message);
     } finally {
       setUploading(false);
     }

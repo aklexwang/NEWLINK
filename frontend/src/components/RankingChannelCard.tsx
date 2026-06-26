@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useState } from 'react';
 import type { LinkType } from '../types/channel';
+import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { linkTypeLabel } from '../utils/linkType';
 
 function formatCount(value: number): string {
@@ -10,6 +12,7 @@ function formatCount(value: number): string {
 interface RankingChannelCardProps {
   rank: number;
   title: string;
+  link: string;
   avatarUrl?: string | null;
   participantsCount: number;
   recommendCount: number;
@@ -21,6 +24,7 @@ interface RankingChannelCardProps {
 export function RankingChannelCard({
   rank,
   title,
+  link,
   avatarUrl,
   participantsCount,
   recommendCount,
@@ -34,6 +38,18 @@ export function RankingChannelCard({
       ? `구독자 ${formatCount(participantsCount)}`
       : `추천 ${recommendCount.toLocaleString('ko-KR')}`;
 
+  const avatarSources = useMemo(
+    () => getChannelAvatarSources({ avatarUrl, link }),
+    [avatarUrl, link],
+  );
+  const [sourceIndex, setSourceIndex] = useState(0);
+
+  useEffect(() => {
+    setSourceIndex(0);
+  }, [link, avatarUrl, avatarSources]);
+
+  const currentSrc = avatarSources[sourceIndex];
+
   return (
     <button
       type="button"
@@ -45,8 +61,18 @@ export function RankingChannelCard({
       </div>
 
       <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-tg-secondary ring-1 ring-black/5">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+        {currentSrc ? (
+          <img
+            src={currentSrc}
+            alt=""
+            referrerPolicy="no-referrer"
+            onError={() => {
+              if (sourceIndex + 1 < avatarSources.length) {
+                setSourceIndex((index) => index + 1);
+              }
+            }}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <span className="text-xl">{linkType === 'group' ? '👥' : '📢'}</span>
         )}

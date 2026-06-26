@@ -67,6 +67,119 @@ export class ChannelsService implements OnModuleInit {
     return saved;
   }
 
+  normalizeTelegramLink(link: string): string {
+    const trimmed = link.trim();
+    if (trimmed.startsWith('http')) return trimmed.replace(/\/$/, '');
+    if (trimmed.startsWith('t.me/')) return `https://${trimmed.replace(/\/$/, '')}`;
+    if (trimmed.startsWith('@')) return `https://t.me/${trimmed.slice(1)}`;
+    if (trimmed.startsWith('+')) return `https://t.me/${trimmed}`;
+    return `https://t.me/${trimmed}`;
+  }
+
+  private linkKey(link: string): string {
+    return this.normalizeTelegramLink(link).toLowerCase();
+  }
+
+  private shouldReplaceDuplicate(existing: Channel, candidate: Channel): boolean {
+    if (candidate.isPromoted !== existing.isPromoted) return candidate.isPromoted;
+    if (candidate.recommendCount !== existing.recommendCount) {
+      return candidate.recommendCount > existing.recommendCount;
+    }
+    if ((candidate.memberCount ?? 0) !== (existing.memberCount ?? 0)) {
+      return (candidate.memberCount ?? 0) > (existing.memberCount ?? 0);
+    }
+    if (candidate.avatarApproved !== existing.avatarApproved) return candidate.avatarApproved;
+    return new Date(candidate.updatedAt).getTime() > new Date(existing.updatedAt).getTime();
+  }
+
+  private dedupeByLink(channels: Channel[]): Channel[] {
+    const byLink = new Map<string, Channel>();
+    for (const channel of channels) {
+      const key = this.linkKey(channel.link);
+      const existing = byLink.get(key);
+      if (!existing || this.shouldReplaceDuplicate(existing, channel)) {
+        byLink.set(key, channel);
+      }
+    }
+    return [...byLink.values()];
+  }
+
+  async findByLink(link: string): Promise<Channel | null> {
+    const normalized = this.normalizeTelegramLink(link);
+    const compact = normalized.toLowerCase().replace(/\/$/, '');
+    return this.channelRepository
+      .createQueryBuilder('channel')
+      .where('LOWER(REPLACE(channel.link, \'/\', \'\')) = :compact', {
+        compact: compact.replace(/\//g, ''),
+      })
+      .getOne();
+  }
+
+  async lookupTelegramLink(rawLink: string) {
+    if (!rawLink?.trim()) {
+      throw new BadRequestException('링크를 입력해 주세요.');
+    }
+
+    const link = this.normalizeTelegramLink(rawLink);
+    if (!/^https:\/\/t\.me\/.+/i.test(link)) {
+      throw new BadRequestException('t.me 링크 또는 @username을 입력해 주세요.');
+    }
+
+    const preview = await this.telegramPreviewService.fetchPreview(link);
+    const existing = await this.findByLink(link);
+
+    return {
+      link,
+      title: preview.title ?? '',
+      description: preview.description ?? '',
+      avatarUrl: preview.avatarUrl,
+      memberCount: preview.memberCount,
+      alreadyRegistered: Boolean(existing),
+      existingChannelId: existing?.id ?? null,
+      existingStatus: existing?.status ?? null,
+    };
+  }
+
+  async createByAdmin(data: {
+    title: string;
+    link: string;
+    linkType: LinkType;
+    category: string;
+    description?: string;
+    isPromoted?: boolean;
+  }): Promise<Channel> {
+    const link = this.normalizeTelegramLink(data.link);
+    const existing = await this.findByLink(link);
+    if (existing) {
+      throw new ConflictException('이미 등록된 채널/그룹 링크입니다.');
+    }
+
+    const channel = this.channelRepository.create({
+      title: data.title.trim(),
+      link,
+      linkType: data.linkType,
+      category: data.category,
+      description: (data.description?.trim() || data.title.trim()).slice(0, 2000),
+      status: ChannelStatus.ACTIVE,
+      avatarApproved: false,
+      submittedBy: null,
+    });
+
+    let saved = await this.channelRepository.save(channel);
+
+    try {
+      saved = await this.importAvatarFromTelegram(saved.id);
+    } catch {
+      saved = await this.refreshPreview(saved.id);
+    }
+
+    if (data.isPromoted) {
+      saved = await this.promote(saved.id, { durationDays: 7 });
+    }
+
+    return saved;
+  }
+
   async refreshPreview(id: string) {
     const channel = await this.findById(id);
     const preview = await this.telegramPreviewService.fetchPreview(channel.link);
@@ -176,9 +289,10 @@ export class ChannelsService implements OnModuleInit {
       );
     }
 
-    const [allItems, total] = await qb.getManyAndCount();
+    const [allItems] = await qb.getManyAndCount();
     const now = new Date();
-    const activeItems = allItems
+    const deduped = this.dedupeByLink(allItems);
+    const activeItems = deduped
       .map((item) => ({
         ...item,
         isPromoted: item.isPromoted && (!item.promotedUntil || item.promotedUntil > now),
@@ -190,12 +304,18 @@ export class ChannelsService implements OnModuleInit {
       })
       .slice(skip, skip + limit);
 
-    return { items: activeItems, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      items: activeItems,
+      total: deduped.length,
+      page,
+      limit,
+      totalPages: Math.ceil(deduped.length / limit),
+    };
   }
 
   async findActivePromoted(limit = 50): Promise<Channel[]> {
     const now = new Date();
-    return this.channelRepository
+    const channels = await this.channelRepository
       .createQueryBuilder('channel')
       .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
       .andWhere('channel.is_promoted = :promoted', { promoted: true })
@@ -204,6 +324,52 @@ export class ChannelsService implements OnModuleInit {
       .addOrderBy('channel.recommend_count', 'DESC')
       .limit(limit)
       .getMany();
+
+    return Promise.all(
+      this.dedupeByLink(channels).map((channel) => this.ensureMirroredAvatar(channel)),
+    );
+  }
+
+  private needsAvatarRefresh(channel: Channel): boolean {
+    return this.isStaleAvatarUrl(channel.avatarUrl);
+  }
+
+  isStaleAvatarUrl(avatarUrl: string | null | undefined): boolean {
+    if (!avatarUrl) return true;
+    if (avatarUrl.startsWith('/api/uploads/')) return false;
+    if (avatarUrl.includes('telesco.pe')) return true;
+    if (/telegram\.org\/img\/t_logo/i.test(avatarUrl)) return true;
+    return false;
+  }
+
+  async mirrorAvatarForLink(link: string): Promise<string | null> {
+    try {
+      const preview = await this.telegramPreviewService.fetchPreview(link);
+      if (!preview.avatarUrl || /telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)) {
+        return null;
+      }
+      return await this.mirrorAvatarImage(preview.avatarUrl);
+    } catch {
+      return null;
+    }
+  }
+
+  private async ensureMirroredAvatar(channel: Channel): Promise<Channel> {
+    if (!this.needsAvatarRefresh(channel)) {
+      return channel;
+    }
+
+    try {
+      const preview = await this.telegramPreviewService.fetchPreview(channel.link);
+      if (!preview.avatarUrl || /telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)) {
+        return channel;
+      }
+      channel.avatarUrl = await this.mirrorAvatarImage(preview.avatarUrl);
+      channel.avatarApproved = true;
+      return this.channelRepository.save(channel);
+    } catch {
+      return channel;
+    }
   }
 
   async findById(id: string): Promise<Channel> {
@@ -320,10 +486,16 @@ export class ChannelsService implements OnModuleInit {
     return result;
   }
 
-  async findAllAdmin(filters: { status?: ChannelStatus; q?: string; category?: string }) {
+  async findAllAdmin(filters: {
+    status?: ChannelStatus;
+    q?: string;
+    category?: string;
+    linkType?: LinkType;
+  }) {
     const qb = this.channelRepository.createQueryBuilder('channel');
     if (filters.status) qb.andWhere('channel.status = :status', { status: filters.status });
     if (filters.category) qb.andWhere('channel.category = :category', { category: filters.category });
+    if (filters.linkType) qb.andWhere('channel.link_type = :linkType', { linkType: filters.linkType });
     if (filters.q?.trim()) {
       const keyword = `%${filters.q.trim().toLowerCase()}%`;
       qb.andWhere(
@@ -413,7 +585,7 @@ export class ChannelsService implements OnModuleInit {
       qb.andWhere('channel.category = :category', { category });
     }
 
-    const items = await qb.getMany();
+    const items = this.dedupeByLink(await qb.getMany());
     items.sort((a, b) => {
       const memberA = a.memberCount ?? 0;
       const memberB = b.memberCount ?? 0;
@@ -421,7 +593,17 @@ export class ChannelsService implements OnModuleInit {
       return b.recommendCount - a.recommendCount;
     });
 
-    return items.slice(0, normalizedLimit).map((channel) => ({
+    const slice = items.slice(0, normalizedLimit);
+    const refreshed = await Promise.all(
+      slice.map(async (channel) => {
+        if (this.needsAvatarRefresh(channel)) {
+          return this.ensureMirroredAvatar(channel);
+        }
+        return channel;
+      }),
+    );
+
+    return refreshed.map((channel) => ({
       id: channel.id,
       title: channel.title,
       username: this.extractUsername(channel.link),
@@ -435,10 +617,9 @@ export class ChannelsService implements OnModuleInit {
   }
 
   async getRankingCounts(): Promise<Record<string, number>> {
-    const channels = await this.channelRepository.find({
-      where: { status: ChannelStatus.ACTIVE },
-      select: { category: true },
-    });
+    const channels = this.dedupeByLink(
+      await this.channelRepository.find({ where: { status: ChannelStatus.ACTIVE } }),
+    );
 
     const counts: Record<string, number> = { all: channels.length };
     for (const channel of channels) {

@@ -17,12 +17,12 @@ import { diskStorage } from 'multer';
 import { existsSync, mkdirSync } from 'fs';
 import { extname, join } from 'path';
 import { randomBytes } from 'crypto';
-import { ChannelStatus } from '../channels/channel.entity';
+import { ChannelStatus, LinkType } from '../channels/channel.entity';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { ChannelsService } from '../channels/channels.service';
 import { UsersService } from '../users/users.service';
-import { ApproveChannelDto, PromoteChannelDto, UpdateChannelDto } from './dto/admin.dto';
+import { ApproveChannelDto, AdminCreateChannelDto, LookupChannelQueryDto, PromoteChannelDto, UpdateChannelDto } from './dto/admin.dto';
 
 const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']);
@@ -57,11 +57,22 @@ export class AdminController {
     @Query('status') status?: ChannelStatus,
     @Query('q') q?: string,
     @Query('category') category?: string,
+    @Query('linkType') linkType?: LinkType,
   ) {
-    const channels = await this.channelsService.findAllAdmin({ status, q, category });
+    const channels = await this.channelsService.findAllAdmin({ status, q, category, linkType });
     return Promise.all(
       channels.map((channel) => (channel.isPromoted ? this.withAdClient(channel) : channel)),
     );
+  }
+
+  @Get('lookup')
+  lookup(@Query() query: LookupChannelQueryDto) {
+    return this.channelsService.lookupTelegramLink(query.link);
+  }
+
+  @Post('register')
+  register(@Body() dto: AdminCreateChannelDto) {
+    return this.channelsService.createByAdmin(dto);
   }
 
   @Post('upload-avatar')

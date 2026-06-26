@@ -21,6 +21,7 @@ export interface RankingCategoryItem {
   id: string;
   name: string;
   emoji: string;
+  iconUrl?: string | null;
   count: number;
 }
 

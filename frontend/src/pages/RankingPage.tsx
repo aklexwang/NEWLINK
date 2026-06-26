@@ -37,7 +37,7 @@ export function RankingPage() {
       const items = await getRankingChannels(category, 50);
       setChannels(items);
       if (items.length === 0) {
-        setError('이 카테고리에서 불러온 텔레그램 채널이 없습니다.');
+        setError('이 카테고리에 등록된 채널·그룹이 없습니다.');
       }
     } catch (err: unknown) {
       setChannels([]);
@@ -81,7 +81,7 @@ export function RankingPage() {
         </div>
       ) : categories.length === 0 ? (
         <p className="px-4 py-3 text-sm text-tg-hint">
-          랭킹 카테고리가 없습니다. backend/data/ranking-seeds.json 을 확인해 주세요.
+          표시할 랭킹이 없습니다. 어드민에서 채널·그룹을 등록해 주세요.
         </p>
       ) : (
         <RankingCategoryPicker
@@ -94,7 +94,7 @@ export function RankingPage() {
       <div className="min-h-0 flex-1 bg-tg-bg">
         <div className="sticky top-0 z-10 border-b border-black/[0.06] bg-tg-bg/95 px-4 py-2 backdrop-blur-md">
           <p className="text-sm font-semibold text-tg-text">{selectedLabel} 랭킹</p>
-          <p className="text-[11px] text-tg-hint">텔레그램 구독자 수 기준</p>
+          <p className="text-[11px] text-tg-hint">구독자 수 · 추천 수 기준</p>
         </div>
 
         {isLoading ? (
@@ -104,7 +104,7 @@ export function RankingPage() {
                 <div key={i} className="h-16 animate-pulse rounded-xl bg-tg-secondary" />
               ))}
             </div>
-            <p className="text-xs text-tg-hint">텔레그램에서 구독자 수를 불러오는 중...</p>
+            <p className="text-xs text-tg-hint">랭킹을 불러오는 중...</p>
           </div>
         ) : error ? (
           <p className="px-4 py-8 text-center text-sm text-tg-hint">{error}</p>
@@ -115,6 +115,7 @@ export function RankingPage() {
                 key={channel.id}
                 rank={index + 1}
                 title={channel.title}
+                link={channel.link}
                 avatarUrl={resolveMediaUrl(channel.avatarUrl)}
                 participantsCount={channel.participantsCount}
                 recommendCount={channel.recommendCount}

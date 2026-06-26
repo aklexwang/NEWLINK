@@ -1,5 +1,63 @@
-import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateIf } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { ChannelStatus, LinkType } from '../../channels/channel.entity';
+
+export class CandidateIdsDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  ids: string[];
+}
+
+export class LookupChannelQueryDto {
+  @IsString()
+  @IsNotEmpty()
+  link: string;
+}
+
+export class AdminCreateChannelDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  title: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(512)
+  link: string;
+
+  @IsIn([LinkType.CHANNEL, LinkType.GROUP])
+  linkType: LinkType;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  category: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(2000)
+  description?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPromoted?: boolean;
+}
 
 export class ApproveChannelDto {
   @IsBoolean()
