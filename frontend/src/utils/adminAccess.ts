@@ -15,6 +15,14 @@ export function getAdminAccessKey(): string | null {
   return sessionStorage.getItem(STORAGE_KEY);
 }
 
+export function setAdminAccessKey(key: string): void {
+  sessionStorage.setItem(STORAGE_KEY, key.trim());
+}
+
+export function clearAdminAccessKey(): void {
+  sessionStorage.removeItem(STORAGE_KEY);
+}
+
 export function getAdminAuthHeaders(): Record<string, string> {
   if (import.meta.env.DEV && import.meta.env.VITE_DEV_ADMIN === 'true') {
     return { 'X-Dev-Admin': 'true' };
