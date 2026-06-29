@@ -47,7 +47,9 @@ export function MyPage() {
         setProfile(data);
         setWallet(data.tonWalletAddress ?? '');
       })
-      .catch(() => setProfile(null))
+      .catch(() => {
+        setProfile(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -79,13 +81,20 @@ export function MyPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    const address = wallet.trim();
+    if (!address) {
+      notify('지갑 주소를 입력해 주세요.');
+      return;
+    }
+
     setSaving(true);
     try {
-      const updated = await registerUser(wallet.trim());
+      const updated = await registerUser(address);
       setProfile(updated);
+      setWallet(updated.tonWalletAddress ?? address);
       notify('회원가입이 완료되었습니다. 이제 제보할 수 있습니다.');
     } catch {
-      notify('TON 지갑 주소를 확인해 주세요.');
+      notify('회원가입에 실패했습니다.');
     } finally {
       setSaving(false);
     }
@@ -124,10 +133,9 @@ export function MyPage() {
           ) : (
             <>
               <input
-                required
                 value={wallet}
                 onChange={(e) => setWallet(e.target.value)}
-                placeholder="EQ... 또는 UQ... TON 지갑 주소"
+                placeholder="테스트용 아무 주소 입력"
                 className="mt-3 w-full rounded-xl bg-tg-bg px-4 py-3 text-sm outline-none"
               />
               <button
