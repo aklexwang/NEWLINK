@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { isAxiosError } from 'axios';
 import {
   getAutoManageCandidates,
   getAutoManageCategories,
@@ -24,6 +25,7 @@ import {
 } from '../../components/admin/AdminTable';
 import type { CategoryItem } from '../../types/categoryItem';
 import { linkTypeBadgeClass, linkTypeLabel } from '../../utils/linkType';
+import { isAdminAuthenticated } from '../../utils/adminAccess';
 
 type StatusFilter = 'pending' | 'published' | 'skipped';
 
@@ -115,8 +117,16 @@ export function AdminAutoManagePage() {
       const result = await syncAutoManageCandidates(categoryFilter || undefined);
       setMessage(`동기화 완료 · 신규 ${result.created}건 · 갱신 ${result.updated}건`);
       await load();
-    } catch {
-      setMessage('API 동기화에 실패했습니다. 백엔드와 ranking-seeds.json을 확인해 주세요.');
+    } catch (error) {
+      if (!isAdminAuthenticated()) {
+        setMessage('관리자 인증이 필요합니다. /admin?access=관리자키 로 먼저 접속해 주세요.');
+      } else if (isAxiosError(error) && error.response?.status === 401) {
+        setMessage('관리자 인증이 만료되었습니다. /admin?access=관리자키 로 다시 접속해 주세요.');
+      } else if (isAxiosError(error) && !error.response) {
+        setMessage('백엔드에 연결되지 않았습니다. PC 백엔드와 Cloudflare 터널이 켜져 있는지 확인해 주세요.');
+      } else {
+        setMessage('API 동기화에 실패했습니다. 백엔드와 ranking-seeds.json을 확인해 주세요.');
+      }
     } finally {
       setSyncing(false);
     }

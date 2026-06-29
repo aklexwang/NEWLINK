@@ -27,3 +27,7 @@ export function getAdminAuthHeaders(): Record<string, string> {
 
   return {};
 }
+
+export function isAdminAuthenticated(): boolean {
+  return Object.keys(getAdminAuthHeaders()).length > 0;
+}
