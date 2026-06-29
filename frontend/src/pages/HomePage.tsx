@@ -146,11 +146,15 @@ export function HomePage() {
           onOpen={handleOpenChannel}
         />
 
-        <p className="mt-8 text-center text-[13px] text-[#3c4043]">
+        <p className="mt-[3cm] text-center text-[13px] text-[#3c4043]">
           New Link 제공 언어:{' '}
           <button type="button" className="text-[#1a0dab] hover:underline">
             한국어
           </button>
+          <span className="mx-2 text-[#dadce0]">|</span>
+          <a href="/admin" className="text-[#1a0dab] hover:underline">
+            관리자
+          </a>
         </p>
       </div>
     </div>

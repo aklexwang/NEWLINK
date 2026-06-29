@@ -3,16 +3,12 @@ import type { CategoryItem } from '../types/categoryItem';
 import type { ChannelPreview, PendingChannel } from '../types/channel';
 import type { Channel } from '../types/channel';
 import type { AdminUser } from '../types/user';
-
-const devAdminHeaders =
-  import.meta.env.DEV && import.meta.env.VITE_DEV_ADMIN === 'true'
-    ? { 'X-Dev-Admin': 'true' }
-    : {};
+import { getAdminAuthHeaders } from '../utils/adminAccess';
 
 
 export async function getAdminUsers(): Promise<AdminUser[]> {
   const { data } = await apiClient.get<AdminUser[]>('/admin/users', {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
@@ -24,20 +20,20 @@ export async function importChannelAvatarFromTelegram(id: string): Promise<{
   const { data } = await apiClient.post<{ avatarUrl: string | null; avatarApproved: boolean }>(
     `/admin/channels/${id}/import-avatar`,
     {},
-    { headers: devAdminHeaders },
+    { headers: getAdminAuthHeaders() },
   );
   return data;
 }
 
 export async function getChannelPreview(id: string): Promise<ChannelPreview> {
   const { data } = await apiClient.get<ChannelPreview>(`/admin/channels/${id}/preview`, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
 export async function getPendingChannels(): Promise<PendingChannel[]> {
   const { data } = await apiClient.get<PendingChannel[]>('/admin/channels/pending', {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
@@ -49,7 +45,7 @@ export async function getAdminChannels(params?: {
   linkType?: 'channel' | 'group';
 }): Promise<Channel[]> {
   const { data } = await apiClient.get<Channel[]>('/admin/channels/all', {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
     params,
   });
   return data;
@@ -68,7 +64,7 @@ export interface AdminChannelLookup {
 
 export async function lookupAdminChannel(link: string): Promise<AdminChannelLookup> {
   const { data } = await apiClient.get<AdminChannelLookup>('/admin/channels/lookup', {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
     params: { link },
   });
   return data;
@@ -83,14 +79,14 @@ export async function registerAdminChannel(payload: {
   isPromoted?: boolean;
 }): Promise<Channel> {
   const { data } = await apiClient.post<Channel>('/admin/channels/register', payload, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
 
 export async function getPromotedChannels(q?: string): Promise<Channel[]> {
   const { data } = await apiClient.get<Channel[]>('/admin/promotions', {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
     params: q ? { q } : undefined,
   });
   return data;
@@ -113,28 +109,28 @@ export async function updateAdminChannel(
   }>,
 ) {
   const { data } = await apiClient.patch(`/admin/channels/${id}`, payload, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
 
 export async function deleteAdminChannel(id: string) {
   const { data } = await apiClient.delete(`/admin/channels/${id}`, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
 
 export async function approveChannel(id: string, isPromoted = false) {
   const { data } = await apiClient.patch(`/admin/channels/${id}/approve`, { isPromoted }, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
 
 export async function rejectChannel(id: string) {
   const { data } = await apiClient.patch(`/admin/channels/${id}/reject`, {}, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
@@ -142,14 +138,14 @@ export async function rejectChannel(id: string) {
 export async function promoteChannel(id: string, promotedUntil?: string) {
   const body = promotedUntil ? { promotedUntil } : { durationDays: 7 };
   const { data } = await apiClient.patch(`/admin/channels/${id}/promote`, body, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
 
 export async function getAdminCategories(): Promise<CategoryItem[]> {
   const { data } = await apiClient.get<CategoryItem[]>('/admin/categories', {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
@@ -161,14 +157,14 @@ export async function createCategory(payload: {
   sortOrder?: number;
 }) {
   const { data } = await apiClient.post<CategoryItem>('/admin/categories', payload, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
 
 async function postFormData<T>(url: string, formData: FormData): Promise<T> {
   const { data } = await apiClient.post<T>(url, formData, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
     transformRequest: (payload, headers) => {
       if (payload instanceof FormData) {
         delete headers['Content-Type'];
@@ -198,14 +194,14 @@ export async function updateCategory(
   payload: Partial<{ name: string; emoji: string; iconUrl: string | null; sortOrder: number; isActive: boolean }>,
 ) {
   const { data } = await apiClient.patch<CategoryItem>(`/admin/categories/${id}`, payload, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
 
 export async function deleteCategory(id: string) {
   const { data } = await apiClient.delete(`/admin/categories/${id}`, {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
@@ -242,14 +238,14 @@ export interface AutoManageCategory {
 
 export async function getAutoManageStatus(): Promise<AutoManageStatus> {
   const { data } = await apiClient.get<AutoManageStatus>('/admin/auto-manage/status', {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
 
 export async function getAutoManageCategories(): Promise<AutoManageCategory[]> {
   const { data } = await apiClient.get<AutoManageCategory[]>('/admin/auto-manage/categories', {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
   });
   return data;
 }
@@ -259,7 +255,7 @@ export async function syncAutoManageCandidates(category?: string) {
     '/admin/auto-manage/sync',
     {},
     {
-      headers: devAdminHeaders,
+      headers: getAdminAuthHeaders(),
       params: category ? { category } : undefined,
     },
   );
@@ -272,7 +268,7 @@ export async function getAutoManageCandidates(params?: {
   source?: string;
 }): Promise<ImportCandidate[]> {
   const { data } = await apiClient.get<ImportCandidate[]>('/admin/auto-manage/candidates', {
-    headers: devAdminHeaders,
+    headers: getAdminAuthHeaders(),
     params,
   });
   return data;
@@ -282,7 +278,7 @@ export async function publishAutoManageCandidates(ids: string[]) {
   const { data } = await apiClient.post<{ id: string; ok: boolean; message?: string }[]>(
     '/admin/auto-manage/publish',
     { ids },
-    { headers: devAdminHeaders },
+    { headers: getAdminAuthHeaders() },
   );
   return data;
 }
@@ -291,7 +287,7 @@ export async function skipAutoManageCandidates(ids: string[]) {
   const { data } = await apiClient.post<{ ok: boolean; count: number }>(
     '/admin/auto-manage/skip',
     { ids },
-    { headers: devAdminHeaders },
+    { headers: getAdminAuthHeaders() },
   );
   return data;
 }

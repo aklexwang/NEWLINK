@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { getPendingChannels, getPromotedChannels } from '../../api/admin';
+import { getMemberUrl } from '../../config/site';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
@@ -75,13 +76,13 @@ export function AdminSidebar() {
       </nav>
 
       <div className="border-t border-white/10 p-3">
-        <NavLink
-          to="/"
+        <a
+          href={getMemberUrl()}
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
         >
           <span>←</span>
-          <span>앱으로 돌아가기</span>
-        </NavLink>
+          <span>회원 페이지</span>
+        </a>
       </div>
     </aside>
   );

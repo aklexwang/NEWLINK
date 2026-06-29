@@ -1,7 +1,13 @@
+import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
+import { captureAdminAccessFromUrl } from '../../utils/adminAccess';
 import { AdminSidebar } from './AdminSidebar';
 
 export function AdminLayout() {
+  useEffect(() => {
+    captureAdminAccessFromUrl();
+  }, []);
+
   return (
     <div className="flex min-h-screen w-full bg-[#f1f5f9]">
       <AdminSidebar />
