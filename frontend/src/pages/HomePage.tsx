@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getPromotedChannels, searchChannels } from '../api/channels';
 import { ChannelList } from '../components/ChannelList';
+import { NewLinkLogo } from '../components/NewLinkLogo';
 import { PromotedShortcuts } from '../components/PromotedShortcuts';
 import { SearchBar } from '../components/SearchBar';
 import { useCategories } from '../hooks/useCategories';
@@ -8,25 +9,6 @@ import { useMyRecommendations } from '../hooks/useMyRecommendations';
 import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 
 type HomeView = 'promoted' | 'search';
-
-function HomeLogo({ compact = false }: { compact?: boolean }) {
-  return (
-    <header className={`flex flex-col items-center ${compact ? 'pb-2' : ''}`}>
-      <h1
-        className={`select-none font-black uppercase leading-none ${
-          compact
-            ? 'pr-[0.18em] text-[20px] tracking-[0.18em]'
-            : 'pr-[0.22em] text-[40px] tracking-[0.22em]'
-        }`}
-      >
-        <span className="bg-gradient-to-br from-[#2b8fd9] via-tg-link to-[#155fa8] bg-clip-text text-transparent">
-          NEW
-        </span>
-        <span className="text-[#202124]">LINK</span>
-      </h1>
-    </header>
-  );
-}
 
 export function HomePage() {
   const { webApp, isLocalBrowser } = useTelegram();
@@ -119,7 +101,7 @@ export function HomePage() {
     return (
       <div className="flex min-h-[calc(100dvh-68px)] flex-col">
         <div className="sticky top-0 z-10 border-b border-black/[0.04] bg-tg-bg/95 px-4 pb-3 pt-4 backdrop-blur-md">
-          <HomeLogo compact />
+          <NewLinkLogo compact />
           <SearchBar
             value={query}
             onChange={handleQueryChange}
@@ -146,7 +128,7 @@ export function HomePage() {
   return (
     <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-white">
       <div className="flex flex-1 flex-col items-center px-6 pb-12 pt-[15vh]">
-        <HomeLogo />
+        <NewLinkLogo />
 
         <SearchBar
           value={query}
@@ -163,6 +145,13 @@ export function HomePage() {
           isLoading={promotedLoading}
           onOpen={handleOpenChannel}
         />
+
+        <p className="mt-8 text-center text-[13px] text-[#3c4043]">
+          New Link 제공 언어:{' '}
+          <button type="button" className="text-[#1a0dab] hover:underline">
+            한국어
+          </button>
+        </p>
       </div>
     </div>
   );

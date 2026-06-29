@@ -1,11 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMySubmissions } from '../api/channels';
 import { getMyProfile, registerUser } from '../api/users';
+import { CategoryBadge } from '../components/CategoryBadge';
+import { useCategories } from '../hooks/useCategories';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import type { AppUser } from '../types/user';
 import { linkTypeBadgeClass, linkTypeLabel, submissionStatusLabel } from '../utils/linkType';
+
+function getCategoryMeta(
+  categories: { id: string; label: string; emoji: string; iconUrl: string | null }[],
+  categoryName: string,
+) {
+  const found = categories.find((item) => item.id === categoryName);
+  return {
+    label: found?.label ?? categoryName,
+    emoji: found?.emoji ?? '📁',
+    iconUrl: found?.iconUrl ?? null,
+  };
+}
 
 export function MyPage() {
   const { user, webApp, isLocalBrowser } = useTelegram();
@@ -17,6 +31,15 @@ export function MyPage() {
   const [loading, setLoading] = useState(true);
   const [submissionsLoading, setSubmissionsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { searchCategories } = useCategories();
+
+  const myCategories = useMemo(() => {
+    const names = [...new Set(submissions.map((item) => item.category).filter(Boolean))];
+    return names.map((name) => ({
+      name,
+      ...getCategoryMeta(searchCategories, name),
+    }));
+  }, [submissions, searchCategories]);
 
   useEffect(() => {
     getMyProfile()
@@ -122,6 +145,26 @@ export function MyPage() {
         </form>
       </section>
 
+      {myCategories.length > 0 && (
+        <section className="px-4 pb-4">
+          <div className="rounded-2xl bg-tg-secondary/50 p-4">
+            <h3 className="text-sm font-semibold text-tg-text">내 카테고리</h3>
+            <p className="mt-1 text-xs text-tg-hint">제보한 채널·그룹이 속한 카테고리입니다.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {myCategories.map((category) => (
+                <CategoryBadge
+                  key={category.name}
+                  name={category.label}
+                  emoji={category.emoji}
+                  iconUrl={category.iconUrl}
+                  className="px-2.5 py-1 text-xs"
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="px-4 pb-4">
         <div className="rounded-2xl bg-tg-secondary/50 p-4">
           <h3 className="text-sm font-semibold text-tg-text">내 제보 내역</h3>
@@ -135,32 +178,39 @@ export function MyPage() {
             <p className="mt-3 text-sm text-tg-hint">아직 제보한 항목이 없습니다.</p>
           ) : (
             <ul className="mt-3 space-y-2">
-              {submissions.map((item) => (
-                <li key={item.id} className="rounded-xl bg-tg-bg px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(item.linkType)}`}>
-                          {linkTypeLabel(item.linkType)}
-                        </span>
-                        <span
-                          className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${
-                            item.status === 'active'
-                              ? 'bg-green-100 text-green-800'
-                              : item.status === 'rejected'
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {submissionStatusLabel(item.status)}
-                        </span>
+              {submissions.map((item) => {
+                const categoryMeta = getCategoryMeta(searchCategories, item.category);
+                return (
+                  <li key={item.id} className="rounded-xl bg-tg-bg px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <CategoryBadge
+                            name={categoryMeta.label}
+                            emoji={categoryMeta.emoji}
+                            iconUrl={categoryMeta.iconUrl}
+                          />
+                          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(item.linkType)}`}>
+                            {linkTypeLabel(item.linkType)}
+                          </span>
+                          <span
+                            className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${
+                              item.status === 'active'
+                                ? 'bg-green-100 text-green-800'
+                                : item.status === 'rejected'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {submissionStatusLabel(item.status)}
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate text-sm font-medium text-tg-text">{item.title}</p>
                       </div>
-                      <p className="mt-1 truncate text-sm font-medium text-tg-text">{item.title}</p>
-                      <p className="mt-0.5 truncate text-xs text-tg-hint">{item.category}</p>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

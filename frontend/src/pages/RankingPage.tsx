@@ -110,20 +110,26 @@ export function RankingPage() {
           <p className="px-4 py-8 text-center text-sm text-tg-hint">{error}</p>
         ) : (
           <div className="divide-y divide-black/[0.06] pb-4">
-            {channels.map((channel, index) => (
-              <RankingChannelCard
-                key={channel.id}
-                rank={index + 1}
-                title={channel.title}
-                link={channel.link}
-                avatarUrl={resolveMediaUrl(channel.avatarUrl)}
-                participantsCount={channel.participantsCount}
-                recommendCount={channel.recommendCount}
-                linkType={channel.linkType}
-                username={channel.username}
-                onOpen={() => openTelegramChannel(webApp, isLocalBrowser, channel.link)}
-              />
-            ))}
+            {channels.map((channel, index) => {
+              const categoryMeta = categories.find((item) => item.id === channel.category);
+              return (
+                <RankingChannelCard
+                  key={channel.id}
+                  rank={index + 1}
+                  title={channel.title}
+                  link={channel.link}
+                  avatarUrl={resolveMediaUrl(channel.avatarUrl)}
+                  participantsCount={channel.participantsCount}
+                  recommendCount={channel.recommendCount}
+                  linkType={channel.linkType}
+                  username={channel.username}
+                  category={channel.category}
+                  categoryEmoji={categoryMeta?.emoji}
+                  categoryIconUrl={categoryMeta?.iconUrl}
+                  onOpen={() => openTelegramChannel(webApp, isLocalBrowser, channel.link)}
+                />
+              );
+            })}
           </div>
         )}
       </div>

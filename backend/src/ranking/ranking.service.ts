@@ -31,7 +31,7 @@ export class RankingService {
 
     return {
       source,
-      label: 'NEWLINK 등록 채널·그룹 · 구독자 순',
+      label: 'New Link 등록 채널·그룹 · 구독자 순',
       hint: '어드민에서 등록·승인된 채널과 그룹이 카테고리별로 표시됩니다.',
     };
   }

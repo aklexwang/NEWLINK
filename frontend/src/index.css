@@ -24,6 +24,10 @@ body {
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 
+.logo-image {
+  object-fit: contain;
+}
+
 @keyframes dropdown-down {
   from {
     opacity: 0;

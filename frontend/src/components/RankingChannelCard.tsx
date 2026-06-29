@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { LinkType } from '../types/channel';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { linkTypeLabel } from '../utils/linkType';
+import { CategoryBadge } from './CategoryBadge';
 
 function formatCount(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
@@ -18,6 +19,9 @@ interface RankingChannelCardProps {
   recommendCount: number;
   linkType: LinkType;
   username?: string | null;
+  category?: string;
+  categoryEmoji?: string;
+  categoryIconUrl?: string | null;
   onOpen: () => void;
 }
 
@@ -30,6 +34,9 @@ export function RankingChannelCard({
   recommendCount,
   linkType,
   username,
+  category,
+  categoryEmoji,
+  categoryIconUrl,
   onOpen,
 }: RankingChannelCardProps) {
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
@@ -80,12 +87,21 @@ export function RankingChannelCard({
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-[16px] font-semibold leading-tight text-tg-text">{title}</p>
-        <p className="mt-0.5 truncate text-[13px] text-tg-hint">
-          {statLabel}
-          {username ? ` · ${username}` : ''}
-          {' · '}
-          {linkTypeLabel(linkType)}
-        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {category && (
+            <CategoryBadge
+              name={category}
+              emoji={categoryEmoji}
+              iconUrl={categoryIconUrl}
+            />
+          )}
+          <span className="truncate text-[13px] text-tg-hint">
+            {statLabel}
+            {username ? ` · ${username}` : ''}
+            {' · '}
+            {linkTypeLabel(linkType)}
+          </span>
+        </div>
       </div>
 
       <span className="shrink-0 rounded-full bg-tg-open-bg px-3 py-1.5 text-[14px] font-semibold text-tg-open-text">
