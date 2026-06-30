@@ -12,3 +12,16 @@ export const apiClient = axios.create({
 export function setInitDataHeader(initData: string) {
   apiClient.defaults.headers.common['X-Telegram-Init-Data'] = initData;
 }
+
+export function setAccessToken(token: string) {
+  apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
+}
+
+export function clearAccessToken() {
+  delete apiClient.defaults.headers.common.Authorization;
+}
+
+export function clearInitDataHeader() {
+  delete apiClient.defaults.headers.common['X-Telegram-Init-Data'];
+}
+

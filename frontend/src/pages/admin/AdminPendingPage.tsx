@@ -9,6 +9,7 @@ import { ChannelPreviewModal } from '../../components/ChannelPreviewModal';
 import { ReporterTonPanel } from '../../components/ReporterTonPanel';
 import type { ChannelPreview, PendingChannel } from '../../types/channel';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
+import { refreshAdminBadges } from '../../utils/adminBadges';
 
 export function AdminPendingPage() {
   const [pending, setPending] = useState<PendingChannel[]>([]);
@@ -24,6 +25,7 @@ export function AdminPendingPage() {
       const items = await getPendingChannels();
       setPending(items);
       setMessage('');
+      refreshAdminBadges();
     } catch {
       setMessage('데이터를 불러오지 못했습니다. 관리자 권한을 확인하세요.');
     } finally {

@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AppLayout } from './components/AppLayout';
+import { AuthProvider } from './providers/AuthProvider';
 import { AdminAutoManagePage } from './pages/admin/AdminAutoManagePage';
 import { AdminAdsManagePage } from './pages/admin/AdminAdsManagePage';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
@@ -10,6 +11,7 @@ import { AdminChannelsManagePage } from './pages/admin/AdminChannelsManagePage';
 import { AdminGroupRegisterPage } from './pages/admin/AdminGroupRegisterPage';
 import { AdminGroupsManagePage } from './pages/admin/AdminGroupsManagePage';
 import { AdminPendingPage } from './pages/admin/AdminPendingPage';
+import { AdminTonPaymentsPage } from './pages/admin/AdminTonPaymentsPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { HomePage } from './pages/HomePage';
 import { MyPage } from './pages/MyPage';
@@ -19,7 +21,8 @@ import { SubmitPage } from './pages/SubmitPage';
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <AuthProvider>
+        <Routes>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="pending" replace />} />
           <Route path="pending" element={<AdminPendingPage />} />
@@ -32,6 +35,7 @@ export default function App() {
           <Route path="groups" element={<AdminGroupsManagePage />} />
           <Route path="ads" element={<AdminAdsManagePage />} />
           <Route path="categories" element={<AdminCategoriesPage />} />
+          <Route path="ton-payments" element={<AdminTonPaymentsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
         </Route>
         <Route element={<AppLayout />}>
@@ -41,7 +45,8 @@ export default function App() {
           <Route path="/submit" element={<SubmitPage />} />
           <Route path="/my" element={<MyPage />} />
         </Route>
-      </Routes>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

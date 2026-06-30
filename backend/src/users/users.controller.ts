@@ -12,11 +12,11 @@ export class UsersController {
 
   @Get('me')
   getMe(@TelegramUserParam() user: TelegramUser) {
-    return this.usersService.getMe(user);
+    return this.usersService.getMe(user).then((record) => this.usersService.toPublicUser(record));
   }
 
   @Post('register')
   register(@TelegramUserParam() user: TelegramUser, @Body() dto: RegisterUserDto) {
-    return this.usersService.register(user, dto);
+    return this.usersService.register(user, dto).then((record) => this.usersService.toPublicUser(record));
   }
 }

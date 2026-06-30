@@ -1,17 +1,13 @@
 import { apiClient } from './client';
 import type { AppUser } from '../types/user';
+import { getMemberAuthHeaders } from '../utils/memberAuth';
 import { getTestProfile, isTestRegistrationMode, saveTestProfile } from '../utils/testRegistration';
-
-const authHeaders =
-  import.meta.env.DEV && import.meta.env.VITE_DEV_ADMIN === 'true'
-    ? { 'X-Dev-Admin': 'true' }
-    : {};
 
 export async function getMyProfile(): Promise<AppUser> {
   const testProfile = getTestProfile();
   if (testProfile) return testProfile;
 
-  const { data } = await apiClient.get<AppUser>('/users/me', { headers: authHeaders });
+  const { data } = await apiClient.get<AppUser>('/users/me', { headers: getMemberAuthHeaders() });
   return data;
 }
 
@@ -25,7 +21,7 @@ export async function registerUser(tonWalletAddress: string): Promise<AppUser> {
     const { data } = await apiClient.post<AppUser>(
       '/users/register',
       { tonWalletAddress: wallet },
-      { headers: authHeaders },
+      { headers: getMemberAuthHeaders() },
     );
     return data;
   } catch (error) {

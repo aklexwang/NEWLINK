@@ -12,6 +12,48 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  toPublicUser(user: User) {
+    return {
+      telegramId: user.telegramId,
+      firstName: user.firstName,
+      username: user.username,
+      tonWalletAddress: user.tonWalletAddress,
+      isRegistered: user.isRegistered,
+      createdAt: user.createdAt?.toISOString?.() ?? user.createdAt,
+      updatedAt: user.updatedAt?.toISOString?.() ?? user.updatedAt,
+    };
+  }
+
+  async loginOrRegisterWithTelegram(telegramUser: TelegramUser): Promise<{
+    user: User;
+    isNewUser: boolean;
+  }> {
+    const existing = await this.userRepository.findOne({
+      where: { telegramId: telegramUser.id },
+    });
+
+    if (existing) {
+      existing.firstName = telegramUser.first_name ?? existing.firstName;
+      existing.username = telegramUser.username ?? existing.username;
+      return {
+        user: await this.userRepository.save(existing),
+        isNewUser: false,
+      };
+    }
+
+    const created = this.userRepository.create({
+      telegramId: telegramUser.id,
+      firstName: telegramUser.first_name ?? null,
+      username: telegramUser.username ?? null,
+      isRegistered: false,
+    });
+
+    return {
+      user: await this.userRepository.save(created),
+      isNewUser: true,
+    };
+  }
+
   async syncFromTelegram(telegramUser: TelegramUser): Promise<User> {
     let user = await this.userRepository.findOne({
       where: { telegramId: telegramUser.id },

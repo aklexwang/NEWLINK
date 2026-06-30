@@ -1,7 +1,5 @@
 import { useEffect, useMemo } from 'react';
 import WebApp from '@twa-dev/sdk';
-import { setInitDataHeader } from '../api/client';
-
 function isRealTelegramEnv(): boolean {
   try {
     return Boolean(WebApp?.initData) && typeof WebApp?.ready === 'function';
@@ -22,12 +20,7 @@ export function useTelegram() {
       WebApp.ready();
       WebApp.expand?.();
       WebApp.setHeaderColor?.('secondary_bg_color');
-      WebApp.setBackgroundColor?.('bg_color');
-
-      if (initData) {
-        setInitDataHeader(initData);
-      }
-    } catch (error) {
+      WebApp.setBackgroundColor?.('bg_color');    } catch (error) {
       console.warn('[useTelegram] init skipped:', error);
     }
   }, [initData, isLocalBrowser]);

@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { getPendingChannels, getPromotedChannels } from '../../api/admin';
 import { getMemberUrl } from '../../config/site';
+import { ADMIN_BADGES_REFRESH_EVENT } from '../../utils/adminBadges';
+import { isPromotionActive } from '../../utils/promotion';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
@@ -11,17 +13,31 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export function AdminSidebar() {
+  const location = useLocation();
   const [pendingCount, setPendingCount] = useState(0);
   const [adsCount, setAdsCount] = useState(0);
 
-  useEffect(() => {
+  const refreshCounts = useCallback(() => {
     getPendingChannels()
       .then((items) => setPendingCount(items.length))
       .catch(() => setPendingCount(0));
     getPromotedChannels()
-      .then((items) => setAdsCount(items.length))
+      .then((items) =>
+        setAdsCount(
+          items.filter((item) => isPromotionActive(item.isPromoted, item.promotedUntil)).length,
+        ),
+      )
       .catch(() => setAdsCount(0));
   }, []);
+
+  useEffect(() => {
+    refreshCounts();
+  }, [location.pathname, refreshCounts]);
+
+  useEffect(() => {
+    window.addEventListener(ADMIN_BADGES_REFRESH_EVENT, refreshCounts);
+    return () => window.removeEventListener(ADMIN_BADGES_REFRESH_EVENT, refreshCounts);
+  }, [refreshCounts]);
 
   return (
     <aside className="flex w-56 shrink-0 flex-col bg-[#1e293b] text-white">
@@ -64,6 +80,10 @@ export function AdminSidebar() {
               {adsCount}
             </span>
           )}
+        </NavLink>
+        <NavLink to="/admin/ton-payments" className={linkClass}>
+          <span className="text-base">💎</span>
+          <span>TON 지급 이력</span>
         </NavLink>
         <NavLink to="/admin/users" className={linkClass}>
           <span className="text-base">👥</span>

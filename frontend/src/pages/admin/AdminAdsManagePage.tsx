@@ -25,6 +25,7 @@ import {
   isPromotionActive,
   toDateInputValue,
 } from '../../utils/promotion';
+import { refreshAdminBadges } from '../../utils/adminBadges';
 
 export function AdminAdsManagePage() {
   const [promoted, setPromoted] = useState<Channel[]>([]);
@@ -57,6 +58,7 @@ export function AdminAdsManagePage() {
       setPromoted(items);
       syncPromoteDates(items);
       setMessage('');
+      refreshAdminBadges();
     } catch {
       setMessage('광고 목록을 불러오지 못했습니다.');
     } finally {

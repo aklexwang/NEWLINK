@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { TelegramInitData } from './interfaces/telegram-user.interface';
+import { JwtAuthService } from './jwt-auth.service';
 import { TelegramAuthService } from './telegram-auth.service';
 
 export interface AuthenticatedRequest extends Request {
@@ -17,6 +18,7 @@ export interface AuthenticatedRequest extends Request {
 export class TelegramAuthGuard implements CanActivate {
   constructor(
     private readonly telegramAuthService: TelegramAuthService,
+    private readonly jwtAuthService: JwtAuthService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -47,6 +49,35 @@ export class TelegramAuthGuard implements CanActivate {
         },
         auth_date: Math.floor(Date.now() / 1000),
         hash: 'dev',
+      };
+      return true;
+    }
+
+    const demoTelegramId = request.headers['x-demo-telegram-id'] as string | undefined;
+    if (devBypass && demoTelegramId && /^\d+$/.test(demoTelegramId)) {
+      request.telegramInitData = {
+        user: {
+          id: Number(demoTelegramId),
+          first_name: 'DemoUser',
+        },
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'demo-user',
+      };
+      return true;
+    }
+
+    const authorization = request.headers.authorization;
+    if (authorization?.startsWith('Bearer ')) {
+      const token = authorization.slice('Bearer '.length).trim();
+      const payload = this.jwtAuthService.verify(token);
+      request.telegramInitData = {
+        user: {
+          id: payload.telegramId,
+          first_name: payload.firstName ?? 'User',
+          username: payload.username ?? undefined,
+        },
+        auth_date: Math.floor(Date.now() / 1000),
+        hash: 'jwt',
       };
       return true;
     }

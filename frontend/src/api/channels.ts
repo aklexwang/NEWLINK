@@ -1,11 +1,7 @@
 import { isAxiosError } from 'axios';
 import { apiClient } from './client';
 import type { Channel, CreateChannelPayload, SearchResult } from '../types/channel';
-const authHeaders =
-  import.meta.env.DEV && import.meta.env.VITE_DEV_ADMIN === 'true'
-    ? { 'X-Dev-Admin': 'true' }
-    : {};
-
+import { getMemberAuthHeaders } from '../utils/memberAuth';
 export async function searchChannels(params: {
   q?: string;
   category?: string;
@@ -29,29 +25,29 @@ export async function getPromotedChannels(): Promise<Channel[]> {
 }
 export async function getMyRecommendedIds(): Promise<string[]> {
   const { data } = await apiClient.get<string[]>('/channels/my-recommendations', {
-    headers: authHeaders,
+    headers: getMemberAuthHeaders(),
   });
   return data;
 }
 
 export async function getMySubmissions(): Promise<Channel[]> {
   const { data } = await apiClient.get<Channel[]>('/channels/my-submissions', {
-    headers: authHeaders,
+    headers: getMemberAuthHeaders(),
   });
   return data;
 }
 
 export async function submitChannel(payload: CreateChannelPayload) {
-  const { data } = await apiClient.post('/channels', payload, { headers: authHeaders });
+  const { data } = await apiClient.post('/channels', payload, { headers: getMemberAuthHeaders() });
   return data;
 }
 
 export async function recommendChannel(id: string) {
-  const { data } = await apiClient.post(`/channels/${id}/recommend`, {}, { headers: authHeaders });
+  const { data } = await apiClient.post(`/channels/${id}/recommend`, {}, { headers: getMemberAuthHeaders() });
   return data;
 }
 
 export async function createPromotionInvoice(channelId: string) {
-  const { data } = await apiClient.post<{ invoiceLink: string }>('/payments/invoice', { channelId }, { headers: authHeaders });
+  const { data } = await apiClient.post<{ invoiceLink: string }>('/payments/invoice', { channelId }, { headers: getMemberAuthHeaders() });
   return data;
 }

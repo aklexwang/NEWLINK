@@ -23,6 +23,7 @@ import {
 } from '../../components/admin/AdminTable';
 import type { Channel, LinkType } from '../../types/channel';
 import type { CategoryItem } from '../../types/categoryItem';
+import { refreshAdminBadges } from '../../utils/adminBadges';
 import { linkTypeBadgeClass, linkTypeLabel } from '../../utils/linkType';
 import {
   dateInputToPromotedUntil,
@@ -171,6 +172,7 @@ export function AdminLinksManagePage({
       await promoteChannel(channel.id, dateInputToPromotedUntil(date));
       setMessage(`"${channel.title}"을(를) 광고로 등록했습니다.`);
       await load();
+      refreshAdminBadges();
     } catch {
       setMessage('광고 추가에 실패했습니다.');
     }
@@ -182,6 +184,7 @@ export function AdminLinksManagePage({
       await updateAdminChannel(channel.id, { isPromoted: false, promotedUntil: null });
       setMessage('광고 노출을 해제했습니다.');
       await load();
+      refreshAdminBadges();
     } catch {
       setMessage('광고 해제에 실패했습니다.');
     }
