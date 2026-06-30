@@ -4,6 +4,7 @@ import {
   getPromotedChannels,
   promoteChannel,
   updateAdminChannel,
+  updatePromotionOrder,
 } from '../../api/admin';
 import { AdClientCells, AdClientDetail } from '../../components/admin/AdClientInfo';
 import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor';
@@ -38,6 +39,11 @@ export function AdminAdsManagePage() {
   const [promoteDates, setPromoteDates] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAddSection, setShowAddSection] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [orderSaving, setOrderSaving] = useState(false);
+
+  const canReorder = !query.trim();
 
   const syncPromoteDates = (items: Channel[]) => {
     setPromoteDates((prev) => {
@@ -129,8 +135,31 @@ export function AdminAdsManagePage() {
     setMessage('아이콘이 저장되었습니다.');
   };
 
+  const handleReorder = async (fromId: string, toId: string) => {
+    if (!canReorder || fromId === toId) return;
+    const fromIdx = promoted.findIndex((item) => item.id === fromId);
+    const toIdx = promoted.findIndex((item) => item.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+
+    const next = [...promoted];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+
+    setPromoted(next);
+    setOrderSaving(true);
+    try {
+      await updatePromotionOrder(next.map((item) => item.id));
+      setMessage('노출 순서가 저장되었습니다.');
+    } catch {
+      await loadPromoted();
+      setMessage('순서 저장에 실패했습니다.');
+    } finally {
+      setOrderSaving(false);
+    }
+  };
+
   const activeCount = promoted.filter((item) => isPromotionActive(item.isPromoted, item.promotedUntil)).length;
-  const colCount = 7;
+  const colCount = canReorder ? 8 : 7;
 
   return (
     <>
@@ -215,7 +244,14 @@ export function AdminAdsManagePage() {
           </section>
         )}
 
-        <div className="mb-3 flex justify-end">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          {canReorder ? (
+            <p className="text-xs text-slate-500">
+              ⋮⋮ 핸들을 드래그해 노출 순서를 변경할 수 있습니다.{orderSaving ? ' 저장 중…' : ''}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-700">검색 중에는 순서 변경이 비활성화됩니다.</p>
+          )}
           <form onSubmit={(e) => { e.preventDefault(); loadPromoted(); }} className="flex gap-2">
             <input
               value={query}
@@ -236,6 +272,7 @@ export function AdminAdsManagePage() {
             <AdminTable>
               <thead className="bg-slate-50">
                 <tr>
+                  {canReorder && <AdminTh className="w-10">순서</AdminTh>}
                   <AdminTh className="w-12" />
                   <AdminTh>제목</AdminTh>
                   <AdminTh className="w-16">유형</AdminTh>
@@ -246,15 +283,56 @@ export function AdminAdsManagePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {promoted.map((channel) => {
+                {promoted.map((channel, index) => {
                   const active = isPromotionActive(channel.isPromoted, channel.promotedUntil);
                   const expanded = expandedId === channel.id;
+                  const isDragging = dragId === channel.id;
+                  const isDropTarget = dropTargetId === channel.id && dragId !== channel.id;
                   return (
                     <Fragment key={channel.id}>
                       <tr
                         onClick={() => setExpandedId(expanded ? null : channel.id)}
-                        className={`cursor-pointer transition hover:bg-slate-50/80 ${expanded ? 'bg-purple-50/40' : ''}`}
+                        onDragOver={(e) => {
+                          if (!canReorder || !dragId || dragId === channel.id) return;
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                          setDropTargetId(channel.id);
+                        }}
+                        onDragLeave={() => {
+                          if (dropTargetId === channel.id) setDropTargetId(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (dragId) void handleReorder(dragId, channel.id);
+                          setDragId(null);
+                          setDropTargetId(null);
+                        }}
+                        className={`cursor-pointer transition hover:bg-slate-50/80 ${expanded ? 'bg-purple-50/40' : ''} ${isDragging ? 'opacity-40' : ''} ${isDropTarget ? 'bg-purple-100/60 ring-2 ring-inset ring-purple-300' : ''}`}
                       >
+                        {canReorder && (
+                          <AdminTd>
+                            <button
+                              type="button"
+                              draggable
+                              aria-label={`${index + 1}번째 광고 순서 변경`}
+                              onClick={(e) => e.stopPropagation()}
+                              onDragStart={(e) => {
+                                e.stopPropagation();
+                                setDragId(channel.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                                e.dataTransfer.setData('text/plain', channel.id);
+                              }}
+                              onDragEnd={() => {
+                                setDragId(null);
+                                setDropTargetId(null);
+                              }}
+                              className="flex h-8 w-8 cursor-grab items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
+                            >
+                              ⋮⋮
+                            </button>
+                          </AdminTd>
+                        )}
                         <AdminTd><ChannelAvatar channel={channel} /></AdminTd>
                         <AdminTd>
                           <p className="max-w-[180px] truncate font-medium text-slate-900">{channel.title}</p>

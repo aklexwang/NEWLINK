@@ -58,6 +58,9 @@ export class Channel {
   @Column({ name: 'promotion_ton_amount', type: 'real', nullable: true })
   promotionTonAmount: number | null;
 
+  @Column({ name: 'promotion_sort_order', type: 'integer', default: 0 })
+  promotionSortOrder: number;
+
   @Column({ name: 'submitted_by', type: 'integer', nullable: true })
   submittedBy: number | null;
 

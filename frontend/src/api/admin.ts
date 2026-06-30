@@ -92,6 +92,10 @@ export async function getPromotedChannels(q?: string): Promise<Channel[]> {
   return data;
 }
 
+export async function updatePromotionOrder(ids: string[]): Promise<void> {
+  await apiClient.patch('/admin/promotions/order', { ids }, { headers: getAdminAuthHeaders() });
+}
+
 export async function updateAdminChannel(
   id: string,
   payload: Partial<{

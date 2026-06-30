@@ -22,6 +22,7 @@ export interface Channel {
   promotionClientTelegramId?: number | null;
   promotionClientName?: string | null;
   promotionTonAmount?: number | null;
+  promotionSortOrder?: number;
   adClient?: AdClient;
   submittedBy?: number | null;
   avatarUrl?: string | null;

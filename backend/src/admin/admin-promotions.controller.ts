@@ -1,9 +1,10 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Query, UseGuards } from '@nestjs/common';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { Channel } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { UsersService } from '../users/users.service';
+import { CandidateIdsDto } from './dto/admin.dto';
 
 @Controller('admin/promotions')
 @UseGuards(TelegramAuthGuard, TelegramAdminGuard)
@@ -17,6 +18,12 @@ export class AdminPromotionsController {
   async list(@Query('q') q?: string) {
     const channels = await this.channelsService.findPromotionsAdmin({ q });
     return Promise.all(channels.map((channel) => this.toPromotionView(channel)));
+  }
+
+  @Patch('order')
+  async updateOrder(@Body() dto: CandidateIdsDto) {
+    await this.channelsService.updatePromotionOrder(dto.ids);
+    return { ok: true };
   }
 
   private async toPromotionView(channel: Channel) {

@@ -320,7 +320,8 @@ export class ChannelsService implements OnModuleInit {
       .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
       .andWhere('channel.is_promoted = :promoted', { promoted: true })
       .andWhere('(channel.promoted_until IS NULL OR channel.promoted_until > :now)', { now })
-      .orderBy('channel.promoted_until', 'ASC')
+      .orderBy('channel.promotion_sort_order', 'ASC')
+      .addOrderBy('channel.promoted_until', 'ASC')
       .addOrderBy('channel.recommend_count', 'DESC')
       .limit(limit)
       .getMany();
@@ -438,10 +439,31 @@ export class ChannelsService implements OnModuleInit {
       promotedUntil.setDate(promotedUntil.getDate() + (options.durationDays ?? 7));
     }
 
+    const wasPromoted = channel.isPromoted;
     channel.isPromoted = true;
     channel.promotedUntil = promotedUntil;
+    if (!wasPromoted) {
+      channel.promotionSortOrder = await this.getNextPromotionSortOrder();
+    }
     this.applyPromotionClient(channel, options);
     return this.channelRepository.save(channel);
+  }
+
+  private async getNextPromotionSortOrder(): Promise<number> {
+    const row = await this.channelRepository
+      .createQueryBuilder('channel')
+      .select('MAX(channel.promotion_sort_order)', 'max')
+      .where('channel.is_promoted = :promoted', { promoted: true })
+      .getRawOne<{ max: string | null }>();
+    return (Number(row?.max) || 0) + 1;
+  }
+
+  async updatePromotionOrder(ids: string[]): Promise<void> {
+    await Promise.all(
+      ids.map((id, index) =>
+        this.channelRepository.update({ id }, { promotionSortOrder: index + 1 }),
+      ),
+    );
   }
 
   private mockTonAmount(channel: Channel): number {
@@ -523,7 +545,7 @@ export class ChannelsService implements OnModuleInit {
       );
     }
 
-    qb.orderBy('channel.promoted_until', 'ASC');
+    qb.orderBy('channel.promotion_sort_order', 'ASC').addOrderBy('channel.promoted_until', 'ASC');
     const items = await qb.getMany();
     return Promise.all(items.map((item) => this.ensurePromotionClientInfo(item)));
   }
