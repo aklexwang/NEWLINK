@@ -22,7 +22,6 @@ import { LinkTypeToggle } from '../../components/admin/LinkTypeToggle';
 import {
   dateInputToPromotedUntil,
   defaultPromoteDateInput,
-  formatPromotedUntil,
   isPromotionActive,
   toDateInputValue,
 } from '../../utils/promotion';
@@ -42,8 +41,16 @@ export function AdminAdsManagePage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [orderSaving, setOrderSaving] = useState(false);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
 
   const canReorder = !query.trim();
+
+  const isPromoteDateChanged = (channel: Channel) => {
+    const edited = promoteDates[channel.id];
+    if (!edited) return false;
+    const saved = toDateInputValue(channel.promotedUntil);
+    return edited !== saved;
+  };
 
   const syncPromoteDates = (items: Channel[]) => {
     setPromoteDates((prev) => {
@@ -97,13 +104,16 @@ export function AdminAdsManagePage() {
       setMessage('노출 종료일을 입력해 주세요.');
       return;
     }
+    setApplyingId(id);
     try {
       await promoteChannel(id, dateInputToPromotedUntil(date));
-      setMessage('광고 노출이 적용되었습니다.');
+      setMessage('광고 기간이 적용되었습니다.');
       await loadPromoted();
       setCandidates((prev) => prev.filter((item) => item.id !== id));
     } catch {
       setMessage('광고 적용에 실패했습니다.');
+    } finally {
+      setApplyingId(null);
     }
   };
 
@@ -277,7 +287,7 @@ export function AdminAdsManagePage() {
                   <AdminTh>제목</AdminTh>
                   <AdminTh className="w-16">유형</AdminTh>
                   <AdminTh className="w-20">노출</AdminTh>
-                  <AdminTh className="w-24">종료일</AdminTh>
+                  <AdminTh className="w-40">종료일</AdminTh>
                   <AdminTh className="min-w-[100px]">의뢰 · TON</AdminTh>
                   <AdminTh className="w-10" />
                 </tr>
@@ -350,9 +360,22 @@ export function AdminAdsManagePage() {
                           </span>
                         </AdminTd>
                         <AdminTd>
-                          <span className="text-xs tabular-nums text-slate-600">
-                            {channel.promotedUntil ? formatPromotedUntil(channel.promotedUntil) : '-'}
-                          </span>
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="date"
+                              value={promoteDates[channel.id] ?? toDateInputValue(channel.promotedUntil) ?? defaultPromoteDateInput()}
+                              onChange={(e) => setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))}
+                              className="min-w-0 flex-1 rounded bg-white px-1.5 py-1 text-[11px] ring-1 ring-black/10"
+                            />
+                            <button
+                              type="button"
+                              disabled={applyingId === channel.id || !isPromoteDateChanged(channel)}
+                              onClick={() => void handleApply(channel.id)}
+                              className="shrink-0 rounded-md bg-purple-600 px-2 py-1 text-[11px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              {applyingId === channel.id ? '…' : '확인'}
+                            </button>
+                          </div>
                         </AdminTd>
                         <AdminTd><AdClientCells channel={channel} /></AdminTd>
                         <AdminTd><span className={`text-slate-400 transition ${expanded ? 'rotate-180' : ''}`}>▼</span></AdminTd>
@@ -389,8 +412,13 @@ export function AdminAdsManagePage() {
                                   onChange={(e) => setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))}
                                   className="rounded-lg bg-white px-3 py-1.5 text-xs ring-1 ring-black/10"
                                 />
-                                <button type="button" onClick={() => handleApply(channel.id)} className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-medium text-amber-950">
-                                  기간 수정
+                                <button
+                                  type="button"
+                                  disabled={applyingId === channel.id || !isPromoteDateChanged(channel)}
+                                  onClick={() => void handleApply(channel.id)}
+                                  className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  {applyingId === channel.id ? '적용 중…' : '확인'}
                                 </button>
                                 <button type="button" onClick={() => handleRemove(channel)} className="rounded-lg bg-white px-3 py-1.5 text-xs ring-1 ring-black/10">
                                   노출 해제
