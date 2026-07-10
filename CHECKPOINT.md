@@ -1,58 +1,71 @@
 # NEWLINK 체크포인트
 
-**저장 일시:** 2025-06-20
+**저장 일시:** 2026-07-10
+
+**Git 커밋:** `6e3a1e4` (origin/main 동기화 완료)
 
 ## 이번 세션까지 완료된 작업
 
-### 채널/그룹 유형
-- `linkType` (channel | group) 백엔드·프론트 연동
-- MY 페이지 제보 내역에 유형 뱃지 표시
-- 회원 목록(`ChannelCard`)에 채널/그룹 뱃지 표시
-- 어드민 채널·광고 관리에서 유형 수정
+### 어드민 · 광고 관리
+- **노출 순서 드래그앤드롭** — ⋮⋮ 핸들로 순서 변경, `promotionSortOrder` 저장
+- **종료일 확인 버튼** — 날짜 변경 후 「확인」 클릭 시 즉시 적용
+- API: `PATCH /admin/promotions/order`
 
-### 어드민
-- 채널 관리: 테이블 + 펼치기 상세, 카테고리·유형 수정
-- **채널 관리: 제목 직접 수정** (저장 버튼)
-- 광고 관리 페이지 분리 (`/admin/ads`)
-- 광고 의뢰자 정보(목업) 표시
+### 인증 · 회원
+- Telegram 미니앱 `initData` 자동 로그인 + JWT
+- 로컬 브라우저: MY 슬라이드 데모 로그인 (임의 회원 ID)
+- TON 지갑: 제보 시 1회 등록
+- 회원 API: `X-Demo-Telegram-Id` (관리자 `X-Dev-Admin`과 분리)
 
-### 회원 페이지 UI
-- 홈 섹션 「인기 채널 ›」→「인기」
-- **검색 카테고리: 애플워치식 허니콤 UI**
-  - 원형 컬러 버블 + hex 그리드
-  - fisheye 크기 변화, 드래그 관성
-  - 흰색 배경, pill 라벨로 가독성 개선
-  - 탭 선택 / 드래그 탐색
+### 어드민 기타
+- 사이드바 광고 배지: 노출 중만 집계
+- TON 지급 이력 (데모, localStorage)
+- 관리자 페이지 게이트 (비밀번호 `123` + API 키)
+
+### 배포
+- 프론트: https://newlink-bez.pages.dev
+- API: Cloudflare 터널 → PC 백엔드 `localhost:3000`
+- 어드민: `/admin?access=newlink-admin-kc2026`
+
+## 미완료 (다음 작업)
+- [Telegram Login (OIDC)](https://core.telegram.org/bots/telegram-login) 웹 브라우저 로그인 — 아직 미구현
 
 ## 주요 파일
 
 | 영역 | 파일 |
 |------|------|
-| 허니콤 UI | `frontend/src/components/CategoryHoneycomb.tsx` |
-| 검색 | `frontend/src/pages/SearchPage.tsx` |
-| 회원 목록 | `frontend/src/components/ChannelCard.tsx` |
+| 광고 순서·기간 | `frontend/src/pages/admin/AdminAdsManagePage.tsx` |
+| 광고 순서 API | `backend/src/channels/channels.service.ts` |
+| 광고 순서 엔드포인트 | `backend/src/admin/admin-promotions.controller.ts` |
+| 인증 | `frontend/src/providers/AuthProvider.tsx` |
 | MY | `frontend/src/pages/MyPage.tsx` |
-| 어드민 채널 | `frontend/src/pages/admin/AdminChannelsManagePage.tsx` |
-| 어드민 광고 | `frontend/src/pages/admin/AdminAdsManagePage.tsx` |
-| 유형 유틸 | `frontend/src/utils/linkType.ts` |
+| 어드민 게이트 | `frontend/src/components/AdminPageGate.tsx` |
 
 ## 실행 방법
 
 ```bash
 # Backend (port 3000)
-cd backend && npm run start:dev
+cd backend && npm run start:prod
 
 # Frontend (port 5173)
 cd frontend && npm run dev
 ```
 
 - 앱: http://localhost:5173/
-- 검색(허니콤): http://localhost:5173/search
-- 어드민 채널: http://localhost:5173/admin/channels
+- MY: http://localhost:5173/my
 - 어드민 광고: http://localhost:5173/admin/ads
 
 ## 로컬 설정
 
 - `DEV_ADMIN_BYPASS=true`
 - `VITE_DEV_ADMIN=true`
-- SQLite 사용 (Docker/PostgreSQL 불필요)
+- `ADMIN_ACCESS_KEY=newlink-admin-kc2026`
+- SQLite: `backend/data/newlink.sqlite`
+
+## 최근 커밋
+
+```
+6e3a1e4 광고 관리 종료일 수정 후 확인 버튼으로 즉시 적용
+614e953 광고 관리에서 드래그로 노출 순서를 변경·저장할 수 있게 추가
+a5a06e4 Telegram 자동 로그인, MY 슬라이드 로그인, TON 지갑 제보 시 등록...
+```
