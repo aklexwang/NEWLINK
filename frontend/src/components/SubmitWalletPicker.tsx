@@ -94,11 +94,9 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
         </button>
       </div>
 
-      {isLinked && savedAddress && (
+      {method === 'telegram' && isLinked && savedAddress && (
         <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 ring-1 ring-emerald-100">
-          <p className="text-[11px] font-medium text-emerald-800">
-            현재 등록 주소 · {method === 'telegram' ? '텔레그램 Wallet' : '외부 지갑'} 선택 중
-          </p>
+          <p className="text-[11px] font-medium text-emerald-800">현재 등록 주소 · 텔레그램 Wallet</p>
           <WalletNetworkBadge address={savedAddress} className="mt-1.5" />
           <p className="mt-1.5 break-all font-mono text-[11px] text-emerald-900">{savedAddress}</p>
         </div>
