@@ -69,7 +69,7 @@ export function SubmitPage() {
     e.preventDefault();
 
     if (!isLoggedIn) {
-      notify('제보하려면 MY 페이지에서 로그인해 주세요.');
+      notify('제보하기는 로그인후 가능합니다');
       navigate('/my');
       return;
     }
