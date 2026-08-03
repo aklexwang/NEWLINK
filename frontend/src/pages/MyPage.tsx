@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getMySubmissions } from '../api/channels';
 import { CategoryBadge } from '../components/CategoryBadge';
+import { RewardApprovedModal } from '../components/RewardApprovedModal';
 import { TelegramOfficialLoginButton } from '../components/TelegramOfficialLoginButton';
 import { useCategories } from '../hooks/useCategories';
 import { useAuth } from '../providers/AuthProvider';
@@ -9,6 +10,7 @@ import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import { getApiErrorMessage } from '../utils/apiError';
 import { linkTypeBadgeClass, linkTypeLabel, submissionStatusLabel } from '../utils/linkType';
+import { hasSeenRewardNotice, markRewardNoticeSeen } from '../utils/seenRewardNotices';
 
 const TELEGRAM_BOT_USERNAME =
   (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ||
@@ -35,6 +37,7 @@ export function MyPage() {
 
   const [submissions, setSubmissions] = useState<Channel[]>([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(true);
+  const [rewardNotice, setRewardNotice] = useState<Channel | null>(null);
   const { searchCategories } = useCategories();
 
   const profile = authUser;
@@ -52,14 +55,32 @@ export function MyPage() {
     if (!isLoggedIn) {
       setSubmissions([]);
       setSubmissionsLoading(false);
+      setRewardNotice(null);
       return;
     }
+
+    const pickRewardNotice = (items: Channel[]) => {
+      const pending = items.filter(
+        (item) =>
+          item.status === 'active' &&
+          item.rewardTonAmount != null &&
+          item.rewardTonAmount > 0 &&
+          !hasSeenRewardNotice(item.id),
+      );
+      setRewardNotice(pending[0] ?? null);
+    };
 
     const loadSubmissions = () => {
       setSubmissionsLoading(true);
       getMySubmissions()
-        .then(setSubmissions)
-        .catch(() => setSubmissions([]))
+        .then((items) => {
+          setSubmissions(items);
+          pickRewardNotice(items);
+        })
+        .catch(() => {
+          setSubmissions([]);
+          setRewardNotice(null);
+        })
         .finally(() => setSubmissionsLoading(false));
     };
 
@@ -71,6 +92,20 @@ export function MyPage() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [isLoggedIn]);
+
+  const dismissRewardNotice = () => {
+    if (!rewardNotice) return;
+    markRewardNoticeSeen(rewardNotice.id);
+    const next = submissions.find(
+      (item) =>
+        item.id !== rewardNotice.id &&
+        item.status === 'active' &&
+        item.rewardTonAmount != null &&
+        item.rewardTonAmount > 0 &&
+        !hasSeenRewardNotice(item.id),
+    );
+    setRewardNotice(next ?? null);
+  };
 
   const displayName = profile
     ? profile.firstName ?? `회원${String(profile.telegramId).slice(-4)}`
@@ -120,6 +155,10 @@ export function MyPage() {
 
   return (
     <>
+      {rewardNotice && (
+        <RewardApprovedModal item={rewardNotice} onClose={dismissRewardNotice} />
+      )}
+
       <header className="border-b border-black/5 px-4 py-5">
         <h1 className="text-xl font-bold text-tg-text">MY</h1>
         <p className="mt-1 text-sm text-tg-hint">내 정보 · 제보 내역</p>
