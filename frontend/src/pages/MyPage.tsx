@@ -22,7 +22,7 @@ function getCategoryMeta(
 
 export function MyPage() {
   const { user: telegramUser, webApp, isLocalBrowser } = useTelegram();
-  const { user: authUser, status: authStatus, loginWithOidc, logout } = useAuth();
+  const { user: authUser, status: authStatus, loginWithWidget, logout } = useAuth();
   const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
   const [submissions, setSubmissions] = useState<Channel[]>([]);
@@ -76,8 +76,16 @@ export function MyPage() {
       ? `회원 ID ${profile.telegramId}`
       : '로그인이 필요합니다';
 
-  const handleTelegramSlideLogin = async (idToken: string) => {
-    await loginWithOidc(idToken);
+  const handleTelegramSlideLogin = async (payload: {
+    id: number;
+    first_name: string;
+    last_name?: string;
+    username?: string;
+    photo_url?: string;
+    auth_date: number;
+    hash: string;
+  }) => {
+    await loginWithWidget(payload);
     notify('Telegram 로그인되었습니다.');
   };
 
@@ -98,7 +106,7 @@ export function MyPage() {
       {!isLoggedIn && isLocalBrowser && (
         <section className="p-4">
           <SlideTelegramLogin
-            onIdToken={handleTelegramSlideLogin}
+            onAuth={handleTelegramSlideLogin}
             onError={(message) => notify(message)}
           />
         </section>

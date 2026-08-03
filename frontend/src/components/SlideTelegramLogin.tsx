@@ -1,66 +1,138 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTelegramLoginConfig } from '../api/auth';
+import type { TelegramLoginWidgetPayload } from '../api/auth';
 
 interface SlideTelegramLoginProps {
-  onIdToken: (idToken: string) => Promise<void> | void;
+  onAuth: (payload: TelegramLoginWidgetPayload) => Promise<void> | void;
   onError?: (message: string) => void;
 }
 
-type TelegramLoginSdk = {
-  init?: (
-    options: { client_id: number; scope?: string[]; lang?: string },
-    callback: (data: { id_token?: string; user?: unknown; error?: string }) => void,
-  ) => void;
-  auth?: (
-    options: { client_id: number; scope?: string[]; lang?: string },
-    callback: (data: { id_token?: string; user?: unknown; error?: string }) => void,
-  ) => void;
-  open?: (callback?: (data: { id_token?: string; error?: string }) => void) => void;
-};
+const OAUTH_ORIGIN = 'https://oauth.telegram.org';
 
-declare global {
-  interface Window {
-    Telegram?: { Login?: TelegramLoginSdk };
+function parseAuthMessage(raw: unknown): TelegramLoginWidgetPayload | null {
+  let data = raw;
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return null;
+    }
   }
+  if (!data || typeof data !== 'object') return null;
+
+  const record = data as Record<string, unknown>;
+  const result =
+    record.event === 'auth_result' && record.result && typeof record.result === 'object'
+      ? (record.result as Record<string, unknown>)
+      : record;
+
+  const id = Number(result.id);
+  const hash = typeof result.hash === 'string' ? result.hash : '';
+  const firstName = typeof result.first_name === 'string' ? result.first_name : '';
+  const authDate = Number(result.auth_date);
+
+  if (!Number.isFinite(id) || id <= 0 || !hash || !firstName || !Number.isFinite(authDate)) {
+    return null;
+  }
+
+  return {
+    id,
+    first_name: firstName,
+    last_name: typeof result.last_name === 'string' ? result.last_name : undefined,
+    username: typeof result.username === 'string' ? result.username : undefined,
+    photo_url: typeof result.photo_url === 'string' ? result.photo_url : undefined,
+    auth_date: authDate,
+    hash,
+  };
 }
 
-function loadTelegramLoginSdk(): Promise<TelegramLoginSdk> {
-  if (window.Telegram?.Login?.auth || window.Telegram?.Login?.init) {
-    return Promise.resolve(window.Telegram.Login);
-  }
+function openLegacyTelegramAuth(botId: number): Promise<TelegramLoginWidgetPayload> {
+  const origin = window.location.origin;
+  const authUrl =
+    `${OAUTH_ORIGIN}/auth` +
+    `?bot_id=${encodeURIComponent(String(botId))}` +
+    `&origin=${encodeURIComponent(origin)}` +
+    `&request_access=write` +
+    `&return_to=${encodeURIComponent(origin)}`;
+
+  const width = 550;
+  const height = 470;
+  const left = Math.max(0, (window.screen.width - width) / 2);
+  const top = Math.max(0, (window.screen.height - height) / 2);
+  const features = `width=${width},height=${height},left=${left},top=${top},status=0,location=0,menubar=0,toolbar=0`;
 
   return new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[data-newlink-telegram-login="1"]',
-    );
-    if (existing) {
-      existing.addEventListener('load', () => {
-        if (window.Telegram?.Login) resolve(window.Telegram.Login);
-        else reject(new Error('Telegram Login SDK load failed'));
-      });
+    const popup = window.open(authUrl, 'telegram_login', features);
+    if (!popup) {
+      reject(new Error('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해 주세요.'));
       return;
     }
 
-    const script = document.createElement('script');
-    script.src = 'https://oauth.telegram.org/js/telegram-login.js?5';
-    script.async = true;
-    script.dataset.newlinkTelegramLogin = '1';
-    script.onload = () => {
-      if (window.Telegram?.Login) resolve(window.Telegram.Login);
-      else reject(new Error('Telegram Login SDK missing'));
+    let finished = false;
+    const done = (fn: () => void) => {
+      if (finished) return;
+      finished = true;
+      window.removeEventListener('message', onMessage);
+      window.clearInterval(timer);
+      fn();
     };
-    script.onerror = () => reject(new Error('Telegram Login SDK network error'));
-    document.head.appendChild(script);
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== OAUTH_ORIGIN) return;
+      if (event.source && event.source !== popup) return;
+
+      const payload = parseAuthMessage(event.data);
+      if (payload) {
+        done(() => {
+          try {
+            popup.close();
+          } catch {
+            // ignore
+          }
+          resolve(payload);
+        });
+        return;
+      }
+
+      let data = event.data;
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          return;
+        }
+      }
+      if (
+        data &&
+        typeof data === 'object' &&
+        (data as { event?: string }).event === 'auth_result' &&
+        (data as { error?: string }).error
+      ) {
+        done(() => reject(new Error(String((data as { error?: string }).error))));
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+
+    const timer = window.setInterval(() => {
+      if (!popup.closed) return;
+      done(() => reject(new Error('로그인이 취소되었습니다.')));
+    }, 300);
+
+    try {
+      popup.focus();
+    } catch {
+      // ignore
+    }
   });
 }
 
-/** 올링크 스타일: 밀면 Telegram OIDC 로그인 팝업 */
-export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginProps) {
+/** 올링크 스타일: 밀면 Telegram 로그인 팝업 (BotFather Domain / 레거시 oauth) */
+export function SlideTelegramLogin({ onAuth, onError }: SlideTelegramLoginProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const knobRef = useRef<HTMLButtonElement>(null);
   const [dragX, setDragX] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [clientId, setClientId] = useState<number | null>(null);
+  const [botId, setBotId] = useState<number | null>(null);
   const dragXRef = useRef(0);
   const draggingRef = useRef(false);
   const startXRef = useRef(0);
@@ -74,8 +146,7 @@ export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginPro
     void (async () => {
       try {
         const config = await getTelegramLoginConfig();
-        if (!cancelled) setClientId(config.clientId);
-        await loadTelegramLoginSdk();
+        if (!cancelled) setBotId(config.clientId);
       } catch (error) {
         if (!cancelled) {
           onError?.(error instanceof Error ? error.message : 'Telegram 로그인 준비 실패');
@@ -101,8 +172,8 @@ export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginPro
 
   const startTelegramAuth = useCallback(async () => {
     if (busyRef.current) return;
-    if (!clientId) {
-      onError?.('Telegram Client ID를 불러오지 못했습니다. BotFather Domain을 확인하세요.');
+    if (!botId) {
+      onError?.('봇 ID를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
       reset();
       return;
     }
@@ -110,47 +181,19 @@ export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginPro
     busyRef.current = true;
     setBusy(true);
     try {
-      const sdk = await loadTelegramLoginSdk();
-      const options = {
-        client_id: clientId,
-        scope: ['profile', 'write'],
-        lang: 'ko',
-      };
-
-      await new Promise<void>((resolve, reject) => {
-        const handler = (data: { id_token?: string; error?: string }) => {
-          if (data.error) {
-            reject(new Error(data.error));
-            return;
-          }
-          if (!data.id_token) {
-            reject(new Error('id_token이 없습니다.'));
-            return;
-          }
-          void Promise.resolve(onIdToken(data.id_token))
-            .then(() => resolve())
-            .catch(reject);
-        };
-
-        if (typeof sdk.auth === 'function') {
-          sdk.auth(options, handler);
-          return;
-        }
-        if (typeof sdk.init === 'function' && typeof sdk.open === 'function') {
-          sdk.init(options, handler);
-          sdk.open(handler);
-          return;
-        }
-        reject(new Error('Telegram.Login API를 사용할 수 없습니다.'));
-      });
+      const payload = await openLegacyTelegramAuth(botId);
+      await onAuth(payload);
     } catch (error) {
-      onError?.(error instanceof Error ? error.message : 'Telegram 로그인에 실패했습니다.');
+      const message = error instanceof Error ? error.message : 'Telegram 로그인에 실패했습니다.';
+      if (message !== '로그인이 취소되었습니다.') {
+        onError?.(message);
+      }
     } finally {
       busyRef.current = false;
       setBusy(false);
       reset();
     }
-  }, [clientId, onError, onIdToken, reset]);
+  }, [botId, onAuth, onError, reset]);
 
   const finish = useCallback(() => {
     if (finishedRef.current || busyRef.current) return;
@@ -193,26 +236,21 @@ export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginPro
     };
   }, [finish, reset]);
 
-  const beginDrag = (clientX: number, pointerId: number, target: HTMLElement) => {
-    if (busyRef.current || finishedRef.current) return;
-    const track = trackRef.current;
-    if (!track) return;
-    const knobWidth = 52;
-    maxXRef.current = Math.max(track.clientWidth - knobWidth - 8, 0);
-    startXRef.current = clientX - dragXRef.current;
-    draggingRef.current = true;
-    pointerIdRef.current = pointerId;
-    try {
-      target.setPointerCapture(pointerId);
-    } catch {
-      // Telegram WebView 등에서 capture 실패해도 document 리스너로 동작
-    }
-  };
-
   const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    beginDrag(e.clientX, e.pointerId, e.currentTarget);
+    if (busyRef.current || finishedRef.current) return;
+    const track = trackRef.current;
+    if (!track) return;
+    maxXRef.current = Math.max(track.clientWidth - 52 - 8, 0);
+    startXRef.current = e.clientX - dragXRef.current;
+    draggingRef.current = true;
+    pointerIdRef.current = e.pointerId;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -233,7 +271,6 @@ export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginPro
           {busy ? 'Telegram 연결 중...' : '밀어서 로그인'}
         </p>
         <button
-          ref={knobRef}
           type="button"
           disabled={busy}
           onPointerDown={onPointerDown}
@@ -254,7 +291,7 @@ export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginPro
 
       <button
         type="button"
-        disabled={busy || !clientId}
+        disabled={busy || !botId}
         onClick={() => void startTelegramAuth()}
         className="mt-3 w-full rounded-xl bg-[#2AABEE] py-3 text-sm font-semibold text-white disabled:opacity-50"
       >
