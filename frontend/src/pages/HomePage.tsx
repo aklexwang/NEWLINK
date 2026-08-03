@@ -1,49 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { getPromotedChannels, searchChannels } from '../api/channels';
+import { searchChannels } from '../api/channels';
 import { ChannelList } from '../components/ChannelList';
 import { NewLinkLogo } from '../components/NewLinkLogo';
-import { PromotedShortcuts } from '../components/PromotedShortcuts';
 import { SearchBar } from '../components/SearchBar';
 import { useCategories } from '../hooks/useCategories';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
-import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
+import { hapticSuccess, notifyUser, useTelegram } from '../hooks/useTelegram';
 
-type HomeView = 'promoted' | 'search';
+type HomeView = 'landing' | 'search';
 
 export function HomePage() {
   const location = useLocation();
   const { webApp, isLocalBrowser } = useTelegram();
   const { searchCategories } = useCategories();
   const { recommendedIds, load: loadRecommended, recommend } = useMyRecommendations();
-  const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
   const [query, setQuery] = useState('');
-  const [view, setView] = useState<HomeView>('promoted');
-  const [promotedChannels, setPromotedChannels] = useState<Awaited<ReturnType<typeof getPromotedChannels>>>([]);
-  const [searchChannelsList, setSearchChannelsList] = useState<Awaited<ReturnType<typeof getPromotedChannels>>>([]);
-  const [promotedLoading, setPromotedLoading] = useState(true);
+  const [view, setView] = useState<HomeView>('landing');
+  const [searchChannelsList, setSearchChannelsList] = useState<
+    Awaited<ReturnType<typeof searchChannels>>['items']
+  >([]);
   const [searchLoading, setSearchLoading] = useState(false);
-
-  const loadPromoted = useCallback(async () => {
-    setPromotedLoading(true);
-    try {
-      const items = await getPromotedChannels();
-      setPromotedChannels(items);
-      setView('promoted');
-    } catch {
-      notifyUser(webApp, isLocalBrowser, 'Promoted 목록을 불러오지 못했습니다.');
-      setPromotedChannels([]);
-    } finally {
-      setPromotedLoading(false);
-    }
-  }, [webApp, isLocalBrowser]);
 
   const resetToHome = useCallback(() => {
     setQuery('');
     setSearchChannelsList([]);
-    void loadPromoted();
-  }, [loadPromoted]);
+    setView('landing');
+  }, []);
 
   const loadSearch = useCallback(
     async (keyword: string) => {
@@ -55,16 +39,13 @@ export function HomePage() {
       } catch {
         notifyUser(webApp, isLocalBrowser, '검색 결과를 불러오지 못했습니다.');
         setSearchChannelsList([]);
+        setView('search');
       } finally {
         setSearchLoading(false);
       }
     },
     [webApp, isLocalBrowser],
   );
-
-  useEffect(() => {
-    void loadPromoted();
-  }, [loadPromoted]);
 
   useEffect(() => {
     const resetAt = (location.state as { homeResetAt?: number } | null)?.homeResetAt;
@@ -75,47 +56,41 @@ export function HomePage() {
   const handleQueryChange = (value: string) => {
     setQuery(value);
     if (!value.trim() && view === 'search') {
-      void loadPromoted();
+      resetToHome();
     }
   };
 
   const handleSearch = () => {
     const keyword = query.trim();
-    if (keyword) {
-      void loadSearch(keyword);
+    if (!keyword) {
+      resetToHome();
       return;
     }
-    void loadPromoted();
+    void loadSearch(keyword);
   };
 
   const handleRecommend = async (id: string) => {
     if (recommendedIds.has(id)) {
-      notify('이미 추천한 채널/그룹입니다.');
+      notifyUser(webApp, isLocalBrowser, '이미 추천한 채널/그룹입니다.');
       return;
     }
     try {
       await recommend(id);
-      if (view === 'search') {
-        await loadSearch(query.trim());
-      } else {
-        await loadPromoted();
-      }
+      await loadSearch(query.trim());
       hapticSuccess(webApp, isLocalBrowser);
     } catch {
-      notify('이미 추천했거나 추천 처리에 실패했습니다.');
+      notifyUser(webApp, isLocalBrowser, '이미 추천했거나 추천 처리에 실패했습니다.');
       await loadRecommended();
     }
   };
 
-  const handleOpenChannel = (link: string) => {
-    openTelegramChannel(webApp, isLocalBrowser, link);
-  };
-
   if (view === 'search') {
     return (
-      <div className="flex min-h-[calc(100dvh-68px)] flex-col">
-        <div className="sticky top-0 z-10 border-b border-black/[0.04] bg-tg-bg/95 px-4 pb-3 pt-4 backdrop-blur-md">
-          <NewLinkLogo compact />
+      <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-white">
+        <div className="sticky top-0 z-10 border-b border-black/[0.04] bg-white/95 px-4 pb-3 pt-4 backdrop-blur-md">
+          <button type="button" onClick={resetToHome} className="mx-auto block" aria-label="홈으로">
+            <NewLinkLogo compact />
+          </button>
           <SearchBar
             value={query}
             onChange={handleQueryChange}
@@ -141,31 +116,16 @@ export function HomePage() {
 
   return (
     <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-white">
-      <div className="flex flex-1 flex-col items-center px-6 pb-12 pt-[15vh]">
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-[12vh]">
         <NewLinkLogo />
-
         <SearchBar
           value={query}
           onChange={handleQueryChange}
           onSearch={handleSearch}
           isLoading={searchLoading}
           variant="google"
-          className="mt-9 w-full"
+          className="mt-8 w-full"
         />
-
-        <PromotedShortcuts
-          channels={promotedChannels}
-          categoryEmojis={searchCategories}
-          isLoading={promotedLoading}
-          onOpen={handleOpenChannel}
-        />
-
-        <p className="mt-[3cm] text-center text-[13px] text-[#3c4043]">
-          New Link 제공 언어:{' '}
-          <button type="button" className="text-[#1a0dab] hover:underline">
-            한국어
-          </button>
-        </p>
       </div>
     </div>
   );

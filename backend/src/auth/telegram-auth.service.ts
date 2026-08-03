@@ -14,7 +14,25 @@ export class TelegramAuthService {
   private readonly maxAuthAgeSeconds = 86400;
 
   constructor(private readonly configService: ConfigService) {
-    this.botToken = this.configService.getOrThrow<string>('TELEGRAM_BOT_TOKEN');
+    this.botToken = (this.configService.getOrThrow<string>('TELEGRAM_BOT_TOKEN') ?? '').trim();
+  }
+
+  private buildDataCheckString(
+    params: URLSearchParams,
+    excludeKeys: string[],
+  ): string {
+    return [...params.entries()]
+      .filter(([key]) => !excludeKeys.includes(key))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n');
+  }
+
+  private calcInitDataHash(dataCheckString: string): string {
+    const secretKey = createHmac('sha256', 'WebAppData')
+      .update(this.botToken)
+      .digest();
+    return createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
   }
 
   validateInitData(initData: string): TelegramInitData {
@@ -29,24 +47,21 @@ export class TelegramAuthService {
       throw new UnauthorizedException('initData hash가 없습니다.');
     }
 
-    params.delete('hash');
+    // 1) 공식: hash만 제외  2) 일부 클라이언트: signature도 제외
+    const candidates = [
+      this.buildDataCheckString(params, ['hash']),
+      this.buildDataCheckString(params, ['hash', 'signature']),
+    ];
 
-    // Telegram 문서는 키 알파벳 순(로케일 비의존) 정렬을 요구합니다.
-    const dataCheckString = [...params.entries()]
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([key, value]) => `${key}=${value}`)
-      .join('\n');
+    const matched = candidates.some(
+      (checkString) => this.calcInitDataHash(checkString) === hash,
+    );
 
-    const secretKey = createHmac('sha256', 'WebAppData')
-      .update(this.botToken)
-      .digest();
-
-    const calculatedHash = createHmac('sha256', secretKey)
-      .update(dataCheckString)
-      .digest('hex');
-
-    if (calculatedHash !== hash) {
-      throw new UnauthorizedException('initData 무결성 검증에 실패했습니다.');
+    if (!matched) {
+      const botId = this.botToken.split(':')[0] || '?';
+      throw new UnauthorizedException(
+        `initData 무결성 검증에 실패했습니다. (서버 봇ID ${botId}) BotFather 토큰과 backend/.env 의 TELEGRAM_BOT_TOKEN이 같은지 확인하세요.`,
+      );
     }
 
     const authDate = Number(params.get('auth_date'));

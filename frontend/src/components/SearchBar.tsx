@@ -33,7 +33,7 @@ export function SearchBar({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-            placeholder="채널 검색"
+            placeholder="텔레그램 채널·그룹 검색"
             className="min-w-0 flex-1 bg-transparent px-1 text-[16px] text-[#202124] outline-none placeholder:text-[#9aa0a6]"
           />
           {value && !isLoading && (
@@ -72,7 +72,7 @@ export function SearchBar({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-          placeholder="채널 검색"
+          placeholder="텔레그램 채널·그룹 검색"
           className="min-w-0 flex-1 bg-transparent px-1 text-[15px] text-tg-text outline-none placeholder:text-tg-hint"
         />
         {value && !isLoading && (
