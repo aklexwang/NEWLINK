@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { submitChannel } from '../api/channels';
-import { TonWalletConnectCard } from '../components/TonWalletConnectCard';
+import { SubmitWalletPicker, type WalletMethod } from '../components/SubmitWalletPicker';
 import { useCategories } from '../hooks/useCategories';
 import { useTonWalletLink } from '../hooks/useTonWalletLink';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { LinkType } from '../types/channel';
-
-const TON_ADDRESS_RE = /^(EQ|UQ|kQ)[A-Za-z0-9_-]{46}$|^(0:|-1:)[a-fA-F0-9]{64}$/;
 
 export function SubmitPage() {
   const navigate = useNavigate();
@@ -16,11 +14,10 @@ export function SubmitPage() {
   const { webApp, isLocalBrowser } = useTelegram();
   const { user, status: authStatus } = useAuth();
   const { submitCategories, loading: categoriesLoading } = useCategories();
-  const { isLinked, connect, savedAddress, persistAddress, linking } = useTonWalletLink();
+  const { isLinked, connect, savedAddress } = useTonWalletLink({ autoSync: false });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [externalWallet, setExternalWallet] = useState('');
-  const [savingExternal, setSavingExternal] = useState(false);
+  const [walletMethod, setWalletMethod] = useState<WalletMethod>('telegram');
   const pendingSubmitRef = useRef(false);
   const [form, setForm] = useState({
     linkType: 'channel' as LinkType,
@@ -36,6 +33,11 @@ export function SubmitPage() {
   const defaultCategory = submitCategories[0] ?? '';
   const categoryValue = form.category || defaultCategory;
 
+  const notify = useCallback(
+    (message: string) => notifyUser(webApp, isLocalBrowser, message),
+    [webApp, isLocalBrowser],
+  );
+
   const doSubmit = useCallback(async () => {
     setIsSubmitting(true);
     try {
@@ -46,14 +48,14 @@ export function SubmitPage() {
         description: form.description,
         category: categoryValue,
       });
-      notifyUser(webApp, isLocalBrowser, '제보가 접수되었습니다. 관리자 승인 후 노출됩니다.');
+      notify('제보가 접수되었습니다. 관리자 승인 후 노출됩니다.');
       navigate('/');
     } catch {
-      notifyUser(webApp, isLocalBrowser, '제보 접수에 실패했습니다.');
+      notify('제보 접수에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [form, categoryValue, webApp, isLocalBrowser, navigate]);
+  }, [form, categoryValue, notify, navigate]);
 
   useEffect(() => {
     if (requireWallet && isLoggedIn && !hasWallet) {
@@ -67,35 +69,16 @@ export function SubmitPage() {
     void doSubmit();
   }, [hasWallet, doSubmit]);
 
-  const handleWalletLinked = (address: string) => {
-    notifyUser(webApp, isLocalBrowser, '텔레그램 Wallet이 연결되었습니다.');
+  const handleWalletLinked = (address: string, method: WalletMethod) => {
+    setWalletMethod(method);
+    notify(
+      method === 'telegram'
+        ? '텔레그램 Wallet이 연결되었습니다. 보상은 이 주소로만 지급됩니다.'
+        : '외부 지갑이 등록되었습니다. 보상은 이 주소로만 지급됩니다.',
+    );
     if (pendingSubmitRef.current && address) {
       pendingSubmitRef.current = false;
       void doSubmit();
-    }
-  };
-
-  const saveExternalWallet = async () => {
-    const address = externalWallet.trim();
-    if (!address) {
-      notifyUser(webApp, isLocalBrowser, '외부 지갑 주소를 입력해 주세요.');
-      return false;
-    }
-    if (!TON_ADDRESS_RE.test(address)) {
-      notifyUser(webApp, isLocalBrowser, '올바른 TON 지갑 주소 형식이 아닙니다.');
-      return false;
-    }
-    setSavingExternal(true);
-    try {
-      await persistAddress(address);
-      notifyUser(webApp, isLocalBrowser, '외부 지갑 주소가 등록되었습니다.');
-      setExternalWallet('');
-      return true;
-    } catch {
-      notifyUser(webApp, isLocalBrowser, '외부 지갑 등록에 실패했습니다.');
-      return false;
-    } finally {
-      setSavingExternal(false);
     }
   };
 
@@ -103,30 +86,23 @@ export function SubmitPage() {
     e.preventDefault();
 
     if (!isLoggedIn) {
-      notifyUser(webApp, isLocalBrowser, '제보하기는 로그인후 가능합니다');
+      notify('제보하기는 로그인후 가능합니다');
       navigate('/my');
       return;
     }
 
     if (!hasWallet) {
-      const typed = externalWallet.trim();
-      if (typed) {
-        const ok = await saveExternalWallet();
-        if (!ok) return;
+      if (walletMethod === 'telegram') {
         pendingSubmitRef.current = true;
+        try {
+          await connect();
+        } catch {
+          pendingSubmitRef.current = false;
+          notify('텔레그램 Wallet을 연결하거나 외부 지갑을 등록해 주세요.');
+        }
         return;
       }
-      pendingSubmitRef.current = true;
-      try {
-        await connect();
-      } catch {
-        pendingSubmitRef.current = false;
-        notifyUser(
-          webApp,
-          isLocalBrowser,
-          '텔레그램 Wallet을 연결하거나 외부 지갑 주소를 입력해 주세요.',
-        );
-      }
+      notify('외부 지갑 주소를 등록해 주세요.');
       return;
     }
 
@@ -151,6 +127,10 @@ export function SubmitPage() {
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
+        {isLoggedIn && (
+          <SubmitWalletPicker onLinked={handleWalletLinked} onNotify={notify} />
+        )}
+
         <div>
           <label className="mb-1.5 block text-xs font-medium text-tg-hint">유형</label>
           <div className="inline-flex gap-1.5">
@@ -194,36 +174,6 @@ export function SubmitPage() {
             className="w-full rounded-xl bg-tg-secondary px-4 py-3 text-sm outline-none"
           />
         </div>
-
-        {isLoggedIn && (
-          <>
-            <TonWalletConnectCard onLinked={handleWalletLinked} />
-
-            <section className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-              <h3 className="text-sm font-semibold text-slate-900">외부 지갑 주소</h3>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                텔레그램 Wallet 대신 다른 TON 지갑(토큰키퍼 등) 주소를 직접 등록할 수 있습니다.
-              </p>
-              <input
-                value={externalWallet}
-                onChange={(e) => setExternalWallet(e.target.value)}
-                placeholder="UQ… / EQ… 지갑 주소"
-                className="mt-3 w-full rounded-xl bg-white px-4 py-3 font-mono text-sm outline-none ring-1 ring-slate-200 focus:ring-blue-300"
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <button
-                type="button"
-                onClick={() => void saveExternalWallet()}
-                disabled={savingExternal || linking || !externalWallet.trim()}
-                className="mt-3 w-full rounded-xl bg-slate-800 py-3 text-sm font-medium text-white disabled:opacity-50"
-              >
-                {savingExternal ? '등록 중…' : '외부 지갑 등록하기'}
-              </button>
-            </section>
-          </>
-        )}
-
         <div>
           <label className="mb-1.5 block text-xs font-medium text-tg-hint">카테고리</label>
           <select

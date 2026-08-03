@@ -3,10 +3,16 @@ import { useTonAddress, useTonConnectUI, useTonWallet } from '@tonconnect/ui-rea
 import { registerUser } from '../api/users';
 import { useAuth } from '../providers/AuthProvider';
 
+interface UseTonWalletLinkOptions {
+  /** When false, connected wallet is not auto-saved to profile. */
+  autoSync?: boolean;
+}
+
 /**
  * Connect Telegram/TON Wallet via TonConnect and persist address to our user profile.
  */
-export function useTonWalletLink() {
+export function useTonWalletLink(options: UseTonWalletLinkOptions = {}) {
+  const autoSync = options.autoSync !== false;
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const address = useTonAddress();
@@ -46,10 +52,10 @@ export function useTonWalletLink() {
   }, [savedAddress]);
 
   useEffect(() => {
-    if (!canPersist || !connectedAddress) return;
+    if (!autoSync || !canPersist || !connectedAddress) return;
     if (savedAddress === connectedAddress) return;
     void persistAddress(connectedAddress).catch(() => undefined);
-  }, [canPersist, connectedAddress, savedAddress, persistAddress]);
+  }, [autoSync, canPersist, connectedAddress, savedAddress, persistAddress]);
 
   const connect = useCallback(async () => {
     setError(null);
