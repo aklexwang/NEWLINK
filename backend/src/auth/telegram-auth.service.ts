@@ -1,10 +1,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import {
   TelegramInitData,
   TelegramUser,
 } from './interfaces/telegram-user.interface';
+import { TelegramLoginWidgetDto } from './dto/telegram-login-widget.dto';
 
 @Injectable()
 export class TelegramAuthService {
@@ -73,6 +74,45 @@ export class TelegramAuthService {
       chat_instance: params.get('chat_instance') ?? undefined,
       chat_type: params.get('chat_type') ?? undefined,
       start_param: params.get('start_param') ?? undefined,
+    };
+  }
+
+  /**
+   * Telegram Login Widget 검증
+   * @see https://core.telegram.org/widgets/login#checking-authorization
+   */
+  validateLoginWidget(payload: TelegramLoginWidgetDto): TelegramUser {
+    const { hash, ...rest } = payload;
+    if (!hash) {
+      throw new UnauthorizedException('로그인 hash가 없습니다.');
+    }
+
+    const dataCheckString = Object.entries(rest)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n');
+
+    const secretKey = createHash('sha256').update(this.botToken).digest();
+    const calculatedHash = createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+
+    if (calculatedHash !== hash) {
+      throw new UnauthorizedException('Telegram 로그인 검증에 실패했습니다.');
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    if (!payload.auth_date || now - payload.auth_date > this.maxAuthAgeSeconds) {
+      throw new UnauthorizedException('Telegram 로그인이 만료되었습니다.');
+    }
+
+    return {
+      id: payload.id,
+      first_name: payload.first_name,
+      last_name: payload.last_name,
+      username: payload.username,
+      photo_url: payload.photo_url,
     };
   }
 

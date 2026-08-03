@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AdminPageGate } from '../components/AdminPageGate';
 import { getMySubmissions } from '../api/channels';
 import { CategoryBadge } from '../components/CategoryBadge';
 import { SlideToLogin } from '../components/SlideToLogin';
+import { TelegramLoginButton } from '../components/TelegramLoginButton';
 import { useCategories } from '../hooks/useCategories';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import { linkTypeBadgeClass, linkTypeLabel, submissionStatusLabel } from '../utils/linkType';
+
+const TELEGRAM_BOT_USERNAME = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ?? '';
 
 function getCategoryMeta(
   categories: { id: string; label: string; emoji: string; iconUrl: string | null }[],
@@ -23,7 +25,7 @@ function getCategoryMeta(
 
 export function MyPage() {
   const { user: telegramUser, webApp, isLocalBrowser } = useTelegram();
-  const { user: authUser, status: authStatus, loginLocalDemo, logout } = useAuth();
+  const { user: authUser, status: authStatus, loginLocalDemo, loginWithWidget, logout } = useAuth();
   const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
   const [submissions, setSubmissions] = useState<Channel[]>([]);
@@ -82,6 +84,23 @@ export function MyPage() {
     notify('임의 회원 ID로 로그인되었습니다.');
   };
 
+  const handleTelegramWidgetLogin = async (telegramUser: {
+    id: number;
+    first_name: string;
+    last_name?: string;
+    username?: string;
+    photo_url?: string;
+    auth_date: number;
+    hash: string;
+  }) => {
+    try {
+      await loginWithWidget(telegramUser);
+      notify('Telegram 로그인되었습니다.');
+    } catch {
+      notify('Telegram 로그인에 실패했습니다. 도메인 설정을 확인해 주세요.');
+    }
+  };
+
   const handleLogout = () => {
     if (!window.confirm('로그아웃할까요?')) return;
     logout();
@@ -97,8 +116,9 @@ export function MyPage() {
       </header>
 
       {!isLoggedIn && isLocalBrowser && (
-        <section className="p-4">
-          <SlideToLogin onComplete={handleSlideLogin} />
+        <section className="flex flex-col gap-3 p-4">
+          <TelegramLoginButton botUsername={TELEGRAM_BOT_USERNAME} onAuth={handleTelegramWidgetLogin} />
+          {import.meta.env.DEV && <SlideToLogin onComplete={handleSlideLogin} />}
         </section>
       )}
 
@@ -206,10 +226,6 @@ export function MyPage() {
           </div>
         </section>
       )}
-
-      <section className="px-4 pb-6">
-        <AdminPageGate />
-      </section>
     </>
   );
 }

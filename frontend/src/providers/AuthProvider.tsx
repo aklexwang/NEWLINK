@@ -7,7 +7,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { loginWithTelegram } from '../api/auth';
+import {
+  fetchAuthMe,
+  loginWithTelegram,
+  loginWithTelegramWidget,
+  type TelegramLoginWidgetPayload,
+} from '../api/auth';
 import {
   clearAccessToken,
   clearInitDataHeader,
@@ -36,6 +41,7 @@ interface AuthContextValue {
   refreshAuth: () => Promise<void>;
   logout: () => void;
   loginLocalDemo: () => void;
+  loginWithWidget: (payload: TelegramLoginWidgetPayload) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -59,6 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('guest');
   }, []);
 
+  const applyAuthSuccess = useCallback((result: {
+    accessToken: string;
+    isNewUser: boolean;
+    user: AppUser;
+  }) => {
+    setAccessToken(result.accessToken);
+    saveAccessToken(result.accessToken);
+    clearLoggedOut();
+    setUser(result.user);
+    setIsNewUser(result.isNewUser);
+    setError(null);
+    setStatus('authenticated');
+  }, []);
+
   const loginLocalDemo = useCallback(() => {
     const profile = createLocalDemoUser();
     clearLoggedOut();
@@ -67,6 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     setStatus('authenticated');
   }, []);
+
+  const loginWithWidget = useCallback(
+    async (payload: TelegramLoginWidgetPayload) => {
+      const result = await loginWithTelegramWidget(payload);
+      clearTestProfile();
+      applyAuthSuccess(result);
+    },
+    [applyAuthSuccess],
+  );
 
   const refreshAuth = useCallback(async () => {
     if (isLocalBrowser) {
@@ -77,6 +106,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError(null);
         setStatus('guest');
         return;
+      }
+
+      const storedToken = getStoredAccessToken();
+      if (storedToken) {
+        setAccessToken(storedToken);
+        try {
+          const me = await fetchAuthMe();
+          if (me) {
+            clearLoggedOut();
+            setUser(me);
+            setIsNewUser(false);
+            setError(null);
+            setStatus('authenticated');
+            return;
+          }
+        } catch {
+          clearAccessToken();
+          clearStoredAccessToken();
+        }
       }
 
       const testProfile = getTestProfile();
@@ -117,13 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const result = await loginWithTelegram(initData);
-      setAccessToken(result.accessToken);
-      saveAccessToken(result.accessToken);
-      clearLoggedOut();
-      setUser(result.user);
-      setIsNewUser(result.isNewUser);
-      setError(null);
-      setStatus('authenticated');
+      applyAuthSuccess(result);
     } catch {
       clearAccessToken();
       clearStoredAccessToken();
@@ -132,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError('Telegram 자동 로그인에 실패했습니다.');
       setStatus('guest');
     }
-  }, [initData, isLocalBrowser]);
+  }, [applyAuthSuccess, initData, isLocalBrowser]);
 
   useEffect(() => {
     void refreshAuth();
@@ -147,8 +189,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshAuth,
       logout,
       loginLocalDemo,
+      loginWithWidget,
     }),
-    [status, user, isNewUser, error, refreshAuth, logout, loginLocalDemo],
+    [status, user, isNewUser, error, refreshAuth, logout, loginLocalDemo, loginWithWidget],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
