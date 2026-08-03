@@ -29,6 +29,16 @@ export async function loginWithTelegramWidget(
   return data;
 }
 
+export async function loginWithTelegramOidc(idToken: string): Promise<TelegramAuthResponse> {
+  const { data } = await apiClient.post<TelegramAuthResponse>('/auth/telegram-oidc', { idToken });
+  return data;
+}
+
+export async function getTelegramLoginConfig(): Promise<{ clientId: number }> {
+  const { data } = await apiClient.get<{ clientId: number }>('/auth/telegram-login-config');
+  return data;
+}
+
 export async function fetchAuthMe(): Promise<AppUser | null> {
   const { data } = await apiClient.get<{ user: AppUser | null }>('/auth/me');
   return data.user;

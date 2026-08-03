@@ -10,6 +10,7 @@ import {
 import {
   fetchAuthMe,
   loginWithTelegram,
+  loginWithTelegramOidc,
   loginWithTelegramWidget,
   type TelegramLoginWidgetPayload,
 } from '../api/auth';
@@ -42,6 +43,7 @@ interface AuthContextValue {
   logout: () => void;
   loginLocalDemo: () => void;
   loginWithWidget: (payload: TelegramLoginWidgetPayload) => Promise<void>;
+  loginWithOidc: (idToken: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -91,6 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithWidget = useCallback(
     async (payload: TelegramLoginWidgetPayload) => {
       const result = await loginWithTelegramWidget(payload);
+      clearTestProfile();
+      applyAuthSuccess(result);
+    },
+    [applyAuthSuccess],
+  );
+
+  const loginWithOidc = useCallback(
+    async (idToken: string) => {
+      const result = await loginWithTelegramOidc(idToken);
       clearTestProfile();
       applyAuthSuccess(result);
     },
@@ -190,8 +201,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       loginLocalDemo,
       loginWithWidget,
+      loginWithOidc,
     }),
-    [status, user, isNewUser, error, refreshAuth, logout, loginLocalDemo, loginWithWidget],
+    [status, user, isNewUser, error, refreshAuth, logout, loginLocalDemo, loginWithWidget, loginWithOidc],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

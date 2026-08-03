@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, createHmac } from 'crypto';
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import {
   TelegramInitData,
   TelegramUser,
@@ -113,6 +114,68 @@ export class TelegramAuthService {
       last_name: payload.last_name,
       username: payload.username,
       photo_url: payload.photo_url,
+    };
+  }
+
+  /** BotFather Web Login Client ID (보통 봇 숫자 ID) */
+  getLoginClientId(): number {
+    const fromEnv = this.configService.get<string>('TELEGRAM_CLIENT_ID')?.trim();
+    if (fromEnv && /^\d+$/.test(fromEnv)) {
+      return Number(fromEnv);
+    }
+    const botId = this.botToken.split(':')[0];
+    if (!botId || !/^\d+$/.test(botId)) {
+      throw new UnauthorizedException('TELEGRAM_BOT_TOKEN에서 Client ID를 읽을 수 없습니다.');
+    }
+    return Number(botId);
+  }
+
+  /**
+   * 신규 Telegram Login (OIDC) id_token 검증
+   * @see https://core.telegram.org/widgets/login
+   */
+  async validateOidcIdToken(idToken: string): Promise<TelegramUser> {
+    if (!idToken) {
+      throw new UnauthorizedException('id_token이 필요합니다.');
+    }
+
+    const clientId = this.getLoginClientId();
+    const JWKS = createRemoteJWKSet(
+      new URL('https://oauth.telegram.org/.well-known/jwks.json'),
+    );
+
+    let payload: JWTPayload;
+    try {
+      const verified = await jwtVerify(idToken, JWKS, {
+        issuer: 'https://oauth.telegram.org',
+        audience: String(clientId),
+      });
+      payload = verified.payload;
+    } catch {
+      throw new UnauthorizedException('Telegram id_token 검증에 실패했습니다.');
+    }
+
+    const id = Number(payload.id ?? payload.sub);
+    if (!Number.isFinite(id) || id <= 0) {
+      throw new UnauthorizedException('Telegram 사용자 ID가 없습니다.');
+    }
+
+    const givenName =
+      typeof payload.given_name === 'string'
+        ? payload.given_name
+        : typeof payload.name === 'string'
+          ? payload.name.split(' ')[0]
+          : 'User';
+
+    return {
+      id,
+      first_name: givenName,
+      last_name: typeof payload.family_name === 'string' ? payload.family_name : undefined,
+      username:
+        typeof payload.preferred_username === 'string'
+          ? payload.preferred_username
+          : undefined,
+      photo_url: typeof payload.picture === 'string' ? payload.picture : undefined,
     };
   }
 
