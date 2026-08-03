@@ -70,10 +70,16 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
       });
 
       const amountNum = Number.parseFloat(tonAmount) || 0;
+      let savedToMember = false;
       try {
         await recordReporterReward(item.id, { amountTon: amountNum, wallet });
-      } catch {
-        // Keep local history even if rate API fails briefly
+        savedToMember = true;
+      } catch (err) {
+        const message =
+          err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : '회원 MY 반영에 실패했습니다.';
+        setSendError(`송금은 됐지만 회원 페이지 반영 실패: ${message}`);
       }
 
       recordTonPayment({
@@ -87,7 +93,11 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
         channelTitle: item.title,
         channelLink: item.link,
       });
-      setDialog('success');
+      if (savedToMember) {
+        setDialog('success');
+      } else {
+        setDialog('confirm');
+      }
     } catch (err) {
       const message =
         err && typeof err === 'object' && 'message' in err

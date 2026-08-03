@@ -446,24 +446,20 @@ export class ChannelsService implements OnModuleInit {
     });
   }
 
-  /** Fetch current TON (Gram) USD price. */
-  async fetchTonUsdRate(): Promise<number> {
+  /** Fetch current TON (Gram) USD price. Returns null when unavailable. */
+  async fetchTonUsdRate(): Promise<number | null> {
     try {
       const response = await fetch(
         'https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd',
+        { signal: AbortSignal.timeout(8000) },
       );
-      if (!response.ok) {
-        throw new BadRequestException('Failed to fetch TON/USD rate');
-      }
+      if (!response.ok) return null;
       const data = (await response.json()) as { 'the-open-network'?: { usd?: number } };
       const rate = data['the-open-network']?.usd;
-      if (!rate || !Number.isFinite(rate) || rate <= 0) {
-        throw new BadRequestException('Invalid TON/USD rate');
-      }
+      if (!rate || !Number.isFinite(rate) || rate <= 0) return null;
       return rate;
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error;
-      throw new BadRequestException('Failed to fetch TON/USD rate');
+    } catch {
+      return null;
     }
   }
 
@@ -478,7 +474,7 @@ export class ChannelsService implements OnModuleInit {
 
     const channel = await this.findById(id);
     const rate = await this.fetchTonUsdRate();
-    const amountUsd = Math.round(amountTon * rate * 100) / 100;
+    const amountUsd = rate != null ? Math.round(amountTon * rate * 100) / 100 : null;
 
     channel.rewardTonAmount = amountTon;
     channel.rewardUsdAmount = amountUsd;

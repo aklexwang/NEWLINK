@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { recordReporterReward } from '../../api/admin';
 import type { TonPaymentRecord } from '../../types/tonPayment';
 import {
   deleteTonPayment,
@@ -10,6 +11,7 @@ export function AdminTonPaymentsPage() {
   const [records, setRecords] = useState<TonPaymentRecord[]>([]);
   const [query, setQuery] = useState('');
   const [message, setMessage] = useState('');
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setRecords(getTonPayments());
@@ -58,6 +60,26 @@ export function AdminTonPaymentsPage() {
     setMessage('이력을 삭제했습니다.');
   };
 
+  const handleSyncToMember = async (item: TonPaymentRecord) => {
+    if (!item.channelId) {
+      setMessage('채널 ID가 없어 회원 MY에 반영할 수 없습니다.');
+      return;
+    }
+    setSyncingId(item.id);
+    setMessage('');
+    try {
+      await recordReporterReward(item.channelId, {
+        amountTon: item.amount,
+        wallet: item.wallet,
+      });
+      setMessage(`「${item.channelTitle}」보상을 회원 MY에 반영했습니다.`);
+    } catch {
+      setMessage(`회원 MY 반영 실패: 「${item.channelTitle}」— 백엔드 연결·채널 ID를 확인해 주세요.`);
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
   return (
     <>
       <header className="border-b border-black/5 bg-white px-6 py-5">
@@ -80,7 +102,8 @@ export function AdminTonPaymentsPage() {
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          데모 버전: 이 브라우저에만 저장됩니다. 정기적으로 CSV로 백업해 주세요. (추후 DB 연동 예정)
+          이 목록은 관리자 브라우저에만 저장됩니다. 회원 MY에 보이려면 「회원 MY 반영」을 눌러 DB에
+          저장해야 합니다.
         </div>
 
         {message && (
@@ -142,7 +165,15 @@ export function AdminTonPaymentsPage() {
                         링크 열기
                       </a>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="space-x-2 px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        disabled={syncingId === item.id}
+                        onClick={() => void handleSyncToMember(item)}
+                        className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50"
+                      >
+                        {syncingId === item.id ? '반영 중…' : '회원 MY 반영'}
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(item.id)}
