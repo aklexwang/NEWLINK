@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import WebApp from '@twa-dev/sdk';
+import { toastMessage } from '../providers/ToastProvider';
 
 function isRealTelegramEnv(): boolean {
   try {
@@ -52,22 +53,13 @@ export function useTelegram() {
   );
 }
 
-export function notifyUser(webApp: typeof WebApp, isLocalBrowser: boolean, message: string) {
-  if (isLocalBrowser) {
-    window.alert(message);
-    return;
-  }
-
-  try {
-    if (typeof webApp.showAlert === 'function') {
-      webApp.showAlert(message);
-      return;
-    }
-  } catch {
-    // fall through
-  }
-
-  window.alert(message);
+/** 회원 알림 — window.alert 금지 (브라우저가 origin/도메인을 표시함) */
+export function notifyUser(
+  _webApp: typeof WebApp,
+  _isLocalBrowser: boolean,
+  message: string,
+) {
+  toastMessage(message, 'info');
 }
 
 export function hapticSuccess(webApp: typeof WebApp, isLocalBrowser: boolean) {
@@ -102,7 +94,7 @@ export function openTelegramChannel(webApp: typeof WebApp, isLocalBrowser: boole
 
 export async function openTonInvoice(invoiceLink: string): Promise<boolean> {
   if (!isRealTelegramEnv()) {
-    window.alert('Telegram 앱에서만 결제가 가능합니다.');
+    toastMessage('Telegram 앱에서만 결제가 가능합니다.', 'error');
     return false;
   }
 

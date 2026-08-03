@@ -4,6 +4,7 @@ import { CategoryBadge } from '../components/CategoryBadge';
 import { TelegramOfficialLoginButton } from '../components/TelegramOfficialLoginButton';
 import { useCategories } from '../hooks/useCategories';
 import { useAuth } from '../providers/AuthProvider';
+import { useToast } from '../providers/ToastProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import { getApiErrorMessage } from '../utils/apiError';
@@ -29,6 +30,7 @@ export function MyPage() {
   const { user: telegramUser, webApp, isLocalBrowser } = useTelegram();
   const { user: authUser, status: authStatus, loginWithWidget, loginWithInitData, logout } =
     useAuth();
+  const { confirm } = useToast();
   const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
   const [submissions, setSubmissions] = useState<Channel[]>([]);
@@ -108,8 +110,9 @@ export function MyPage() {
     }
   };
 
-  const handleLogout = () => {
-    if (!window.confirm('로그아웃할까요?')) return;
+  const handleLogout = async () => {
+    const ok = await confirm('로그아웃할까요?');
+    if (!ok) return;
     logout();
     setSubmissions([]);
     notify('로그아웃되었습니다.');
