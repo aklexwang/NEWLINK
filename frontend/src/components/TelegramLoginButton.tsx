@@ -74,9 +74,6 @@ export function TelegramLoginButton({
   }
 
   return (
-    <div className="rounded-2xl bg-tg-secondary/70 p-4">
-      <p className="mb-3 text-center text-sm text-tg-hint">Telegram 계정으로 로그인</p>
-      <div ref={containerRef} className="flex min-h-[44px] items-center justify-center" />
-    </div>
+    <div className="flex min-h-[44px] items-center justify-center" ref={containerRef} />
   );
 }
