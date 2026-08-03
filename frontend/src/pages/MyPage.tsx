@@ -164,9 +164,9 @@ export function MyPage() {
                 <h2 className="truncate text-lg font-semibold text-tg-text">{displayName}</h2>
                 <p className="mt-1 text-sm text-tg-hint">{username}</p>
                 <p className="mt-1 text-xs text-tg-hint">
-                  TON 지갑:{' '}
+                  지갑:{' '}
                   {profile?.tonWalletAddress
-                    ? `${profile.tonWalletAddress.slice(0, 6)}…${profile.tonWalletAddress.slice(-4)}`
+                    ? `${profile.tonWalletAddress.slice(0, 6)}…${profile.tonWalletAddress.slice(-4)} · TON/Gram`
                     : '미연결 · 제보에서 Wallet 연결'}
                 </p>
               </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { shortenTonAddress } from '../utils/tonAmount';
 import { useTonWalletLink } from '../hooks/useTonWalletLink';
+import { WalletNetworkBadge } from './WalletNetworkBadge';
 
 export type WalletMethod = 'telegram' | 'external';
 
@@ -30,10 +31,6 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
     wasLinkedRef.current = isLinked;
   }, [isLinked, savedAddress, onLinked]);
 
-  const selectMethod = (next: WalletMethod) => {
-    setMethod(next);
-  };
-
   const handleTelegramConnect = async () => {
     try {
       const address = await connect();
@@ -55,7 +52,6 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
     }
     setSavingExternal(true);
     try {
-      // Avoid TonConnect auto-overwriting the external address afterward
       await disconnect();
       await persistAddress(address);
       setExternalWallet('');
@@ -80,7 +76,7 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
       <div className="mt-3 inline-flex w-full gap-1.5 rounded-xl bg-tg-secondary p-1">
         <button
           type="button"
-          onClick={() => selectMethod('telegram')}
+          onClick={() => setMethod('telegram')}
           className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
             method === 'telegram' ? 'bg-tg-button text-tg-button-text shadow-sm' : 'text-tg-hint'
           }`}
@@ -89,7 +85,7 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
         </button>
         <button
           type="button"
-          onClick={() => selectMethod('external')}
+          onClick={() => setMethod('external')}
           className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
             method === 'external' ? 'bg-tg-button text-tg-button-text shadow-sm' : 'text-tg-hint'
           }`}
@@ -103,7 +99,8 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
           <p className="text-[11px] font-medium text-emerald-800">
             현재 등록 주소 · {method === 'telegram' ? '텔레그램 Wallet' : '외부 지갑'} 선택 중
           </p>
-          <p className="mt-0.5 break-all font-mono text-[11px] text-emerald-900">{savedAddress}</p>
+          <WalletNetworkBadge address={savedAddress} className="mt-1.5" />
+          <p className="mt-1.5 break-all font-mono text-[11px] text-emerald-900">{savedAddress}</p>
         </div>
       )}
 

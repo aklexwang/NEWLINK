@@ -1,4 +1,5 @@
 import type { AdClient, Channel } from '../../types/channel';
+import { WalletNetworkBadge } from '../WalletNetworkBadge';
 
 export function resolveAdClient(channel: Channel): AdClient {
   if (channel.adClient) return channel.adClient;
@@ -59,7 +60,8 @@ export function AdClientDetail({ channel }: AdClientDetailProps) {
       {client.tonWalletAddress && (
         <div className="sm:col-span-2 lg:col-span-1">
           <p className="text-slate-500">지갑</p>
-          <p className="break-all font-mono text-[11px] text-slate-700">{client.tonWalletAddress}</p>
+          <WalletNetworkBadge address={client.tonWalletAddress} className="mt-1" />
+          <p className="mt-1 break-all font-mono text-[11px] text-slate-700">{client.tonWalletAddress}</p>
         </div>
       )}
     </div>

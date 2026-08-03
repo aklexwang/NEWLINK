@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import type { PendingChannel } from '../types/channel';
 import { toNanoTon } from '../utils/tonAmount';
+import { identifyWalletAddress } from '../utils/walletAddress';
 import { recordTonPayment } from '../utils/tonPaymentHistory';
+import { WalletNetworkBadge } from './WalletNetworkBadge';
 
 interface ReporterTonPanelProps {
   item: PendingChannel;
@@ -18,6 +20,7 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
   const reporter = item.reporter;
   const telegramId = reporter?.telegramId ?? item.submittedBy;
   const wallet = reporter?.tonWalletAddress ?? '';
+  const walletInfo = identifyWalletAddress(wallet);
   const tonAmount = amount.trim() || '1';
 
   const copyText = async (text: string, label: string) => {
@@ -32,6 +35,10 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
   const openConfirm = () => {
     if (!wallet) {
       window.alert('제보자 TON 지갑이 등록되지 않았습니다.');
+      return;
+    }
+    if (!walletInfo.valid || walletInfo.kind !== 'ton') {
+      window.alert(`지갑 형식을 확인하세요.\n${walletInfo.label}\n${walletInfo.hint}`);
       return;
     }
     setSendError('');
@@ -103,14 +110,15 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
             </span>
           </p>
           <p className="break-all">
-            TON 지갑:{' '}
+            지갑 주소:{' '}
             <span className="font-medium text-tg-text">{wallet || '미등록'}</span>
             {wallet && (
-              <button type="button" onClick={() => copyText(wallet, 'TON 지갑')} className="ml-2 text-tg-link">
+              <button type="button" onClick={() => copyText(wallet, '지갑 주소')} className="ml-2 text-tg-link">
                 복사
               </button>
             )}
           </p>
+          {wallet && <WalletNetworkBadge address={wallet} className="pt-1" />}
         </div>
 
         <div className="mt-3 flex items-center gap-2">
@@ -120,21 +128,21 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="TON 수량"
+            placeholder="수량"
             className="w-24 rounded-lg bg-white px-3 py-2 text-sm outline-none ring-1 ring-black/5"
           />
-          <span className="text-xs text-tg-hint">TON</span>
+          <span className="text-xs font-semibold text-sky-700">{walletInfo.kind === 'ton' ? 'TON/Gram' : '수량'}</span>
           <button
             type="button"
             onClick={openConfirm}
-            disabled={!wallet}
+            disabled={!wallet || walletInfo.kind !== 'ton'}
             className="ml-auto rounded-xl bg-tg-button px-4 py-2 text-sm font-medium text-tg-button-text disabled:opacity-40"
           >
             Wallet 송금
           </button>
         </div>
         <p className="mt-2 text-[11px] leading-snug text-tg-hint">
-          텔레그램 Wallet(또는 TON 지갑)을 연결하면 제보자 주소로 바로 송금 승인이 뜹니다.
+          송금 전 위 배지로 코인 종류를 확인하세요. TON 네트워크(Gram)만 전송됩니다.
         </p>
       </div>
 
@@ -162,11 +170,12 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
                 <div className="px-6 py-5">
                   <div className="rounded-xl bg-slate-50 px-4 py-3 text-center ring-1 ring-slate-100">
                     <p className="text-xs font-medium text-slate-500">송금 수량</p>
-                    <p className="mt-1 text-2xl font-bold text-slate-900">{tonAmount} TON</p>
+                    <p className="mt-1 text-2xl font-bold text-slate-900">{tonAmount} TON/Gram</p>
                   </div>
 
                   <div className="mt-4">
                     <p className="text-xs font-medium text-slate-500">수신 지갑</p>
+                    <WalletNetworkBadge address={wallet} className="mt-2" />
                     <p className="mt-1 break-all rounded-xl bg-slate-50 px-3 py-2.5 font-mono text-xs leading-relaxed text-slate-700 ring-1 ring-slate-100">
                       {wallet}
                     </p>
@@ -203,7 +212,7 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
                 </div>
                 <h3 className="mt-4 text-lg font-bold text-slate-900">송금 승인 완료</h3>
                 <p className="mt-2 text-sm text-slate-500">
-                  {tonAmount} TON 지급이 지갑에서 승인되었습니다.
+                  {tonAmount} TON/Gram 지급이 지갑에서 승인되었습니다.
                 </p>
                 <button
                   type="button"

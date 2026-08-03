@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAdminUsers } from '../../api/admin';
 import type { AdminUser } from '../../types/user';
+import { WalletNetworkBadge } from '../../components/WalletNetworkBadge';
 
 export function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -121,15 +122,18 @@ export function AdminUsersPage() {
                     </td>
                     <td className="max-w-[200px] px-4 py-3">
                       {user.tonWalletAddress ? (
-                        <div className="flex items-start gap-2">
-                          <span className="break-all font-mono text-xs text-slate-600">{user.tonWalletAddress}</span>
-                          <button
-                            type="button"
-                            onClick={() => copyText(user.tonWalletAddress!, 'TON 지갑')}
-                            className="shrink-0 text-xs text-blue-600 hover:underline"
-                          >
-                            복사
-                          </button>
+                        <div className="space-y-1.5">
+                          <WalletNetworkBadge address={user.tonWalletAddress} showHint={false} />
+                          <div className="flex items-start gap-2">
+                            <span className="break-all font-mono text-xs text-slate-600">{user.tonWalletAddress}</span>
+                            <button
+                              type="button"
+                              onClick={() => copyText(user.tonWalletAddress!, '지갑 주소')}
+                              className="shrink-0 text-xs text-blue-600 hover:underline"
+                            >
+                              복사
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <span className="text-slate-400">미등록</span>
