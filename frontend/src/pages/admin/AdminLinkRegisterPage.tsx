@@ -222,7 +222,7 @@ export function AdminLinkRegisterPage({
                   onChange={(e) => setIsPromoted(e.target.checked)}
                   className="rounded border-slate-300"
                 />
-                등록과 함께 Promoted(홈 상단) 노출
+                등록과 함께 광고(Promoted)로도 등록
               </label>
 
               <div className="flex flex-wrap gap-2 pt-2">

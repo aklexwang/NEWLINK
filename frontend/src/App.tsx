@@ -10,6 +10,7 @@ import { AdminCategoryLinksPage } from './pages/admin/AdminCategoryLinksPage';
 import { AdminChannelsManagePage } from './pages/admin/AdminChannelsManagePage';
 import { AdminGroupRegisterPage } from './pages/admin/AdminGroupRegisterPage';
 import { AdminGroupsManagePage } from './pages/admin/AdminGroupsManagePage';
+import { AdminManualRegisterPage } from './pages/admin/AdminManualRegisterPage';
 import { AdminPendingPage } from './pages/admin/AdminPendingPage';
 import { AdminTonPaymentsPage } from './pages/admin/AdminTonPaymentsPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="pending" replace />} />
           <Route path="pending" element={<AdminPendingPage />} />
+          <Route path="register-link" element={<AdminManualRegisterPage />} />
           <Route path="auto-manage" element={<AdminAutoManagePage />} />
           <Route path="by-category" element={<AdminCategoryLinksPage />} />
           <Route path="register" element={<Navigate to="channels/register" replace />} />

@@ -56,6 +56,10 @@ export function AdminSidebar() {
             </span>
           )}
         </NavLink>
+        <NavLink to="/admin/register-link" className={linkClass}>
+          <span className="text-base">🔗</span>
+          <span>링크 등록</span>
+        </NavLink>
         <NavLink to="/admin/auto-manage" className={linkClass}>
           <span className="text-base">🔄</span>
           <span>자동관리</span>
