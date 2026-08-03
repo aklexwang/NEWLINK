@@ -111,11 +111,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const loginWithInitData = useCallback(async () => {
-    if (!initData) {
-      throw new Error('Telegram 미니앱에서만 사용할 수 있습니다.');
+    const data = initData || (typeof window !== 'undefined'
+      ? (window as Window & { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
+          ?.initData
+      : '') || '';
+    if (!data) {
+      throw new Error('미니앱 정보가 없습니다. 봇 메뉴에서 미니앱을 다시 열어 주세요.');
     }
-    setInitDataHeader(initData);
-    const result = await loginWithTelegram(initData);
+    setInitDataHeader(data);
+    const result = await loginWithTelegram(data);
     clearTestProfile();
     applyAuthSuccess(result);
   }, [applyAuthSuccess, initData]);

@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { getMySubmissions } from '../api/channels';
 import { CategoryBadge } from '../components/CategoryBadge';
 import { SlideTelegramLogin } from '../components/SlideTelegramLogin';
+import { TelegramOfficialLoginButton } from '../components/TelegramOfficialLoginButton';
 import { useCategories } from '../hooks/useCategories';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import { linkTypeBadgeClass, linkTypeLabel, submissionStatusLabel } from '../utils/linkType';
+
+const TELEGRAM_CLIENT_ID =
+  (import.meta.env.VITE_TELEGRAM_BOT_ID as string | undefined)?.trim() || '8792449981';
 
 function getCategoryMeta(
   categories: { id: string; label: string; emoji: string; iconUrl: string | null }[],
@@ -22,7 +26,7 @@ function getCategoryMeta(
 
 export function MyPage() {
   const { user: telegramUser, webApp, isLocalBrowser } = useTelegram();
-  const { user: authUser, status: authStatus, loginWithWidget, loginWithInitData, logout } =
+  const { user: authUser, status: authStatus, loginWithOidc, loginWithInitData, logout } =
     useAuth();
   const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
@@ -82,16 +86,8 @@ export function MyPage() {
     notify('Telegram 로그인되었습니다.');
   };
 
-  const handleBrowserSlideLogin = async (payload: {
-    id: number;
-    first_name: string;
-    last_name?: string;
-    username?: string;
-    photo_url?: string;
-    auth_date: number;
-    hash: string;
-  }) => {
-    await loginWithWidget(payload);
+  const handleOfficialLogin = async (idToken: string) => {
+    await loginWithOidc(idToken);
     notify('Telegram 로그인되었습니다.');
   };
 
@@ -109,12 +105,22 @@ export function MyPage() {
         <p className="mt-1 text-sm text-tg-hint">내 정보 · 제보 내역</p>
       </header>
 
-      {!isLoggedIn && authStatus !== 'loading' && (
+      {!isLoggedIn && authStatus !== 'loading' && isLocalBrowser && (
+        <section className="p-4">
+          <TelegramOfficialLoginButton
+            clientId={TELEGRAM_CLIENT_ID}
+            onIdToken={handleOfficialLogin}
+            onError={(message) => notify(message)}
+          />
+        </section>
+      )}
+
+      {!isLoggedIn && authStatus !== 'loading' && !isLocalBrowser && (
         <section className="p-4">
           <SlideTelegramLogin
-            mode={isLocalBrowser ? 'browser' : 'miniapp'}
+            mode="miniapp"
             onMiniAppLogin={handleMiniAppSlideLogin}
-            onBrowserAuth={handleBrowserSlideLogin}
+            onBrowserAuth={async () => undefined}
             onError={(message) => notify(message)}
           />
         </section>

@@ -1,87 +1,69 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getTelegramLoginConfig, type TelegramLoginWidgetPayload } from '../api/auth';
+import type { TelegramLoginWidgetPayload } from '../api/auth';
 
 interface SlideTelegramLoginProps {
-  /** 미니앱: initData 로그인 / 브라우저: 위젯 페이로드 로그인 */
   mode: 'miniapp' | 'browser';
   onMiniAppLogin: () => Promise<void>;
-  onBrowserAuth: (payload: TelegramLoginWidgetPayload) => Promise<void>;
+  onBrowserAuth?: (payload: TelegramLoginWidgetPayload) => Promise<void>;
   onError?: (message: string) => void;
 }
 
-const OAUTH_ORIGIN = 'https://oauth.telegram.org';
+/** BotFather Domain이 걸린 @newlinkcom_bot 숫자 ID (공개 값) */
+const TELEGRAM_BOT_ID = Number(
+  (import.meta.env.VITE_TELEGRAM_BOT_ID as string | undefined)?.trim() || '8792449981',
+);
 
-function getAllowedOrigin(): string {
-  const host = window.location.hostname.replace(/^www\./, '');
-  if (host === 'global-spay.com' || host.endsWith('.pages.dev')) {
-    return 'https://global-spay.com';
+type TelegramWidgetLogin = {
+  auth: (
+    options: { bot_id: string | number; request_access?: string; lang?: string },
+    callback: (authData: TelegramLoginWidgetPayload | false) => void,
+  ) => void;
+};
+
+declare global {
+  interface Window {
+    Telegram?: { Login?: TelegramWidgetLogin };
   }
-  return window.location.origin;
 }
 
-function parseWidgetPayload(raw: unknown): TelegramLoginWidgetPayload | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const result = raw as Record<string, unknown>;
-  const id = Number(result.id);
-  const hash = typeof result.hash === 'string' ? result.hash : '';
-  const firstName = typeof result.first_name === 'string' ? result.first_name : '';
-  const authDate = Number(result.auth_date);
-  if (!Number.isFinite(id) || id <= 0 || !hash || !firstName || !Number.isFinite(authDate)) {
-    return null;
+function loadWidgetSdk(): Promise<TelegramWidgetLogin> {
+  if (window.Telegram?.Login?.auth) {
+    return Promise.resolve(window.Telegram.Login);
   }
-  return {
-    id,
-    first_name: firstName,
-    last_name: typeof result.last_name === 'string' ? result.last_name : undefined,
-    username: typeof result.username === 'string' ? result.username : undefined,
-    photo_url: typeof result.photo_url === 'string' ? result.photo_url : undefined,
-    auth_date: authDate,
-    hash,
-  };
-}
 
-export function consumeTelegramAuthRedirect(): TelegramLoginWidgetPayload | null {
-  if (typeof window === 'undefined') return null;
-
-  const hash = window.location.hash || '';
-  const marker = 'tgAuthResult=';
-  const idx = hash.indexOf(marker);
-  if (idx === -1) return null;
-
-  const encoded = hash.slice(idx + marker.length);
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-
-  const tryParse = (value: string) => {
-    const decoded = JSON.parse(atob(value));
-    if (decoded?.error) return null;
-    return parseWidgetPayload(decoded);
-  };
-
-  try {
-    return tryParse(decodeURIComponent(encoded));
-  } catch {
-    try {
-      return tryParse(encoded);
-    } catch {
-      return null;
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-newlink-tg-widget="1"]',
+    );
+    if (existing) {
+      existing.addEventListener('load', () => {
+        if (window.Telegram?.Login?.auth) resolve(window.Telegram.Login);
+        else reject(new Error('Telegram Login Widget load failed'));
+      });
+      return;
     }
+
+    const script = document.createElement('script');
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.async = true;
+    script.dataset.newlinkTgWidget = '1';
+    script.onload = () => {
+      if (window.Telegram?.Login?.auth) resolve(window.Telegram.Login);
+      else reject(new Error('Telegram Login Widget missing'));
+    };
+    script.onerror = () => reject(new Error('Telegram Login Widget network error'));
+    document.head.appendChild(script);
+  });
+}
+
+function assertLoginHost() {
+  const host = window.location.hostname.replace(/^www\./, '');
+  if (host !== 'global-spay.com') {
+    throw new Error('웹 로그인은 https://global-spay.com 에서만 가능합니다.');
   }
 }
 
-function startBrowserTelegramLogin(botId: number) {
-  const origin = getAllowedOrigin();
-  const returnTo = `${origin}${window.location.pathname}${window.location.search}`;
-  const authUrl =
-    `${OAUTH_ORIGIN}/auth` +
-    `?bot_id=${encodeURIComponent(String(botId))}` +
-    `&origin=${encodeURIComponent(origin)}` +
-    `&request_access=write` +
-    `&return_to=${encodeURIComponent(returnTo)}`;
-
-  window.location.assign(authUrl);
-}
-
-/** 올링크 스타일: 밀면 바로 로그인 */
+/** 올링크 스타일: 밀면 로그인 (미니앱=initData / 웹=공식 Login.auth 팝업) */
 export function SlideTelegramLogin({
   mode,
   onMiniAppLogin,
@@ -91,7 +73,6 @@ export function SlideTelegramLogin({
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragX, setDragX] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [botId, setBotId] = useState<number | null>(null);
   const dragXRef = useRef(0);
   const draggingRef = useRef(false);
   const startXRef = useRef(0);
@@ -99,41 +80,6 @@ export function SlideTelegramLogin({
   const finishedRef = useRef(false);
   const busyRef = useRef(false);
   const pointerIdRef = useRef<number | null>(null);
-  const handledRedirectRef = useRef(false);
-
-  useEffect(() => {
-    if (mode !== 'browser') return;
-    let cancelled = false;
-    void getTelegramLoginConfig()
-      .then((config) => {
-        if (!cancelled) setBotId(config.clientId);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          onError?.(error instanceof Error ? error.message : 'Telegram 로그인 준비 실패');
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mode, onError]);
-
-  useEffect(() => {
-    if (mode !== 'browser' || handledRedirectRef.current) return;
-    const payload = consumeTelegramAuthRedirect();
-    if (!payload) return;
-    handledRedirectRef.current = true;
-    busyRef.current = true;
-    setBusy(true);
-    void Promise.resolve(onBrowserAuth(payload))
-      .catch((error) => {
-        onError?.(error instanceof Error ? error.message : 'Telegram 로그인에 실패했습니다.');
-      })
-      .finally(() => {
-        busyRef.current = false;
-        setBusy(false);
-      });
-  }, [mode, onBrowserAuth, onError]);
 
   const setKnobX = (x: number) => {
     dragXRef.current = x;
@@ -153,20 +99,35 @@ export function SlideTelegramLogin({
     setBusy(true);
     try {
       if (mode === 'miniapp') {
+        // 미니앱에서는 oauth.telegram.org 를 절대 쓰지 않음 → Bot domain invalid 방지
         await onMiniAppLogin();
         return;
       }
-      if (!botId) {
-        throw new Error('봇 정보를 불러오는 중입니다. 잠시 후 다시 밀어 주세요.');
-      }
-      startBrowserTelegramLogin(botId);
+
+      assertLoginHost();
+      const login = await loadWidgetSdk();
+      await new Promise<void>((resolve, reject) => {
+        login.auth({ bot_id: TELEGRAM_BOT_ID, request_access: 'write', lang: 'ko' }, (authData) => {
+          if (!authData) {
+            reject(new Error('로그인이 취소되었습니다.'));
+            return;
+          }
+          void Promise.resolve(onBrowserAuth(authData))
+            .then(() => resolve())
+            .catch(reject);
+        });
+      });
     } catch (error) {
-      onError?.(error instanceof Error ? error.message : 'Telegram 로그인에 실패했습니다.');
+      const message = error instanceof Error ? error.message : 'Telegram 로그인에 실패했습니다.';
+      if (message !== '로그인이 취소되었습니다.') {
+        onError?.(message);
+      }
+    } finally {
       busyRef.current = false;
       setBusy(false);
       resetKnob();
     }
-  }, [botId, mode, onBrowserAuth, onError, onMiniAppLogin, resetKnob]);
+  }, [mode, onBrowserAuth, onError, onMiniAppLogin, resetKnob]);
 
   const finish = useCallback(() => {
     if (finishedRef.current || busyRef.current) return;

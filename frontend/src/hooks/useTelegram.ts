@@ -3,6 +3,15 @@ import WebApp from '@twa-dev/sdk';
 
 function isRealTelegramEnv(): boolean {
   try {
+    if (typeof window !== 'undefined') {
+      const w = window as Window & {
+        TelegramWebviewProxy?: unknown;
+        Telegram?: { WebApp?: { initData?: string } };
+      };
+      if (w.TelegramWebviewProxy) return true;
+      if (w.Telegram?.WebApp?.initData) return true;
+      if (/Telegram/i.test(navigator.userAgent)) return true;
+    }
     if (typeof WebApp?.ready !== 'function') return false;
     if (WebApp.initData) return true;
     const platform = WebApp.platform;
