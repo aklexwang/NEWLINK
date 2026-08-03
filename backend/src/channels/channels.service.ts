@@ -13,6 +13,7 @@ import { Brackets, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from './channel.entity';
 import { ChannelRecommendation } from './channel-recommendation.entity';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
+import { expandSearchKeywords } from './search-synonyms';
 import { TelegramPreviewService } from './telegram-preview.service';
 
 const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
@@ -278,13 +279,21 @@ export class ChannelsService implements OnModuleInit {
     if (dto.category) qb.andWhere('channel.category = :category', { category: dto.category });
 
     if (dto.q?.trim()) {
-      const keyword = `%${dto.q.trim().toLowerCase()}%`;
+      const keywords = expandSearchKeywords(dto.q);
       qb.andWhere(
-        new Brackets((sub) => {
-          sub
-            .where('LOWER(channel.title) LIKE :keyword', { keyword })
-            .orWhere('LOWER(channel.description) LIKE :keyword', { keyword })
-            .orWhere('LOWER(channel.category) LIKE :keyword', { keyword });
+        new Brackets((outer) => {
+          keywords.forEach((term, index) => {
+            const param = `keyword${index}`;
+            const pattern = `%${term}%`;
+            const clause = new Brackets((sub) => {
+              sub
+                .where(`LOWER(channel.title) LIKE :${param}`, { [param]: pattern })
+                .orWhere(`LOWER(channel.description) LIKE :${param}`, { [param]: pattern })
+                .orWhere(`LOWER(channel.category) LIKE :${param}`, { [param]: pattern });
+            });
+            if (index === 0) outer.where(clause);
+            else outer.orWhere(clause);
+          });
         }),
       );
     }
