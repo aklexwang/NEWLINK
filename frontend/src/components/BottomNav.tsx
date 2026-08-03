@@ -31,7 +31,7 @@ export function BottomNav() {
     }
 
     if (!hasWallet) {
-      notify('제보하려면 TON 지갑 등록이 필요합니다.');
+      notify('제보하려면 텔레그램 Wallet 연결이 필요합니다.');
       navigate('/submit', { state: { requireWallet: true } });
       return;
     }

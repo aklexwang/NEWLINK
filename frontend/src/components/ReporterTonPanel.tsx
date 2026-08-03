@@ -1,16 +1,20 @@
 import { useState } from 'react';
+import { useTonConnectUI } from '@tonconnect/ui-react';
 import type { PendingChannel } from '../types/channel';
+import { toNanoTon } from '../utils/tonAmount';
 import { recordTonPayment } from '../utils/tonPaymentHistory';
 
 interface ReporterTonPanelProps {
   item: PendingChannel;
 }
 
-type DialogState = 'confirm' | 'success' | null;
+type DialogState = 'confirm' | 'sending' | 'success' | null;
 
 export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
+  const [tonConnectUI] = useTonConnectUI();
   const [amount, setAmount] = useState('1');
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [sendError, setSendError] = useState('');
   const reporter = item.reporter;
   const telegramId = reporter?.telegramId ?? item.submittedBy;
   const wallet = reporter?.tonWalletAddress ?? '';
@@ -30,22 +34,53 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
       window.alert('제보자 TON 지갑이 등록되지 않았습니다.');
       return;
     }
+    setSendError('');
     setDialog('confirm');
   };
 
-  const handleConfirm = () => {
-    recordTonPayment({
-      amount: Number.parseFloat(tonAmount) || 0,
-      wallet,
-      telegramId: telegramId ?? null,
-      reporterName: reporter?.username
-        ? `@${reporter.username}`
-        : reporter?.firstName ?? null,
-      channelId: item.id,
-      channelTitle: item.title,
-      channelLink: item.link,
-    });
-    setDialog('success');
+  const handleSend = async () => {
+    if (!wallet) return;
+    setDialog('sending');
+    setSendError('');
+    try {
+      if (!tonConnectUI.connected) {
+        await tonConnectUI.openModal();
+        // User must confirm connection then press send again
+        setDialog('confirm');
+        setSendError('관리자 지갑을 연결한 뒤 다시 「Wallet으로 송금」을 눌러 주세요.');
+        return;
+      }
+
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 600,
+        messages: [
+          {
+            address: wallet,
+            amount: toNanoTon(tonAmount),
+          },
+        ],
+      });
+
+      recordTonPayment({
+        amount: Number.parseFloat(tonAmount) || 0,
+        wallet,
+        telegramId: telegramId ?? null,
+        reporterName: reporter?.username
+          ? `@${reporter.username}`
+          : reporter?.firstName ?? null,
+        channelId: item.id,
+        channelTitle: item.title,
+        channelLink: item.link,
+      });
+      setDialog('success');
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : '송금이 취소되었거나 실패했습니다.';
+      setSendError(message);
+      setDialog('confirm');
+    }
   };
 
   return (
@@ -95,15 +130,18 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
             disabled={!wallet}
             className="ml-auto rounded-xl bg-tg-button px-4 py-2 text-sm font-medium text-tg-button-text disabled:opacity-40"
           >
-            TON 지급
+            Wallet 송금
           </button>
         </div>
+        <p className="mt-2 text-[11px] leading-snug text-tg-hint">
+          텔레그램 Wallet(또는 TON 지갑)을 연결하면 제보자 주소로 바로 송금 승인이 뜹니다.
+        </p>
       </div>
 
       {dialog && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]"
-          onClick={() => setDialog(null)}
+          onClick={() => (dialog === 'sending' ? undefined : setDialog(null))}
         >
           <div
             className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
@@ -111,14 +149,14 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
             role="dialog"
             aria-modal="true"
           >
-            {dialog === 'confirm' ? (
+            {dialog === 'confirm' || dialog === 'sending' ? (
               <>
                 <div className="bg-gradient-to-br from-blue-600 to-blue-700 px-6 py-5 text-center text-white">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-2xl">
                     💎
                   </div>
-                  <h3 className="mt-3 text-lg font-bold">TON 송금 확인</h3>
-                  <p className="mt-1 text-sm text-blue-100">내 지갑에서 직접 송금했는지 확인해 주세요</p>
+                  <h3 className="mt-3 text-lg font-bold">TON Wallet 송금</h3>
+                  <p className="mt-1 text-sm text-blue-100">관리자 지갑에서 제보자에게 직접 전송합니다</p>
                 </div>
 
                 <div className="px-6 py-5">
@@ -134,25 +172,26 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
                     </p>
                   </div>
 
-                  <p className="mt-4 text-center text-sm text-slate-600">
-                    내 지갑에서 <span className="font-semibold text-slate-900">{tonAmount} TON</span> 송금을
-                    완료했습니까?
-                  </p>
+                  {sendError && (
+                    <p className="mt-3 text-center text-xs text-amber-700">{sendError}</p>
+                  )}
 
                   <div className="mt-5 grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setDialog(null)}
-                      className="rounded-xl bg-white py-3 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                      disabled={dialog === 'sending'}
+                      className="rounded-xl bg-white py-3 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
                     >
                       취소
                     </button>
                     <button
                       type="button"
-                      onClick={handleConfirm}
-                      className="rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700"
+                      onClick={() => void handleSend()}
+                      disabled={dialog === 'sending'}
+                      className="rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                     >
-                      완료했습니다
+                      {dialog === 'sending' ? '지갑 대기…' : 'Wallet으로 송금'}
                     </button>
                   </div>
                 </div>
@@ -162,9 +201,9 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
                   ✓
                 </div>
-                <h3 className="mt-4 text-lg font-bold text-slate-900">지급 확인 완료</h3>
+                <h3 className="mt-4 text-lg font-bold text-slate-900">송금 승인 완료</h3>
                 <p className="mt-2 text-sm text-slate-500">
-                  {tonAmount} TON 지급이 확인되었습니다.
+                  {tonAmount} TON 지급이 지갑에서 승인되었습니다.
                 </p>
                 <button
                   type="button"

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyFavorites } from '../api/channels';
-import { CategoryChips } from '../components/CategoryChips';
+import { CategorySelect } from '../components/CategorySelect';
 import { ChannelList } from '../components/ChannelList';
 import { useCategories } from '../hooks/useCategories';
 import { useMyFavorites } from '../hooks/useMyFavorites';
@@ -112,7 +112,7 @@ export function FavoritesPage() {
         <p className="mt-1 text-[13px] text-tg-hint">저장한 채널·그룹을 카테고리별로 모아보세요</p>
       </header>
 
-      <CategoryChips
+      <CategorySelect
         categories={searchCategories}
         selected={selectedCategory}
         onSelect={setSelectedCategory}

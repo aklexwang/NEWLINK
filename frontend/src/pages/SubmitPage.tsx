@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { submitChannel } from '../api/channels';
-import { registerUser } from '../api/users';
-import { WalletRegisterModal } from '../components/WalletRegisterModal';
+import { TonWalletConnectCard } from '../components/TonWalletConnectCard';
 import { useCategories } from '../hooks/useCategories';
+import { useTonWalletLink } from '../hooks/useTonWalletLink';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { LinkType } from '../types/channel';
@@ -12,13 +12,12 @@ export function SubmitPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { webApp, isLocalBrowser } = useTelegram();
-  const { user, status: authStatus, refreshAuth } = useAuth();
+  const { user, status: authStatus } = useAuth();
   const { submitCategories, loading: categoriesLoading } = useCategories();
-  const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
+  const { isLinked, connect, savedAddress } = useTonWalletLink();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [walletModalOpen, setWalletModalOpen] = useState(false);
-  const [submitAfterWallet, setSubmitAfterWallet] = useState(false);
+  const pendingSubmitRef = useRef(false);
   const [form, setForm] = useState({
     linkType: 'channel' as LinkType,
     title: '',
@@ -28,40 +27,48 @@ export function SubmitPage() {
   });
 
   const isLoggedIn = authStatus === 'authenticated' && Boolean(user);
-  const hasWallet = Boolean(user?.isRegistered && user.tonWalletAddress);
+  const hasWallet = Boolean((user?.isRegistered && user.tonWalletAddress) || isLinked || savedAddress);
   const requireWallet = Boolean((location.state as { requireWallet?: boolean } | null)?.requireWallet);
-
   const defaultCategory = submitCategories[0] ?? '';
   const categoryValue = form.category || defaultCategory;
 
-  useEffect(() => {
-    if (requireWallet && isLoggedIn && !hasWallet) {
-      setWalletModalOpen(true);
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [requireWallet, isLoggedIn, hasWallet, navigate, location.pathname]);
-
-  const doSubmit = async () => {
+  const doSubmit = useCallback(async () => {
     setIsSubmitting(true);
     try {
-      await submitChannel({ ...form, category: categoryValue });
-      notify('제보가 접수되었습니다. 관리자 승인 후 노출됩니다.');
+      await submitChannel({
+        linkType: form.linkType,
+        title: form.title,
+        link: form.link,
+        description: form.description,
+        category: categoryValue,
+      });
+      notifyUser(webApp, isLocalBrowser, '제보가 접수되었습니다. 관리자 승인 후 노출됩니다.');
       navigate('/');
     } catch {
-      notify('제보 접수에 실패했습니다.');
+      notifyUser(webApp, isLocalBrowser, '제보 접수에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [form, categoryValue, webApp, isLocalBrowser, navigate]);
 
-  const handleWalletRegister = async (wallet: string) => {
-    await registerUser(wallet);
-    await refreshAuth();
-    notify('TON 지갑이 등록되었습니다.');
-    setWalletModalOpen(false);
-    if (submitAfterWallet) {
-      setSubmitAfterWallet(false);
-      await doSubmit();
+  useEffect(() => {
+    if (requireWallet && isLoggedIn && !hasWallet) {
+      void connect().catch(() => undefined);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [requireWallet, isLoggedIn, hasWallet, connect, navigate, location.pathname]);
+
+  useEffect(() => {
+    if (!pendingSubmitRef.current || !hasWallet) return;
+    pendingSubmitRef.current = false;
+    void doSubmit();
+  }, [hasWallet, doSubmit]);
+
+  const handleWalletLinked = (address: string) => {
+    notifyUser(webApp, isLocalBrowser, '텔레그램 Wallet이 연결되었습니다.');
+    if (pendingSubmitRef.current && address) {
+      pendingSubmitRef.current = false;
+      void doSubmit();
     }
   };
 
@@ -69,14 +76,19 @@ export function SubmitPage() {
     e.preventDefault();
 
     if (!isLoggedIn) {
-      notify('제보하기는 로그인후 가능합니다');
+      notifyUser(webApp, isLocalBrowser, '제보하기는 로그인후 가능합니다');
       navigate('/my');
       return;
     }
 
     if (!hasWallet) {
-      setSubmitAfterWallet(true);
-      setWalletModalOpen(true);
+      pendingSubmitRef.current = true;
+      try {
+        await connect();
+      } catch {
+        pendingSubmitRef.current = false;
+        notifyUser(webApp, isLocalBrowser, '텔레그램 Wallet 연결이 필요합니다.');
+      }
       return;
     }
 
@@ -100,21 +112,7 @@ export function SubmitPage() {
         </div>
       )}
 
-      {isLoggedIn && !hasWallet && (
-        <section className="mx-4 mt-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4 ring-1 ring-blue-100">
-          <h3 className="text-sm font-semibold text-slate-900">TON 지갑 등록 필요</h3>
-          <p className="mt-1 text-xs text-slate-600">
-            제보 보상을 받으려면 TON 지갑 주소를 최초 1회 등록해야 합니다.
-          </p>
-          <button
-            type="button"
-            onClick={() => setWalletModalOpen(true)}
-            className="mt-3 w-full rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            TON 지갑 등록하기
-          </button>
-        </section>
-      )}
+      {isLoggedIn && <TonWalletConnectCard onLinked={handleWalletLinked} />}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
         <div>
@@ -194,16 +192,6 @@ export function SubmitPage() {
           {isSubmitting ? '접수 중...' : '제보하기'}
         </button>
       </form>
-
-      <WalletRegisterModal
-        open={walletModalOpen}
-        onClose={() => {
-          setWalletModalOpen(false);
-          setSubmitAfterWallet(false);
-        }}
-        onSubmit={handleWalletRegister}
-        submitLabel={submitAfterWallet ? '등록 후 제보' : '등록하기'}
-      />
     </>
   );
 }

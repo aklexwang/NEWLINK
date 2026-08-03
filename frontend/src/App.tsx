@@ -3,6 +3,7 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { AppLayout } from './components/AppLayout';
 import { AuthProvider } from './providers/AuthProvider';
 import { AppToastProvider } from './providers/AppToastProvider';
+import { TonConnectProvider } from './providers/TonConnectProvider';
 import { AdminAutoManagePage } from './pages/admin/AdminAutoManagePage';
 import { AdminAdsManagePage } from './pages/admin/AdminAdsManagePage';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
@@ -25,34 +26,36 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppToastProvider>
-        <AuthProvider>
-          <Routes>
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="pending" replace />} />
-            <Route path="pending" element={<AdminPendingPage />} />
-            <Route path="register-link" element={<AdminManualRegisterPage />} />
-            <Route path="auto-manage" element={<AdminAutoManagePage />} />
-            <Route path="by-category" element={<AdminCategoryLinksPage />} />
-            <Route path="register" element={<Navigate to="channels/register" replace />} />
-            <Route path="channels/register" element={<AdminChannelRegisterPage />} />
-            <Route path="channels" element={<AdminChannelsManagePage />} />
-            <Route path="groups/register" element={<AdminGroupRegisterPage />} />
-            <Route path="groups" element={<AdminGroupsManagePage />} />
-            <Route path="ads" element={<AdminAdsManagePage />} />
-            <Route path="categories" element={<AdminCategoriesPage />} />
-            <Route path="ton-payments" element={<AdminTonPaymentsPage />} />
-            <Route path="users" element={<AdminUsersPage />} />
-          </Route>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/ranking" element={<RankingPage />} />
-            <Route path="/search" element={<Navigate to="/" replace />} />
-            <Route path="/favorites" element={<FavoritesPage />} />
-            <Route path="/submit" element={<SubmitPage />} />
-            <Route path="/my" element={<MyPage />} />
-          </Route>
-          </Routes>
-        </AuthProvider>
+        <TonConnectProvider>
+          <AuthProvider>
+            <Routes>
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<Navigate to="pending" replace />} />
+                <Route path="pending" element={<AdminPendingPage />} />
+                <Route path="register-link" element={<AdminManualRegisterPage />} />
+                <Route path="auto-manage" element={<AdminAutoManagePage />} />
+                <Route path="by-category" element={<AdminCategoryLinksPage />} />
+                <Route path="register" element={<Navigate to="channels/register" replace />} />
+                <Route path="channels/register" element={<AdminChannelRegisterPage />} />
+                <Route path="channels" element={<AdminChannelsManagePage />} />
+                <Route path="groups/register" element={<AdminGroupRegisterPage />} />
+                <Route path="groups" element={<AdminGroupsManagePage />} />
+                <Route path="ads" element={<AdminAdsManagePage />} />
+                <Route path="categories" element={<AdminCategoriesPage />} />
+                <Route path="ton-payments" element={<AdminTonPaymentsPage />} />
+                <Route path="users" element={<AdminUsersPage />} />
+              </Route>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/ranking" element={<RankingPage />} />
+                <Route path="/search" element={<Navigate to="/" replace />} />
+                <Route path="/favorites" element={<FavoritesPage />} />
+                <Route path="/submit" element={<SubmitPage />} />
+                <Route path="/my" element={<MyPage />} />
+              </Route>
+            </Routes>
+          </AuthProvider>
+        </TonConnectProvider>
       </AppToastProvider>
     </BrowserRouter>
   );
