@@ -246,7 +246,7 @@ export function MyPage() {
           <div className="rounded-2xl bg-tg-secondary/50 p-4">
             <h3 className="text-sm font-semibold text-tg-text">내 제보 내역</h3>
             <p className="mt-1 text-xs text-tg-hint">
-              제보·승인 상태와 받은 보상(지급 당시 달러)을 확인할 수 있습니다.
+              제보한 채널·그룹, 승인 상태, 받은 코인·지급 일시를 확인할 수 있습니다.
             </p>
             {submissionsLoading ? (
               <div className="mt-3 space-y-2">
@@ -285,13 +285,29 @@ export function MyPage() {
                             </span>
                           </div>
                           <p className="mt-1 truncate text-sm font-medium text-tg-text">{item.title}</p>
-                          {item.rewardUsdAmount != null && item.rewardUsdAmount > 0 ? (
-                            <p className="mt-1.5 text-xs font-semibold text-emerald-700">
-                              보상 수령 ${item.rewardUsdAmount.toFixed(2)}
-                              <span className="ml-1 font-normal text-tg-hint">
-                                ({item.rewardTonAmount ?? 0} TON/Gram · 지급 시점 환율)
-                              </span>
-                            </p>
+                          {item.rewardTonAmount != null && item.rewardTonAmount > 0 ? (
+                            <div className="mt-2 space-y-0.5 rounded-lg bg-emerald-50 px-2.5 py-2 ring-1 ring-emerald-100">
+                              <p className="text-xs font-semibold text-emerald-800">
+                                코인 · TON/Gram{' '}
+                                <span className="font-bold">{item.rewardTonAmount}</span>개
+                              </p>
+                              {item.rewardUsdAmount != null && item.rewardUsdAmount > 0 && (
+                                <p className="text-[11px] text-emerald-700/90">
+                                  지급 시점 약 ${item.rewardUsdAmount.toFixed(2)}
+                                </p>
+                              )}
+                              {item.rewardPaidAt && (
+                                <p className="text-[11px] text-tg-hint">
+                                  {new Date(item.rewardPaidAt).toLocaleString('ko-KR', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
+                              )}
+                            </div>
                           ) : (
                             <p className="mt-1.5 text-xs text-tg-hint">보상 대기 중</p>
                           )}
