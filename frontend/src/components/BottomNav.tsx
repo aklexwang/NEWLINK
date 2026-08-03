@@ -17,6 +17,7 @@ export function BottomNav() {
   const isLoggedIn = authStatus === 'authenticated' && Boolean(user);
   const hasWallet = Boolean(user?.isRegistered && user.tonWalletAddress);
   const isSubmitActive = location.pathname === '/submit';
+  const isFavoritesActive = location.pathname === '/favorites';
 
   const handleSubmitClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -38,6 +39,20 @@ export function BottomNav() {
     navigate('/submit');
   };
 
+  const handleFavoritesClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (authStatus === 'loading') return;
+
+    if (!isLoggedIn) {
+      notify('즐겨찾기는 회원 로그인 후 이용할 수 있습니다.');
+      navigate('/my');
+      return;
+    }
+
+    navigate('/favorites');
+  };
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg border-t border-black/[0.06] bg-tg-bg/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
       <div className="flex h-[52px] items-stretch">
@@ -55,10 +70,6 @@ export function BottomNav() {
           <span className="text-[22px] leading-none">🏠</span>
           <span>홈</span>
         </NavLink>
-        <NavLink to="/ranking" className={navClass}>
-          <span className="text-[22px] leading-none">🏆</span>
-          <span>랭킹</span>
-        </NavLink>
         <a
           href="/submit"
           onClick={handleSubmitClick}
@@ -68,6 +79,16 @@ export function BottomNav() {
         >
           <span className="text-[22px] leading-none">📣</span>
           <span>제보</span>
+        </a>
+        <a
+          href="/favorites"
+          onClick={handleFavoritesClick}
+          className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium ${
+            isFavoritesActive ? 'text-tg-link' : 'text-tg-hint'
+          }`}
+        >
+          <span className="text-[22px] leading-none">⭐</span>
+          <span>즐겨찾기</span>
         </a>
         <NavLink to="/my" className={navClass}>
           <span className="text-[22px] leading-none">👤</span>

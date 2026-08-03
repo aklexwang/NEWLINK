@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -37,6 +38,21 @@ export class ChannelsController {
     return this.channelsService.getRecommendedChannelIds(user.id);
   }
 
+  @Get('my-favorites')
+  @UseGuards(TelegramAuthGuard)
+  myFavorites(
+    @TelegramUserParam() user: TelegramUser,
+    @Query('category') category?: string,
+  ) {
+    return this.channelsService.findFavorites(user.id, category);
+  }
+
+  @Get('my-favorite-ids')
+  @UseGuards(TelegramAuthGuard)
+  myFavoriteIds(@TelegramUserParam() user: TelegramUser) {
+    return this.channelsService.getFavoriteChannelIds(user.id);
+  }
+
   @Get('my-submissions')
   @UseGuards(TelegramAuthGuard)
   mySubmissions(@TelegramUserParam() user: TelegramUser) {
@@ -52,6 +68,24 @@ export class ChannelsController {
     await this.usersService.requireRegistered(user);
     await this.usersService.syncFromTelegram(user);
     return this.channelsService.create(dto, user.id);
+  }
+
+  @Post(':id/favorite')
+  @UseGuards(TelegramAuthGuard)
+  addFavorite(
+    @Param('id') id: string,
+    @TelegramUserParam() user: TelegramUser,
+  ) {
+    return this.channelsService.addFavorite(id, user.id);
+  }
+
+  @Delete(':id/favorite')
+  @UseGuards(TelegramAuthGuard)
+  removeFavorite(
+    @Param('id') id: string,
+    @TelegramUserParam() user: TelegramUser,
+  ) {
+    return this.channelsService.removeFavorite(id, user.id);
   }
 
   @Post(':id/recommend')

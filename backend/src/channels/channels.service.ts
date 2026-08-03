@@ -11,6 +11,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { extname, join } from 'path';
 import { Brackets, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from './channel.entity';
+import { ChannelFavorite } from './channel-favorite.entity';
 import { ChannelRecommendation } from './channel-recommendation.entity';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
 import { expandSearchKeywords } from './search-synonyms';
@@ -25,6 +26,8 @@ export class ChannelsService implements OnModuleInit {
     private readonly channelRepository: Repository<Channel>,
     @InjectRepository(ChannelRecommendation)
     private readonly recommendationRepository: Repository<ChannelRecommendation>,
+    @InjectRepository(ChannelFavorite)
+    private readonly favoriteRepository: Repository<ChannelFavorite>,
     private readonly telegramPreviewService: TelegramPreviewService,
   ) {}
 
@@ -391,6 +394,49 @@ export class ChannelsService implements OnModuleInit {
   async getRecommendedChannelIds(userId: number): Promise<string[]> {
     const rows = await this.recommendationRepository.find({ where: { userId } });
     return rows.map((r) => r.channelId);
+  }
+
+  async getFavoriteChannelIds(userId: number): Promise<string[]> {
+    const rows = await this.favoriteRepository.find({ where: { userId } });
+    return rows.map((r) => r.channelId);
+  }
+
+  async findFavorites(userId: number, category?: string): Promise<Channel[]> {
+    const rows = await this.favoriteRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+    if (rows.length === 0) return [];
+
+    const ids = rows.map((r) => r.channelId);
+    const qb = this.channelRepository
+      .createQueryBuilder('channel')
+      .where('channel.id IN (:...ids)', { ids })
+      .andWhere('channel.status = :status', { status: ChannelStatus.ACTIVE });
+
+    if (category?.trim()) {
+      qb.andWhere('channel.category = :category', { category: category.trim() });
+    }
+
+    const channels = await qb.getMany();
+    const byId = new Map(channels.map((c) => [c.id, c]));
+    return ids.map((id) => byId.get(id)).filter((c): c is Channel => Boolean(c));
+  }
+
+  async addFavorite(channelId: string, userId: number): Promise<{ ok: true }> {
+    await this.findById(channelId);
+    const existing = await this.favoriteRepository.findOne({
+      where: { userId, channelId },
+    });
+    if (!existing) {
+      await this.favoriteRepository.save({ userId, channelId });
+    }
+    return { ok: true };
+  }
+
+  async removeFavorite(channelId: string, userId: number): Promise<{ ok: true }> {
+    await this.favoriteRepository.delete({ userId, channelId });
+    return { ok: true };
   }
 
   async findBySubmitter(userId: number): Promise<Channel[]> {

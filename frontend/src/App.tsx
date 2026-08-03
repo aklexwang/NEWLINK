@@ -16,6 +16,7 @@ import { AdminPendingPage } from './pages/admin/AdminPendingPage';
 import { AdminTonPaymentsPage } from './pages/admin/AdminTonPaymentsPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { HomePage } from './pages/HomePage';
+import { FavoritesPage } from './pages/FavoritesPage';
 import { MyPage } from './pages/MyPage';
 import { RankingPage } from './pages/RankingPage';
 import { SubmitPage } from './pages/SubmitPage';
@@ -45,7 +46,8 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/ranking" element={<RankingPage />} />
-            <Route path="/search" element={<Navigate to="/ranking" replace />} />
+            <Route path="/search" element={<Navigate to="/" replace />} />
+            <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/submit" element={<SubmitPage />} />
             <Route path="/my" element={<MyPage />} />
           </Route>

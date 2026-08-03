@@ -47,6 +47,31 @@ export async function recommendChannel(id: string) {
   return data;
 }
 
+export async function getMyFavorites(category?: string): Promise<Channel[]> {
+  const { data } = await apiClient.get<Channel[]>('/channels/my-favorites', {
+    params: category ? { category } : undefined,
+    headers: getMemberAuthHeaders(),
+  });
+  return data;
+}
+
+export async function getMyFavoriteIds(): Promise<string[]> {
+  const { data } = await apiClient.get<string[]>('/channels/my-favorite-ids', {
+    headers: getMemberAuthHeaders(),
+  });
+  return data;
+}
+
+export async function addFavorite(id: string) {
+  const { data } = await apiClient.post(`/channels/${id}/favorite`, {}, { headers: getMemberAuthHeaders() });
+  return data;
+}
+
+export async function removeFavorite(id: string) {
+  const { data } = await apiClient.delete(`/channels/${id}/favorite`, { headers: getMemberAuthHeaders() });
+  return data;
+}
+
 export async function createPromotionInvoice(channelId: string) {
   const { data } = await apiClient.post<{ invoiceLink: string }>('/payments/invoice', { channelId }, { headers: getMemberAuthHeaders() });
   return data;

@@ -13,8 +13,10 @@ interface ChannelListProps {
   channels: Channel[];
   isLoading: boolean;
   recommendedIds: Set<string>;
+  favoriteIds?: Set<string>;
   categoryEmojis: CategoryChip[];
   onRecommend: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
   sectionTitle: string;
   emptyMessage: string;
 }
@@ -31,8 +33,10 @@ export function ChannelList({
   channels,
   isLoading,
   recommendedIds,
+  favoriteIds,
   categoryEmojis,
   onRecommend,
+  onToggleFavorite,
   sectionTitle,
   emptyMessage,
 }: ChannelListProps) {
@@ -68,7 +72,10 @@ export function ChannelList({
                 emoji={meta.emoji}
                 iconUrl={meta.iconUrl}
                 recommended={recommendedIds.has(channel.id)}
+                favorited={favoriteIds?.has(channel.id) ?? false}
                 onRecommend={onRecommend}
+                onToggleFavorite={onToggleFavorite}
+                showFavorite={Boolean(onToggleFavorite)}
               />
             );
           })}

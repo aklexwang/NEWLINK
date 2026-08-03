@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { searchChannels } from '../api/channels';
 import { ChannelList } from '../components/ChannelList';
 import { NewLinkLogo } from '../components/NewLinkLogo';
 import { SearchBar } from '../components/SearchBar';
 import { useCategories } from '../hooks/useCategories';
+import { useMyFavorites } from '../hooks/useMyFavorites';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
+import { useAuth } from '../providers/AuthProvider';
 import { hapticSuccess, notifyUser, useTelegram } from '../hooks/useTelegram';
 
 type HomeView = 'landing' | 'search';
 
 export function HomePage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { webApp, isLocalBrowser } = useTelegram();
+  const { user, status: authStatus } = useAuth();
   const { searchCategories } = useCategories();
   const { recommendedIds, load: loadRecommended, recommend } = useMyRecommendations();
+  const { favoriteIds, load: loadFavoriteIds, toggleFavorite } = useMyFavorites();
 
   const [query, setQuery] = useState('');
   const [view, setView] = useState<HomeView>('landing');
@@ -22,6 +27,8 @@ export function HomePage() {
     Awaited<ReturnType<typeof searchChannels>>['items']
   >([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const isLoggedIn = authStatus === 'authenticated' && Boolean(user);
 
   const resetToHome = useCallback(() => {
     setQuery('');
@@ -84,6 +91,22 @@ export function HomePage() {
     }
   };
 
+  const handleToggleFavorite = async (id: string) => {
+    if (authStatus === 'loading') return;
+    if (!isLoggedIn) {
+      notifyUser(webApp, isLocalBrowser, '즐겨찾기는 회원 로그인 후 이용할 수 있습니다.');
+      navigate('/my');
+      return;
+    }
+    try {
+      await toggleFavorite(id);
+      hapticSuccess(webApp, isLocalBrowser);
+    } catch {
+      notifyUser(webApp, isLocalBrowser, '즐겨찾기 변경에 실패했습니다.');
+      await loadFavoriteIds();
+    }
+  };
+
   if (view === 'search') {
     return (
       <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-white">
@@ -105,8 +128,10 @@ export function HomePage() {
           channels={searchChannelsList}
           isLoading={searchLoading}
           recommendedIds={recommendedIds}
+          favoriteIds={favoriteIds}
           categoryEmojis={searchCategories}
           onRecommend={handleRecommend}
+          onToggleFavorite={handleToggleFavorite}
           sectionTitle="검색 결과"
           emptyMessage="검색 결과가 없습니다."
         />

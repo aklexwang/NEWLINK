@@ -9,10 +9,22 @@ interface ChannelCardProps {
   emoji: string;
   iconUrl?: string | null;
   recommended: boolean;
+  favorited?: boolean;
   onRecommend: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
+  showFavorite?: boolean;
 }
 
-export function ChannelCard({ channel, emoji, iconUrl, recommended, onRecommend }: ChannelCardProps) {
+export function ChannelCard({
+  channel,
+  emoji,
+  iconUrl,
+  recommended,
+  favorited = false,
+  onRecommend,
+  onToggleFavorite,
+  showFavorite = true,
+}: ChannelCardProps) {
   const promoted = channel.isPromoted;
   const [avatarFailed, setAvatarFailed] = useState(false);
   const avatarSrc = resolveMediaUrl(channel.avatarUrl);
@@ -66,14 +78,28 @@ export function ChannelCard({ channel, emoji, iconUrl, recommended, onRecommend 
         </div>
       </div>
 
-      <a
-        href={channel.link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="shrink-0 rounded-full bg-tg-open-bg px-4 py-1.5 text-[15px] font-semibold text-tg-open-text"
-      >
-        Open
-      </a>
+      <div className="flex shrink-0 items-center gap-2">
+        {showFavorite && onToggleFavorite && (
+          <button
+            type="button"
+            onClick={() => onToggleFavorite(channel.id)}
+            aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            className={`rounded-full px-2.5 py-1.5 text-[16px] leading-none ${
+              favorited ? 'text-amber-500' : 'text-tg-hint'
+            }`}
+          >
+            {favorited ? '★' : '☆'}
+          </button>
+        )}
+        <a
+          href={channel.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full bg-tg-open-bg px-4 py-1.5 text-[15px] font-semibold text-tg-open-text"
+        >
+          Open
+        </a>
+      </div>
     </div>
   );
 }
