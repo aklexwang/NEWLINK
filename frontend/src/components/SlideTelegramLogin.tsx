@@ -25,7 +25,7 @@ declare global {
 }
 
 function loadTelegramLoginSdk(): Promise<TelegramLoginSdk> {
-  if (window.Telegram?.Login?.auth) {
+  if (window.Telegram?.Login?.auth || window.Telegram?.Login?.init) {
     return Promise.resolve(window.Telegram.Login);
   }
 
@@ -57,13 +57,17 @@ function loadTelegramLoginSdk(): Promise<TelegramLoginSdk> {
 /** 올링크 스타일: 밀면 Telegram OIDC 로그인 팝업 */
 export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginProps) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const knobRef = useRef<HTMLButtonElement>(null);
   const [dragX, setDragX] = useState(0);
-  const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [clientId, setClientId] = useState<number | null>(null);
+  const dragXRef = useRef(0);
+  const draggingRef = useRef(false);
   const startXRef = useRef(0);
   const maxXRef = useRef(0);
   const finishedRef = useRef(false);
+  const busyRef = useRef(false);
+  const pointerIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,20 +87,27 @@ export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginPro
     };
   }, [onError]);
 
-  const reset = () => {
-    finishedRef.current = false;
-    setDragX(0);
-    setDragging(false);
+  const setKnobX = (x: number) => {
+    dragXRef.current = x;
+    setDragX(x);
   };
 
+  const reset = useCallback(() => {
+    finishedRef.current = false;
+    draggingRef.current = false;
+    pointerIdRef.current = null;
+    setKnobX(0);
+  }, []);
+
   const startTelegramAuth = useCallback(async () => {
-    if (busy) return;
+    if (busyRef.current) return;
     if (!clientId) {
-      onError?.('Telegram Client ID를 불러오지 못했습니다. BotFather Web Login을 확인하세요.');
+      onError?.('Telegram Client ID를 불러오지 못했습니다. BotFather Domain을 확인하세요.');
       reset();
       return;
     }
 
+    busyRef.current = true;
     setBusy(true);
     try {
       const sdk = await loadTelegramLoginSdk();
@@ -135,45 +146,73 @@ export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginPro
     } catch (error) {
       onError?.(error instanceof Error ? error.message : 'Telegram 로그인에 실패했습니다.');
     } finally {
+      busyRef.current = false;
       setBusy(false);
       reset();
     }
-  }, [busy, clientId, onError, onIdToken]);
+  }, [clientId, onError, onIdToken, reset]);
 
   const finish = useCallback(() => {
-    if (finishedRef.current || busy) return;
+    if (finishedRef.current || busyRef.current) return;
     finishedRef.current = true;
-    setDragX(maxXRef.current);
+    draggingRef.current = false;
+    setKnobX(maxXRef.current);
     void startTelegramAuth();
-  }, [busy, startTelegramAuth]);
+  }, [startTelegramAuth]);
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (busy) return;
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!draggingRef.current || busyRef.current) return;
+      if (pointerIdRef.current !== null && e.pointerId !== pointerIdRef.current) return;
+      e.preventDefault();
+      const next = Math.min(Math.max(e.clientX - startXRef.current, 0), maxXRef.current);
+      setKnobX(next);
+      if (maxXRef.current > 0 && next >= maxXRef.current * 0.9) {
+        finish();
+      }
+    };
+
+    const onUp = (e: PointerEvent) => {
+      if (!draggingRef.current) return;
+      if (pointerIdRef.current !== null && e.pointerId !== pointerIdRef.current) return;
+      if (busyRef.current || finishedRef.current) return;
+      if (maxXRef.current > 0 && dragXRef.current >= maxXRef.current * 0.9) {
+        finish();
+        return;
+      }
+      reset();
+    };
+
+    document.addEventListener('pointermove', onMove, { passive: false });
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+    return () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+  }, [finish, reset]);
+
+  const beginDrag = (clientX: number, pointerId: number, target: HTMLElement) => {
+    if (busyRef.current || finishedRef.current) return;
     const track = trackRef.current;
     if (!track) return;
     const knobWidth = 52;
     maxXRef.current = Math.max(track.clientWidth - knobWidth - 8, 0);
-    startXRef.current = e.clientX - dragX;
-    setDragging(true);
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging || busy) return;
-    const next = Math.min(Math.max(e.clientX - startXRef.current, 0), maxXRef.current);
-    setDragX(next);
-    if (maxXRef.current > 0 && next >= maxXRef.current * 0.92) {
-      finish();
+    startXRef.current = clientX - dragXRef.current;
+    draggingRef.current = true;
+    pointerIdRef.current = pointerId;
+    try {
+      target.setPointerCapture(pointerId);
+    } catch {
+      // Telegram WebView 등에서 capture 실패해도 document 리스너로 동작
     }
   };
 
-  const onPointerUp = () => {
-    if (busy || finishedRef.current) return;
-    if (maxXRef.current > 0 && dragX >= maxXRef.current * 0.92) {
-      finish();
-      return;
-    }
-    reset();
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    beginDrag(e.clientX, e.pointerId, e.currentTarget);
   };
 
   return (
@@ -183,33 +222,44 @@ export function SlideTelegramLogin({ onIdToken, onError }: SlideTelegramLoginPro
 
       <div
         ref={trackRef}
-        className="relative h-[56px] overflow-hidden rounded-full bg-[#eef2f6]"
+        className="relative h-[56px] select-none overflow-hidden rounded-full bg-[#eef2f6]"
+        style={{ touchAction: 'none' }}
       >
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-[#2AABEE]/22 transition-[width]"
+          className="absolute inset-y-0 left-0 rounded-full bg-[#2AABEE]/22"
           style={{ width: `${Math.max(dragX + 56, 56)}px` }}
         />
         <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-[#7b8794]">
           {busy ? 'Telegram 연결 중...' : '밀어서 로그인'}
         </p>
         <button
+          ref={knobRef}
           type="button"
           disabled={busy}
           onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          className={`absolute left-1 top-1 flex h-[48px] w-[48px] items-center justify-center rounded-full bg-[#2AABEE] text-white shadow-md disabled:opacity-70 ${
-            dragging ? '' : 'transition-transform'
-          }`}
-          style={{ transform: `translateX(${dragX}px)` }}
+          className="absolute left-1 top-1 flex h-[48px] w-[48px] items-center justify-center rounded-full bg-[#2AABEE] text-white shadow-md disabled:opacity-70"
+          style={{
+            transform: `translateX(${dragX}px)`,
+            touchAction: 'none',
+            WebkitUserSelect: 'none',
+            userSelect: 'none',
+          }}
           aria-label="밀어서 Telegram 로그인"
         >
-          <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
+          <svg viewBox="0 0 24 24" className="pointer-events-none h-6 w-6 fill-current" aria-hidden>
             <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.51-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z" />
           </svg>
         </button>
       </div>
+
+      <button
+        type="button"
+        disabled={busy || !clientId}
+        onClick={() => void startTelegramAuth()}
+        className="mt-3 w-full rounded-xl bg-[#2AABEE] py-3 text-sm font-semibold text-white disabled:opacity-50"
+      >
+        {busy ? '연결 중...' : '탭하여 로그인'}
+      </button>
     </div>
   );
 }
