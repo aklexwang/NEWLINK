@@ -105,14 +105,18 @@ export function SlideTelegramLogin({
       }
 
       assertLoginHost();
+      if (!onBrowserAuth) {
+        throw new Error('브라우저 로그인 핸들러가 없습니다.');
+      }
       const login = await loadWidgetSdk();
+      const handleBrowserAuth = onBrowserAuth;
       await new Promise<void>((resolve, reject) => {
         login.auth({ bot_id: TELEGRAM_BOT_ID, request_access: 'write', lang: 'ko' }, (authData) => {
           if (!authData) {
             reject(new Error('로그인이 취소되었습니다.'));
             return;
           }
-          void Promise.resolve(onBrowserAuth(authData))
+          void Promise.resolve(handleBrowserAuth(authData))
             .then(() => resolve())
             .catch(reject);
         });
