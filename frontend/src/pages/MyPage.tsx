@@ -9,7 +9,9 @@ import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import { linkTypeBadgeClass, linkTypeLabel, submissionStatusLabel } from '../utils/linkType';
 
-const TELEGRAM_BOT_USERNAME = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ?? '';
+const TELEGRAM_BOT_USERNAME =
+  (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ||
+  'newlinkcom_bot';
 
 function getCategoryMeta(
   categories: { id: string; label: string; emoji: string; iconUrl: string | null }[],
