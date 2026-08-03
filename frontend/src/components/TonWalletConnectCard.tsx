@@ -6,12 +6,14 @@ interface TonWalletConnectCardProps {
   title?: string;
   description?: string;
   onLinked?: (address: string) => void;
+  className?: string;
 }
 
 export function TonWalletConnectCard({
   title = '텔레그램 Wallet 연결',
-  description = '제보 보상을 받으려면 텔레그램 Wallet을 한 번만 연결하면 됩니다. 주소를 직접 입력할 필요가 없습니다.',
+  description = '버튼을 누르면 텔레그램 Wallet과 바로 연결됩니다.',
   onLinked,
+  className = '',
 }: TonWalletConnectCardProps) {
   const { savedAddress, isLinked, linking, connect, error, connectedAddress } = useTonWalletLink();
   const wasLinkedRef = useRef(isLinked);
@@ -33,16 +35,24 @@ export function TonWalletConnectCard({
 
   if (isLinked && savedAddress) {
     return (
-      <section className="mx-4 mt-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 ring-1 ring-emerald-100">
+      <section className={`rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 ring-1 ring-emerald-100 ${className}`}>
         <h3 className="text-sm font-semibold text-slate-900">Wallet 연결됨</h3>
         <p className="mt-1 break-all font-mono text-xs text-slate-600">{savedAddress}</p>
         <p className="mt-2 text-xs text-emerald-700">보상 지급 시 이 주소로 전송됩니다.</p>
+        <button
+          type="button"
+          onClick={() => void handleConnect()}
+          disabled={linking}
+          className="mt-3 w-full rounded-xl bg-white py-2.5 text-sm font-medium text-blue-700 ring-1 ring-blue-100 disabled:opacity-50"
+        >
+          텔레그램 Wallet 다시 연결
+        </button>
       </section>
     );
   }
 
   return (
-    <section className="mx-4 mt-4 rounded-2xl bg-gradient-to-br from-blue-50 to-sky-50 p-4 ring-1 ring-blue-100">
+    <section className={`rounded-2xl bg-gradient-to-br from-blue-50 to-sky-50 p-4 ring-1 ring-blue-100 ${className}`}>
       <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
       <p className="mt-1 text-xs leading-relaxed text-slate-600">{description}</p>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
