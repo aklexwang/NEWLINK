@@ -44,6 +44,8 @@ interface AuthContextValue {
   loginLocalDemo: () => void;
   loginWithWidget: (payload: TelegramLoginWidgetPayload) => Promise<void>;
   loginWithOidc: (idToken: string) => Promise<void>;
+  /** 미니앱: 슬라이드 후 initData로 로그인 */
+  loginWithInitData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -108,6 +110,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyAuthSuccess],
   );
 
+  const loginWithInitData = useCallback(async () => {
+    if (!initData) {
+      throw new Error('Telegram 미니앱에서만 사용할 수 있습니다.');
+    }
+    setInitDataHeader(initData);
+    const result = await loginWithTelegram(initData);
+    clearTestProfile();
+    applyAuthSuccess(result);
+  }, [applyAuthSuccess, initData]);
+
   const refreshAuth = useCallback(async () => {
     if (isLocalBrowser) {
       if (isLoggedOut()) {
@@ -157,35 +169,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!initData) {
+    // 미니앱: 저장된 세션만 복구. 신규 로그인은 슬라이드로 진행.
+    if (isLoggedOut()) {
       clearAccessToken();
       clearStoredAccessToken();
       setUser(null);
       setIsNewUser(false);
-      setError('Telegram initData를 찾을 수 없습니다.');
+      setError(null);
       setStatus('guest');
       return;
     }
 
-    setInitDataHeader(initData);
-
     const storedToken = getStoredAccessToken();
     if (storedToken) {
       setAccessToken(storedToken);
+      if (initData) setInitDataHeader(initData);
+      try {
+        const me = await fetchAuthMe();
+        if (me) {
+          clearLoggedOut();
+          setUser(me);
+          setIsNewUser(false);
+          setError(null);
+          setStatus('authenticated');
+          return;
+        }
+      } catch {
+        clearAccessToken();
+        clearStoredAccessToken();
+      }
     }
 
-    try {
-      const result = await loginWithTelegram(initData);
-      applyAuthSuccess(result);
-    } catch {
-      clearAccessToken();
-      clearStoredAccessToken();
-      setUser(null);
-      setIsNewUser(false);
-      setError('Telegram 자동 로그인에 실패했습니다.');
-      setStatus('guest');
-    }
-  }, [applyAuthSuccess, initData, isLocalBrowser]);
+    clearAccessToken();
+    clearStoredAccessToken();
+    setUser(null);
+    setIsNewUser(false);
+    setError(null);
+    setStatus('guest');
+  }, [initData, isLocalBrowser]);
 
   useEffect(() => {
     void refreshAuth();
@@ -202,8 +223,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginLocalDemo,
       loginWithWidget,
       loginWithOidc,
+      loginWithInitData,
     }),
-    [status, user, isNewUser, error, refreshAuth, logout, loginLocalDemo, loginWithWidget, loginWithOidc],
+    [
+      status,
+      user,
+      isNewUser,
+      error,
+      refreshAuth,
+      logout,
+      loginLocalDemo,
+      loginWithWidget,
+      loginWithOidc,
+      loginWithInitData,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -8,10 +8,6 @@ import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import { linkTypeBadgeClass, linkTypeLabel, submissionStatusLabel } from '../utils/linkType';
 
-const TELEGRAM_BOT_USERNAME =
-  (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ||
-  'newlinkcom_bot';
-
 function getCategoryMeta(
   categories: { id: string; label: string; emoji: string; iconUrl: string | null }[],
   categoryName: string,
@@ -26,7 +22,8 @@ function getCategoryMeta(
 
 export function MyPage() {
   const { user: telegramUser, webApp, isLocalBrowser } = useTelegram();
-  const { user: authUser, status: authStatus, loginWithWidget, logout, refreshAuth } = useAuth();
+  const { user: authUser, status: authStatus, loginWithWidget, loginWithInitData, logout } =
+    useAuth();
   const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
   const [submissions, setSubmissions] = useState<Channel[]>([]);
@@ -80,7 +77,12 @@ export function MyPage() {
       ? `회원 ID ${profile.telegramId}`
       : '로그인이 필요합니다';
 
-  const handleTelegramSlideLogin = async (payload: {
+  const handleMiniAppSlideLogin = async () => {
+    await loginWithInitData();
+    notify('Telegram 로그인되었습니다.');
+  };
+
+  const handleBrowserSlideLogin = async (payload: {
     id: number;
     first_name: string;
     last_name?: string;
@@ -107,32 +109,14 @@ export function MyPage() {
         <p className="mt-1 text-sm text-tg-hint">내 정보 · 제보 내역</p>
       </header>
 
-      {!isLoggedIn && isLocalBrowser && (
+      {!isLoggedIn && authStatus !== 'loading' && (
         <section className="p-4">
           <SlideTelegramLogin
-            botUsername={TELEGRAM_BOT_USERNAME}
-            onAuth={handleTelegramSlideLogin}
+            mode={isLocalBrowser ? 'browser' : 'miniapp'}
+            onMiniAppLogin={handleMiniAppSlideLogin}
+            onBrowserAuth={handleBrowserSlideLogin}
             onError={(message) => notify(message)}
           />
-        </section>
-      )}
-
-      {!isLoggedIn && !isLocalBrowser && (
-        <section className="mx-4 mt-4 space-y-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
-          <p>
-            {authStatus === 'loading'
-              ? 'Telegram 미니앱 자동 로그인 중...'
-              : '미니앱에서는 별도 로그인 없이 자동 연결됩니다. 안 되면 아래를 눌러 다시 시도하세요.'}
-          </p>
-          {authStatus !== 'loading' && (
-            <button
-              type="button"
-              onClick={() => void refreshAuth()}
-              className="w-full rounded-xl bg-amber-900/90 py-2.5 text-sm font-semibold text-white"
-            >
-              다시 로그인 시도
-            </button>
-          )}
         </section>
       )}
 
