@@ -14,14 +14,17 @@
       ]
     },
     {
-      "name": "커뮤니티",
-      "emoji": "👥",
+      "name": "경제",
+      "emoji": "💹",
       "channels": [
-        "https://t.me/documankr",
-        "https://t.me/ththlink",
-        "https://t.me/channelmodoo",
-        "https://t.me/banjang9"
+        "https://t.me/hankyung_fin",
+        "https://t.me/economy_trending"
       ]
+    },
+    {
+      "name": "암호화폐",
+      "emoji": "🪙",
+      "channels": []
     },
     {
       "name": "쇼핑",
@@ -46,6 +49,13 @@
       ]
     },
     {
+      "name": "기술",
+      "emoji": "💻",
+      "channels": [
+        "https://t.me/bloter_news"
+      ]
+    },
+    {
       "name": "엔터테인먼트",
       "emoji": "🎬",
       "channels": [
@@ -53,12 +63,64 @@
       ]
     },
     {
-      "name": "기타",
-      "emoji": "📁",
+      "name": "음악",
+      "emoji": "🎵",
+      "channels": []
+    },
+    {
+      "name": "게임",
+      "emoji": "🎮",
+      "channels": []
+    },
+    {
+      "name": "스포츠",
+      "emoji": "⚽",
+      "channels": []
+    },
+    {
+      "name": "커뮤니티",
+      "emoji": "👥",
+      "channels": [
+        "https://t.me/documankr",
+        "https://t.me/ththlink",
+        "https://t.me/channelmodoo",
+        "https://t.me/banjang9"
+      ]
+    },
+    {
+      "name": "여행",
+      "emoji": "✈️",
+      "channels": []
+    },
+    {
+      "name": "맛집",
+      "emoji": "🍽️",
+      "channels": []
+    },
+    {
+      "name": "건강",
+      "emoji": "💪",
+      "channels": []
+    },
+    {
+      "name": "부동산",
+      "emoji": "🏠",
       "channels": [
         "https://t.me/budongsanjob",
         "https://t.me/realcurator"
       ]
+    },
+    {
+      "name": "구인구직",
+      "emoji": "💼",
+      "channels": [
+        "https://t.me/budongsanjob"
+      ]
+    },
+    {
+      "name": "기타",
+      "emoji": "📁",
+      "channels": []
     }
   ]
 }

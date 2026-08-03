@@ -86,7 +86,8 @@ export class TelegramRankingService {
   }
 
   async getRanking(category?: string, limit = 50): Promise<ExternalRankingChannel[]> {
-    const normalizedLimit = Math.min(Math.max(limit, 1), 100);
+    // 시드 대량 수집용 (자동관리 카테고리별 동기화)
+    const normalizedLimit = Math.min(Math.max(limit, 1), 500);
     const cacheKey = `telegram:${category ?? 'all'}:${normalizedLimit}`;
     const cached = this.getCache(cacheKey);
     if (cached) return cached;
@@ -176,12 +177,21 @@ export class TelegramRankingService {
     } else {
       const emojiMap: Record<string, string> = {
         뉴스: '📰',
-        커뮤니티: '👥',
+        경제: '💹',
+        암호화폐: '🪙',
         쇼핑: '🛒',
         교육: '📚',
+        기술: '💻',
         엔터테인먼트: '🎬',
         음악: '🎵',
-        축구: '⚽',
+        게임: '🎮',
+        스포츠: '⚽',
+        커뮤니티: '👥',
+        여행: '✈️',
+        맛집: '🍽️',
+        건강: '💪',
+        부동산: '🏠',
+        구인구직: '💼',
         기타: '📁',
       };
       this.seeds = {

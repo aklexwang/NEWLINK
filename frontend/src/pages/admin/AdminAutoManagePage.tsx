@@ -115,7 +115,14 @@ export function AdminAutoManagePage() {
     setMessage('');
     try {
       const result = await syncAutoManageCandidates(categoryFilter || undefined);
-      setMessage(`동기화 완료 · 신규 ${result.created}건 · 갱신 ${result.updated}건`);
+      const categoryCount = result.categoriesSynced?.length ?? 0;
+      const skipped = (result.skippedNonKorean ?? 0) + (result.cleanedNonKorean ?? 0);
+      setMessage(
+        `동기화 완료 · 신규 ${result.created}건 · 갱신 ${result.updated}건` +
+          (categoryCount > 0 ? ` · ${categoryCount}개 카테고리` : '') +
+          ` · 수집 ${result.total}건` +
+          (skipped > 0 ? ` · 비한글 제외 ${skipped}건` : ''),
+      );
       await load();
     } catch (error) {
       if (!isAdminAuthenticated()) {

@@ -75,7 +75,7 @@ function ShortcutItem({
     <button
       type="button"
       onClick={() => onOpen(channel.link)}
-      className="group mx-auto flex w-[88px] flex-col items-center gap-3 active:scale-[0.97]"
+      className="group mx-auto flex w-[88px] flex-col items-center gap-2 active:scale-[0.97]"
     >
       <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f1f3f4] transition group-hover:bg-[#e8eaed]">
         {currentSrc ? (
@@ -94,7 +94,7 @@ function ShortcutItem({
           <CategoryIcon emoji={meta.emoji} iconUrl={meta.iconUrl} size="md" className="bg-transparent" />
         )}
       </div>
-      <span className="block w-full truncate px-0.5 text-center text-[12px] leading-tight text-tg-text/85">
+      <span className="block min-h-[2.5em] w-full px-0.5 text-center text-[12px] font-medium leading-snug text-[#3c4043] line-clamp-2 break-words">
         {label}
       </span>
     </button>

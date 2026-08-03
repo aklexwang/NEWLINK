@@ -19,18 +19,45 @@ interface CacheEntry<T> {
   data: T;
 }
 
+/** NEWLINK 한국어 카테고리 → TGStat category code */
 const TGSTAT_CATEGORY_MAP: Record<string, string> = {
   뉴스: 'news',
-  커뮤니티: 'blogs',
+  경제: 'economics',
+  암호화폐: 'crypto',
   쇼핑: 'sales',
   교육: 'education',
+  기술: 'tech',
   엔터테인먼트: 'humor',
   음악: 'music',
-  축구: 'sport',
+  게임: 'games',
+  스포츠: 'sport',
+  커뮤니티: 'blogs',
+  여행: 'travels',
+  맛집: 'cuisine',
+  건강: 'medicine',
+  부동산: 'realty',
+  구인구직: 'career',
   기타: 'other',
 };
 
-const ALL_TGSTAT_CATEGORIES = ['news', 'tech', 'economics', 'crypto', 'blogs', 'sport', 'games'];
+/** 전체 동기화 시 맵에 없는 TGStat 코드를 한국어 카테고리로 흡수 */
+const EXTRA_TGSTAT_CATEGORIES: { code: string; category: string }[] = [
+  { code: 'politics', category: '뉴스' },
+  { code: 'marketing', category: '경제' },
+  { code: 'books', category: '교육' },
+  { code: 'apps', category: '기술' },
+  { code: 'video', category: '엔터테인먼트' },
+  { code: 'pics', category: '엔터테인먼트' },
+  { code: 'beauty', category: '건강' },
+  { code: 'nature', category: '여행' },
+  { code: 'transport', category: '여행' },
+  { code: 'construction', category: '부동산' },
+];
+
+/** TGStat channels/search 요청당 최대 */
+const TGSTAT_API_MAX = 100;
+/** 전체 merge 시 허용 상한 (카테고리 수 × API max 여유) */
+const TGSTAT_MERGE_MAX = 1000;
 
 @Injectable()
 export class TgstatService {
@@ -54,8 +81,9 @@ export class TgstatService {
       throw new ServiceUnavailableException('TGStat API is not configured.');
     }
 
-    const normalizedLimit = Math.min(Math.max(limit, 1), 100);
-    const cacheKey = `tgstat:${category ?? 'all'}:${normalizedLimit}`;
+    const maxAllowed = !category || category === 'all' ? TGSTAT_MERGE_MAX : TGSTAT_API_MAX;
+    const normalizedLimit = Math.min(Math.max(limit, 1), maxAllowed);
+    const cacheKey = `tgstat:${category ?? 'all'}:${normalizedLimit}:ko`;
     const cached = this.getCache(cacheKey);
     if (cached) return cached;
 
@@ -66,7 +94,11 @@ export class TgstatService {
     if (!tgstatCategory) {
       items = await this.fetchMergedRanking(normalizedLimit);
     } else {
-      items = await this.fetchCategoryRanking(tgstatCategory, category ?? tgstatCategory, normalizedLimit);
+      items = await this.fetchCategoryRanking(
+        tgstatCategory,
+        category ?? tgstatCategory,
+        Math.min(normalizedLimit, TGSTAT_API_MAX),
+      );
     }
 
     items.sort((a, b) => b.participantsCount - a.participantsCount);
@@ -75,10 +107,15 @@ export class TgstatService {
     return ranked;
   }
 
-  private async fetchMergedRanking(limit: number): Promise<TgstatRankingChannel[]> {
-    const perCategory = Math.max(15, Math.ceil(limit / ALL_TGSTAT_CATEGORIES.length));
+  private async fetchMergedRanking(_limit: number): Promise<TgstatRankingChannel[]> {
+    const perCategory = TGSTAT_API_MAX;
+    const jobs: { code: string; category: string }[] = [
+      ...Object.entries(TGSTAT_CATEGORY_MAP).map(([category, code]) => ({ code, category })),
+      ...EXTRA_TGSTAT_CATEGORIES,
+    ];
+
     const batches = await Promise.all(
-      ALL_TGSTAT_CATEGORIES.map((code) => this.fetchCategoryRanking(code, code, perCategory)),
+      jobs.map(({ code, category }) => this.fetchCategoryRanking(code, category, perCategory)),
     );
 
     const seen = new Set<string>();
@@ -98,18 +135,32 @@ export class TgstatService {
     displayCategory: string,
     limit: number,
   ): Promise<TgstatRankingChannel[]> {
-    const country = this.configService.get<string>('TGSTAT_COUNTRY', 'kr');
-    const language = this.configService.get<string>('TGSTAT_LANGUAGE', 'korean');
+    // 한국은 웹 UI에 없어 글로벌 + 한국어 언어 필터 사용
+    const country = (this.configService.get<string>('TGSTAT_COUNTRY') ?? '').trim();
+    const language = (this.configService.get<string>('TGSTAT_LANGUAGE') ?? 'korean').trim();
 
-    const data = await this.apiGet<TgstatChannelRaw[]>('channels/search', {
-      country,
-      language,
+    const params: Record<string, string> = {
+      language: language || 'korean',
       category: tgstatCategory,
-      limit: String(Math.min(limit, 100)),
+      limit: String(Math.min(limit, TGSTAT_API_MAX)),
       peer_type: 'channel',
-    });
+    };
 
-    return data.map((item) => this.normalizeChannel(item, displayCategory));
+    if (country && country !== 'global' && country !== 'all' && country !== 'kr') {
+      params.country = country;
+    }
+
+    try {
+      const data = await this.apiGet<TgstatChannelRaw[]>('channels/search', params);
+      return data.map((item) => this.normalizeChannel(item, displayCategory));
+    } catch (error) {
+      this.logger.warn(
+        `TGStat category=${tgstatCategory} language=${params.language} failed: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+      return [];
+    }
   }
 
   private normalizeChannel(item: TgstatChannelRaw, category: string): TgstatRankingChannel {
@@ -137,7 +188,7 @@ export class TgstatService {
     const url = new URL(`https://api.tgstat.ru/${path}`);
     url.searchParams.set('token', token);
     for (const [key, value] of Object.entries(params)) {
-      url.searchParams.set(key, value);
+      if (value) url.searchParams.set(key, value);
     }
 
     const res = await fetch(url.toString());

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { CategoriesService } from '../categories/categories.service';
+import { CategoriesService, DEFAULT_CATEGORIES } from '../categories/categories.service';
 import { ChannelStatus, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { TelegramRankingService } from '../ranking/telegram-ranking.service';
@@ -10,6 +10,7 @@ import {
   ChannelImportCandidate,
   ImportCandidateStatus,
 } from './channel-import-candidate.entity';
+import { isKoreanChannelText } from './korean-channel.filter';
 
 interface ExternalItem {
   title: string;
@@ -20,6 +21,11 @@ interface ExternalItem {
   avatarUrl: string | null;
   source: string;
 }
+
+/** 카테고리당 시드(텔레그램 미리보기) 수집 상한 */
+const TELEGRAM_SYNC_LIMIT = 500;
+/** 카테고리당 TGStat API 수집 상한 (API 요청당 최대 100) */
+const TGSTAT_SYNC_LIMIT = 100;
 
 @Injectable()
 export class AutoManageService {
@@ -38,52 +44,74 @@ export class AutoManageService {
       sources: tgstatConfigured ? ['telegram', 'tgstat'] : ['telegram'],
       tgstatConfigured,
       label: tgstatConfigured
-        ? '텔레그램 시드 + TGStat API'
-        : '텔레그램 시드 · ranking-seeds.json',
-      hint: '동기화하면 API/시드에서 후보를 가져옵니다. 선택 후 [회원 페이지 노출]하면 랭킹에 표시됩니다.',
+        ? '텔레그램 시드 + TGStat API (한국어·카테고리별)'
+        : '텔레그램 시드 · ranking-seeds.json (카테고리별)',
+      hint: '동기화하면 제목에 한글이 있는 한국 채널만 수집합니다. 선택 후 [회원 페이지 노출]하면 랭킹에 표시됩니다.',
+      koreanOnly: true,
+      telegramLimitPerCategory: TELEGRAM_SYNC_LIMIT,
+      tgstatLimitPerCategory: TGSTAT_SYNC_LIMIT,
     };
   }
 
   async sync(category?: string) {
     const items: ExternalItem[] = [];
+    const categories = await this.resolveSyncCategories(category);
 
-    const telegramItems = await this.telegramRankingService.getRanking(category, 100);
-    items.push(
-      ...telegramItems.map((item) => ({
-        title: item.title,
-        link: item.link,
-        category: item.category,
-        linkType: item.linkType,
-        participantsCount: item.participantsCount,
-        avatarUrl: item.avatarUrl,
-        source: item.source,
-      })),
-    );
+    for (const cat of categories) {
+      const telegramItems = await this.telegramRankingService.getRanking(cat, TELEGRAM_SYNC_LIMIT);
+      items.push(
+        ...telegramItems.map((item) => ({
+          title: item.title,
+          link: item.link,
+          category: item.category,
+          linkType: item.linkType,
+          participantsCount: item.participantsCount,
+          avatarUrl: item.avatarUrl,
+          source: item.source,
+        })),
+      );
 
-    if (this.tgstatService.isConfigured()) {
-      try {
-        const tgstatItems = await this.tgstatService.getRanking(category, 100);
-        items.push(
-          ...tgstatItems.map((item) => ({
-            title: item.title,
-            link: item.link,
-            category: item.category,
-            linkType: item.linkType,
-            participantsCount: item.participantsCount,
-            avatarUrl: item.avatarUrl,
-            source: item.source,
-          })),
-        );
-      } catch {
-        // TGStat 실패 시 텔레그램 시드만 사용
+      if (this.tgstatService.isConfigured()) {
+        try {
+          const tgstatItems = await this.tgstatService.getRanking(cat, TGSTAT_SYNC_LIMIT);
+          items.push(
+            ...tgstatItems.map((item) => ({
+              title: item.title,
+              link: item.link,
+              category: item.category,
+              linkType: item.linkType,
+              participantsCount: item.participantsCount,
+              avatarUrl: item.avatarUrl,
+              source: item.source,
+            })),
+          );
+        } catch {
+          // TGStat 실패 시 해당 카테고리 시드만 사용
+        }
       }
     }
 
     const deduped = this.dedupeExternal(items);
     let created = 0;
     let updated = 0;
+    let skippedNonKorean = 0;
 
     for (const item of deduped) {
+      if (!isKoreanChannelText(item.title)) {
+        skippedNonKorean += 1;
+        const link = this.channelsService.normalizeTelegramLink(item.link);
+        const existingCandidate = await this.candidateRepository.findOne({ where: { link } });
+        if (
+          existingCandidate &&
+          existingCandidate.status === ImportCandidateStatus.PENDING &&
+          !isKoreanChannelText(existingCandidate.title)
+        ) {
+          existingCandidate.status = ImportCandidateStatus.SKIPPED;
+          await this.candidateRepository.save(existingCandidate);
+        }
+        continue;
+      }
+
       const link = this.channelsService.normalizeTelegramLink(item.link);
       const existingChannel = await this.channelsService.findByLink(link);
       const existingCandidate = await this.candidateRepository.findOne({ where: { link } });
@@ -123,7 +151,31 @@ export class AutoManageService {
       }
     }
 
-    return { created, updated, total: deduped.length };
+    const cleaned = await this.skipNonKoreanPending();
+
+    return {
+      created,
+      updated,
+      total: deduped.length,
+      skippedNonKorean,
+      cleanedNonKorean: cleaned,
+      categoriesSynced: categories,
+    };
+  }
+
+  /** 대기 목록에 남아 있는 비한글 후보를 제외 처리 */
+  private async skipNonKoreanPending(): Promise<number> {
+    const pending = await this.candidateRepository.find({
+      where: { status: ImportCandidateStatus.PENDING },
+    });
+    let cleaned = 0;
+    for (const item of pending) {
+      if (isKoreanChannelText(item.title)) continue;
+      item.status = ImportCandidateStatus.SKIPPED;
+      await this.candidateRepository.save(item);
+      cleaned += 1;
+    }
+    return cleaned;
   }
 
   async list(filters?: { status?: ImportCandidateStatus; category?: string; source?: string }) {
@@ -224,6 +276,19 @@ export class AutoManageService {
   async skip(ids: string[]) {
     await this.candidateRepository.update(ids, { status: ImportCandidateStatus.SKIPPED });
     return { ok: true, count: ids.length };
+  }
+
+  private async resolveSyncCategories(category?: string): Promise<string[]> {
+    if (category && category !== 'all') {
+      return [category];
+    }
+
+    const active = await this.categoriesService.findActive();
+    if (active.length > 0) {
+      return active.map((item) => item.name);
+    }
+
+    return DEFAULT_CATEGORIES.map((item) => item.name);
   }
 
   private dedupeExternal(items: ExternalItem[]): ExternalItem[] {

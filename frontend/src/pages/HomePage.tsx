@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getPromotedChannels, searchChannels } from '../api/channels';
 import { ChannelList } from '../components/ChannelList';
 import { NewLinkLogo } from '../components/NewLinkLogo';
@@ -11,6 +12,7 @@ import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../
 type HomeView = 'promoted' | 'search';
 
 export function HomePage() {
+  const location = useLocation();
   const { webApp, isLocalBrowser } = useTelegram();
   const { searchCategories } = useCategories();
   const { recommendedIds, load: loadRecommended, recommend } = useMyRecommendations();
@@ -37,6 +39,12 @@ export function HomePage() {
     }
   }, [webApp, isLocalBrowser]);
 
+  const resetToHome = useCallback(() => {
+    setQuery('');
+    setSearchChannelsList([]);
+    void loadPromoted();
+  }, [loadPromoted]);
+
   const loadSearch = useCallback(
     async (keyword: string) => {
       setSearchLoading(true);
@@ -57,6 +65,12 @@ export function HomePage() {
   useEffect(() => {
     void loadPromoted();
   }, [loadPromoted]);
+
+  useEffect(() => {
+    const resetAt = (location.state as { homeResetAt?: number } | null)?.homeResetAt;
+    if (!resetAt) return;
+    resetToHome();
+  }, [location.state, resetToHome]);
 
   const handleQueryChange = (value: string) => {
     setQuery(value);
@@ -151,10 +165,6 @@ export function HomePage() {
           <button type="button" className="text-[#1a0dab] hover:underline">
             한국어
           </button>
-          <span className="mx-2 text-[#dadce0]">|</span>
-          <a href="/admin" className="text-[#1a0dab] hover:underline">
-            관리자
-          </a>
         </p>
       </div>
     </div>

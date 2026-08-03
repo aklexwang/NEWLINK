@@ -255,12 +255,20 @@ export async function getAutoManageCategories(): Promise<AutoManageCategory[]> {
 }
 
 export async function syncAutoManageCandidates(category?: string) {
-  const { data } = await apiClient.post<{ created: number; updated: number; total: number }>(
+  const { data } = await apiClient.post<{
+    created: number;
+    updated: number;
+    total: number;
+    skippedNonKorean?: number;
+    cleanedNonKorean?: number;
+    categoriesSynced?: string[];
+  }>(
     '/admin/auto-manage/sync',
     {},
     {
       headers: getAdminAuthHeaders(),
       params: category ? { category } : undefined,
+      timeout: 300000,
     },
   );
   return data;
