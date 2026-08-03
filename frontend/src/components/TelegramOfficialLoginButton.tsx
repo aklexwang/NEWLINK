@@ -1,155 +1,57 @@
 import { useEffect, useRef } from 'react';
+import type { TelegramLoginUser } from './TelegramLoginButton';
 
-interface TelegramOfficialLoginButtonProps {
-  clientId: number | string;
-  onIdToken: (idToken: string) => Promise<void> | void;
+interface Props {
+  botUsername: string;
+  onAuth: (user: TelegramLoginUser) => Promise<void> | void;
   onError?: (message: string) => void;
-  label?: string;
-}
-
-type TelegramLoginSdk = {
-  init: (
-    options: { client_id: number; scope?: string[]; lang?: string; request_access?: string },
-    callback: (data: { id_token?: string; error?: string }) => void,
-  ) => void;
-  open: (callback?: (data: { id_token?: string; error?: string }) => void) => void;
-  auth: (
-    options: { client_id: number; scope?: string[]; lang?: string; request_access?: string },
-    callback: (data: { id_token?: string; error?: string }) => void,
-  ) => void;
-};
-
-declare global {
-  interface Window {
-    Telegram?: { Login?: TelegramLoginSdk };
-  }
 }
 
 /**
- * 공식 Telegram Login 라이브러리 버튼
- * @see https://core.telegram.org/widgets/login
- * script: https://oauth.telegram.org/js/telegram-login.js
+ * BotFather Domain용 공식 Login Widget 버튼
+ * (OIDC 대신 레거시 위젯 — Domain 설정과 직접 호환)
  */
-export function TelegramOfficialLoginButton({
-  clientId,
-  onIdToken,
-  onError,
-  label = '텔레그램으로 로그인하기',
-}: TelegramOfficialLoginButtonProps) {
-  const onIdTokenRef = useRef(onIdToken);
-  const onErrorRef = useRef(onError);
-  onIdTokenRef.current = onIdToken;
-  onErrorRef.current = onError;
+export function TelegramOfficialLoginButton({ botUsername, onAuth, onError }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const onAuthRef = useRef(onAuth);
+  onAuthRef.current = onAuth;
 
   useEffect(() => {
-    const numericId = Number(clientId);
-    if (!Number.isFinite(numericId) || numericId <= 0) {
-      onErrorRef.current?.('Client ID가 없습니다. BotFather Web Login을 확인하세요.');
+    const container = containerRef.current;
+    const name = botUsername.replace(/^@/, '').trim();
+    if (!container || !name) {
+      onError?.('봇 사용자명이 없습니다.');
       return;
     }
 
-    const handleResult = (data: { id_token?: string; error?: string }) => {
-      if (data.error) {
-        onErrorRef.current?.(data.error);
-        return;
-      }
-      if (!data.id_token) {
-        onErrorRef.current?.('id_token이 없습니다.');
-        return;
-      }
-      void Promise.resolve(onIdTokenRef.current(data.id_token)).catch((error) => {
-        onErrorRef.current?.(
-          error instanceof Error ? error.message : 'Telegram 로그인에 실패했습니다.',
-        );
+    window.onNewLinkTelegramAuth = (user) => {
+      void Promise.resolve(onAuthRef.current(user)).catch((error) => {
+        onError?.(error instanceof Error ? error.message : 'Telegram 로그인에 실패했습니다.');
       });
     };
 
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[data-newlink-oidc-login="1"]',
-    );
-
-    const ensureInit = () => {
-      const login = window.Telegram?.Login;
-      if (!login) {
-        onErrorRef.current?.('Telegram Login SDK를 불러오지 못했습니다.');
-        return;
-      }
-      login.init(
-        {
-          client_id: numericId,
-          lang: 'ko',
-          request_access: 'write',
-          scope: ['profile', 'write'],
-        },
-        handleResult,
-      );
-    };
-
-    if (window.Telegram?.Login?.init) {
-      ensureInit();
-      return;
-    }
-
-    if (existing) {
-      existing.addEventListener('load', ensureInit);
-      return () => existing.removeEventListener('load', ensureInit);
-    }
-
+    container.innerHTML = '';
     const script = document.createElement('script');
-    script.src = 'https://oauth.telegram.org/js/telegram-login.js?5';
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
     script.async = true;
-    script.dataset.newlinkOidcLogin = '1';
-    script.dataset.clientId = String(numericId);
-    script.dataset.requestAccess = 'write';
-    script.dataset.lang = 'ko';
-    script.onload = ensureInit;
-    script.onerror = () => onErrorRef.current?.('Telegram Login SDK 네트워크 오류');
-    document.head.appendChild(script);
-  }, [clientId]);
+    script.setAttribute('data-telegram-login', name);
+    script.setAttribute('data-size', 'large');
+    script.setAttribute('data-radius', '12');
+    script.setAttribute('data-onauth', 'onNewLinkTelegramAuth(user)');
+    script.setAttribute('data-request-access', 'write');
+    script.setAttribute('data-lang', 'ko');
+    container.appendChild(script);
 
-  const onClick = () => {
-    const login = window.Telegram?.Login;
-    if (!login) {
-      onError?.('Telegram Login 준비 중입니다. 잠시 후 다시 눌러 주세요.');
-      return;
-    }
-    if (typeof login.open === 'function') {
-      login.open();
-      return;
-    }
-    if (typeof login.auth === 'function') {
-      login.auth(
-        {
-          client_id: Number(clientId),
-          lang: 'ko',
-          request_access: 'write',
-          scope: ['profile', 'write'],
-        },
-        (data) => {
-          if (data.error) {
-            onError?.(data.error);
-            return;
-          }
-          if (!data.id_token) {
-            onError?.('id_token이 없습니다.');
-            return;
-          }
-          void Promise.resolve(onIdToken(data.id_token)).catch((error) => {
-            onError?.(error instanceof Error ? error.message : 'Telegram 로그인에 실패했습니다.');
-          });
-        },
-      );
-    }
-  };
+    return () => {
+      delete window.onNewLinkTelegramAuth;
+      container.innerHTML = '';
+    };
+  }, [botUsername, onError]);
 
   return (
     <div className="rounded-2xl bg-white p-4 ring-1 ring-black/5">
       <p className="mb-4 text-center text-sm font-semibold text-tg-text">Telegram 계정으로 로그인</p>
-      <div className="flex justify-center">
-        <button type="button" className="tg-auth-button" onClick={onClick}>
-          {label}
-        </button>
-      </div>
+      <div ref={containerRef} className="flex min-h-[44px] items-center justify-center" />
     </div>
   );
 }

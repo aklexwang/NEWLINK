@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getMySubmissions } from '../api/channels';
 import { CategoryBadge } from '../components/CategoryBadge';
-import { SlideTelegramLogin } from '../components/SlideTelegramLogin';
 import { TelegramOfficialLoginButton } from '../components/TelegramOfficialLoginButton';
 import { useCategories } from '../hooks/useCategories';
 import { useAuth } from '../providers/AuthProvider';
@@ -9,8 +8,9 @@ import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import { linkTypeBadgeClass, linkTypeLabel, submissionStatusLabel } from '../utils/linkType';
 
-const TELEGRAM_CLIENT_ID =
-  (import.meta.env.VITE_TELEGRAM_BOT_ID as string | undefined)?.trim() || '8792449981';
+const TELEGRAM_BOT_USERNAME =
+  (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ||
+  'newlinkcom_bot';
 
 function getCategoryMeta(
   categories: { id: string; label: string; emoji: string; iconUrl: string | null }[],
@@ -26,7 +26,7 @@ function getCategoryMeta(
 
 export function MyPage() {
   const { user: telegramUser, webApp, isLocalBrowser } = useTelegram();
-  const { user: authUser, status: authStatus, loginWithOidc, loginWithInitData, logout } =
+  const { user: authUser, status: authStatus, loginWithWidget, loginWithInitData, logout } =
     useAuth();
   const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
@@ -81,14 +81,26 @@ export function MyPage() {
       ? `회원 ID ${profile.telegramId}`
       : '로그인이 필요합니다';
 
-  const handleMiniAppSlideLogin = async () => {
-    await loginWithInitData();
+  const handleOfficialLogin = async (user: {
+    id: number;
+    first_name: string;
+    last_name?: string;
+    username?: string;
+    photo_url?: string;
+    auth_date: number;
+    hash: string;
+  }) => {
+    await loginWithWidget(user);
     notify('Telegram 로그인되었습니다.');
   };
 
-  const handleOfficialLogin = async (idToken: string) => {
-    await loginWithOidc(idToken);
-    notify('Telegram 로그인되었습니다.');
+  const handleMiniAppLogin = async () => {
+    try {
+      await loginWithInitData();
+      notify('Telegram 로그인되었습니다.');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '미니앱 로그인에 실패했습니다.');
+    }
   };
 
   const handleLogout = () => {
@@ -108,8 +120,8 @@ export function MyPage() {
       {!isLoggedIn && authStatus !== 'loading' && isLocalBrowser && (
         <section className="p-4">
           <TelegramOfficialLoginButton
-            clientId={TELEGRAM_CLIENT_ID}
-            onIdToken={handleOfficialLogin}
+            botUsername={TELEGRAM_BOT_USERNAME}
+            onAuth={handleOfficialLogin}
             onError={(message) => notify(message)}
           />
         </section>
@@ -117,12 +129,19 @@ export function MyPage() {
 
       {!isLoggedIn && authStatus !== 'loading' && !isLocalBrowser && (
         <section className="p-4">
-          <SlideTelegramLogin
-            mode="miniapp"
-            onMiniAppLogin={handleMiniAppSlideLogin}
-            onBrowserAuth={async () => undefined}
-            onError={(message) => notify(message)}
-          />
+          <div className="rounded-2xl bg-white p-4 ring-1 ring-black/5">
+            <p className="mb-3 text-center text-sm font-semibold text-tg-text">텔레그램 로그인</p>
+            <p className="mb-4 text-center text-xs text-tg-hint">
+              미니앱에서는 아래 버튼으로 바로 로그인됩니다.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleMiniAppLogin()}
+              className="w-full rounded-xl bg-[#2AABEE] py-3 text-sm font-semibold text-white"
+            >
+              텔레그램으로 로그인하기
+            </button>
+          </div>
         </section>
       )}
 
