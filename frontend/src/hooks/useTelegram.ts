@@ -33,8 +33,6 @@ export function useTelegram() {
     try {
       WebApp.ready();
       WebApp.expand?.();
-      WebApp.setHeaderColor?.('secondary_bg_color');
-      WebApp.setBackgroundColor?.('bg_color');
     } catch (error) {
       console.warn('[useTelegram] init skipped:', error);
     }
