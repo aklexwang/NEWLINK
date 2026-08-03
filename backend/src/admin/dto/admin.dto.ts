@@ -90,6 +90,17 @@ export class PromoteChannelDto {
   tonAmount?: number;
 }
 
+export class RecordRewardDto {
+  @IsNumber()
+  @Min(0.000001)
+  amountTon: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(128)
+  wallet?: string;
+}
+
 export class UpdateChannelDto {
   @IsString()
   @IsOptional()

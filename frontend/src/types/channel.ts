@@ -28,6 +28,13 @@ export interface Channel {
   avatarUrl?: string | null;
   avatarApproved?: boolean;
   createdAt: string;
+  /** Reporter reward paid in TON */
+  rewardTonAmount?: number | null;
+  /** USD value at the time of payment */
+  rewardUsdAmount?: number | null;
+  rewardTonUsdRate?: number | null;
+  rewardPaidAt?: string | null;
+  rewardWallet?: string | null;
 }
 
 export interface ChannelPreview {

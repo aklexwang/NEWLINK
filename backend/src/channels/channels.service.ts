@@ -446,6 +446,48 @@ export class ChannelsService implements OnModuleInit {
     });
   }
 
+  /** Fetch current TON (Gram) USD price. */
+  async fetchTonUsdRate(): Promise<number> {
+    try {
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd',
+      );
+      if (!response.ok) {
+        throw new BadRequestException('Failed to fetch TON/USD rate');
+      }
+      const data = (await response.json()) as { 'the-open-network'?: { usd?: number } };
+      const rate = data['the-open-network']?.usd;
+      if (!rate || !Number.isFinite(rate) || rate <= 0) {
+        throw new BadRequestException('Invalid TON/USD rate');
+      }
+      return rate;
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException('Failed to fetch TON/USD rate');
+    }
+  }
+
+  async recordReporterReward(
+    id: string,
+    input: { amountTon: number; wallet?: string | null },
+  ): Promise<Channel> {
+    const amountTon = Number(input.amountTon);
+    if (!Number.isFinite(amountTon) || amountTon <= 0) {
+      throw new BadRequestException('Reward amount must be greater than 0');
+    }
+
+    const channel = await this.findById(id);
+    const rate = await this.fetchTonUsdRate();
+    const amountUsd = Math.round(amountTon * rate * 100) / 100;
+
+    channel.rewardTonAmount = amountTon;
+    channel.rewardUsdAmount = amountUsd;
+    channel.rewardTonUsdRate = rate;
+    channel.rewardPaidAt = new Date();
+    channel.rewardWallet = input.wallet?.trim() || channel.rewardWallet || null;
+    return this.channelRepository.save(channel);
+  }
+
   async incrementRecommend(id: string, userId: number): Promise<Channel> {
     const channel = await this.findById(id);
     const existing = await this.recommendationRepository.findOne({ where: { userId, channelId: id } });

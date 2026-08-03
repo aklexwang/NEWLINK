@@ -22,7 +22,7 @@ import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { ChannelsService } from '../channels/channels.service';
 import { UsersService } from '../users/users.service';
-import { ApproveChannelDto, AdminCreateChannelDto, LookupChannelQueryDto, PromoteChannelDto, UpdateChannelDto } from './dto/admin.dto';
+import { ApproveChannelDto, AdminCreateChannelDto, LookupChannelQueryDto, PromoteChannelDto, RecordRewardDto, UpdateChannelDto } from './dto/admin.dto';
 
 const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']);
@@ -155,6 +155,14 @@ export class AdminController {
       clientTelegramId: dto.clientTelegramId,
       clientName: dto.clientName,
       tonAmount: dto.tonAmount,
+    });
+  }
+
+  @Post(':id/reward')
+  recordReward(@Param('id') id: string, @Body() dto: RecordRewardDto) {
+    return this.channelsService.recordReporterReward(id, {
+      amountTon: dto.amountTon,
+      wallet: dto.wallet,
     });
   }
 

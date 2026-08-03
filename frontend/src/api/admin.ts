@@ -139,6 +139,16 @@ export async function rejectChannel(id: string) {
   return data;
 }
 
+export async function recordReporterReward(
+  id: string,
+  payload: { amountTon: number; wallet?: string },
+): Promise<Channel> {
+  const { data } = await apiClient.post<Channel>(`/admin/channels/${id}/reward`, payload, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
 export async function promoteChannel(id: string, promotedUntil?: string) {
   const body = promotedUntil ? { promotedUntil } : { durationDays: 7 };
   const { data } = await apiClient.patch(`/admin/channels/${id}/promote`, body, {

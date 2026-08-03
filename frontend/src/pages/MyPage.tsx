@@ -206,7 +206,9 @@ export function MyPage() {
         <section className="px-4 pb-4">
           <div className="rounded-2xl bg-tg-secondary/50 p-4">
             <h3 className="text-sm font-semibold text-tg-text">내 제보 내역</h3>
-            <p className="mt-1 text-xs text-tg-hint">제보한 채널·그룹과 승인 상태를 확인할 수 있습니다.</p>
+            <p className="mt-1 text-xs text-tg-hint">
+              제보·승인 상태와 받은 보상(지급 당시 달러)을 확인할 수 있습니다.
+            </p>
             {submissionsLoading ? (
               <div className="mt-3 space-y-2">
                 <div className="h-14 animate-pulse rounded-xl bg-tg-secondary" />
@@ -244,6 +246,16 @@ export function MyPage() {
                             </span>
                           </div>
                           <p className="mt-1 truncate text-sm font-medium text-tg-text">{item.title}</p>
+                          {item.rewardUsdAmount != null && item.rewardUsdAmount > 0 ? (
+                            <p className="mt-1.5 text-xs font-semibold text-emerald-700">
+                              보상 수령 ${item.rewardUsdAmount.toFixed(2)}
+                              <span className="ml-1 font-normal text-tg-hint">
+                                ({item.rewardTonAmount ?? 0} TON/Gram · 지급 시점 환율)
+                              </span>
+                            </p>
+                          ) : (
+                            <p className="mt-1.5 text-xs text-tg-hint">보상 대기 중</p>
+                          )}
                         </div>
                       </div>
                     </li>

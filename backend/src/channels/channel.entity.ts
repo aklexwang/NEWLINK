@@ -73,6 +73,24 @@ export class Channel {
   @Column({ name: 'member_count', type: 'integer', nullable: true })
   memberCount: number | null;
 
+  /** Reporter reward: TON amount paid */
+  @Column({ name: 'reward_ton_amount', type: 'real', nullable: true })
+  rewardTonAmount: number | null;
+
+  /** USD value at payment time (TON amount × rate) */
+  @Column({ name: 'reward_usd_amount', type: 'real', nullable: true })
+  rewardUsdAmount: number | null;
+
+  /** TON/USD rate used when reward was paid */
+  @Column({ name: 'reward_ton_usd_rate', type: 'real', nullable: true })
+  rewardTonUsdRate: number | null;
+
+  @Column({ name: 'reward_paid_at', type: 'datetime', nullable: true })
+  rewardPaidAt: Date | null;
+
+  @Column({ name: 'reward_wallet', type: 'varchar', length: 128, nullable: true })
+  rewardWallet: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

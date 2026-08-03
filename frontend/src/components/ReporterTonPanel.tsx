@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
+import { recordReporterReward } from '../api/admin';
 import type { PendingChannel } from '../types/channel';
 import { toNanoTon } from '../utils/tonAmount';
 import { identifyWalletAddress } from '../utils/walletAddress';
@@ -68,8 +69,15 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
         ],
       });
 
+      const amountNum = Number.parseFloat(tonAmount) || 0;
+      try {
+        await recordReporterReward(item.id, { amountTon: amountNum, wallet });
+      } catch {
+        // Keep local history even if rate API fails briefly
+      }
+
       recordTonPayment({
-        amount: Number.parseFloat(tonAmount) || 0,
+        amount: amountNum,
         wallet,
         telegramId: telegramId ?? null,
         reporterName: reporter?.username
