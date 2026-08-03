@@ -117,14 +117,30 @@ export function AdminAdsManagePage() {
     }
   };
 
-  const handleRemove = async (channel: Channel) => {
+  const handleStop = async (channel: Channel) => {
+    if (!window.confirm(`「${channel.title}」광고 노출을 중지할까요?\n(광고 목록에는 만료 상태로 남습니다)`)) return;
+    try {
+      await updateAdminChannel(channel.id, {
+        isPromoted: true,
+        promotedUntil: new Date().toISOString(),
+      });
+      setMessage('광고 노출을 중지했습니다.');
+      await loadPromoted();
+    } catch {
+      setMessage('광고 중지에 실패했습니다.');
+    }
+  };
+
+  /** 광고 관리 목록에서만 제거 (채널/그룹 자체는 유지) */
+  const handleDeleteFromAds = async (channel: Channel) => {
+    if (!window.confirm(`「${channel.title}」을(를) 광고 관리에서 삭제할까요?\n(채널/그룹 등록은 유지됩니다)`)) return;
     try {
       await updateAdminChannel(channel.id, { isPromoted: false, promotedUntil: null });
-      setMessage('광고 노출을 해제했습니다.');
+      setMessage('광고 관리에서 삭제했습니다.');
       if (expandedId === channel.id) setExpandedId(null);
       await loadPromoted();
     } catch {
-      setMessage('광고 해제에 실패했습니다.');
+      setMessage('광고 삭제에 실패했습니다.');
     }
   };
 
@@ -169,7 +185,7 @@ export function AdminAdsManagePage() {
   };
 
   const activeCount = promoted.filter((item) => isPromotionActive(item.isPromoted, item.promotedUntil)).length;
-  const colCount = canReorder ? 8 : 7;
+  const colCount = canReorder ? 9 : 8;
 
   return (
     <>
@@ -289,6 +305,7 @@ export function AdminAdsManagePage() {
                   <AdminTh className="w-20">노출</AdminTh>
                   <AdminTh className="w-40">종료일</AdminTh>
                   <AdminTh className="min-w-[100px]">의뢰 · TON</AdminTh>
+                  <AdminTh className="w-[120px]">관리</AdminTh>
                   <AdminTh className="w-10" />
                 </tr>
               </thead>
@@ -378,6 +395,25 @@ export function AdminAdsManagePage() {
                           </div>
                         </AdminTd>
                         <AdminTd><AdClientCells channel={channel} /></AdminTd>
+                        <AdminTd>
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              disabled={!active}
+                              onClick={() => void handleStop(channel)}
+                              className="rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              중지
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteFromAds(channel)}
+                              className="rounded-md bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700 ring-1 ring-red-200 hover:bg-red-100"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </AdminTd>
                         <AdminTd><span className={`text-slate-400 transition ${expanded ? 'rotate-180' : ''}`}>▼</span></AdminTd>
                       </tr>
                       {expanded && (
@@ -420,8 +456,20 @@ export function AdminAdsManagePage() {
                                 >
                                   {applyingId === channel.id ? '적용 중…' : '확인'}
                                 </button>
-                                <button type="button" onClick={() => handleRemove(channel)} className="rounded-lg bg-white px-3 py-1.5 text-xs ring-1 ring-black/10">
-                                  노출 해제
+                                <button
+                                  type="button"
+                                  disabled={!active}
+                                  onClick={() => void handleStop(channel)}
+                                  className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200 disabled:opacity-40"
+                                >
+                                  중지
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteFromAds(channel)}
+                                  className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 ring-1 ring-red-200"
+                                >
+                                  삭제
                                 </button>
                               </div>
                             </div>
