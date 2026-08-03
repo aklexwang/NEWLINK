@@ -31,8 +31,9 @@ export class TelegramAuthService {
 
     params.delete('hash');
 
+    // Telegram 문서는 키 알파벳 순(로케일 비의존) 정렬을 요구합니다.
     const dataCheckString = [...params.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
 
@@ -90,7 +91,7 @@ export class TelegramAuthService {
 
     const dataCheckString = Object.entries(rest)
       .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
 

@@ -111,15 +111,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const loginWithInitData = useCallback(async () => {
-    const data = initData || (typeof window !== 'undefined'
-      ? (window as Window & { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
-          ?.initData
-      : '') || '';
-    if (!data) {
-      throw new Error('미니앱 정보가 없습니다. 봇 메뉴에서 미니앱을 다시 열어 주세요.');
+    const fresh =
+      (typeof window !== 'undefined'
+        ? (window as Window & { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
+            ?.initData
+        : '') ||
+      initData ||
+      '';
+    if (!fresh) {
+      throw new Error('미니앱 정보가 없습니다. 봇 메뉴에서 미니앱을 완전히 닫았다가 다시 열어 주세요.');
     }
-    setInitDataHeader(data);
-    const result = await loginWithTelegram(data);
+    setInitDataHeader(fresh);
+    const result = await loginWithTelegram(fresh);
     clearTestProfile();
     applyAuthSuccess(result);
   }, [applyAuthSuccess, initData]);

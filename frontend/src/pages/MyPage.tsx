@@ -6,6 +6,7 @@ import { useCategories } from '../hooks/useCategories';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
+import { getApiErrorMessage } from '../utils/apiError';
 import { linkTypeBadgeClass, linkTypeLabel, submissionStatusLabel } from '../utils/linkType';
 
 const TELEGRAM_BOT_USERNAME =
@@ -90,8 +91,12 @@ export function MyPage() {
     auth_date: number;
     hash: string;
   }) => {
-    await loginWithWidget(user);
-    notify('Telegram 로그인되었습니다.');
+    try {
+      await loginWithWidget(user);
+      notify('Telegram 로그인되었습니다.');
+    } catch (error) {
+      notify(getApiErrorMessage(error, 'Telegram 로그인에 실패했습니다.'));
+    }
   };
 
   const handleMiniAppLogin = async () => {
@@ -99,7 +104,7 @@ export function MyPage() {
       await loginWithInitData();
       notify('Telegram 로그인되었습니다.');
     } catch (error) {
-      notify(error instanceof Error ? error.message : '미니앱 로그인에 실패했습니다.');
+      notify(getApiErrorMessage(error, '미니앱 로그인에 실패했습니다.'));
     }
   };
 
