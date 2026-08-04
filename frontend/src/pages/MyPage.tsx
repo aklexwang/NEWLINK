@@ -43,13 +43,20 @@ export function MyPage() {
   const profile = authUser;
   const isLoggedIn = authStatus === 'authenticated' && Boolean(profile);
 
-  const myCategories = useMemo(() => {
-    const names = [...new Set(submissions.map((item) => item.category).filter(Boolean))];
-    return names.map((name) => ({
-      name,
-      ...getCategoryMeta(searchCategories, name),
-    }));
-  }, [submissions, searchCategories]);
+  const rewardSummary = useMemo(() => {
+    const rewarded = submissions
+      .filter((item) => item.rewardTonAmount != null && item.rewardTonAmount > 0)
+      .sort((a, b) => {
+        const at = a.rewardPaidAt ? new Date(a.rewardPaidAt).getTime() : 0;
+        const bt = b.rewardPaidAt ? new Date(b.rewardPaidAt).getTime() : 0;
+        return bt - at;
+      });
+
+    const totalTon = rewarded.reduce((sum, item) => sum + (item.rewardTonAmount ?? 0), 0);
+    const totalUsd = rewarded.reduce((sum, item) => sum + (item.rewardUsdAmount ?? 0), 0);
+
+    return { rewarded, totalTon, totalUsd, count: rewarded.length };
+  }, [submissions]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -221,22 +228,63 @@ export function MyPage() {
         </section>
       )}
 
-      {isLoggedIn && myCategories.length > 0 && (
+      {isLoggedIn && (
         <section className="px-4 pb-4">
           <div className="rounded-2xl bg-tg-secondary/50 p-4">
-            <h3 className="text-sm font-semibold text-tg-text">내 카테고리</h3>
-            <p className="mt-1 text-xs text-tg-hint">제보한 채널·그룹이 속한 카테고리입니다.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {myCategories.map((category) => (
-                <CategoryBadge
-                  key={category.name}
-                  name={category.label}
-                  emoji={category.emoji}
-                  iconUrl={category.iconUrl}
-                  className="px-2.5 py-1 text-xs"
-                />
-              ))}
-            </div>
+            <h3 className="text-sm font-semibold text-tg-text">받은 보상 내역</h3>
+            <p className="mt-1 text-xs text-tg-hint">지금까지 지급받은 보상을 한눈에 볼 수 있습니다.</p>
+
+            {submissionsLoading ? (
+              <div className="mt-3 h-16 animate-pulse rounded-xl bg-tg-secondary" />
+            ) : rewardSummary.count === 0 ? (
+              <p className="mt-3 text-sm text-tg-hint">아직 받은 보상이 없습니다.</p>
+            ) : (
+              <>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-black/5">
+                    <p className="text-[11px] text-tg-hint">총 지급 건수</p>
+                    <p className="mt-0.5 text-base font-bold text-tg-text">{rewardSummary.count}건</p>
+                  </div>
+                  <div className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-black/5">
+                    <p className="text-[11px] text-tg-hint">총 TON/Gram</p>
+                    <p className="mt-0.5 text-base font-bold text-emerald-700">
+                      {rewardSummary.totalTon.toLocaleString('ko-KR')}
+                    </p>
+                  </div>
+                </div>
+                {rewardSummary.totalUsd > 0 && (
+                  <p className="mt-2 text-xs text-tg-hint">
+                    지급 시점 기준 합계 약 ${rewardSummary.totalUsd.toFixed(2)}
+                  </p>
+                )}
+                <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto">
+                  {rewardSummary.rewarded.map((item) => (
+                    <li key={item.id} className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-black/5">
+                      <p className="truncate text-sm font-medium text-tg-text">{item.title}</p>
+                      <p className="mt-1 text-xs font-semibold text-emerald-700">
+                        TON/Gram {(item.rewardTonAmount ?? 0).toLocaleString('ko-KR')}개
+                        {item.rewardUsdAmount != null && item.rewardUsdAmount > 0 && (
+                          <span className="ml-1 font-normal text-tg-hint">
+                            · ${item.rewardUsdAmount.toFixed(2)}
+                          </span>
+                        )}
+                      </p>
+                      {item.rewardPaidAt && (
+                        <p className="mt-0.5 text-[11px] text-tg-hint">
+                          {new Date(item.rewardPaidAt).toLocaleString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         </section>
       )}
