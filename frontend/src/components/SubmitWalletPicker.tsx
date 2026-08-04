@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { shortenTonAddress } from '../utils/tonAmount';
+import { isTrc20UsdtAddress, identifyWalletAddress } from '../utils/walletAddress';
 import { useTonWalletLink } from '../hooks/useTonWalletLink';
 import { WalletNetworkBadge } from './WalletNetworkBadge';
 
 export type WalletMethod = 'telegram' | 'external';
-
-const TON_ADDRESS_RE = /^(EQ|UQ|kQ)[A-Za-z0-9_-]{46}$|^(0:|-1:)[a-fA-F0-9]{64}$/;
 
 interface SubmitWalletPickerProps {
   onLinked?: (address: string, method: WalletMethod) => void;
@@ -23,6 +22,8 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
   const wasLinkedRef = useRef(isLinked);
   const methodRef = useRef(method);
   methodRef.current = method;
+
+  const savedInfo = identifyWalletAddress(savedAddress);
 
   useEffect(() => {
     if (!wasLinkedRef.current && isLinked && savedAddress && methodRef.current === 'telegram') {
@@ -46,8 +47,8 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
       onNotify?.('외부 지갑 주소를 입력해 주세요.');
       return false;
     }
-    if (!TON_ADDRESS_RE.test(address)) {
-      onNotify?.('올바른 TON 지갑 주소 형식이 아닙니다.');
+    if (!isTrc20UsdtAddress(address)) {
+      onNotify?.('USDT TRC-20(트론) 주소만 등록할 수 있습니다. (T로 시작하는 주소)');
       return false;
     }
     setSavingExternal(true);
@@ -55,7 +56,7 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
       await disconnect();
       await persistAddress(address);
       setExternalWallet('');
-      onNotify?.('외부 지갑 주소가 등록되었습니다. 보상은 이 주소로만 지급됩니다.');
+      onNotify?.('USDT TRC-20 지갑이 등록되었습니다. 보상은 이 주소로만 지급됩니다.');
       onLinked?.(address, 'external');
       return true;
     } catch {
@@ -94,9 +95,17 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
         </button>
       </div>
 
-      {method === 'telegram' && isLinked && savedAddress && (
+      {method === 'telegram' && isLinked && savedAddress && savedInfo.kind === 'ton' && (
         <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 ring-1 ring-emerald-100">
           <p className="text-[11px] font-medium text-emerald-800">현재 등록 주소 · 텔레그램 Wallet</p>
+          <WalletNetworkBadge address={savedAddress} className="mt-1.5" showHint={false} />
+          <p className="mt-1.5 break-all font-mono text-[11px] text-emerald-900">{savedAddress}</p>
+        </div>
+      )}
+
+      {method === 'external' && isLinked && savedAddress && savedInfo.kind === 'trc20' && (
+        <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 ring-1 ring-emerald-100">
+          <p className="text-[11px] font-medium text-emerald-800">현재 등록 주소 · USDT TRC-20</p>
           <WalletNetworkBadge address={savedAddress} className="mt-1.5" showHint={false} />
           <p className="mt-1.5 break-all font-mono text-[11px] text-emerald-900">{savedAddress}</p>
         </div>
@@ -115,7 +124,7 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
               ? '등록 중…'
               : connectedAddress
                 ? `연결 확정 (${shortenTonAddress(connectedAddress)})`
-                : isLinked
+                : isLinked && savedInfo.kind === 'ton'
                   ? '텔레그램 Wallet 주소 바꾸기'
                   : '텔레그램 Wallet 연결하기'}
           </button>
@@ -123,13 +132,12 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
       ) : (
         <div className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
           <p className="text-xs leading-relaxed text-slate-600">
-            Tonkeeper 등 외부 TON 지갑 주소를 입력하세요. 등록하면 텔레그램 Wallet 주소 대신 이 주소로만
-            보상이 갑니다.
+            외부지갑은 USDT TRC-20 등록만 가능합니다
           </p>
           <input
             value={externalWallet}
             onChange={(e) => setExternalWallet(e.target.value)}
-            placeholder="UQ… / EQ… 지갑 주소"
+            placeholder="T로 시작하는 USDT TRC-20 주소"
             className="mt-3 w-full rounded-xl bg-white px-4 py-3 font-mono text-sm outline-none ring-1 ring-slate-200 focus:ring-blue-300"
             autoComplete="off"
             spellCheck={false}
@@ -140,7 +148,7 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
             disabled={savingExternal || linking || !externalWallet.trim()}
             className="mt-3 w-full rounded-xl bg-slate-800 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
-            {savingExternal ? '등록 중…' : '외부 지갑으로 등록하기'}
+            {savingExternal ? '등록 중…' : '외부 USDT TRC20 지갑 등록하기'}
           </button>
         </div>
       )}

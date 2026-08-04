@@ -5,8 +5,11 @@ export class RegisterUserDto {
   @IsNotEmpty()
   @MaxLength(128)
   @ValidateIf(() => process.env.DEV_ADMIN_BYPASS !== 'true')
-  @Matches(/^(EQ|UQ|kQ)[A-Za-z0-9_-]{46}$|^(0:|-1:)[a-fA-F0-9]{64}$/, {
-    message: 'Valid TON wallet address required.',
-  })
+  @Matches(
+    /^(EQ|UQ|kQ)[A-Za-z0-9_-]{46}$|^(0:|-1:)[a-fA-F0-9]{64}$|^T[1-9A-HJ-NP-Za-km-z]{33}$/,
+    {
+      message: 'Valid TON or USDT TRC-20 wallet address required.',
+    },
+  )
   tonWalletAddress: string;
 }

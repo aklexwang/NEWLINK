@@ -12,9 +12,11 @@ export function WalletNetworkBadge({ address, className = '', showHint = true }:
   const tone =
     info.kind === 'ton'
       ? 'bg-sky-100 text-sky-800 ring-sky-200'
-      : info.valid
-        ? 'bg-slate-100 text-slate-700 ring-slate-200'
-        : 'bg-amber-100 text-amber-900 ring-amber-200';
+      : info.kind === 'trc20'
+        ? 'bg-emerald-100 text-emerald-800 ring-emerald-200'
+        : info.valid
+          ? 'bg-slate-100 text-slate-700 ring-slate-200'
+          : 'bg-amber-100 text-amber-900 ring-amber-200';
 
   return (
     <div className={className}>
