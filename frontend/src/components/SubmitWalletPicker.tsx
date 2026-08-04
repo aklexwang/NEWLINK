@@ -104,22 +104,19 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
 
       {method === 'telegram' ? (
         <div className="mt-3 rounded-xl bg-gradient-to-br from-blue-50 to-sky-50 p-3 ring-1 ring-blue-100">
-          <p className="text-xs leading-relaxed text-slate-600">
-            버튼을 누르면 텔레그램 Wallet과 바로 연결됩니다. 연결하면 이 주소만 보상 지급에 사용됩니다.
-          </p>
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
           <button
             type="button"
             onClick={() => void handleTelegramConnect()}
             disabled={linking}
-            className="mt-3 w-full rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {linking
               ? '등록 중…'
               : connectedAddress
                 ? `연결 확정 (${shortenTonAddress(connectedAddress)})`
                 : isLinked
-                  ? '텔레그램 Wallet 다시 연결'
+                  ? '텔레그램 Wallet 주소 바꾸기'
                   : '텔레그램 Wallet 연결하기'}
           </button>
         </div>
