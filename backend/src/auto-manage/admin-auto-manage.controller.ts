@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
-import { CandidateIdsDto } from '../admin/dto/admin.dto';
+import { CandidateIdsDto, GoogleSearchCandidatesDto } from '../admin/dto/admin.dto';
 import { ImportCandidateStatus } from './channel-import-candidate.entity';
 import { AutoManageService } from './auto-manage.service';
 
@@ -23,6 +23,17 @@ export class AdminAutoManageController {
   @Post('sync')
   sync(@Query('category') category?: string) {
     return this.autoManageService.sync(category && category !== 'all' ? category : undefined);
+  }
+
+  @Post('google-search')
+  googleSearch(@Body() dto: GoogleSearchCandidatesDto) {
+    return this.autoManageService.importFromGoogleSearch({
+      topic: dto.topic ?? '',
+      preset: dto.preset,
+      customQuery: dto.customQuery,
+      category: dto.category,
+      pages: dto.pages,
+    });
   }
 
   @Get('candidates')

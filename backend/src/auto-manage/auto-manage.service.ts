@@ -10,6 +10,7 @@ import {
   ChannelImportCandidate,
   ImportCandidateStatus,
 } from './channel-import-candidate.entity';
+import { GoogleCseService, type GoogleSearchPreset } from './google-cse.service';
 import { isKoreanChannelText } from './korean-channel.filter';
 
 interface ExternalItem {
@@ -36,17 +37,28 @@ export class AutoManageService {
     private readonly categoriesService: CategoriesService,
     private readonly telegramRankingService: TelegramRankingService,
     private readonly tgstatService: TgstatService,
+    private readonly googleCseService: GoogleCseService,
   ) {}
 
   getStatus() {
     const tgstatConfigured = this.tgstatService.isConfigured();
+    const googleConfigured = this.googleCseService.isConfigured();
+    const sources = ['telegram'];
+    if (tgstatConfigured) sources.push('tgstat');
+    if (googleConfigured) sources.push('google');
+
     return {
-      sources: tgstatConfigured ? ['telegram', 'tgstat'] : ['telegram'],
+      sources,
       tgstatConfigured,
-      label: tgstatConfigured
-        ? '텔레그램 시드 + TGStat API (한국어·카테고리별)'
-        : '텔레그램 시드 · ranking-seeds.json (카테고리별)',
-      hint: '동기화하면 제목에 한글이 있는 한국 채널만 수집합니다. 선택 후 [회원 페이지 노출]하면 랭킹에 표시됩니다.',
+      googleConfigured,
+      label: googleConfigured
+        ? '텔레그램 시드 · TGStat · Google CSE 검색'
+        : tgstatConfigured
+          ? '텔레그램 시드 + TGStat API (한국어·카테고리별)'
+          : '텔레그램 시드 · ranking-seeds.json (카테고리별)',
+      hint: googleConfigured
+        ? '주제 검색으로 Google CSE에서 t.me 공개·초대 링크를 모아 후보에 넣을 수 있습니다. API 동기화는 한글 제목 위주입니다.'
+        : '동기화하면 제목에 한글이 있는 한국 채널만 수집합니다. Google CSE 키를 넣으면 주제 검색 수집이 활성화됩니다.',
       koreanOnly: true,
       telegramLimitPerCategory: TELEGRAM_SYNC_LIMIT,
       tgstatLimitPerCategory: TGSTAT_SYNC_LIMIT,
@@ -163,13 +175,88 @@ export class AutoManageService {
     };
   }
 
-  /** 대기 목록에 남아 있는 비한글 후보를 제외 처리 */
+  /** Google CSE로 t.me 공개·초대 링크를 모아 후보에 저장 (한글 필터 미적용) */
+  async importFromGoogleSearch(params: {
+    topic: string;
+    preset: GoogleSearchPreset;
+    customQuery?: string;
+    category: string;
+    pages?: number;
+  }) {
+    const { query, hits, rawResultCount } = await this.googleCseService.search({
+      topic: params.topic,
+      preset: params.preset,
+      customQuery: params.customQuery,
+      pages: params.pages,
+    });
+
+    let created = 0;
+    let updated = 0;
+    let skippedExisting = 0;
+
+    for (const hit of hits) {
+      const link = this.channelsService.normalizeTelegramLink(hit.link);
+      const existingChannel = await this.channelsService.findByLink(link);
+      const existingCandidate = await this.candidateRepository.findOne({ where: { link } });
+
+      if (existingChannel?.status === ChannelStatus.ACTIVE) {
+        if (existingCandidate) {
+          existingCandidate.status = ImportCandidateStatus.PUBLISHED;
+          existingCandidate.publishedChannelId = existingChannel.id;
+          existingCandidate.publishedAt = existingCandidate.publishedAt ?? new Date();
+          await this.candidateRepository.save(existingCandidate);
+        }
+        skippedExisting += 1;
+        continue;
+      }
+
+      const payload = {
+        link,
+        title: hit.title.slice(0, 255) || link,
+        category: params.category,
+        linkType: hit.isInvite ? LinkType.GROUP : LinkType.CHANNEL,
+        participantsCount: 0,
+        avatarUrl: await this.resolveCandidateAvatar(link, null),
+        source: 'google',
+      };
+
+      if (existingCandidate) {
+        if (existingCandidate.status === ImportCandidateStatus.SKIPPED) {
+          skippedExisting += 1;
+          continue;
+        }
+        Object.assign(existingCandidate, payload);
+        if (existingCandidate.status !== ImportCandidateStatus.PUBLISHED) {
+          existingCandidate.status = ImportCandidateStatus.PENDING;
+        }
+        await this.candidateRepository.save(existingCandidate);
+        updated += 1;
+      } else {
+        await this.candidateRepository.save(this.candidateRepository.create(payload));
+        created += 1;
+      }
+    }
+
+    return {
+      query,
+      created,
+      updated,
+      skippedExisting,
+      total: hits.length,
+      rawResultCount,
+      inviteCount: hits.filter((item) => item.isInvite).length,
+      publicCount: hits.filter((item) => !item.isInvite).length,
+    };
+  }
+
+  /** 대기 목록에 남아 있는 비한글 후보를 제외 처리 (Google CSE 수집분은 제외) */
   private async skipNonKoreanPending(): Promise<number> {
     const pending = await this.candidateRepository.find({
       where: { status: ImportCandidateStatus.PENDING },
     });
     let cleaned = 0;
     for (const item of pending) {
+      if (item.source === 'google') continue;
       if (isKoreanChannelText(item.title)) continue;
       item.status = ImportCandidateStatus.SKIPPED;
       await this.candidateRepository.save(item);

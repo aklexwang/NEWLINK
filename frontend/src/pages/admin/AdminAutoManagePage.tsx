@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isAxiosError } from 'axios';
 import {
+  getAdminCategories,
   getAutoManageCandidates,
   getAutoManageCategories,
   getAutoManageStatus,
   lookupAdminChannel,
   publishAutoManageCandidates,
+  searchGoogleAutoManageCandidates,
   skipAutoManageCandidates,
   syncAutoManageCandidates,
   type AdminChannelLookup,
   type AutoManageStatus,
+  type GoogleSearchPreset,
   type ImportCandidate,
 } from '../../api/admin';
 import { AdminCategoryChipBar } from '../../components/admin/AdminCategoryChipBar';
@@ -35,6 +38,15 @@ const statusTabs: { value: StatusFilter; label: string }[] = [
   { value: 'skipped', label: '제외' },
 ];
 
+const googlePresets: { value: GoogleSearchPreset; label: string; hint: string }[] = [
+  { value: 'site', label: 'site:t.me', hint: '공개 채널·그룹 링크' },
+  { value: 'groups', label: '그룹 위주', hint: '-channel 필터' },
+  { value: 'intitle', label: '제목 검색', hint: 'intitle' },
+  { value: 'invite', label: '초대 링크', hint: 'joinchat / +' },
+  { value: 'directory', label: '디렉터리', hint: '블로그·포럼' },
+  { value: 'custom', label: '직접 입력', hint: '연산자 자유' },
+];
+
 function formatCount(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
@@ -44,28 +56,37 @@ function formatCount(value: number): string {
 export function AdminAutoManagePage() {
   const [status, setStatus] = useState<AutoManageStatus | null>(null);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [allCategories, setAllCategories] = useState<CategoryItem[]>([]);
   const [candidates, setCandidates] = useState<ImportCandidate[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [searchingGoogle, setSearchingGoogle] = useState(false);
   const [acting, setActing] = useState(false);
   const [message, setMessage] = useState('');
   const [previewCandidate, setPreviewCandidate] = useState<ImportCandidate | null>(null);
   const [previewLookup, setPreviewLookup] = useState<AdminChannelLookup | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  const [googleTopic, setGoogleTopic] = useState('');
+  const [googlePreset, setGooglePreset] = useState<GoogleSearchPreset>('site');
+  const [googleCustomQuery, setGoogleCustomQuery] = useState('');
+  const [googleCategory, setGoogleCategory] = useState('기타');
+  const [googlePages, setGooglePages] = useState(1);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [statusData, categoryItems, items] = await Promise.all([
+      const [statusData, categoryItems, items, adminCats] = await Promise.all([
         getAutoManageStatus(),
         getAutoManageCategories(),
         getAutoManageCandidates({
           status: statusFilter,
           category: categoryFilter || undefined,
         }),
+        getAdminCategories().catch(() => [] as CategoryItem[]),
       ]);
       setStatus(statusData);
       setCategories(
@@ -78,6 +99,7 @@ export function AdminAutoManagePage() {
           isActive: true,
         })),
       );
+      setAllCategories(adminCats.filter((item) => item.isActive !== false));
       setCandidates(items);
       setSelected(new Set());
       setMessage('');
@@ -91,6 +113,13 @@ export function AdminAutoManagePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (allCategories.length === 0) return;
+    if (!allCategories.some((item) => item.name === googleCategory)) {
+      setGoogleCategory(allCategories[0]?.name ?? '기타');
+    }
+  }, [allCategories, googleCategory]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { '': candidates.length };
@@ -136,6 +165,55 @@ export function AdminAutoManagePage() {
       }
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleGoogleSearch = async () => {
+    if (googlePreset === 'custom' && !googleCustomQuery.trim()) {
+      setMessage('커스텀 쿼리를 입력해 주세요.');
+      return;
+    }
+    if (googlePreset !== 'custom' && !googleTopic.trim()) {
+      setMessage('검색 주제를 입력해 주세요.');
+      return;
+    }
+    if (!googleCategory.trim()) {
+      setMessage('저장할 카테고리를 선택해 주세요.');
+      return;
+    }
+
+    setSearchingGoogle(true);
+    setMessage('');
+    try {
+      const result = await searchGoogleAutoManageCandidates({
+        topic: googleTopic.trim() || undefined,
+        preset: googlePreset,
+        customQuery: googlePreset === 'custom' ? googleCustomQuery.trim() : undefined,
+        category: googleCategory,
+        pages: googlePages,
+      });
+      setMessage(
+        `Google 검색 완료 · 쿼리: ${result.query}` +
+          ` · 링크 ${result.total}건 (공개 ${result.publicCount} · 초대 ${result.inviteCount})` +
+          ` · 신규 ${result.created} · 갱신 ${result.updated}` +
+          (result.skippedExisting > 0 ? ` · 기존/제외 ${result.skippedExisting}` : ''),
+      );
+      setStatusFilter('pending');
+      await load();
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 503) {
+        setMessage(
+          typeof error.response.data?.message === 'string'
+            ? error.response.data.message
+            : 'Google CSE가 설정되지 않았거나 호출에 실패했습니다.',
+        );
+      } else if (!isAdminAuthenticated()) {
+        setMessage('관리자 인증이 필요합니다. /admin?access=관리자키 로 먼저 접속해 주세요.');
+      } else {
+        setMessage('Google 검색 수집에 실패했습니다.');
+      }
+    } finally {
+      setSearchingGoogle(false);
     }
   };
 
@@ -267,6 +345,118 @@ export function AdminAutoManagePage() {
       <div className="flex-1 overflow-y-auto p-6">
         {message && <AdminMessage message={message} />}
 
+        <section className="mb-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Google 검색 수집</h3>
+              <p className="mt-0.5 text-xs text-slate-500">
+                주제를 입력하면 site:t.me 연산자로 공개·초대(joinchat/+) 링크를 모아 후보에 넣습니다.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                status?.googleConfigured
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-amber-50 text-amber-700'
+              }`}
+            >
+              {status?.googleConfigured ? 'CSE 연결됨' : 'CSE 미설정'}
+            </span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {googlePresets.map((preset) => (
+              <button
+                key={preset.value}
+                type="button"
+                onClick={() => setGooglePreset(preset.value)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                  googlePreset === preset.value
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+                title={preset.hint}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {googlePreset === 'custom' ? (
+              <label className="block md:col-span-2">
+                <span className="text-xs font-medium text-slate-600">커스텀 쿼리</span>
+                <input
+                  value={googleCustomQuery}
+                  onChange={(e) => setGoogleCustomQuery(e.target.value)}
+                  placeholder='예: site:t.me "python" -channel'
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                />
+              </label>
+            ) : (
+              <label className="block md:col-span-2">
+                <span className="text-xs font-medium text-slate-600">주제 (자유 입력)</span>
+                <input
+                  value={googleTopic}
+                  onChange={(e) => setGoogleTopic(e.target.value)}
+                  placeholder="예: python programming / 암호화폐"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                />
+              </label>
+            )}
+
+            <label className="block">
+              <span className="text-xs font-medium text-slate-600">저장 카테고리</span>
+              <select
+                value={googleCategory}
+                onChange={(e) => setGoogleCategory(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+              >
+                {(allCategories.length > 0
+                  ? allCategories
+                  : [{ id: '기타', name: '기타', emoji: '📁' } as CategoryItem]
+                ).map((item) => (
+                  <option key={item.id || item.name} value={item.name}>
+                    {item.emoji ? `${item.emoji} ` : ''}
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-medium text-slate-600">검색 페이지 수 (×10)</span>
+              <select
+                value={googlePages}
+                onChange={(e) => setGooglePages(Number(e.target.value))}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+              >
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {n}페이지 (최대 {n * 10}건)
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleGoogleSearch}
+              disabled={searchingGoogle || status?.googleConfigured === false}
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {searchingGoogle ? '검색 중...' : 'Google 검색 → 후보 추가'}
+            </button>
+            {status?.googleConfigured === false && (
+              <p className="text-xs text-amber-700">
+                backend .env에 GOOGLE_CSE_API_KEY, GOOGLE_CSE_CX를 설정한 뒤 Nest를 재시작하세요.
+              </p>
+            )}
+          </div>
+        </section>
+
         <div className="mb-4 flex flex-wrap gap-2">
           {statusTabs.map((tab) => (
             <button
@@ -320,7 +510,7 @@ export function AdminAutoManagePage() {
           <AdminEmptyState
             message={
               statusFilter === 'pending'
-                ? '대기 중인 후보가 없습니다. API 동기화를 실행해 주세요.'
+                ? '대기 중인 후보가 없습니다. API 동기화 또는 Google 검색을 실행해 주세요.'
                 : '표시할 항목이 없습니다.'
             }
           />
@@ -382,13 +572,21 @@ export function AdminAutoManagePage() {
                         )}
                       </AdminTd>
                       <AdminTd>
-                        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(item.linkType)}`}>
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(item.linkType)}`}
+                        >
                           {linkTypeLabel(item.linkType)}
                         </span>
                       </AdminTd>
-                      <AdminTd><span className="text-xs">{item.category}</span></AdminTd>
-                      <AdminTd><span className="text-xs tabular-nums">{formatCount(item.participantsCount)}</span></AdminTd>
-                      <AdminTd><span className="text-xs uppercase text-slate-500">{item.source}</span></AdminTd>
+                      <AdminTd>
+                        <span className="text-xs">{item.category}</span>
+                      </AdminTd>
+                      <AdminTd>
+                        <span className="text-xs tabular-nums">{formatCount(item.participantsCount)}</span>
+                      </AdminTd>
+                      <AdminTd>
+                        <span className="text-xs uppercase text-slate-500">{item.source}</span>
+                      </AdminTd>
                       <AdminTd>
                         <button
                           type="button"

@@ -11,6 +11,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
@@ -151,4 +152,31 @@ export class UpdateChannelDto {
   @IsBoolean()
   @IsOptional()
   avatarApproved?: boolean;
+}
+
+export class GoogleSearchCandidatesDto {
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  topic?: string;
+
+  @IsIn(['site', 'groups', 'intitle', 'invite', 'directory', 'custom'])
+  preset: 'site' | 'groups' | 'intitle' | 'invite' | 'directory' | 'custom';
+
+  @ValidateIf((o: GoogleSearchCandidatesDto) => o.preset === 'custom')
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  customQuery?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  category: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  @IsOptional()
+  pages?: number;
 }

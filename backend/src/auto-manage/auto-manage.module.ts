@@ -6,6 +6,7 @@ import { RankingModule } from '../ranking/ranking.module';
 import { AdminAutoManageController } from './admin-auto-manage.controller';
 import { AutoManageService } from './auto-manage.service';
 import { ChannelImportCandidate } from './channel-import-candidate.entity';
+import { GoogleCseService } from './google-cse.service';
 
 @Module({
   imports: [
@@ -15,6 +16,6 @@ import { ChannelImportCandidate } from './channel-import-candidate.entity';
     RankingModule,
   ],
   controllers: [AdminAutoManageController],
-  providers: [AutoManageService],
+  providers: [AutoManageService, GoogleCseService],
 })
 export class AutoManageModule {}

@@ -223,6 +223,7 @@ export async function deleteCategory(id: string) {
 export interface AutoManageStatus {
   sources: string[];
   tgstatConfigured: boolean;
+  googleConfigured?: boolean;
   label: string;
   hint: string;
 }
@@ -249,6 +250,14 @@ export interface AutoManageCategory {
   emoji: string;
   count: number;
 }
+
+export type GoogleSearchPreset =
+  | 'site'
+  | 'groups'
+  | 'intitle'
+  | 'invite'
+  | 'directory'
+  | 'custom';
 
 export async function getAutoManageStatus(): Promise<AutoManageStatus> {
   const { data } = await apiClient.get<AutoManageStatus>('/admin/auto-manage/status', {
@@ -281,6 +290,29 @@ export async function syncAutoManageCandidates(category?: string) {
       timeout: 300000,
     },
   );
+  return data;
+}
+
+export async function searchGoogleAutoManageCandidates(body: {
+  topic?: string;
+  preset: GoogleSearchPreset;
+  customQuery?: string;
+  category: string;
+  pages?: number;
+}) {
+  const { data } = await apiClient.post<{
+    query: string;
+    created: number;
+    updated: number;
+    skippedExisting: number;
+    total: number;
+    rawResultCount: number;
+    inviteCount: number;
+    publicCount: number;
+  }>('/admin/auto-manage/google-search', body, {
+    headers: getAdminAuthHeaders(),
+    timeout: 120000,
+  });
   return data;
 }
 
