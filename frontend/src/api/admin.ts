@@ -13,6 +13,23 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
   return data;
 }
 
+export async function deleteAdminUser(telegramId: number) {
+  const { data } = await apiClient.delete<{ ok: boolean; telegramId: number }>(
+    `/admin/users/${telegramId}`,
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function setAdminUserBlocked(telegramId: number, isBlocked: boolean) {
+  const { data } = await apiClient.patch<{ ok: boolean; telegramId: number; isBlocked: boolean }>(
+    `/admin/users/${telegramId}/block`,
+    { isBlocked },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
 export async function importChannelAvatarFromTelegram(id: string): Promise<{
   avatarUrl: string | null;
   avatarApproved: boolean;
@@ -224,6 +241,9 @@ export interface AutoManageStatus {
   sources: string[];
   tgstatConfigured: boolean;
   googleConfigured?: boolean;
+  serperConfigured?: boolean;
+  searchConfigured?: boolean;
+  searchProvider?: 'serper' | 'google' | null;
   aiConfigured?: boolean;
   label: string;
   hint: string;
@@ -304,6 +324,7 @@ export async function searchGoogleAutoManageCandidates(body: {
   customQuery?: string;
   category?: string;
   pages?: number;
+  strictTopic?: boolean;
 }) {
   const { data } = await apiClient.post<{
     query: string;
@@ -312,6 +333,7 @@ export async function searchGoogleAutoManageCandidates(body: {
     skippedExisting: number;
     total: number;
     rawResultCount: number;
+    filteredOut?: number;
     inviteCount: number;
     publicCount: number;
     aiClassified?: number;

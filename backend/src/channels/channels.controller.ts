@@ -34,28 +34,32 @@ export class ChannelsController {
 
   @Get('my-recommendations')
   @UseGuards(TelegramAuthGuard)
-  myRecommendations(@TelegramUserParam() user: TelegramUser) {
+  async myRecommendations(@TelegramUserParam() user: TelegramUser) {
+    await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.getRecommendedChannelIds(user.id);
   }
 
   @Get('my-favorites')
   @UseGuards(TelegramAuthGuard)
-  myFavorites(
+  async myFavorites(
     @TelegramUserParam() user: TelegramUser,
     @Query('category') category?: string,
   ) {
+    await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.findFavorites(user.id, category);
   }
 
   @Get('my-favorite-ids')
   @UseGuards(TelegramAuthGuard)
-  myFavoriteIds(@TelegramUserParam() user: TelegramUser) {
+  async myFavoriteIds(@TelegramUserParam() user: TelegramUser) {
+    await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.getFavoriteChannelIds(user.id);
   }
 
   @Get('my-submissions')
   @UseGuards(TelegramAuthGuard)
-  mySubmissions(@TelegramUserParam() user: TelegramUser) {
+  async mySubmissions(@TelegramUserParam() user: TelegramUser) {
+    await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.findBySubmitter(user.id);
   }
 
@@ -72,28 +76,31 @@ export class ChannelsController {
 
   @Post(':id/favorite')
   @UseGuards(TelegramAuthGuard)
-  addFavorite(
+  async addFavorite(
     @Param('id') id: string,
     @TelegramUserParam() user: TelegramUser,
   ) {
+    await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.addFavorite(id, user.id);
   }
 
   @Delete(':id/favorite')
   @UseGuards(TelegramAuthGuard)
-  removeFavorite(
+  async removeFavorite(
     @Param('id') id: string,
     @TelegramUserParam() user: TelegramUser,
   ) {
+    await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.removeFavorite(id, user.id);
   }
 
   @Post(':id/recommend')
   @UseGuards(TelegramAuthGuard)
-  recommend(
+  async recommend(
     @Param('id') id: string,
     @TelegramUserParam() user: TelegramUser,
   ) {
+    await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.incrementRecommend(id, user.id);
   }
 }

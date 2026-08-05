@@ -601,6 +601,15 @@ export class ChannelsService implements OnModuleInit {
     return result;
   }
 
+  /** 회원 삭제 시 제보 채널의 제출자만 해제 (채널은 유지) */
+  async clearSubmitter(telegramId: number): Promise<number> {
+    const result = await this.channelRepository.update(
+      { submittedBy: telegramId },
+      { submittedBy: null },
+    );
+    return result.affected ?? 0;
+  }
+
   async findAllAdmin(filters: {
     status?: ChannelStatus;
     q?: string;

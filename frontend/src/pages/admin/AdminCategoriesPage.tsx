@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { isAxiosError } from 'axios';
 import {
   createCategory,
   deleteCategory,
@@ -9,13 +10,24 @@ import { CategoryIcon } from '../../components/CategoryIcon';
 import { CategoryIconPicker } from '../../components/CategoryIconPicker';
 import type { CategoryItem } from '../../types/categoryItem';
 
+type EditDraft = {
+  name: string;
+  emoji: string;
+  iconUrl: string | null;
+};
+
 export function AdminCategoriesPage() {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [newCategory, setNewCategory] = useState({ name: '', emoji: '📁', iconUrl: null as string | null });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState({ emoji: '📁', iconUrl: null as string | null });
+  const [editDraft, setEditDraft] = useState<EditDraft>({
+    name: '',
+    emoji: '📁',
+    iconUrl: null,
+  });
 
   const loadCategories = useCallback(async () => {
     setLoading(true);
@@ -52,19 +64,40 @@ export function AdminCategoriesPage() {
     }
   };
 
-  const startEditIcon = (item: CategoryItem) => {
+  const startEdit = (item: CategoryItem) => {
     setEditingId(item.id);
-    setEditDraft({ emoji: item.emoji, iconUrl: item.iconUrl ?? null });
+    setEditDraft({
+      name: item.name,
+      emoji: item.emoji,
+      iconUrl: item.iconUrl ?? null,
+    });
   };
 
-  const handleSaveIcon = async (id: string) => {
+  const handleSaveEdit = async (id: string) => {
+    const name = editDraft.name.trim();
+    if (!name) {
+      setMessage('카테고리 이름을 입력해 주세요.');
+      return;
+    }
+
+    setSaving(true);
     try {
-      await updateCategory(id, { emoji: editDraft.emoji, iconUrl: editDraft.iconUrl });
+      await updateCategory(id, {
+        name,
+        emoji: editDraft.emoji,
+        iconUrl: editDraft.iconUrl,
+      });
       setEditingId(null);
-      setMessage('카테고리 아이콘이 수정되었습니다.');
+      setMessage('카테고리가 수정되었습니다.');
       await loadCategories();
-    } catch {
-      setMessage('아이콘 수정에 실패했습니다.');
+    } catch (error) {
+      const apiMessage =
+        isAxiosError(error) && typeof error.response?.data?.message === 'string'
+          ? error.response.data.message
+          : null;
+      setMessage(apiMessage || '카테고리 수정에 실패했습니다.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -85,7 +118,7 @@ export function AdminCategoriesPage() {
     <>
       <header className="border-b border-black/5 bg-white px-6 py-5">
         <h2 className="text-xl font-bold text-slate-900">카테고리</h2>
-        <p className="mt-1 text-sm text-slate-500">카테고리와 아이콘을 관리합니다.</p>
+        <p className="mt-1 text-sm text-slate-500">카테고리 이름과 아이콘을 관리합니다.</p>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -132,26 +165,67 @@ export function AdminCategoriesPage() {
                       <CategoryIcon emoji={item.emoji} iconUrl={item.iconUrl} size="md" />
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-slate-900">{item.name}</p>
-                        <p className="text-xs text-slate-500">순서 {item.sortOrder} · {item.isActive ? '활성' : '비활성'}</p>
+                        <p className="text-xs text-slate-500">
+                          순서 {item.sortOrder} · {item.isActive ? '활성' : '비활성'}
+                        </p>
                       </div>
-                      <button type="button" onClick={() => startEditIcon(item)} className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs ring-1 ring-black/5">아이콘</button>
-                      <button type="button" onClick={() => handleToggleActive(item)} className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs ring-1 ring-black/5">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(item)}
+                        className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs ring-1 ring-black/5"
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(item)}
+                        className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs ring-1 ring-black/5"
+                      >
                         {item.isActive ? '끄기' : '켜기'}
                       </button>
-                      <button type="button" onClick={() => handleDeleteCategory(item.id)} className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600">삭제</button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCategory(item.id)}
+                        className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600"
+                      >
+                        삭제
+                      </button>
                     </div>
 
                     {editingId === item.id && (
-                      <div className="mt-3 border-t border-black/5 pt-3">
+                      <div className="mt-3 space-y-3 border-t border-black/5 pt-3">
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium text-slate-600">이름</span>
+                          <input
+                            value={editDraft.name}
+                            onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
+                            placeholder="카테고리 이름"
+                            className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-sm outline-none ring-1 ring-black/5 focus:ring-blue-300"
+                          />
+                        </label>
                         <CategoryIconPicker
                           emoji={editDraft.emoji}
                           iconUrl={editDraft.iconUrl}
                           onEmojiChange={(emoji) => setEditDraft({ ...editDraft, emoji })}
                           onIconUrlChange={(iconUrl) => setEditDraft({ ...editDraft, iconUrl })}
                         />
-                        <div className="mt-3 flex gap-2">
-                          <button type="button" onClick={() => handleSaveIcon(item.id)} className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white">저장</button>
-                          <button type="button" onClick={() => setEditingId(null)} className="rounded-xl bg-white px-4 py-2 text-sm ring-1 ring-black/5">취소</button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleSaveEdit(item.id)}
+                            disabled={saving}
+                            className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+                          >
+                            {saving ? '저장 중...' : '저장'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            disabled={saving}
+                            className="rounded-xl bg-white px-4 py-2 text-sm ring-1 ring-black/5 disabled:opacity-50"
+                          >
+                            취소
+                          </button>
                         </div>
                       </div>
                     )}

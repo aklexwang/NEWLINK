@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { CategoriesService, DEFAULT_CATEGORIES } from '../categories/categories.service';
@@ -12,6 +12,7 @@ import {
   ImportCandidateStatus,
 } from './channel-import-candidate.entity';
 import { GoogleCseService, type GoogleSearchPreset } from './google-cse.service';
+import { SerperSearchService } from './serper-search.service';
 import { isKoreanChannelText } from './korean-channel.filter';
 
 interface ExternalItem {
@@ -39,30 +40,39 @@ export class AutoManageService {
     private readonly telegramRankingService: TelegramRankingService,
     private readonly tgstatService: TgstatService,
     private readonly googleCseService: GoogleCseService,
+    private readonly serperSearchService: SerperSearchService,
     private readonly categoryAiService: CategoryAiService,
   ) {}
 
   getStatus() {
     const tgstatConfigured = this.tgstatService.isConfigured();
     const googleConfigured = this.googleCseService.isConfigured();
+    const serperConfigured = this.serperSearchService.isConfigured();
+    const searchConfigured = serperConfigured || googleConfigured;
     const aiConfigured = this.categoryAiService.isConfigured();
     const sources = ['telegram'];
     if (tgstatConfigured) sources.push('tgstat');
-    if (googleConfigured) sources.push('google');
+    if (serperConfigured) sources.push('serper');
+    else if (googleConfigured) sources.push('google');
 
     return {
       sources,
       tgstatConfigured,
       googleConfigured,
+      serperConfigured,
+      searchConfigured,
+      searchProvider: serperConfigured ? 'serper' : googleConfigured ? 'google' : null,
       aiConfigured,
-      label: googleConfigured
-        ? '텔레그램 시드 · TGStat · Google CSE · AI 분류'
+      label: searchConfigured
+        ? `텔레그램 시드 · TGStat · ${serperConfigured ? 'Serper' : 'Google CSE'} · AI 분류`
         : tgstatConfigured
           ? '텔레그램 시드 + TGStat API (한국어·카테고리별)'
           : '텔레그램 시드 · ranking-seeds.json (카테고리별)',
-      hint: aiConfigured
-        ? '수집 시 AI가 카테고리를 제안합니다. 관리자가 확인·수정한 뒤 노출하세요. AI 키가 없으면 키워드 폴백을 씁니다.'
-        : 'OPENAI_API_KEY를 넣으면 AI 자동 분류가 활성화됩니다. 지금은 키워드 폴백으로 카테고리를 제안합니다.',
+      hint: serperConfigured
+        ? 'Serper로 Google 검색 결과를 모아 후보에 넣습니다. AI/키워드로 카테고리를 제안하니 관리자가 검수 후 노출하세요.'
+        : searchConfigured
+          ? 'Google CSE가 연결되어 있습니다. Serper(SERPER_API_KEY)를 쓰면 결제 이슈 없이 더 안정적으로 수집할 수 있습니다.'
+          : '주제 검색 수집을 쓰려면 backend/.env에 SERPER_API_KEY를 넣으세요. (https://serper.dev)',
       koreanOnly: true,
       telegramLimitPerCategory: TELEGRAM_SYNC_LIMIT,
       tgstatLimitPerCategory: TGSTAT_SYNC_LIMIT,
@@ -195,20 +205,18 @@ export class AutoManageService {
     };
   }
 
-  /** Google CSE로 t.me 공개·초대 링크를 모아 후보에 저장 (한글 필터 미적용, AI 분류) */
+  /** Google/Serper 검색으로 t.me 공개·초대 링크를 모아 후보에 저장 (한글 필터 미적용, AI 분류) */
   async importFromGoogleSearch(params: {
     topic: string;
     preset: GoogleSearchPreset;
     customQuery?: string;
     category?: string;
     pages?: number;
+    strictTopic?: boolean;
   }) {
-    const { query, hits, rawResultCount } = await this.googleCseService.search({
-      topic: params.topic,
-      preset: params.preset,
-      customQuery: params.customQuery,
-      pages: params.pages,
-    });
+    const searchResult = await this.searchWeb(params);
+    const { query, hits, rawResultCount, filteredOut } = searchResult;
+    const provider = searchResult.provider;
 
     const allowed = await this.getAllowedCategoryNames();
     const forceCategory =
@@ -270,7 +278,7 @@ export class AutoManageService {
         linkType: hit.isInvite ? LinkType.GROUP : LinkType.CHANNEL,
         participantsCount: 0,
         avatarUrl: await this.resolveCandidateAvatar(link, null),
-        source: 'google',
+        source: provider,
       };
 
       if (existingCandidate) {
@@ -304,11 +312,32 @@ export class AutoManageService {
       skippedExisting,
       total: hits.length,
       rawResultCount,
+      filteredOut,
       inviteCount: hits.filter((item) => item.isInvite).length,
       publicCount: hits.filter((item) => !item.isInvite).length,
       aiClassified,
       aiConfigured: this.categoryAiService.isConfigured(),
+      provider,
     };
+  }
+
+  private async searchWeb(params: {
+    topic: string;
+    preset: GoogleSearchPreset;
+    customQuery?: string;
+    pages?: number;
+    strictTopic?: boolean;
+  }) {
+    if (this.serperSearchService.isConfigured()) {
+      return this.serperSearchService.search(params);
+    }
+    if (this.googleCseService.isConfigured()) {
+      const result = await this.googleCseService.search(params);
+      return { ...result, provider: 'google' as const };
+    }
+    throw new ServiceUnavailableException(
+      '검색 API가 없습니다. SERPER_API_KEY를 backend/.env에 넣으세요. (https://serper.dev)',
+    );
   }
 
   async classifyCandidates(ids: string[]) {

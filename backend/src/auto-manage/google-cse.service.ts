@@ -87,7 +87,13 @@ export class GoogleCseService {
     preset: GoogleSearchPreset;
     customQuery?: string;
     pages?: number;
-  }): Promise<{ query: string; hits: GoogleCseHit[]; rawResultCount: number }> {
+    strictTopic?: boolean;
+  }): Promise<{
+    query: string;
+    hits: GoogleCseHit[];
+    rawResultCount: number;
+    filteredOut: number;
+  }> {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException(
         'Google CSE가 설정되지 않았습니다. GOOGLE_CSE_API_KEY, GOOGLE_CSE_CX를 확인하세요.',
@@ -110,29 +116,87 @@ export class GoogleCseService {
         rawResultCount = items.totalResults;
       }
       for (const item of items.items) {
-        const texts = [item.link, item.title, item.snippet, item.htmlSnippet, item.htmlTitle]
-          .filter(Boolean)
-          .join('\n');
-        const extracted = this.extractTelegramLinks(texts);
+        const extracted = this.buildHitsFromResult({
+          link: item.link,
+          title: item.title ?? item.htmlTitle,
+          snippet: item.snippet,
+          extraText: item.htmlSnippet,
+        });
         for (const hit of extracted) {
           const key = hit.link.toLowerCase();
-          if (!byLink.has(key)) {
-            byLink.set(key, {
-              ...hit,
-              title: this.cleanTitle(item.title, hit) || hit.title,
-              snippet: (item.snippet ?? '').slice(0, 300),
-            });
-          }
+          if (!byLink.has(key)) byLink.set(key, hit);
         }
       }
       if (items.items.length === 0) break;
     }
 
+    const all = [...byLink.values()];
+    const strict = params.strictTopic !== false && params.preset !== 'custom';
+    const hits = strict ? all.filter((hit) => this.matchesTopic(hit, params.topic)) : all;
+
     return {
       query,
-      hits: [...byLink.values()],
+      hits,
       rawResultCount,
+      filteredOut: all.length - hits.length,
     };
+  }
+
+  /**
+   * 검색 결과 1건에서 후보 링크를 뽑습니다.
+   * 결과 URL 자체에서 나온 링크만 결과 제목을 쓰고, 스니펫에 섞여 있던 다른 링크는
+   * 자기 username을 제목으로 씁니다. (다른 방의 제목이 붙는 문제 방지)
+   */
+  buildHitsFromResult(result: {
+    link?: string;
+    title?: string;
+    snippet?: string;
+    extraText?: string;
+  }): GoogleCseHit[] {
+    const snippet = (result.snippet ?? '').slice(0, 300);
+    const hits: GoogleCseHit[] = [];
+    const seen = new Set<string>();
+
+    for (const hit of this.extractTelegramLinks(result.link ?? '')) {
+      const key = hit.link.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      hits.push({ ...hit, title: this.cleanTitle(result.title, hit) || hit.title, snippet });
+    }
+
+    const secondaryText = [result.title, result.snippet, result.extraText]
+      .filter(Boolean)
+      .join('\n');
+    for (const hit of this.extractTelegramLinks(secondaryText)) {
+      const key = hit.link.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      hits.push({ ...hit, snippet });
+    }
+
+    return hits;
+  }
+
+  /** 주제 단어가 링크·제목·스니펫에 실제로 들어있는지 확인 (검색엔진의 유사어 확장 결과 제외) */
+  matchesTopic(hit: GoogleCseHit, topic: string): boolean {
+    const tokens = this.topicTokens(topic);
+    if (tokens.length === 0) return true;
+    const haystack = this.normalizeForMatch([hit.link, hit.title, hit.snippet].join(' '));
+    return tokens.every((token) => haystack.includes(token));
+  }
+
+  private topicTokens(topic: string): string[] {
+    return (topic ?? '')
+      .split(/[\s,/|"']+/)
+      .map((token) => this.normalizeForMatch(token))
+      .filter((token) => token.length >= 2);
+  }
+
+  private normalizeForMatch(text: string): string {
+    return (text ?? '')
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[^0-9a-z가-힣]+/g, '');
   }
 
   extractTelegramLinks(text: string): GoogleCseHit[] {

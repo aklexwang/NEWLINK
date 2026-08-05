@@ -78,6 +78,7 @@ export function AdminAutoManagePage() {
   const [googleCustomQuery, setGoogleCustomQuery] = useState('');
   const [googleCategory, setGoogleCategory] = useState('auto');
   const [googlePages, setGooglePages] = useState(1);
+  const [googleStrictTopic, setGoogleStrictTopic] = useState(true);
   const [classifying, setClassifying] = useState(false);
 
   const load = useCallback(async () => {
@@ -192,12 +193,14 @@ export function AdminAutoManagePage() {
         customQuery: googlePreset === 'custom' ? googleCustomQuery.trim() : undefined,
         category: googleCategory === 'auto' ? undefined : googleCategory,
         pages: googlePages,
+        strictTopic: googleStrictTopic,
       });
       setMessage(
         `Google 검색 완료 · 쿼리: ${result.query}` +
           ` · 링크 ${result.total}건 (공개 ${result.publicCount} · 초대 ${result.inviteCount})` +
           ` · 신규 ${result.created} · 갱신 ${result.updated}` +
           (result.aiClassified ? ` · AI분류 ${result.aiClassified}` : '') +
+          (result.filteredOut ? ` · 주제 불일치 제외 ${result.filteredOut}` : '') +
           (result.skippedExisting > 0 ? ` · 기존/제외 ${result.skippedExisting}` : ''),
       );
       setStatusFilter('pending');
@@ -427,12 +430,16 @@ export function AdminAutoManagePage() {
             </div>
             <span
               className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                status?.googleConfigured
+                status?.searchConfigured
                   ? 'bg-emerald-50 text-emerald-700'
                   : 'bg-amber-50 text-amber-700'
               }`}
             >
-              {status?.googleConfigured ? 'CSE 연결됨' : 'CSE 미설정'}
+              {status?.serperConfigured
+                ? 'Serper 연결됨'
+                : status?.googleConfigured
+                  ? 'CSE 연결됨'
+                  : '검색 API 미설정'}
             </span>
           </div>
 
@@ -513,11 +520,26 @@ export function AdminAutoManagePage() {
             </label>
           </div>
 
+          {googlePreset !== 'custom' && (
+            <label className="mt-3 flex items-center gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={googleStrictTopic}
+                onChange={(e) => setGoogleStrictTopic(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              <span>
+                주제 단어가 링크·제목·설명에 실제로 포함된 결과만 수집 (권장) — 끄면 검색엔진이
+                넓게 잡은 무관한 방까지 들어옵니다.
+              </span>
+            </label>
+          )}
+
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleGoogleSearch}
-              disabled={searchingGoogle || status?.googleConfigured === false}
+              disabled={searchingGoogle || status?.searchConfigured === false}
               className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               {searchingGoogle ? '검색 중...' : 'Google 검색 → 후보 추가'}
@@ -531,9 +553,9 @@ export function AdminAutoManagePage() {
             >
               {status?.aiConfigured ? 'AI 분류 ON' : '키워드 폴백'}
             </span>
-            {status?.googleConfigured === false && (
+            {status?.searchConfigured === false && (
               <p className="text-xs text-amber-700">
-                backend .env에 GOOGLE_CSE_API_KEY, GOOGLE_CSE_CX를 설정한 뒤 Nest를 재시작하세요.
+                backend .env에 SERPER_API_KEY를 넣고 Nest를 재시작하세요. (https://serper.dev)
               </p>
             )}
           </div>

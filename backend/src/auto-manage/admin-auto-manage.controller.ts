@@ -37,6 +37,7 @@ export class AdminAutoManageController {
       customQuery: dto.customQuery,
       category: dto.category,
       pages: dto.pages,
+      strictTopic: dto.strictTopic,
     });
   }
 

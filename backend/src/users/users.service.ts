@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TelegramUser } from '../auth/interfaces/telegram-user.interface';
@@ -19,9 +24,16 @@ export class UsersService {
       username: user.username,
       tonWalletAddress: user.tonWalletAddress,
       isRegistered: user.isRegistered,
+      isBlocked: user.isBlocked,
       createdAt: user.createdAt?.toISOString?.() ?? user.createdAt,
       updatedAt: user.updatedAt?.toISOString?.() ?? user.updatedAt,
     };
+  }
+
+  assertNotBlocked(user: User | null | undefined) {
+    if (user?.isBlocked) {
+      throw new ForbiddenException('차단된 회원입니다. 관리자에게 문의해 주세요.');
+    }
   }
 
   async loginOrRegisterWithTelegram(telegramUser: TelegramUser): Promise<{
@@ -33,6 +45,7 @@ export class UsersService {
     });
 
     if (existing) {
+      this.assertNotBlocked(existing);
       existing.firstName = telegramUser.first_name ?? existing.firstName;
       existing.username = telegramUser.username ?? existing.username;
       return {
@@ -46,6 +59,7 @@ export class UsersService {
       firstName: telegramUser.first_name ?? null,
       username: telegramUser.username ?? null,
       isRegistered: false,
+      isBlocked: false,
     });
 
     return {
@@ -53,6 +67,7 @@ export class UsersService {
       isNewUser: true,
     };
   }
+
 
   async syncFromTelegram(telegramUser: TelegramUser): Promise<User> {
     let user = await this.userRepository.findOne({
@@ -65,6 +80,7 @@ export class UsersService {
         firstName: telegramUser.first_name ?? null,
         username: telegramUser.username ?? null,
         isRegistered: false,
+        isBlocked: false,
       });
     } else {
       user.firstName = telegramUser.first_name ?? user.firstName;
@@ -78,12 +94,20 @@ export class UsersService {
     return this.userRepository.findOne({ where: { telegramId } });
   }
 
+  async assertActiveByTelegramId(telegramId: number) {
+    const user = await this.findByTelegramId(telegramId);
+    this.assertNotBlocked(user);
+  }
+
   async getMe(telegramUser: TelegramUser): Promise<User> {
-    return this.syncFromTelegram(telegramUser);
+    const user = await this.syncFromTelegram(telegramUser);
+    this.assertNotBlocked(user);
+    return user;
   }
 
   async register(telegramUser: TelegramUser, dto: RegisterUserDto): Promise<User> {
     const user = await this.syncFromTelegram(telegramUser);
+    this.assertNotBlocked(user);
     user.tonWalletAddress = dto.tonWalletAddress.trim();
     user.isRegistered = true;
     return this.userRepository.save(user);
@@ -130,5 +154,27 @@ export class UsersService {
     return this.userRepository.find({
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async setBlocked(
+    telegramId: number,
+    isBlocked: boolean,
+  ): Promise<{ ok: true; telegramId: number; isBlocked: boolean }> {
+    const user = await this.findByTelegramId(telegramId);
+    if (!user) {
+      throw new NotFoundException('회원을 찾을 수 없습니다.');
+    }
+    user.isBlocked = isBlocked;
+    await this.userRepository.save(user);
+    return { ok: true, telegramId, isBlocked };
+  }
+
+  async deleteByTelegramId(telegramId: number): Promise<{ ok: true; telegramId: number }> {
+    const user = await this.findByTelegramId(telegramId);
+    if (!user) {
+      throw new NotFoundException('회원을 찾을 수 없습니다.');
+    }
+    await this.userRepository.remove(user);
+    return { ok: true, telegramId };
   }
 }

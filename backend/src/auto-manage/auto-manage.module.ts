@@ -8,6 +8,7 @@ import { AutoManageService } from './auto-manage.service';
 import { CategoryAiService } from './category-ai.service';
 import { ChannelImportCandidate } from './channel-import-candidate.entity';
 import { GoogleCseService } from './google-cse.service';
+import { SerperSearchService } from './serper-search.service';
 
 @Module({
   imports: [
@@ -17,6 +18,6 @@ import { GoogleCseService } from './google-cse.service';
     RankingModule,
   ],
   controllers: [AdminAutoManageController],
-  providers: [AutoManageService, GoogleCseService, CategoryAiService],
+  providers: [AutoManageService, GoogleCseService, SerperSearchService, CategoryAiService],
 })
 export class AutoManageModule {}

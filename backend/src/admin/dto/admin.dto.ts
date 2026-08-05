@@ -180,6 +180,11 @@ export class GoogleSearchCandidatesDto {
   @Max(5)
   @IsOptional()
   pages?: number;
+
+  /** 기본 true: 주제 단어가 링크·제목·설명에 실제로 들어있는 결과만 수집 */
+  @IsBoolean()
+  @IsOptional()
+  strictTopic?: boolean;
 }
 
 export class UpdateImportCandidateDto {

@@ -21,21 +21,38 @@ export function AdminCategoryChipBar({
         : 'bg-white text-slate-600 ring-1 ring-black/10 hover:bg-slate-50'
     }`;
 
+  const totalCount = counts?.[''];
+  const selectedCount = selected ? counts?.[selected] : totalCount;
+  const selectedLabel = selected || '전체';
+
   return (
     <div className="mb-4">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">카테고리</p>
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">카테고리</p>
+        {counts && (
+          <p className="text-sm text-slate-600">
+            <span className="font-medium text-slate-900">{selectedLabel}</span>
+            <span className="mx-1.5 text-slate-300">·</span>
+            연결된 링크{' '}
+            <span className="font-semibold tabular-nums text-slate-900">{selectedCount ?? 0}</span>개
+            {totalCount !== undefined && selected && (
+              <span className="ml-1.5 text-xs text-slate-400">(전체 {totalCount}개)</span>
+            )}
+          </p>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => onSelect('')} className={chipClass(selected === '')}>
           전체
           {counts?.[''] !== undefined && (
-            <span className={`text-xs ${selected === '' ? 'text-white/80' : 'text-slate-400'}`}>
+            <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums ${selected === '' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
               {counts['']}
             </span>
           )}
         </button>
         {categories.map((category) => {
           const active = selected === category.name;
-          const count = counts?.[category.name];
+          const count = counts?.[category.name] ?? 0;
           return (
             <button
               key={category.id}
@@ -45,9 +62,9 @@ export function AdminCategoryChipBar({
             >
               <CategoryIcon emoji={category.emoji} iconUrl={category.iconUrl} size="sm" className="!h-5 !w-5 !text-sm" />
               <span>{category.name}</span>
-              {count !== undefined && (
-                <span className={`text-xs ${active ? 'text-white/80' : 'text-slate-400'}`}>{count}</span>
-              )}
+              <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                {count}
+              </span>
             </button>
           );
         })}

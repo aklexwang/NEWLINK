@@ -23,6 +23,9 @@ export class User {
   @Column({ name: 'is_registered', default: false })
   isRegistered: boolean;
 
+  @Column({ name: 'is_blocked', default: false })
+  isBlocked: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

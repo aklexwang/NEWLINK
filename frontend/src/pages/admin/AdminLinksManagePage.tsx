@@ -89,7 +89,8 @@ export function AdminLinksManagePage({
           category: categoryFilter || undefined,
           linkType,
         }),
-        getAdminChannels({ status: statusFilter || undefined, linkType }),
+        // 카테고리 칩의 총 연결 수는 상태/검색 필터와 무관하게 전체 기준으로 집계
+        getAdminChannels({ linkType }),
         getAdminCategories(),
       ]);
       setChannels(items);
