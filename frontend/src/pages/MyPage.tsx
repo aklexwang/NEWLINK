@@ -6,7 +6,7 @@ import { TelegramOfficialLoginButton } from '../components/TelegramOfficialLogin
 import { useCategories } from '../hooks/useCategories';
 import { useAuth } from '../providers/AuthProvider';
 import { useToast } from '../providers/ToastProvider';
-import { notifyUser, useTelegram } from '../hooks/useTelegram';
+import { notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import { getApiErrorMessage } from '../utils/apiError';
 import { linkTypeBadgeClass, linkTypeLabel, submissionStatusLabel } from '../utils/linkType';
@@ -15,6 +15,8 @@ import { hasSeenRewardNotice, markRewardNoticeSeen } from '../utils/seenRewardNo
 const TELEGRAM_BOT_USERNAME =
   (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ||
   'newlinkcom_bot';
+
+const AD_INQUIRY_URL = 'https://t.me/Kplaytwo';
 
 function getCategoryMeta(
   categories: { id: string; label: string; emoji: string; iconUrl: string | null }[],
@@ -168,7 +170,16 @@ export function MyPage() {
 
       <header className="border-b border-black/5 px-4 py-5">
         <h1 className="text-xl font-bold text-tg-text">MY</h1>
-        <p className="mt-1 text-sm text-tg-hint">내 정보 · 제보 내역</p>
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <p className="text-sm text-tg-hint">내 정보 · 제보 내역</p>
+          <button
+            type="button"
+            onClick={() => openTelegramChannel(webApp, isLocalBrowser, AD_INQUIRY_URL)}
+            className="shrink-0 text-sm font-medium text-tg-button"
+          >
+            광고문의
+          </button>
+        </div>
       </header>
 
       {!isLoggedIn && authStatus !== 'loading' && isLocalBrowser && (

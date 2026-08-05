@@ -27,6 +27,21 @@ export class ChannelImportCandidate {
   @Column({ length: 100 })
   category: string;
 
+  /** AI/키워드가 제안한 카테고리 */
+  @Column({ name: 'category_ai_suggested', type: 'varchar', length: 100, nullable: true })
+  categoryAiSuggested: string | null;
+
+  @Column({ name: 'category_confidence', type: 'real', nullable: true })
+  categoryConfidence: number | null;
+
+  /** 관리자가 카테고리를 확인·수정했는지 */
+  @Column({ name: 'category_reviewed', type: 'boolean', default: false })
+  categoryReviewed: boolean;
+
+  /** ai | fallback | manual | seed */
+  @Column({ name: 'category_source', type: 'varchar', length: 20, default: 'seed' })
+  categorySource: string;
+
   @Column({ name: 'link_type', type: 'varchar', length: 20, default: LinkType.CHANNEL })
   linkType: LinkType;
 

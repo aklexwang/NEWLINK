@@ -1,4 +1,5 @@
 import type { AdminChannelLookup, ImportCandidate } from '../../api/admin';
+import type { CategoryItem } from '../../types/categoryItem';
 import { CandidateAvatar } from './CandidateAvatar';
 import { linkTypeLabel } from '../../utils/linkType';
 
@@ -7,9 +8,11 @@ interface ImportCandidatePreviewModalProps {
   lookup: AdminChannelLookup | null;
   loading: boolean;
   acting: boolean;
+  categories?: CategoryItem[];
   onClose: () => void;
   onPublish: () => void;
   onSkip: () => void;
+  onCategoryChange?: (category: string) => void;
 }
 
 export function ImportCandidatePreviewModal({
@@ -17,9 +20,11 @@ export function ImportCandidatePreviewModal({
   lookup,
   loading,
   acting,
+  categories = [],
   onClose,
   onPublish,
   onSkip,
+  onCategoryChange,
 }: ImportCandidatePreviewModalProps) {
   if (!candidate && !loading) return null;
 
@@ -53,8 +58,16 @@ export function ImportCandidatePreviewModal({
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
                 <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">{linkTypeLabel(candidate.linkType)}</span>
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">{candidate.category}</span>
                 <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs uppercase">{candidate.source}</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs ${
+                    candidate.categoryReviewed
+                      ? 'bg-emerald-500/20 text-emerald-200'
+                      : 'bg-amber-500/20 text-amber-200'
+                  }`}
+                >
+                  {candidate.categoryReviewed ? '카테고리 검수됨' : '카테고리 미검수'}
+                </span>
               </div>
               <h3 className="mt-4 text-xl font-bold">{title}</h3>
               {memberCount && (
@@ -64,6 +77,25 @@ export function ImportCandidatePreviewModal({
                 <p className="mt-1 text-sm text-white/60">
                   구독자 {candidate.participantsCount.toLocaleString('ko-KR')}
                 </p>
+              )}
+              {onCategoryChange && categories.length > 0 ? (
+                <label className="mt-3 w-full text-left">
+                  <span className="text-xs text-white/60">카테고리 (관리자 검수)</span>
+                  <select
+                    value={candidate.category}
+                    onChange={(e) => onCategoryChange(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat.id || cat.name} value={cat.name} className="text-slate-900">
+                        {cat.emoji ? `${cat.emoji} ` : ''}
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="mt-3 text-sm text-white/70">카테고리: {candidate.category}</p>
               )}
               <p className="mt-3 line-clamp-5 text-sm leading-relaxed text-white/80">{description}</p>
               <p className="mt-3 break-all text-xs text-white/50">{link}</p>

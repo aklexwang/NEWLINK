@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { CategoriesService, DEFAULT_CATEGORIES } from '../categories/categories.service';
@@ -6,6 +6,7 @@ import { ChannelStatus, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { TelegramRankingService } from '../ranking/telegram-ranking.service';
 import { TgstatService } from '../ranking/tgstat.service';
+import { CategoryAiService } from './category-ai.service';
 import {
   ChannelImportCandidate,
   ImportCandidateStatus,
@@ -38,11 +39,13 @@ export class AutoManageService {
     private readonly telegramRankingService: TelegramRankingService,
     private readonly tgstatService: TgstatService,
     private readonly googleCseService: GoogleCseService,
+    private readonly categoryAiService: CategoryAiService,
   ) {}
 
   getStatus() {
     const tgstatConfigured = this.tgstatService.isConfigured();
     const googleConfigured = this.googleCseService.isConfigured();
+    const aiConfigured = this.categoryAiService.isConfigured();
     const sources = ['telegram'];
     if (tgstatConfigured) sources.push('tgstat');
     if (googleConfigured) sources.push('google');
@@ -51,14 +54,15 @@ export class AutoManageService {
       sources,
       tgstatConfigured,
       googleConfigured,
+      aiConfigured,
       label: googleConfigured
-        ? '텔레그램 시드 · TGStat · Google CSE 검색'
+        ? '텔레그램 시드 · TGStat · Google CSE · AI 분류'
         : tgstatConfigured
           ? '텔레그램 시드 + TGStat API (한국어·카테고리별)'
           : '텔레그램 시드 · ranking-seeds.json (카테고리별)',
-      hint: googleConfigured
-        ? '주제 검색으로 Google CSE에서 t.me 공개·초대 링크를 모아 후보에 넣을 수 있습니다. API 동기화는 한글 제목 위주입니다.'
-        : '동기화하면 제목에 한글이 있는 한국 채널만 수집합니다. Google CSE 키를 넣으면 주제 검색 수집이 활성화됩니다.',
+      hint: aiConfigured
+        ? '수집 시 AI가 카테고리를 제안합니다. 관리자가 확인·수정한 뒤 노출하세요. AI 키가 없으면 키워드 폴백을 씁니다.'
+        : 'OPENAI_API_KEY를 넣으면 AI 자동 분류가 활성화됩니다. 지금은 키워드 폴백으로 카테고리를 제안합니다.',
       koreanOnly: true,
       telegramLimitPerCategory: TELEGRAM_SYNC_LIMIT,
       tgstatLimitPerCategory: TGSTAT_SYNC_LIMIT,
@@ -143,6 +147,10 @@ export class AutoManageService {
         link,
         title: item.title.slice(0, 255),
         category: item.category,
+        categoryAiSuggested: null as string | null,
+        categoryConfidence: null as number | null,
+        categorySource: 'seed',
+        categoryReviewed: false,
         linkType: item.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL,
         participantsCount: item.participantsCount,
         avatarUrl: await this.resolveCandidateAvatar(link, item.avatarUrl),
@@ -151,7 +159,19 @@ export class AutoManageService {
 
       if (existingCandidate) {
         if (existingCandidate.status === ImportCandidateStatus.SKIPPED) continue;
-        Object.assign(existingCandidate, payload);
+        if (existingCandidate.categoryReviewed) {
+          const {
+            category: _c,
+            categoryAiSuggested: _a,
+            categoryConfidence: _f,
+            categorySource: _s,
+            categoryReviewed: _r,
+            ...rest
+          } = payload;
+          Object.assign(existingCandidate, rest);
+        } else {
+          Object.assign(existingCandidate, payload);
+        }
         if (existingCandidate.status !== ImportCandidateStatus.PUBLISHED) {
           existingCandidate.status = ImportCandidateStatus.PENDING;
         }
@@ -175,12 +195,12 @@ export class AutoManageService {
     };
   }
 
-  /** Google CSE로 t.me 공개·초대 링크를 모아 후보에 저장 (한글 필터 미적용) */
+  /** Google CSE로 t.me 공개·초대 링크를 모아 후보에 저장 (한글 필터 미적용, AI 분류) */
   async importFromGoogleSearch(params: {
     topic: string;
     preset: GoogleSearchPreset;
     customQuery?: string;
-    category: string;
+    category?: string;
     pages?: number;
   }) {
     const { query, hits, rawResultCount } = await this.googleCseService.search({
@@ -190,9 +210,16 @@ export class AutoManageService {
       pages: params.pages,
     });
 
+    const allowed = await this.getAllowedCategoryNames();
+    const forceCategory =
+      params.category && params.category !== 'auto' && params.category.trim()
+        ? params.category.trim()
+        : null;
+
     let created = 0;
     let updated = 0;
     let skippedExisting = 0;
+    let aiClassified = 0;
 
     for (const hit of hits) {
       const link = this.channelsService.normalizeTelegramLink(hit.link);
@@ -210,10 +237,36 @@ export class AutoManageService {
         continue;
       }
 
+      const title = hit.title.slice(0, 255) || link;
+      let category = forceCategory ?? '기타';
+      let categoryAiSuggested: string | null = null;
+      let categoryConfidence: number | null = null;
+      let categorySource = 'manual';
+      let categoryReviewed = Boolean(forceCategory);
+
+      if (!forceCategory) {
+        const classified = await this.categoryAiService.classify({
+          title,
+          snippet: hit.snippet,
+          topicHint: params.topic,
+          allowedCategories: allowed,
+        });
+        category = classified.category;
+        categoryAiSuggested = classified.category;
+        categoryConfidence = classified.confidence;
+        categorySource = classified.source;
+        categoryReviewed = false;
+        aiClassified += 1;
+      }
+
       const payload = {
         link,
-        title: hit.title.slice(0, 255) || link,
-        category: params.category,
+        title,
+        category,
+        categoryAiSuggested,
+        categoryConfidence,
+        categorySource,
+        categoryReviewed,
         linkType: hit.isInvite ? LinkType.GROUP : LinkType.CHANNEL,
         participantsCount: 0,
         avatarUrl: await this.resolveCandidateAvatar(link, null),
@@ -225,7 +278,14 @@ export class AutoManageService {
           skippedExisting += 1;
           continue;
         }
-        Object.assign(existingCandidate, payload);
+        // 관리자가 이미 검수한 항목은 카테고리 덮어쓰지 않음
+        if (existingCandidate.categoryReviewed) {
+          const { category: _c, categoryAiSuggested: _a, categoryConfidence: _f, categorySource: _s, categoryReviewed: _r, ...rest } =
+            payload;
+          Object.assign(existingCandidate, rest);
+        } else {
+          Object.assign(existingCandidate, payload);
+        }
         if (existingCandidate.status !== ImportCandidateStatus.PUBLISHED) {
           existingCandidate.status = ImportCandidateStatus.PENDING;
         }
@@ -246,7 +306,99 @@ export class AutoManageService {
       rawResultCount,
       inviteCount: hits.filter((item) => item.isInvite).length,
       publicCount: hits.filter((item) => !item.isInvite).length,
+      aiClassified,
+      aiConfigured: this.categoryAiService.isConfigured(),
     };
+  }
+
+  async classifyCandidates(ids: string[]) {
+    const candidates = await this.candidateRepository.find({ where: { id: In(ids) } });
+    return this.runClassify(candidates);
+  }
+
+  async classifyPendingCandidates() {
+    const pending = await this.candidateRepository.find({
+      where: { status: ImportCandidateStatus.PENDING, categoryReviewed: false },
+      take: 50,
+      order: { fetchedAt: 'DESC' },
+    });
+    return this.runClassify(pending);
+  }
+
+  async updateCandidate(
+    id: string,
+    dto: {
+      category?: string;
+      categoryReviewed?: boolean;
+      linkType?: 'channel' | 'group';
+      title?: string;
+    },
+  ) {
+    const candidate = await this.candidateRepository.findOne({ where: { id } });
+    if (!candidate) throw new NotFoundException('후보를 찾을 수 없습니다.');
+
+    if (dto.title !== undefined) candidate.title = dto.title.slice(0, 255);
+    if (dto.linkType !== undefined) {
+      candidate.linkType = dto.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
+    }
+    if (dto.category !== undefined) {
+      candidate.category = dto.category;
+      candidate.categorySource = 'manual';
+      candidate.categoryReviewed = true;
+    }
+    if (dto.categoryReviewed !== undefined) {
+      candidate.categoryReviewed = dto.categoryReviewed;
+    }
+
+    return this.candidateRepository.save(candidate);
+  }
+
+  private async runClassify(candidates: ChannelImportCandidate[]) {
+    const allowed = await this.getAllowedCategoryNames();
+    let updated = 0;
+
+    for (const candidate of candidates) {
+      if (candidate.categoryReviewed) continue;
+
+      let description = '';
+      try {
+        const lookup = await this.channelsService.lookupTelegramLink(candidate.link);
+        if (lookup.title) candidate.title = lookup.title.slice(0, 255);
+        description = lookup.description ?? '';
+        if (lookup.memberCount != null) candidate.participantsCount = Number(lookup.memberCount) || 0;
+        if (lookup.avatarUrl) {
+          candidate.avatarUrl = await this.resolveCandidateAvatar(candidate.link, lookup.avatarUrl);
+        }
+      } catch {
+        // 미리보기 실패해도 제목만으로 분류
+      }
+
+      const classified = await this.categoryAiService.classify({
+        title: candidate.title,
+        description,
+        allowedCategories: allowed,
+      });
+
+      candidate.category = classified.category;
+      candidate.categoryAiSuggested = classified.category;
+      candidate.categoryConfidence = classified.confidence;
+      candidate.categorySource = classified.source;
+      candidate.categoryReviewed = false;
+      await this.candidateRepository.save(candidate);
+      updated += 1;
+    }
+
+    return {
+      updated,
+      total: candidates.length,
+      aiConfigured: this.categoryAiService.isConfigured(),
+    };
+  }
+
+  private async getAllowedCategoryNames(): Promise<string[]> {
+    const active = await this.categoriesService.findActive();
+    if (active.length > 0) return active.map((item) => item.name);
+    return this.categoryAiService.defaultCategoryNames();
   }
 
   /** 대기 목록에 남아 있는 비한글 후보를 제외 처리 (Google CSE 수집분은 제외) */

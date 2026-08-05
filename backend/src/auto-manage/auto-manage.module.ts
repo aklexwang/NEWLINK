@@ -5,6 +5,7 @@ import { ChannelsModule } from '../channels/channels.module';
 import { RankingModule } from '../ranking/ranking.module';
 import { AdminAutoManageController } from './admin-auto-manage.controller';
 import { AutoManageService } from './auto-manage.service';
+import { CategoryAiService } from './category-ai.service';
 import { ChannelImportCandidate } from './channel-import-candidate.entity';
 import { GoogleCseService } from './google-cse.service';
 
@@ -16,6 +17,6 @@ import { GoogleCseService } from './google-cse.service';
     RankingModule,
   ],
   controllers: [AdminAutoManageController],
-  providers: [AutoManageService, GoogleCseService],
+  providers: [AutoManageService, GoogleCseService, CategoryAiService],
 })
 export class AutoManageModule {}

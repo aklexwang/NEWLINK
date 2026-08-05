@@ -1,7 +1,11 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
-import { CandidateIdsDto, GoogleSearchCandidatesDto } from '../admin/dto/admin.dto';
+import {
+  CandidateIdsDto,
+  GoogleSearchCandidatesDto,
+  UpdateImportCandidateDto,
+} from '../admin/dto/admin.dto';
 import { ImportCandidateStatus } from './channel-import-candidate.entity';
 import { AutoManageService } from './auto-manage.service';
 
@@ -34,6 +38,21 @@ export class AdminAutoManageController {
       category: dto.category,
       pages: dto.pages,
     });
+  }
+
+  @Post('classify')
+  classify(@Body() dto: CandidateIdsDto) {
+    return this.autoManageService.classifyCandidates(dto.ids);
+  }
+
+  @Post('classify-pending')
+  classifyPending() {
+    return this.autoManageService.classifyPendingCandidates();
+  }
+
+  @Patch('candidates/:id')
+  updateCandidate(@Param('id') id: string, @Body() dto: UpdateImportCandidateDto) {
+    return this.autoManageService.updateCandidate(id, dto);
   }
 
   @Get('candidates')

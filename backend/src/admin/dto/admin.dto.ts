@@ -169,14 +169,35 @@ export class GoogleSearchCandidatesDto {
   @MaxLength(500)
   customQuery?: string;
 
+  /** 비우거나 auto면 AI 자동 분류 */
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(100)
-  category: string;
+  category?: string;
 
   @IsInt()
   @Min(1)
   @Max(5)
   @IsOptional()
   pages?: number;
+}
+
+export class UpdateImportCandidateDto {
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  category?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  categoryReviewed?: boolean;
+
+  @IsIn(['channel', 'group'])
+  @IsOptional()
+  linkType?: 'channel' | 'group';
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(255)
+  title?: string;
 }

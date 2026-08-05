@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isAxiosError } from 'axios';
 import {
+  classifyAutoManageCandidates,
+  classifyPendingAutoManageCandidates,
   getAdminCategories,
   getAutoManageCandidates,
   getAutoManageCategories,
@@ -10,6 +12,7 @@ import {
   searchGoogleAutoManageCandidates,
   skipAutoManageCandidates,
   syncAutoManageCandidates,
+  updateAutoManageCandidate,
   type AdminChannelLookup,
   type AutoManageStatus,
   type GoogleSearchPreset,
@@ -73,8 +76,9 @@ export function AdminAutoManagePage() {
   const [googleTopic, setGoogleTopic] = useState('');
   const [googlePreset, setGooglePreset] = useState<GoogleSearchPreset>('site');
   const [googleCustomQuery, setGoogleCustomQuery] = useState('');
-  const [googleCategory, setGoogleCategory] = useState('기타');
+  const [googleCategory, setGoogleCategory] = useState('auto');
   const [googlePages, setGooglePages] = useState(1);
+  const [classifying, setClassifying] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,9 +119,10 @@ export function AdminAutoManagePage() {
   }, [load]);
 
   useEffect(() => {
+    if (googleCategory === 'auto') return;
     if (allCategories.length === 0) return;
     if (!allCategories.some((item) => item.name === googleCategory)) {
-      setGoogleCategory(allCategories[0]?.name ?? '기타');
+      setGoogleCategory('auto');
     }
   }, [allCategories, googleCategory]);
 
@@ -177,10 +182,6 @@ export function AdminAutoManagePage() {
       setMessage('검색 주제를 입력해 주세요.');
       return;
     }
-    if (!googleCategory.trim()) {
-      setMessage('저장할 카테고리를 선택해 주세요.');
-      return;
-    }
 
     setSearchingGoogle(true);
     setMessage('');
@@ -189,13 +190,14 @@ export function AdminAutoManagePage() {
         topic: googleTopic.trim() || undefined,
         preset: googlePreset,
         customQuery: googlePreset === 'custom' ? googleCustomQuery.trim() : undefined,
-        category: googleCategory,
+        category: googleCategory === 'auto' ? undefined : googleCategory,
         pages: googlePages,
       });
       setMessage(
         `Google 검색 완료 · 쿼리: ${result.query}` +
           ` · 링크 ${result.total}건 (공개 ${result.publicCount} · 초대 ${result.inviteCount})` +
           ` · 신규 ${result.created} · 갱신 ${result.updated}` +
+          (result.aiClassified ? ` · AI분류 ${result.aiClassified}` : '') +
           (result.skippedExisting > 0 ? ` · 기존/제외 ${result.skippedExisting}` : ''),
       );
       setStatusFilter('pending');
@@ -214,6 +216,76 @@ export function AdminAutoManagePage() {
       }
     } finally {
       setSearchingGoogle(false);
+    }
+  };
+
+  const handleClassifySelected = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) {
+      setMessage('분류할 항목을 선택해 주세요.');
+      return;
+    }
+    setClassifying(true);
+    setMessage('');
+    try {
+      const result = await classifyAutoManageCandidates(ids);
+      setMessage(
+        `AI 분류 완료 · ${result.updated}건` +
+          (result.aiConfigured ? '' : ' (키워드 폴백 · OPENAI_API_KEY 미설정)'),
+      );
+      await load();
+    } catch {
+      setMessage('AI 분류에 실패했습니다.');
+    } finally {
+      setClassifying(false);
+    }
+  };
+
+  const handleClassifyPending = async () => {
+    setClassifying(true);
+    setMessage('');
+    try {
+      const result = await classifyPendingAutoManageCandidates();
+      setMessage(
+        `미검수 대기 분류 완료 · ${result.updated}/${result.total}건` +
+          (result.aiConfigured ? '' : ' (키워드 폴백)'),
+      );
+      await load();
+    } catch {
+      setMessage('대기 후보 AI 분류에 실패했습니다.');
+    } finally {
+      setClassifying(false);
+    }
+  };
+
+  const handleCategoryChange = async (id: string, category: string) => {
+    try {
+      await updateAutoManageCandidate(id, { category, categoryReviewed: true });
+      setCandidates((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, category, categoryReviewed: true, categorySource: 'manual' }
+            : item,
+        ),
+      );
+      if (previewCandidate?.id === id) {
+        setPreviewCandidate((prev) =>
+          prev ? { ...prev, category, categoryReviewed: true, categorySource: 'manual' } : prev,
+        );
+      }
+    } catch {
+      setMessage('카테고리 수정에 실패했습니다.');
+    }
+  };
+
+  const handleMarkReviewed = async (id: string) => {
+    try {
+      await updateAutoManageCandidate(id, { categoryReviewed: true });
+      setCandidates((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, categoryReviewed: true } : item)),
+      );
+    } catch {
+      setMessage('검수 표시에 실패했습니다.');
     }
   };
 
@@ -406,19 +478,20 @@ export function AdminAutoManagePage() {
             )}
 
             <label className="block">
-              <span className="text-xs font-medium text-slate-600">저장 카테고리</span>
+              <span className="text-xs font-medium text-slate-600">카테고리</span>
               <select
                 value={googleCategory}
                 onChange={(e) => setGoogleCategory(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
               >
+                <option value="auto">AI 자동 분류 (권장)</option>
                 {(allCategories.length > 0
                   ? allCategories
                   : [{ id: '기타', name: '기타', emoji: '📁' } as CategoryItem]
                 ).map((item) => (
                   <option key={item.id || item.name} value={item.name}>
                     {item.emoji ? `${item.emoji} ` : ''}
-                    {item.name}
+                    {item.name} (수동 고정)
                   </option>
                 ))}
               </select>
@@ -449,6 +522,15 @@ export function AdminAutoManagePage() {
             >
               {searchingGoogle ? '검색 중...' : 'Google 검색 → 후보 추가'}
             </button>
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                status?.aiConfigured
+                  ? 'bg-violet-50 text-violet-700'
+                  : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {status?.aiConfigured ? 'AI 분류 ON' : '키워드 폴백'}
+            </span>
             {status?.googleConfigured === false && (
               <p className="text-xs text-amber-700">
                 backend .env에 GOOGLE_CSE_API_KEY, GOOGLE_CSE_CX를 설정한 뒤 Nest를 재시작하세요.
@@ -483,23 +565,43 @@ export function AdminAutoManagePage() {
           />
         )}
 
-        {statusFilter === 'pending' && selectableIds.length > 0 && (
+        {statusFilter === 'pending' && (
           <div className="mb-4 flex flex-wrap gap-2">
+            {selectableIds.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={acting || selected.size === 0}
+                  className="rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  선택 항목 회원 페이지 노출 ({selected.size})
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  disabled={acting || selected.size === 0}
+                  className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-black/10 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  선택 항목 제외
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClassifySelected}
+                  disabled={classifying || selected.size === 0}
+                  className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {classifying ? '분류 중...' : `선택 AI 재분류 (${selected.size})`}
+                </button>
+              </>
+            )}
             <button
               type="button"
-              onClick={handlePublish}
-              disabled={acting || selected.size === 0}
-              className="rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              onClick={handleClassifyPending}
+              disabled={classifying}
+              className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-violet-700 ring-1 ring-violet-200 hover:bg-violet-50 disabled:opacity-50"
             >
-              선택 항목 회원 페이지 노출 ({selected.size})
-            </button>
-            <button
-              type="button"
-              onClick={handleSkip}
-              disabled={acting || selected.size === 0}
-              className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-black/10 hover:bg-slate-50 disabled:opacity-50"
-            >
-              선택 항목 제외
+              {classifying ? '분류 중...' : '미검수 대기 AI 분류'}
             </button>
           </div>
         )}
@@ -532,7 +634,7 @@ export function AdminAutoManagePage() {
                   <AdminTh className="w-12" />
                   <AdminTh>제목</AdminTh>
                   <AdminTh className="w-20">유형</AdminTh>
-                  <AdminTh className="w-24">카테고리</AdminTh>
+                  <AdminTh className="min-w-[140px]">카테고리 (검수)</AdminTh>
                   <AdminTh className="w-24">구독자</AdminTh>
                   <AdminTh className="w-20">소스</AdminTh>
                   <AdminTh className="w-24">미리보기</AdminTh>
@@ -579,7 +681,55 @@ export function AdminAutoManagePage() {
                         </span>
                       </AdminTd>
                       <AdminTd>
-                        <span className="text-xs">{item.category}</span>
+                        {statusFilter === 'pending' ? (
+                          <div className="space-y-1">
+                            <select
+                              value={item.category}
+                              onChange={(e) => void handleCategoryChange(item.id, e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-blue-400"
+                            >
+                              {(allCategories.length > 0
+                                ? allCategories
+                                : [{ id: item.category, name: item.category, emoji: '' } as CategoryItem]
+                              ).map((cat) => (
+                                <option key={cat.id || cat.name} value={cat.name}>
+                                  {cat.emoji ? `${cat.emoji} ` : ''}
+                                  {cat.name}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                                  item.categoryReviewed
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : 'bg-amber-50 text-amber-700'
+                                }`}
+                              >
+                                {item.categoryReviewed ? '검수됨' : '미검수'}
+                              </span>
+                              {item.categorySource && (
+                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                                  {item.categorySource}
+                                  {item.categoryConfidence != null
+                                    ? ` ${(item.categoryConfidence * 100).toFixed(0)}%`
+                                    : ''}
+                                </span>
+                              )}
+                              {!item.categoryReviewed && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleMarkReviewed(item.id)}
+                                  className="text-[10px] font-medium text-blue-600 hover:underline"
+                                >
+                                  확인
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs">{item.category}</span>
+                        )}
                       </AdminTd>
                       <AdminTd>
                         <span className="text-xs tabular-nums">{formatCount(item.participantsCount)}</span>
@@ -610,9 +760,14 @@ export function AdminAutoManagePage() {
         lookup={previewLookup}
         loading={previewLoading}
         acting={acting}
+        categories={allCategories}
         onClose={closePreview}
         onPublish={handlePreviewPublish}
         onSkip={handlePreviewSkip}
+        onCategoryChange={(category) => {
+          if (!previewCandidate) return;
+          void handleCategoryChange(previewCandidate.id, category);
+        }}
       />
     </>
   );

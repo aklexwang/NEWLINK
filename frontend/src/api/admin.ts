@@ -224,6 +224,7 @@ export interface AutoManageStatus {
   sources: string[];
   tgstatConfigured: boolean;
   googleConfigured?: boolean;
+  aiConfigured?: boolean;
   label: string;
   hint: string;
 }
@@ -233,6 +234,10 @@ export interface ImportCandidate {
   link: string;
   title: string;
   category: string;
+  categoryAiSuggested?: string | null;
+  categoryConfidence?: number | null;
+  categoryReviewed?: boolean;
+  categorySource?: string;
   linkType: 'channel' | 'group';
   participantsCount: number;
   avatarUrl: string | null;
@@ -297,7 +302,7 @@ export async function searchGoogleAutoManageCandidates(body: {
   topic?: string;
   preset: GoogleSearchPreset;
   customQuery?: string;
-  category: string;
+  category?: string;
   pages?: number;
 }) {
   const { data } = await apiClient.post<{
@@ -309,10 +314,54 @@ export async function searchGoogleAutoManageCandidates(body: {
     rawResultCount: number;
     inviteCount: number;
     publicCount: number;
+    aiClassified?: number;
+    aiConfigured?: boolean;
   }>('/admin/auto-manage/google-search', body, {
     headers: getAdminAuthHeaders(),
-    timeout: 120000,
+    timeout: 180000,
   });
+  return data;
+}
+
+export async function classifyAutoManageCandidates(ids: string[]) {
+  const { data } = await apiClient.post<{
+    updated: number;
+    total: number;
+    aiConfigured: boolean;
+  }>(
+    '/admin/auto-manage/classify',
+    { ids },
+    { headers: getAdminAuthHeaders(), timeout: 300000 },
+  );
+  return data;
+}
+
+export async function classifyPendingAutoManageCandidates() {
+  const { data } = await apiClient.post<{
+    updated: number;
+    total: number;
+    aiConfigured: boolean;
+  }>('/admin/auto-manage/classify-pending', {}, {
+    headers: getAdminAuthHeaders(),
+    timeout: 300000,
+  });
+  return data;
+}
+
+export async function updateAutoManageCandidate(
+  id: string,
+  payload: {
+    category?: string;
+    categoryReviewed?: boolean;
+    linkType?: 'channel' | 'group';
+    title?: string;
+  },
+) {
+  const { data } = await apiClient.patch<ImportCandidate>(
+    `/admin/auto-manage/candidates/${id}`,
+    payload,
+    { headers: getAdminAuthHeaders() },
+  );
   return data;
 }
 
