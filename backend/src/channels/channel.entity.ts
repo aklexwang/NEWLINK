@@ -46,7 +46,7 @@ export class Channel {
   @Column({ name: 'is_promoted', default: false })
   isPromoted: boolean;
 
-  @Column({ name: 'promoted_until', type: 'datetime', nullable: true })
+  @Column({ name: 'promoted_until', type: 'timestamptz', nullable: true })
   promotedUntil: Date | null;
 
   @Column({ name: 'promotion_client_telegram_id', type: 'integer', nullable: true })
@@ -85,7 +85,7 @@ export class Channel {
   @Column({ name: 'reward_ton_usd_rate', type: 'real', nullable: true })
   rewardTonUsdRate: number | null;
 
-  @Column({ name: 'reward_paid_at', type: 'datetime', nullable: true })
+  @Column({ name: 'reward_paid_at', type: 'timestamptz', nullable: true })
   rewardPaidAt: Date | null;
 
   @Column({ name: 'reward_wallet', type: 'varchar', length: 128, nullable: true })

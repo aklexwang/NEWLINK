@@ -63,7 +63,7 @@ export class ChannelImportCandidate {
   @CreateDateColumn({ name: 'fetched_at' })
   fetchedAt: Date;
 
-  @Column({ name: 'published_at', type: 'datetime', nullable: true })
+  @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
   publishedAt: Date | null;
 
   @UpdateDateColumn({ name: 'updated_at' })
