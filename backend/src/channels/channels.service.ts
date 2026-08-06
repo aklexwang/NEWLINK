@@ -14,6 +14,8 @@ import { Brackets, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from './channel.entity';
 import { ChannelFavorite } from './channel-favorite.entity';
 import { ChannelRecommendation } from './channel-recommendation.entity';
+import { UsersService } from '../users/users.service';
+import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
 import { expandSearchKeywords } from './search-synonyms';
 import { TelegramPreviewService } from './telegram-preview.service';
@@ -39,6 +41,8 @@ export class ChannelsService implements OnModuleInit {
     private readonly favoriteRepository: Repository<ChannelFavorite>,
     private readonly configService: ConfigService,
     private readonly telegramPreviewService: TelegramPreviewService,
+    private readonly usersService: UsersService,
+    private readonly telegramAdminNotifyService: TelegramAdminNotifyService,
   ) {}
 
   async onModuleInit() {
@@ -85,7 +89,24 @@ export class ChannelsService implements OnModuleInit {
     });
     const saved = await this.channelRepository.save(channel);
     void this.refreshPreview(saved.id).catch(() => undefined);
+    void this.notifyAdminsOfSubmission(saved).catch(() => undefined);
     return saved;
+  }
+
+  private async notifyAdminsOfSubmission(channel: Channel): Promise<void> {
+    const reporter = await this.usersService.getReporterOrNull(channel.submittedBy);
+    const reporterLabel = reporter?.username
+      ? `@${reporter.username}`
+      : reporter?.firstName || (channel.submittedBy != null ? `ID ${channel.submittedBy}` : null);
+
+    await this.telegramAdminNotifyService.notifyNewSubmission({
+      title: channel.title,
+      link: channel.link,
+      linkType: channel.linkType,
+      category: channel.category,
+      submittedBy: channel.submittedBy ?? 0,
+      reporterLabel,
+    });
   }
 
   normalizeTelegramLink(link: string): string {

@@ -55,6 +55,13 @@ export async function getPendingChannels(): Promise<PendingChannel[]> {
   return data;
 }
 
+export async function getPendingChannelCount(): Promise<number> {
+  const { data } = await apiClient.get<{ count: number }>('/admin/channels/pending-count', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data.count;
+}
+
 export async function getAdminChannels(params?: {
   status?: string;
   q?: string;

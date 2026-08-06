@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { AdminAuthNotice } from './AdminAuthNotice';
+import { AdminPendingAlertBanner } from './AdminPendingAlertBanner';
 import { captureAdminAccessFromUrl } from '../../utils/adminAccess';
 import { AdminSidebar } from './AdminSidebar';
 
@@ -11,6 +12,7 @@ export function AdminLayout() {
       <AdminSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <AdminAuthNotice />
+        <AdminPendingAlertBanner />
         <Outlet />
       </div>
     </div>

@@ -9,7 +9,10 @@ import { CandidateAvatar } from '../../components/admin/CandidateAvatar';
 import { ChannelPreviewModal } from '../../components/ChannelPreviewModal';
 import { ReporterTonPanel } from '../../components/ReporterTonPanel';
 import type { ChannelPreview, PendingChannel } from '../../types/channel';
-import { refreshAdminBadges } from '../../utils/adminBadges';
+import {
+  ADMIN_PENDING_ALERT_EVENT,
+  refreshAdminBadges,
+} from '../../utils/adminBadges';
 
 export function AdminPendingPage() {
   const [pending, setPending] = useState<PendingChannel[]>([]);
@@ -19,22 +22,32 @@ export function AdminPendingPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewChannelId, setPreviewChannelId] = useState<string | null>(null);
 
-  const loadPending = useCallback(async () => {
-    setLoading(true);
+  const loadPending = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const items = await getPendingChannels();
       setPending(items);
       setMessage('');
       refreshAdminBadges();
     } catch {
-      setMessage('데이터를 불러오지 못했습니다. 관리자 권한을 확인하세요.');
+      if (!opts?.silent) {
+        setMessage('데이터를 불러오지 못했습니다. 관리자 권한을 확인하세요.');
+      }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadPending();
+    void loadPending();
+  }, [loadPending]);
+
+  useEffect(() => {
+    const onAlert = () => {
+      void loadPending({ silent: true });
+    };
+    window.addEventListener(ADMIN_PENDING_ALERT_EVENT, onAlert);
+    return () => window.removeEventListener(ADMIN_PENDING_ALERT_EVENT, onAlert);
   }, [loadPending]);
 
   const handleOpenPreview = async (item: PendingChannel) => {
@@ -73,8 +86,19 @@ export function AdminPendingPage() {
   return (
     <>
       <header className="border-b border-black/5 bg-white px-6 py-5">
-        <h2 className="text-xl font-bold text-slate-900">승인 대기</h2>
-        <p className="mt-1 text-sm text-slate-500">제보된 채널/그룹을 검토하고 승인합니다.</p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">승인 대기</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              제보된 채널/그룹을 검토하고 승인합니다. 새 제보가 오면 상단 알람·배지가 갱신됩니다.
+            </p>
+          </div>
+          {pending.length > 0 && (
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-900">
+              {pending.length}건 대기
+            </span>
+          )}
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">

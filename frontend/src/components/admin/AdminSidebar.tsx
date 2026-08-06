@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { getPendingChannels, getPromotedChannels } from '../../api/admin';
+import { getPendingChannelCount, getPromotedChannels } from '../../api/admin';
 import { getMemberUrl } from '../../config/site';
-import { ADMIN_BADGES_REFRESH_EVENT } from '../../utils/adminBadges';
+import {
+  ADMIN_BADGES_REFRESH_EVENT,
+  emitPendingAlert,
+} from '../../utils/adminBadges';
 import { isPromotionActive } from '../../utils/promotion';
+
+const POLL_MS = 15_000;
+const DEFAULT_DOC_TITLE = 'New Link 관리자';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
@@ -12,32 +18,111 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
       : 'text-white/70 hover:bg-white/10 hover:text-white'
   }`;
 
+function playAlertBeep() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.value = 0.04;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.18);
+    window.setTimeout(() => void ctx.close(), 400);
+  } catch {
+    // ignore autoplay / unsupported
+  }
+}
+
 export function AdminSidebar() {
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(0);
   const [adsCount, setAdsCount] = useState(0);
+  const [pulse, setPulse] = useState(false);
+  const knownPendingRef = useRef<number | null>(null);
+  const notifiedPermissionRef = useRef(false);
 
-  const refreshCounts = useCallback(() => {
-    getPendingChannels()
-      .then((items) => setPendingCount(items.length))
-      .catch(() => setPendingCount(0));
-    getPromotedChannels()
-      .then((items) =>
-        setAdsCount(
-          items.filter((item) => isPromotionActive(item.isPromoted, item.promotedUntil)).length,
-        ),
-      )
-      .catch(() => setAdsCount(0));
+  const applyPendingCount = useCallback((count: number, announceIncrease: boolean) => {
+    setPendingCount(count);
+    document.title = count > 0 ? `(${count}) ${DEFAULT_DOC_TITLE}` : DEFAULT_DOC_TITLE;
+
+    const previous = knownPendingRef.current;
+    knownPendingRef.current = count;
+
+    if (!announceIncrease || previous == null || count <= previous) return;
+
+    const increasedBy = count - previous;
+    emitPendingAlert({ count, previousCount: previous, increasedBy });
+    setPulse(true);
+    window.setTimeout(() => setPulse(false), 4000);
+    playAlertBeep();
+
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification('새 제보가 있습니다', {
+          body: `승인 대기 ${count}건 (신규 ${increasedBy}건)`,
+          tag: 'newlink-pending',
+        });
+      } catch {
+        // ignore
+      }
+    }
   }, []);
 
+  const refreshCounts = useCallback(
+    async (announceIncrease = false) => {
+      try {
+        const count = await getPendingChannelCount();
+        applyPendingCount(count, announceIncrease);
+      } catch {
+        setPendingCount(0);
+      }
+
+      getPromotedChannels()
+        .then((items) =>
+          setAdsCount(
+            items.filter((item) => isPromotionActive(item.isPromoted, item.promotedUntil)).length,
+          ),
+        )
+        .catch(() => setAdsCount(0));
+    },
+    [applyPendingCount],
+  );
+
   useEffect(() => {
-    refreshCounts();
+    void refreshCounts(false);
   }, [location.pathname, refreshCounts]);
 
   useEffect(() => {
-    window.addEventListener(ADMIN_BADGES_REFRESH_EVENT, refreshCounts);
-    return () => window.removeEventListener(ADMIN_BADGES_REFRESH_EVENT, refreshCounts);
+    const onRefresh = () => {
+      void refreshCounts(false);
+    };
+    window.addEventListener(ADMIN_BADGES_REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(ADMIN_BADGES_REFRESH_EVENT, onRefresh);
   }, [refreshCounts]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void refreshCounts(true);
+    }, POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [refreshCounts]);
+
+  useEffect(() => {
+    if (notifiedPermissionRef.current) return;
+    notifiedPermissionRef.current = true;
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      void Notification.requestPermission().catch(() => undefined);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      document.title = DEFAULT_DOC_TITLE;
+    };
+  }, []);
 
   return (
     <aside className="flex w-56 shrink-0 flex-col bg-[#1e293b] text-white">
@@ -51,7 +136,11 @@ export function AdminSidebar() {
           <span className="text-base">📋</span>
           <span className="flex-1">승인 대기</span>
           {pendingCount > 0 && (
-            <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-amber-950">
+            <span
+              className={`rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-amber-950 ${
+                pulse ? 'animate-pulse ring-2 ring-amber-200' : ''
+              }`}
+            >
               {pendingCount}
             </span>
           )}

@@ -52,6 +52,12 @@ export class AdminController {
     );
   }
 
+  @Get('pending-count')
+  async getPendingCount() {
+    const channels = await this.channelsService.findPending();
+    return { count: channels.length };
+  }
+
   @Get('all')
   async findAll(
     @Query('status') status?: ChannelStatus,
