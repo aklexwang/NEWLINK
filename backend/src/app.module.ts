@@ -38,6 +38,8 @@ function truthy(value: string | undefined): boolean {
               autoLoadEntities: true,
               synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
+              retryAttempts: 20,
+              retryDelay: 3000,
             };
           }
 
@@ -51,6 +53,8 @@ function truthy(value: string | undefined): boolean {
             autoLoadEntities: true,
             synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
+            retryAttempts: 20,
+            retryDelay: 3000,
           };
         }
 

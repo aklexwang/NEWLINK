@@ -32,31 +32,38 @@ export class ChannelsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    const count = await this.channelRepository.count();
-    if (count > 0) return;
+    try {
+      const count = await this.channelRepository.count();
+      if (count > 0) return;
 
-    await this.channelRepository.save([
-      {
-        title: 'Telegram News',
-        link: 'https://t.me/telegram',
-        category: 'News',
-        description: 'Official Telegram news channel.',
-        recommendCount: 120,
-        status: ChannelStatus.ACTIVE,
-        isPromoted: true,
-        linkType: LinkType.CHANNEL,
-      },
-      {
-        title: 'Dev Community',
-        link: 'https://t.me/durov',
-        category: 'Community',
-        description: 'Developer community group.',
-        recommendCount: 85,
-        status: ChannelStatus.ACTIVE,
-        isPromoted: false,
-        linkType: LinkType.GROUP,
-      },
-    ]);
+      await this.channelRepository.save([
+        {
+          title: 'Telegram News',
+          link: 'https://t.me/telegram',
+          category: 'News',
+          description: 'Official Telegram news channel.',
+          recommendCount: 120,
+          status: ChannelStatus.ACTIVE,
+          isPromoted: true,
+          linkType: LinkType.CHANNEL,
+        },
+        {
+          title: 'Dev Community',
+          link: 'https://t.me/durov',
+          category: 'Community',
+          description: 'Developer community group.',
+          recommendCount: 85,
+          status: ChannelStatus.ACTIVE,
+          isPromoted: false,
+          linkType: LinkType.GROUP,
+        },
+      ]);
+    } catch (error) {
+      console.error(
+        '채널 시드 초기화 실패(서버는 계속 기동):',
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
 
   async create(dto: CreateChannelDto, submittedBy: number): Promise<Channel> {

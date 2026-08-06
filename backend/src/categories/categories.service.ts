@@ -42,7 +42,14 @@ export class CategoriesService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.ensureDefaults();
+    try {
+      await this.ensureDefaults();
+    } catch (error) {
+      console.error(
+        '카테고리 초기화 실패(서버는 계속 기동):',
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
 
   /** 기본 카테고리가 없으면 추가, 있으면 이모지·정렬 동기화 */
