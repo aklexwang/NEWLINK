@@ -16,8 +16,8 @@ services:
     plan: free
     region: oregon
     rootDir: backend
-    # production 빌드에서도 nest/typescript(devDependency)가 필요합니다.
-    buildCommand: NPM_CONFIG_PRODUCTION=false npm ci && npm run build
+    # NODE_ENV=production 이어도 nest/typescript(devDependency)를 설치해야 빌드됩니다.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api/health
     envVars:
