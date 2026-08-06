@@ -33,6 +33,7 @@ export function recordTonPayment(input: CreateTonPaymentInput): TonPaymentRecord
     channelTitle: input.channelTitle,
     channelLink: input.channelLink,
     memo: input.memo ?? null,
+    method: input.method ?? 'tonconnect',
   };
 
   writeAll([record, ...readAll()]);
@@ -46,6 +47,7 @@ export function deleteTonPayment(id: string): void {
 export function exportTonPaymentsCsv(records: TonPaymentRecord[]): void {
   const headers = [
     '지급일시',
+    '방식',
     '금액(TON)',
     '수신 지갑',
     'Telegram ID',
@@ -64,6 +66,7 @@ export function exportTonPaymentsCsv(records: TonPaymentRecord[]): void {
   const rows = records.map((item) =>
     [
       new Date(item.paidAt).toLocaleString('ko-KR'),
+      item.method === 'external' ? '외부 지갑' : 'Wallet',
       item.amount,
       item.wallet,
       item.telegramId,

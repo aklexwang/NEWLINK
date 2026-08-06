@@ -102,8 +102,9 @@ export function AdminTonPaymentsPage() {
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          이 목록은 관리자 브라우저에만 저장됩니다. 회원 MY에 보이려면 「회원 MY 반영」을 눌러 DB에
-          저장해야 합니다.
+          승인 대기에서 「Wallet 송금」또는 「외부 송금 기록」하면 이 목록에 쌓입니다. 외부 지갑으로
+          보낸 경우에도 「외부 송금 기록」을 눌러야 이력·회원 MY에 반영됩니다. 이 목록 자체는 관리자
+          브라우저에 저장됩니다.
         </div>
 
         {message && (
@@ -131,6 +132,7 @@ export function AdminTonPaymentsPage() {
               <thead className="border-b border-black/5 bg-slate-50 text-xs text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">지급일시</th>
+                  <th className="px-4 py-3 font-medium">방식</th>
                   <th className="px-4 py-3 font-medium">금액</th>
                   <th className="px-4 py-3 font-medium">제보자</th>
                   <th className="px-4 py-3 font-medium">수신 지갑</th>
@@ -143,6 +145,22 @@ export function AdminTonPaymentsPage() {
                   <tr key={item.id} className="border-b border-black/5 last:border-0">
                     <td className="px-4 py-3 text-xs text-slate-500">
                       {new Date(item.paidAt).toLocaleString('ko-KR')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          item.method === 'external'
+                            ? 'bg-violet-50 text-violet-700'
+                            : 'bg-sky-50 text-sky-700'
+                        }`}
+                      >
+                        {item.method === 'external' ? '외부 지갑' : 'Wallet'}
+                      </span>
+                      {item.memo && (
+                        <p className="mt-1 max-w-[120px] truncate text-[11px] text-slate-400" title={item.memo}>
+                          {item.memo}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-semibold text-slate-900">
                       {item.amount.toLocaleString('ko-KR')} TON

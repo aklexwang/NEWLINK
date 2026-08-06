@@ -1,3 +1,5 @@
+export type TonPaymentMethod = 'tonconnect' | 'external';
+
 export interface TonPaymentRecord {
   id: string;
   paidAt: string;
@@ -9,6 +11,8 @@ export interface TonPaymentRecord {
   channelTitle: string;
   channelLink: string;
   memo: string | null;
+  /** tonconnect: 앱 Wallet 송금 / external: 외부 지갑 송금 후 수동 기록 */
+  method?: TonPaymentMethod;
 }
 
 export interface CreateTonPaymentInput {
@@ -20,4 +24,5 @@ export interface CreateTonPaymentInput {
   channelTitle: string;
   channelLink: string;
   memo?: string | null;
+  method?: TonPaymentMethod;
 }
