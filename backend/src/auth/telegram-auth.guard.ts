@@ -5,14 +5,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { TelegramInitData } from './interfaces/telegram-user.interface';
 import { JwtAuthService } from './jwt-auth.service';
 import { TelegramAuthService } from './telegram-auth.service';
 
-export interface AuthenticatedRequest extends Request {
+export type AuthenticatedRequest = Request & {
   telegramInitData?: TelegramInitData;
-}
+};
 
 @Injectable()
 export class TelegramAuthGuard implements CanActivate {
