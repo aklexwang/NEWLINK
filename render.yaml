@@ -7,15 +7,17 @@ databases:
     plan: free
     databaseName: newlink
     user: newlink
+    region: oregon
 
 services:
   - type: web
     name: newlink-api
     runtime: node
     plan: free
-    region: singapore
+    region: oregon
     rootDir: backend
-    buildCommand: npm ci && npm run build
+    # production 빌드에서도 nest/typescript(devDependency)가 필요합니다.
+    buildCommand: NPM_CONFIG_PRODUCTION=false npm ci && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api/health
     envVars:
