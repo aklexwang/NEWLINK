@@ -5,10 +5,10 @@ import {
   getPendingChannels,
   rejectChannel,
 } from '../../api/admin';
+import { CandidateAvatar } from '../../components/admin/CandidateAvatar';
 import { ChannelPreviewModal } from '../../components/ChannelPreviewModal';
 import { ReporterTonPanel } from '../../components/ReporterTonPanel';
 import type { ChannelPreview, PendingChannel } from '../../types/channel';
-import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { refreshAdminBadges } from '../../utils/adminBadges';
 
 export function AdminPendingPage() {
@@ -95,16 +95,13 @@ export function AdminPendingPage() {
             {pending.map((item) => (
               <article key={item.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
                 <div className="mb-3 flex items-start gap-3">
-                  {item.avatarUrl ? (
-                    <img
-                      src={resolveMediaUrl(item.avatarUrl)}
-                      alt=""
-                      referrerPolicy="no-referrer"
-                      className="h-14 w-14 shrink-0 rounded-full object-cover ring-1 ring-black/5"
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 ring-1 ring-black/5">
+                    <CandidateAvatar
+                      link={item.link}
+                      avatarUrl={item.avatarUrl}
+                      linkType={item.linkType ?? 'channel'}
                     />
-                  ) : (
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl">📢</div>
-                  )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-center gap-2">
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">pending</span>

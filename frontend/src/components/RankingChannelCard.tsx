@@ -50,9 +50,11 @@ export function RankingChannelCard({
     [avatarUrl, link],
   );
   const [sourceIndex, setSourceIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setSourceIndex(0);
+    setFailed(false);
   }, [link, avatarUrl, avatarSources]);
 
   const currentSrc = avatarSources[sourceIndex];
@@ -68,7 +70,7 @@ export function RankingChannelCard({
       </div>
 
       <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-tg-secondary ring-1 ring-black/5">
-        {currentSrc ? (
+        {currentSrc && !failed ? (
           <img
             src={currentSrc}
             alt=""
@@ -76,6 +78,8 @@ export function RankingChannelCard({
             onError={() => {
               if (sourceIndex + 1 < avatarSources.length) {
                 setSourceIndex((index) => index + 1);
+              } else {
+                setFailed(true);
               }
             }}
             className="h-full w-full object-cover"

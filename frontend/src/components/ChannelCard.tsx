@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Channel } from '../types/channel';
+import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { linkTypeBadgeClass, linkTypeLabel } from '../utils/linkType';
-import { resolveMediaUrl } from '../utils/mediaUrl';
 import { CategoryIcon } from './CategoryIcon';
 
 interface ChannelCardProps {
@@ -26,13 +26,22 @@ export function ChannelCard({
   showFavorite = true,
 }: ChannelCardProps) {
   const promoted = channel.isPromoted;
+  const avatarSources = useMemo(
+    () =>
+      channel.avatarApproved
+        ? getChannelAvatarSources({ avatarUrl: channel.avatarUrl, link: channel.link })
+        : [],
+    [channel.avatarApproved, channel.avatarUrl, channel.link],
+  );
+  const [sourceIndex, setSourceIndex] = useState(0);
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const avatarSrc = resolveMediaUrl(channel.avatarUrl);
-  const showChannelAvatar = Boolean(channel.avatarApproved && avatarSrc && !avatarFailed);
+  const avatarSrc = avatarSources[sourceIndex];
+  const showChannelAvatar = Boolean(avatarSrc && !avatarFailed);
 
   useEffect(() => {
+    setSourceIndex(0);
     setAvatarFailed(false);
-  }, [channel.id, avatarSrc]);
+  }, [channel.id, channel.avatarUrl, channel.link, avatarSources]);
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -41,7 +50,13 @@ export function ChannelCard({
           src={avatarSrc}
           alt=""
           referrerPolicy="no-referrer"
-          onError={() => setAvatarFailed(true)}
+          onError={() => {
+            if (sourceIndex + 1 < avatarSources.length) {
+              setSourceIndex((index) => index + 1);
+            } else {
+              setAvatarFailed(true);
+            }
+          }}
           className={`h-12 w-12 shrink-0 rounded-full object-cover ${
             promoted ? 'ring-2 ring-amber-300' : 'ring-1 ring-black/5'
           }`}

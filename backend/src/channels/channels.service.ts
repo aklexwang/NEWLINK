@@ -5,6 +5,7 @@ import {
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
@@ -19,6 +20,14 @@ import { TelegramPreviewService } from './telegram-preview.service';
 
 const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
 
+function envTruthy(value: string | undefined): boolean {
+  return ['1', 'true', 'yes', 'on'].includes((value ?? '').trim().toLowerCase());
+}
+
+function envFalsy(value: string | undefined): boolean {
+  return ['0', 'false', 'no', 'off'].includes((value ?? '').trim().toLowerCase());
+}
+
 @Injectable()
 export class ChannelsService implements OnModuleInit {
   constructor(
@@ -28,6 +37,7 @@ export class ChannelsService implements OnModuleInit {
     private readonly recommendationRepository: Repository<ChannelRecommendation>,
     @InjectRepository(ChannelFavorite)
     private readonly favoriteRepository: Repository<ChannelFavorite>,
+    private readonly configService: ConfigService,
     private readonly telegramPreviewService: TelegramPreviewService,
   ) {}
 
@@ -234,13 +244,26 @@ export class ChannelsService implements OnModuleInit {
       );
     }
 
-    channel.avatarUrl = await this.mirrorAvatarImage(preview.avatarUrl);
+    channel.avatarUrl = !this.shouldMirrorLocally()
+      ? this.buildAvatarProxyUrl(channel.link)
+      : await this.mirrorAvatarImage(preview.avatarUrl);
     channel.avatarApproved = true;
     return this.channelRepository.save(channel);
   }
 
   private async mirrorAvatarImage(sourceUrl: string): Promise<string> {
-    if (sourceUrl.startsWith('/api/uploads/')) return sourceUrl;
+    if (sourceUrl.startsWith('/api/media/telegram-avatar')) return sourceUrl;
+
+    if (sourceUrl.startsWith('/api/uploads/')) {
+      if (this.localUploadExists(sourceUrl)) return sourceUrl;
+      // 파일이 없으면 호출측에서 링크로 다시 받도록 stale 처리
+      return sourceUrl;
+    }
+
+    // Render 등 ephemeral 디스크에서는 로컬 저장 대신 프록시 URL/원본 CDN 사용
+    if (!this.shouldMirrorLocally()) {
+      return sourceUrl;
+    }
 
     if (!existsSync(CHANNEL_UPLOAD_DIR)) {
       mkdirSync(CHANNEL_UPLOAD_DIR, { recursive: true });
@@ -266,6 +289,26 @@ export class ChannelsService implements OnModuleInit {
     const buffer = Buffer.from(await res.arrayBuffer());
     writeFileSync(join(CHANNEL_UPLOAD_DIR, filename), buffer);
     return `/api/uploads/channels/${filename}`;
+  }
+
+  /** Render Free 디스크는 재배포 시 사라지므로 기본은 로컬 미러 비활성 */
+  shouldMirrorLocally(): boolean {
+    const override = this.configService.get<string>('AVATAR_MIRROR_LOCAL');
+    if (envTruthy(override)) return true;
+    if (envFalsy(override)) return false;
+    if (envTruthy(process.env.RENDER)) return false;
+    return true;
+  }
+
+  buildAvatarProxyUrl(link: string): string {
+    const normalized = this.normalizeTelegramLink(link);
+    return `/api/media/telegram-avatar?link=${encodeURIComponent(normalized)}`;
+  }
+
+  private localUploadExists(avatarUrl: string): boolean {
+    if (!avatarUrl.startsWith('/api/uploads/')) return false;
+    const relative = avatarUrl.replace(/^\/api\/uploads\//, '');
+    return existsSync(join(process.cwd(), 'uploads', relative));
   }
 
   private extFromContentType(contentType: string): string | null {
@@ -356,7 +399,11 @@ export class ChannelsService implements OnModuleInit {
 
   isStaleAvatarUrl(avatarUrl: string | null | undefined): boolean {
     if (!avatarUrl) return true;
-    if (avatarUrl.startsWith('/api/uploads/')) return false;
+    if (avatarUrl.startsWith('/api/media/telegram-avatar')) return false;
+    if (avatarUrl.startsWith('/api/uploads/')) {
+      // 파일이 없거나 ephemeral 환경이면 다시 받아야 함
+      return !this.localUploadExists(avatarUrl);
+    }
     if (avatarUrl.includes('telesco.pe')) return true;
     if (/telegram\.org\/img\/t_logo/i.test(avatarUrl)) return true;
     return false;
@@ -364,6 +411,11 @@ export class ChannelsService implements OnModuleInit {
 
   async mirrorAvatarForLink(link: string): Promise<string | null> {
     try {
+      // ephemeral 환경: 미리 다운로드하지 않고 프록시 URL만 저장 (목록 조회가 느려지지 않게)
+      if (!this.shouldMirrorLocally()) {
+        return this.buildAvatarProxyUrl(link);
+      }
+
       const preview = await this.telegramPreviewService.fetchPreview(link);
       if (!preview.avatarUrl || /telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)) {
         return null;
@@ -384,7 +436,9 @@ export class ChannelsService implements OnModuleInit {
       if (!preview.avatarUrl || /telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)) {
         return channel;
       }
-      channel.avatarUrl = await this.mirrorAvatarImage(preview.avatarUrl);
+      channel.avatarUrl = !this.shouldMirrorLocally()
+        ? this.buildAvatarProxyUrl(channel.link)
+        : await this.mirrorAvatarImage(preview.avatarUrl);
       channel.avatarApproved = true;
       return this.channelRepository.save(channel);
     } catch {

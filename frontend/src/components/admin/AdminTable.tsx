@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { resolveMediaUrl } from '../../utils/mediaUrl';
+import { useEffect, useMemo, useState } from 'react';
+import { getChannelAvatarSources } from '../../utils/channelAvatar';
 
 export function AdminTableShell({ children }: { children: ReactNode }) {
   return (
@@ -33,24 +34,67 @@ export function AdminTh({ children, className = '' }: { children?: ReactNode; cl
 }
 
 export function AdminTd({ children, className = '', colSpan }: { children: ReactNode; className?: string; colSpan?: number }) {
-  return <td colSpan={colSpan} className={`${tdClass} ${className}`}>{children}</td>;
+  return (
+    <td colSpan={colSpan} className={`${tdClass} ${className}`}>
+      {children}
+    </td>
+  );
 }
 
 export function AdminTable({ children }: { children: ReactNode }) {
   return <table className="min-w-full divide-y divide-slate-100">{children}</table>;
 }
 
-export function ChannelAvatar({ channel }: { channel: { avatarUrl?: string | null; avatarApproved?: boolean; linkType?: string; title: string } }) {
-  if (channel.avatarUrl && channel.avatarApproved) {
+export function ChannelAvatar({
+  channel,
+}: {
+  channel: {
+    avatarUrl?: string | null;
+    avatarApproved?: boolean;
+    linkType?: string;
+    title: string;
+    link?: string;
+  };
+}) {
+  const avatarSources = useMemo(() => {
+    if (!channel.avatarApproved) return [];
+    if (channel.link) {
+      return getChannelAvatarSources({ avatarUrl: channel.avatarUrl, link: channel.link });
+    }
+    if (channel.avatarUrl && !channel.avatarUrl.startsWith('/api/uploads/')) {
+      return getChannelAvatarSources({ avatarUrl: channel.avatarUrl, link: '' });
+    }
+    return [];
+  }, [channel.avatarApproved, channel.avatarUrl, channel.link]);
+
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setSourceIndex(0);
+    setFailed(false);
+  }, [channel.avatarUrl, channel.link, avatarSources]);
+
+  const currentSrc = avatarSources[sourceIndex];
+
+  if (currentSrc && !failed) {
     return (
       <img
-        src={resolveMediaUrl(channel.avatarUrl)}
+        src={currentSrc}
         alt=""
         referrerPolicy="no-referrer"
+        onError={() => {
+          if (sourceIndex + 1 < avatarSources.length) {
+            setSourceIndex((index) => index + 1);
+          } else {
+            setFailed(true);
+          }
+        }}
         className="h-9 w-9 rounded-full object-cover ring-1 ring-black/5"
       />
     );
   }
+
   return (
     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm">
       {channel.linkType === 'group' ? '👥' : '📢'}
