@@ -1,9 +1,10 @@
-# NEWLINK — Render 상시 배포 설정
-# https://dashboard.render.com → New → Blueprint 로 이 파일을 연결하세요.
+# NEWLINK — Render 배포 (무료 티어로 먼저 올리기)
+# 주의: Free Web은 약 15분 미사용 시 잠들었다가 첫 요청에 늦게 깨어납니다.
+# 상시 가동이 필요하면 plan을 starter / basic-256mb 로 올리고 카드를 등록하세요.
 
 databases:
   - name: newlink-db
-    plan: basic-256mb
+    plan: free
     databaseName: newlink
     user: newlink
 
@@ -11,7 +12,7 @@ services:
   - type: web
     name: newlink-api
     runtime: node
-    plan: starter
+    plan: free
     region: singapore
     rootDir: backend
     buildCommand: npm ci && npm run build

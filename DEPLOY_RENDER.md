@@ -6,10 +6,13 @@ PC Nest + Cloudflare 터널 대신, Render에 API를 올려 두면 PC를 꺼도 
 
 | 항목 | 플랜 | 역할 |
 |------|------|------|
-| Web Service | **Starter** (~$7/월) | Nest API 상시 가동 (Free는 15분 뒤 잠듦) |
-| PostgreSQL | **Basic 256MB** (~$6/월) | 데이터 영구 저장 (디스크 SQLite는 재배포 시 유실) |
+| Web Service | **Free** | 요금 없음. 약 15분 미사용 시 잠듦 → 첫 요청 느림 |
+| PostgreSQL | **Free** | 요금 없음(제한·만료 정책은 Render 안내 확인) |
+| Web Service | **Starter** (~$7/월) | 상시 가동 (미니앱 안정용 권장) |
+| PostgreSQL | **Basic 256MB** (~$6/월) | 더 안정적인 DB |
 
-무료 Web은 “켜져 있는 것처럼” 보이지만 잠들었다가 첫 요청에 수십 초 지연됩니다. 미니앱용이면 Starter를 권장합니다.
+지금은 Blueprint가 **Free**로 되어 있습니다. 카드 없이 올릴 수 있습니다.  
+미니앱이 첫 접속마다 느리면 나중에 Starter로 올리면 됩니다.
 
 ## 1) 코드 준비 (이미 반영됨)
 
