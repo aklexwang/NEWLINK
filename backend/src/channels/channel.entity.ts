@@ -5,6 +5,9 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import {
+  bigintNumberTransformer,
+} from '../common/bigint-transformer';
 
 export enum ChannelStatus {
   PENDING = 'pending',
@@ -49,7 +52,12 @@ export class Channel {
   @Column({ name: 'promoted_until', type: 'timestamptz', nullable: true })
   promotedUntil: Date | null;
 
-  @Column({ name: 'promotion_client_telegram_id', type: 'integer', nullable: true })
+  @Column({
+    name: 'promotion_client_telegram_id',
+    type: 'bigint',
+    nullable: true,
+    transformer: bigintNumberTransformer,
+  })
   promotionClientTelegramId: number | null;
 
   @Column({ name: 'promotion_client_name', type: 'varchar', length: 100, nullable: true })
@@ -61,7 +69,12 @@ export class Channel {
   @Column({ name: 'promotion_sort_order', type: 'integer', default: 0 })
   promotionSortOrder: number;
 
-  @Column({ name: 'submitted_by', type: 'integer', nullable: true })
+  @Column({
+    name: 'submitted_by',
+    type: 'bigint',
+    nullable: true,
+    transformer: bigintNumberTransformer,
+  })
   submittedBy: number | null;
 
   @Column({ name: 'avatar_url', type: 'varchar', length: 1024, nullable: true })

@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
+import { bigintNumberRequiredTransformer } from '../common/bigint-transformer';
 
 @Entity('channel_recommendations')
 @Unique(['userId', 'channelId'])
@@ -12,7 +13,11 @@ export class ChannelRecommendation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id', type: 'integer' })
+  @Column({
+    name: 'user_id',
+    type: 'bigint',
+    transformer: bigintNumberRequiredTransformer,
+  })
   userId: number;
 
   @Column({ name: 'channel_id', type: 'uuid' })

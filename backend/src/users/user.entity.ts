@@ -5,10 +5,15 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { bigintNumberRequiredTransformer } from '../common/bigint-transformer';
 
 @Entity('users')
 export class User {
-  @PrimaryColumn({ name: 'telegram_id', type: 'integer' })
+  @PrimaryColumn({
+    name: 'telegram_id',
+    type: 'bigint',
+    transformer: bigintNumberRequiredTransformer,
+  })
   telegramId: number;
 
   @Column({ name: 'first_name', type: 'varchar', length: 100, nullable: true })
