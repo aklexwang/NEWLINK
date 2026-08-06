@@ -61,7 +61,13 @@ export class AdminController {
   ) {
     const channels = await this.channelsService.findAllAdmin({ status, q, category, linkType });
     return Promise.all(
-      channels.map((channel) => (channel.isPromoted ? this.withAdClient(channel) : channel)),
+      channels.map(async (channel) => {
+        const base = channel.isPromoted ? await this.withAdClient(channel) : channel;
+        return {
+          ...base,
+          reporter: await this.usersService.getReporterOrNull(channel.submittedBy),
+        };
+      }),
     );
   }
 

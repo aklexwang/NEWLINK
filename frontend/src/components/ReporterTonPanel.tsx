@@ -10,11 +10,12 @@ import { WalletNetworkBadge } from './WalletNetworkBadge';
 
 interface ReporterTonPanelProps {
   item: PendingChannel;
+  onRecorded?: () => void;
 }
 
 type DialogState = 'wallet-confirm' | 'external-confirm' | 'sending' | 'success' | null;
 
-export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
+export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
   const [tonConnectUI] = useTonConnectUI();
   const [amount, setAmount] = useState('1');
   const [memo, setMemo] = useState('');
@@ -82,6 +83,7 @@ export function ReporterTonPanel({ item }: ReporterTonPanelProps) {
       method,
     });
     setLastMethod(method);
+    onRecorded?.();
     return savedToMember;
   };
 

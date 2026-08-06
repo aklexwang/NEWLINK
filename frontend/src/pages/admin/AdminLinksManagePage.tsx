@@ -21,8 +21,9 @@ import {
   AdminTh,
   ChannelAvatar,
 } from '../../components/admin/AdminTable';
-import type { Channel, LinkType } from '../../types/channel';
+import type { Channel, LinkType, PendingChannel } from '../../types/channel';
 import type { CategoryItem } from '../../types/categoryItem';
+import { ReporterTonPanel } from '../../components/ReporterTonPanel';
 import { refreshAdminBadges } from '../../utils/adminBadges';
 import { linkTypeBadgeClass, linkTypeLabel } from '../../utils/linkType';
 import {
@@ -68,8 +69,8 @@ export function AdminLinksManagePage({
   itemLabel,
   showTypeColumn = false,
 }: AdminLinksManagePageProps) {
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [countSource, setCountSource] = useState<Channel[]>([]);
+  const [channels, setChannels] = useState<PendingChannel[]>([]);
+  const [countSource, setCountSource] = useState<PendingChannel[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -400,6 +401,24 @@ export function AdminLinksManagePage({
                                 linkType={channel.linkType}
                                 onUpdated={(patch) => handleUpdateAvatar(channel.id, patch)}
                               />
+
+                              {channel.rewardTonAmount != null && channel.rewardTonAmount > 0 ? (
+                                <div className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 ring-1 ring-emerald-100">
+                                  제보 보상 지급됨 · {channel.rewardTonAmount.toLocaleString('ko-KR')} TON/Gram
+                                  {channel.rewardPaidAt && (
+                                    <span className="ml-1 text-emerald-700/80">
+                                      ({new Date(channel.rewardPaidAt).toLocaleString('ko-KR')})
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <ReporterTonPanel
+                                  item={channel}
+                                  onRecorded={() => {
+                                    void load();
+                                  }}
+                                />
+                              )}
 
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-slate-500">카테고리</span>

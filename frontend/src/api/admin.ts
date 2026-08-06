@@ -60,8 +60,8 @@ export async function getAdminChannels(params?: {
   q?: string;
   category?: string;
   linkType?: 'channel' | 'group';
-}): Promise<Channel[]> {
-  const { data } = await apiClient.get<Channel[]>('/admin/channels/all', {
+}): Promise<PendingChannel[]> {
+  const { data } = await apiClient.get<PendingChannel[]>('/admin/channels/all', {
     headers: getAdminAuthHeaders(),
     params,
   });
