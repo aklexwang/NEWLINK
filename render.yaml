@@ -1,21 +1,56 @@
+# NEWLINK — Render 상시 배포 설정
+# https://dashboard.render.com → New → Blueprint 로 이 파일을 연결하세요.
+
+databases:
+  - name: newlink-db
+    plan: basic-256mb
+    databaseName: newlink
+    user: newlink
+
 services:
   - type: web
     name: newlink-api
     runtime: node
+    plan: starter
+    region: singapore
     rootDir: backend
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     startCommand: npm run start:prod
-    healthCheckPath: /api
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_TYPE
-        value: sqlite
-      - key: DATABASE_PATH
-        value: data/newlink.sqlite
-      - key: DEV_ADMIN_BYPASS
+      - key: TYPEORM_SYNC
         value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: newlink-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 30d
+      - key: DEV_ADMIN_BYPASS
+        value: "false"
+      - key: ADMIN_ACCESS_KEY
+        sync: false
       - key: TELEGRAM_BOT_TOKEN
-        value: "0000000000:AAH_placeholder"
+        sync: false
       - key: TELEGRAM_ADMIN_IDS
-        value: "123456789"
+        sync: false
+      - key: TELEGRAM_PAYMENT_PROVIDER_TOKEN
+        value: "unused"
+      - key: PROMOTION_PRICE_TON
+        value: "1000000000"
+      - key: PROMOTION_DURATION_DAYS
+        value: "7"
+      - key: SERPER_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: TGSTAT_API_TOKEN
+        sync: false
+      - key: TGSTAT_LANGUAGE
+        value: korean
