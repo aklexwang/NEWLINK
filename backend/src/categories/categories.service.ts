@@ -24,7 +24,9 @@ export const DEFAULT_CATEGORIES = [
   { name: '건강', emoji: '💪', sortOrder: 14 },
   { name: '부동산', emoji: '🏠', sortOrder: 15 },
   { name: '구인구직', emoji: '💼', sortOrder: 16 },
-  { name: '기타', emoji: '📁', sortOrder: 17 },
+  { name: '성인', emoji: '🔞', sortOrder: 17 },
+  { name: '카지노', emoji: '🎰', sortOrder: 18 },
+  { name: '기타', emoji: '📁', sortOrder: 19 },
 ];
 
 /** 새 분류로 대체된 옛 카테고리 (비활성) */
