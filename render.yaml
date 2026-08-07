@@ -1,6 +1,10 @@
 # NEWLINK — Render 배포 (무료 티어로 먼저 올리기)
 # 주의: Free Web은 약 15분 미사용 시 잠들었다가 첫 요청에 늦게 깨어납니다.
 # 상시 가동이 필요하면 plan을 starter / basic-256mb 로 올리고 카드를 등록하세요.
+#
+# DB 연결: Blueprint의 connectionString 은 내부망 주소입니다.
+# Free Web에서 ENOTFOUND 가 나면 newlink-db → Info → External Database URL 을
+# newlink-api Environment 의 DATABASE_URL 에 직접 넣어 주세요.
 
 databases:
   - name: newlink-db
@@ -25,6 +29,7 @@ services:
         value: production
       - key: TYPEORM_SYNC
         value: "true"
+      # Blueprint 내부 URL (실패 시 대시보드에서 External URL로 덮어쓰기)
       - key: DATABASE_URL
         fromDatabase:
           name: newlink-db
