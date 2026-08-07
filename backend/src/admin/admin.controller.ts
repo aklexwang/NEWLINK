@@ -21,6 +21,7 @@ import { ChannelStatus, LinkType } from '../channels/channel.entity';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { ChannelsService } from '../channels/channels.service';
+import { TonPaymentService } from '../payments/ton-payment.service';
 import { UsersService } from '../users/users.service';
 import { ApproveChannelDto, AdminCreateChannelDto, LookupChannelQueryDto, PromoteChannelDto, RecordRewardDto, UpdateChannelDto } from './dto/admin.dto';
 
@@ -39,6 +40,7 @@ export class AdminController {
   constructor(
     private readonly channelsService: ChannelsService,
     private readonly usersService: UsersService,
+    private readonly tonPaymentService: TonPaymentService,
   ) {}
 
   @Get('pending')
@@ -171,11 +173,28 @@ export class AdminController {
   }
 
   @Post(':id/reward')
-  recordReward(@Param('id') id: string, @Body() dto: RecordRewardDto) {
-    return this.channelsService.recordReporterReward(id, {
+  async recordReward(@Param('id') id: string, @Body() dto: RecordRewardDto) {
+    const channel = await this.channelsService.recordReporterReward(id, {
       amountTon: dto.amountTon,
       wallet: dto.wallet,
     });
+
+    const reporter = await this.usersService.getReporterOrNull(channel.submittedBy);
+    await this.tonPaymentService.create({
+      channelId: channel.id,
+      amount: dto.amountTon,
+      wallet: dto.wallet?.trim() || channel.rewardWallet || '',
+      method: dto.method ?? 'external',
+      memo: dto.memo ?? null,
+      telegramId: channel.submittedBy ?? null,
+      reporterName: reporter?.username
+        ? `@${reporter.username}`
+        : reporter?.firstName ?? null,
+      channelTitle: channel.title,
+      channelLink: channel.link,
+    });
+
+    return channel;
   }
 
   @Patch(':id')

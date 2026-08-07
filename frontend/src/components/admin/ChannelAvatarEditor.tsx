@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { importChannelAvatarFromTelegram, updateAdminChannel, uploadChannelAvatar } from '../../api/admin';
-import { resolveMediaUrl } from '../../utils/mediaUrl';
+import { getChannelAvatarSources } from '../../utils/channelAvatar';
 
 interface ChannelAvatarEditorProps {
   channelId: string;
+  link?: string;
   avatarUrl?: string | null;
   avatarApproved?: boolean;
   linkType?: string;
@@ -12,6 +13,7 @@ interface ChannelAvatarEditorProps {
 
 export function ChannelAvatarEditor({
   channelId,
+  link = '',
   avatarUrl,
   avatarApproved,
   linkType,
@@ -23,9 +25,26 @@ export function ChannelAvatarEditor({
   const [refreshing, setRefreshing] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);
   const [error, setError] = useState('');
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
 
-  const previewSrc = resolveMediaUrl(avatarUrl);
-  const showImage = Boolean(avatarApproved && previewSrc);
+  const avatarSources = useMemo(
+    () =>
+      avatarApproved
+        ? getChannelAvatarSources({ avatarUrl, link })
+        : link
+          ? getChannelAvatarSources({ avatarUrl: null, link })
+          : [],
+    [avatarApproved, avatarUrl, link],
+  );
+
+  useEffect(() => {
+    setSourceIndex(0);
+    setFailed(false);
+  }, [avatarUrl, link, avatarSources]);
+
+  const previewSrc = avatarSources[sourceIndex];
+  const showImage = Boolean(previewSrc && !failed);
 
   const applyAvatar = async (nextUrl: string | null, approved = Boolean(nextUrl)) => {
     await updateAdminChannel(channelId, { avatarUrl: nextUrl, avatarApproved: approved });
@@ -103,7 +122,19 @@ export function ChannelAvatarEditor({
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-2xl ring-1 ring-black/5">
           {showImage ? (
-            <img src={previewSrc} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+            <img
+              src={previewSrc}
+              alt=""
+              referrerPolicy="no-referrer"
+              onError={() => {
+                if (sourceIndex + 1 < avatarSources.length) {
+                  setSourceIndex((index) => index + 1);
+                } else {
+                  setFailed(true);
+                }
+              }}
+              className="h-full w-full object-cover"
+            />
           ) : (
             <span>{linkType === 'group' ? '👥' : '📢'}</span>
           )}
@@ -127,7 +158,7 @@ export function ChannelAvatarEditor({
             >
               {refreshing ? '불러오는 중...' : '텔레그램에서 가져오기'}
             </button>
-            {showImage && (
+            {(showImage || avatarUrl) && (
               <button
                 type="button"
                 onClick={() => void handleRemove()}

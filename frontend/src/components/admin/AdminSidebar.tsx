@@ -36,7 +36,7 @@ function playAlertBeep() {
   }
 }
 
-export function AdminSidebar() {
+export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(0);
   const [adsCount, setAdsCount] = useState(0);
@@ -125,13 +125,13 @@ export function AdminSidebar() {
   }, []);
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col bg-[#1e293b] text-white">
+    <aside className="flex h-full min-h-screen w-56 shrink-0 flex-col bg-[#1e293b] text-white">
       <div className="border-b border-white/10 px-4 py-5">
         <p className="text-xs font-medium tracking-wider text-white/50">New Link</p>
         <h1 className="mt-1 text-lg font-bold">관리자</h1>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 p-3">
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3" onClick={() => onNavigate?.()}>
         <NavLink to="/admin/pending" className={linkClass}>
           <span className="text-base">📋</span>
           <span className="flex-1">승인 대기</span>

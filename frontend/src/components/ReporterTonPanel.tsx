@@ -5,7 +5,6 @@ import type { PendingChannel } from '../types/channel';
 import type { TonPaymentMethod } from '../types/tonPayment';
 import { toNanoTon } from '../utils/tonAmount';
 import { identifyWalletAddress } from '../utils/walletAddress';
-import { recordTonPayment } from '../utils/tonPaymentHistory';
 import { WalletNetworkBadge } from './WalletNetworkBadge';
 
 interface ReporterTonPanelProps {
@@ -29,6 +28,7 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
   const tonAmount = amount.trim() || '1';
   const amountNum = Number.parseFloat(tonAmount) || 0;
   const canPay = Boolean(wallet) && walletInfo.kind === 'ton' && amountNum > 0;
+  const alreadyRewarded = item.rewardTonAmount != null && item.rewardTonAmount > 0;
 
   const copyText = async (text: string, label: string) => {
     try {
@@ -57,34 +57,25 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
   };
 
   const persistPayment = async (method: TonPaymentMethod): Promise<boolean> => {
-    let savedToMember = false;
     try {
-      await recordReporterReward(item.id, { amountTon: amountNum, wallet });
-      savedToMember = true;
+      await recordReporterReward(item.id, {
+        amountTon: amountNum,
+        wallet,
+        method,
+        memo: memo.trim() || (method === 'external' ? '외부 지갑 송금' : undefined),
+      });
+      setLastMethod(method);
+      onRecorded?.();
+      return true;
     } catch (err) {
       const message =
         err && typeof err === 'object' && 'message' in err
           ? String((err as { message: unknown }).message)
-          : '회원 MY 반영에 실패했습니다.';
-      setSendError(`이력은 저장했지만 회원 MY 반영 실패: ${message}`);
+          : '회원 MY·지급 이력 반영에 실패했습니다.';
+      setSendError(message);
+      setLastMethod(method);
+      return false;
     }
-
-    recordTonPayment({
-      amount: amountNum,
-      wallet,
-      telegramId: telegramId ?? null,
-      reporterName: reporter?.username
-        ? `@${reporter.username}`
-        : reporter?.firstName ?? null,
-      channelId: item.id,
-      channelTitle: item.title,
-      channelLink: item.link,
-      memo: memo.trim() || (method === 'external' ? '외부 지갑 송금' : null),
-      method,
-    });
-    setLastMethod(method);
-    onRecorded?.();
-    return savedToMember;
   };
 
   const handleWalletSend = async () => {
@@ -125,23 +116,39 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
     if (!wallet) return;
     setDialog('sending');
     setSendError('');
-    try {
-      const saved = await persistPayment('external');
-      setDialog(saved ? 'success' : 'external-confirm');
-    } catch (err) {
-      const message =
-        err && typeof err === 'object' && 'message' in err
-          ? String((err as { message: unknown }).message)
-          : '기록에 실패했습니다.';
-      setSendError(message);
-      setDialog('external-confirm');
-    }
+    const saved = await persistPayment('external');
+    setDialog(saved ? 'success' : 'external-confirm');
   };
+
+  if (alreadyRewarded) {
+    return (
+      <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3">
+        <p className="text-xs font-semibold text-emerald-900">① 보상 기록 완료</p>
+        <p className="mt-1 text-xs text-emerald-800">
+          {item.rewardTonAmount?.toLocaleString('ko-KR')} TON/Gram 반영됨
+          {item.rewardPaidAt && (
+            <span className="text-emerald-700/80">
+              {' '}
+              · {new Date(item.rewardPaidAt).toLocaleString('ko-KR')}
+            </span>
+          )}
+        </p>
+        <p className="mt-2 text-[11px] leading-snug text-emerald-900/80">
+          아직 승인 대기 목록에 있다면, 아래 <strong>② 승인(회원 공개)</strong>을 눌러야 목록에서
+          사라집니다. 보상 기록만으로는 승인되지 않습니다.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
-        <h3 className="text-xs font-semibold text-tg-text">제보자 정보 · TON 지급</h3>
+        <h3 className="text-xs font-semibold text-tg-text">① 제보자 보상 (승인과 별개)</h3>
+        <p className="mt-1 text-[11px] leading-snug text-tg-hint">
+          여기서는 TON 보상만 회원 MY·지급 이력에 남깁니다. 목록에서 빼려면 아래 「② 승인」이
+          필요합니다.
+        </p>
         <div className="mt-2 space-y-1 text-xs text-tg-hint">
           <p>
             Telegram ID: <span className="font-medium text-tg-text">{telegramId ?? '알 수 없음'}</span>
@@ -212,10 +219,6 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
             외부 송금 기록
           </button>
         </div>
-        <p className="mt-2 text-[11px] leading-snug text-tg-hint">
-          외부 지갑으로 보낸 뒤에는 「외부 송금 기록」으로 이력·회원 MY에 반영하세요. TON
-          네트워크(Gram)만 해당합니다.
-        </p>
       </div>
 
       {dialog && (
@@ -234,11 +237,12 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
                   ✓
                 </div>
-                <h3 className="mt-4 text-lg font-bold text-slate-900">
-                  {lastMethod === 'external' ? '외부 송금 기록 완료' : '송금 승인 완료'}
-                </h3>
+                <h3 className="mt-4 text-lg font-bold text-slate-900">① 보상 기록 완료</h3>
                 <p className="mt-2 text-sm text-slate-500">
-                  {tonAmount} TON/Gram이 지급 이력·회원 MY에 반영되었습니다.
+                  {tonAmount} TON/Gram이 회원 MY·TON 지급 이력에 저장되었습니다.
+                </p>
+                <p className="mt-2 text-xs text-amber-800">
+                  승인 대기에서 없애려면 카드 아래 「② 승인(회원 공개)」을 눌러 주세요.
                 </p>
                 <button
                   type="button"

@@ -427,6 +427,7 @@ export function AdminAdsManagePage() {
                               <ChannelAvatarEditor
                                 key={`${channel.id}-${channel.avatarUrl ?? 'none'}`}
                                 channelId={channel.id}
+                                link={channel.link}
                                 avatarUrl={channel.avatarUrl}
                                 avatarApproved={channel.avatarApproved}
                                 linkType={channel.linkType}

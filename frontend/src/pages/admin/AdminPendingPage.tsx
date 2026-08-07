@@ -147,10 +147,30 @@ export function AdminPendingPage() {
                 <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-block text-xs text-blue-600 hover:underline">
                   {item.link}
                 </a>
-                <ReporterTonPanel item={item} />
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => handleApprove(item.id)} className="rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700">승인</button>
-                  <button type="button" onClick={() => handleReject(item.id)} className="rounded-xl bg-white py-2.5 text-sm ring-1 ring-black/10 hover:bg-slate-50">거절</button>
+                <ReporterTonPanel
+                  item={item}
+                  onRecorded={() => {
+                    void loadPending({ silent: true });
+                  }}
+                />
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                  ② 승인 = 회원 페이지에 공개하고 이 목록에서 제거합니다. (① 보상 기록과 다름)
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleApprove(item.id)}
+                    className="rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    ② 승인 (회원 공개)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleReject(item.id)}
+                    className="rounded-xl bg-white py-2.5 text-sm ring-1 ring-black/10 hover:bg-slate-50"
+                  >
+                    거절
+                  </button>
                 </div>
               </article>
             ))}

@@ -100,6 +100,15 @@ export class RecordRewardDto {
   @IsOptional()
   @MaxLength(128)
   wallet?: string;
+
+  @IsOptional()
+  @IsIn(['tonconnect', 'external'])
+  method?: 'tonconnect' | 'external';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  memo?: string;
 }
 
 export class UpdateChannelDto {

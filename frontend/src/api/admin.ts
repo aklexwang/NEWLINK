@@ -2,6 +2,7 @@ import { apiClient } from './client';
 import type { CategoryItem } from '../types/categoryItem';
 import type { ChannelPreview, PendingChannel } from '../types/channel';
 import type { Channel } from '../types/channel';
+import type { TonPaymentRecord } from '../types/tonPayment';
 import type { AdminUser } from '../types/user';
 import { getAdminAuthHeaders } from '../utils/adminAccess';
 
@@ -165,12 +166,31 @@ export async function rejectChannel(id: string) {
 
 export async function recordReporterReward(
   id: string,
-  payload: { amountTon: number; wallet?: string },
+  payload: {
+    amountTon: number;
+    wallet?: string;
+    method?: 'tonconnect' | 'external';
+    memo?: string;
+  },
 ): Promise<Channel> {
   const { data } = await apiClient.post<Channel>(`/admin/channels/${id}/reward`, payload, {
     headers: getAdminAuthHeaders(),
   });
   return data;
+}
+
+export async function getTonPaymentHistory(q?: string): Promise<TonPaymentRecord[]> {
+  const { data } = await apiClient.get<TonPaymentRecord[]>('/admin/ton-payments', {
+    headers: getAdminAuthHeaders(),
+    params: q ? { q } : undefined,
+  });
+  return data;
+}
+
+export async function deleteTonPaymentRecord(id: string): Promise<void> {
+  await apiClient.delete(`/admin/ton-payments/${id}`, {
+    headers: getAdminAuthHeaders(),
+  });
 }
 
 export async function promoteChannel(id: string, promotedUntil?: string) {
