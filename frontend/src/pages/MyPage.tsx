@@ -60,6 +60,15 @@ export function MyPage() {
     return { rewarded, totalTon, totalUsd, count: rewarded.length };
   }, [submissions]);
 
+  /** 보상 지급된 건은 "받은 보상 내역"에만 두고 제보 목록에서는 제외 */
+  const pendingSubmissions = useMemo(
+    () =>
+      submissions.filter(
+        (item) => item.rewardTonAmount == null || item.rewardTonAmount <= 0,
+      ),
+    [submissions],
+  );
+
   useEffect(() => {
     if (!isLoggedIn) {
       setSubmissions([]);
@@ -305,18 +314,23 @@ export function MyPage() {
           <div className="rounded-2xl bg-tg-secondary/50 p-4">
             <h3 className="text-sm font-semibold text-tg-text">내 제보 내역</h3>
             <p className="mt-1 text-xs text-tg-hint">
-              제보한 채널·그룹, 승인 상태, 받은 코인·지급 일시를 확인할 수 있습니다.
+              아직 보상을 받지 않은 제보의 승인·대기 상태를 확인할 수 있습니다. 지급 완료 건은 위
+              「받은 보상 내역」에만 표시됩니다.
             </p>
             {submissionsLoading ? (
               <div className="mt-3 space-y-2">
                 <div className="h-14 animate-pulse rounded-xl bg-tg-secondary" />
                 <div className="h-14 animate-pulse rounded-xl bg-tg-secondary" />
               </div>
-            ) : submissions.length === 0 ? (
-              <p className="mt-3 text-sm text-tg-hint">아직 제보한 항목이 없습니다.</p>
+            ) : pendingSubmissions.length === 0 ? (
+              <p className="mt-3 text-sm text-tg-hint">
+                {submissions.length === 0
+                  ? '아직 제보한 항목이 없습니다.'
+                  : '보상 대기 중인 제보가 없습니다.'}
+              </p>
             ) : (
               <ul className="mt-3 space-y-2">
-                {submissions.map((item) => {
+                {pendingSubmissions.map((item) => {
                   const categoryMeta = getCategoryMeta(searchCategories, item.category);
                   return (
                     <li key={item.id} className="rounded-xl bg-tg-bg px-4 py-3">
@@ -344,32 +358,7 @@ export function MyPage() {
                             </span>
                           </div>
                           <p className="mt-1 truncate text-sm font-medium text-tg-text">{item.title}</p>
-                          {item.rewardTonAmount != null && item.rewardTonAmount > 0 ? (
-                            <div className="mt-2 space-y-0.5 rounded-lg bg-emerald-50 px-2.5 py-2 ring-1 ring-emerald-100">
-                              <p className="text-xs font-semibold text-emerald-800">
-                                코인 · TON/Gram{' '}
-                                <span className="font-bold">{item.rewardTonAmount}</span>개
-                              </p>
-                              {item.rewardUsdAmount != null && item.rewardUsdAmount > 0 && (
-                                <p className="text-[11px] text-emerald-700/90">
-                                  지급 시점 약 ${item.rewardUsdAmount.toFixed(2)}
-                                </p>
-                              )}
-                              {item.rewardPaidAt && (
-                                <p className="text-[11px] text-tg-hint">
-                                  {new Date(item.rewardPaidAt).toLocaleString('ko-KR', {
-                                    year: 'numeric',
-                                    month: '2-digit',
-                                    day: '2-digit',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="mt-1.5 text-xs text-tg-hint">보상 대기 중</p>
-                          )}
+                          <p className="mt-1.5 text-xs text-tg-hint">보상 대기 중</p>
                         </div>
                       </div>
                     </li>
