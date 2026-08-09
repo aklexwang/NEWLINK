@@ -26,6 +26,10 @@ export function TonWalletConnectCard({
 
   const handleConnect = async () => {
     try {
+      if (isLinked && savedAddress) {
+        await connect({ change: true });
+        return;
+      }
       await connect();
     } catch {
       // error state is shown below

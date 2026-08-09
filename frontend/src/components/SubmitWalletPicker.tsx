@@ -19,20 +19,40 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
     useTonWalletLink({ autoSync: method === 'telegram' });
 
   const wasLinkedRef = useRef(isLinked);
+  const prevSavedRef = useRef<string | null>(savedAddress);
   const methodRef = useRef(method);
   methodRef.current = method;
 
   const savedInfo = identifyWalletAddress(savedAddress);
 
   useEffect(() => {
-    if (!wasLinkedRef.current && isLinked && savedAddress && methodRef.current === 'telegram') {
-      onLinked?.(savedAddress, 'telegram');
+    if (methodRef.current !== 'telegram' || !savedAddress) {
+      prevSavedRef.current = savedAddress;
+      wasLinkedRef.current = isLinked;
+      return;
     }
+
+    const prev = prevSavedRef.current;
+    prevSavedRef.current = savedAddress;
     wasLinkedRef.current = isLinked;
-  }, [isLinked, savedAddress, onLinked]);
+
+    if (!prev && savedAddress) {
+      onLinked?.(savedAddress, 'telegram');
+      return;
+    }
+    if (prev && prev !== savedAddress) {
+      onNotify?.('텔레그램 Wallet 주소가 변경되었습니다. 보상은 새 주소로만 지급됩니다.');
+    }
+  }, [isLinked, savedAddress, onLinked, onNotify]);
 
   const handleTelegramConnect = async () => {
     try {
+      const changing = (isLinked && savedInfo.kind === 'ton') || Boolean(connectedAddress);
+      if (changing) {
+        await connect({ change: true });
+        onNotify?.('다른 텔레그램 Wallet을 선택해 주세요.');
+        return;
+      }
       const address = await connect();
       if (address) onLinked?.(address, 'telegram');
     } catch {

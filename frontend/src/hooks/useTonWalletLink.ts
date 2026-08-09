@@ -57,19 +57,37 @@ export function useTonWalletLink(options: UseTonWalletLinkOptions = {}) {
     void persistAddress(connectedAddress).catch(() => undefined);
   }, [autoSync, canPersist, connectedAddress, savedAddress, persistAddress]);
 
-  const connect = useCallback(async () => {
-    setError(null);
-    try {
-      if (tonConnectUI.connected && connectedAddress) {
-        return await persistAddress(connectedAddress);
+  const connect = useCallback(
+    async (options?: { change?: boolean }) => {
+      setError(null);
+      try {
+        // 변경: 기존 TonConnect 세션을 끊고 지갑 선택 모달을 다시 연다
+        if (options?.change) {
+          if (tonConnectUI.connected) {
+            try {
+              await tonConnectUI.disconnect();
+            } catch {
+              // ignore
+            }
+          }
+          // 같은 주소로 다시 골라도 persist 가능하도록 캐시 초기화
+          lastSavedRef.current = null;
+          await tonConnectUI.openModal();
+          return null;
+        }
+
+        if (tonConnectUI.connected && connectedAddress) {
+          return await persistAddress(connectedAddress);
+        }
+        await tonConnectUI.openModal();
+        return null;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '지갑 연결에 실패했습니다.');
+        throw err;
       }
-      await tonConnectUI.openModal();
-      return null;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '지갑 연결에 실패했습니다.');
-      throw err;
-    }
-  }, [tonConnectUI, connectedAddress, persistAddress]);
+    },
+    [tonConnectUI, connectedAddress, persistAddress],
+  );
 
   const disconnect = useCallback(async () => {
     try {
