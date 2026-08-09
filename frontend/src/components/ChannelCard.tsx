@@ -8,9 +8,9 @@ interface ChannelCardProps {
   channel: Channel;
   emoji: string;
   iconUrl?: string | null;
-  recommended: boolean;
+  recommended?: boolean;
   favorited?: boolean;
-  onRecommend: (id: string) => void;
+  onRecommend?: (id: string) => void;
   onToggleFavorite?: (id: string) => void;
   showFavorite?: boolean;
 }
@@ -19,13 +19,12 @@ export function ChannelCard({
   channel,
   emoji,
   iconUrl,
-  recommended,
   favorited = false,
-  onRecommend,
   onToggleFavorite,
   showFavorite = true,
 }: ChannelCardProps) {
   const promoted = channel.isPromoted;
+  const description = (channel.description ?? '').trim();
   const avatarSources = useMemo(
     () =>
       channel.avatarApproved
@@ -72,6 +71,9 @@ export function ChannelCard({
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-[16px] font-semibold leading-tight text-tg-text">{channel.title}</p>
+        {description ? (
+          <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-tg-hint">{description}</p>
+        ) : null}
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(channel.linkType)}`}>
             {linkTypeLabel(channel.linkType)}
@@ -81,15 +83,6 @@ export function ChannelCard({
               AD
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => onRecommend(channel.id)}
-            disabled={recommended}
-            className={`text-[13px] ${recommended ? 'text-tg-hint' : 'text-tg-link'}`}
-          >
-            {recommended ? '👍 추천됨' : `👍 ${channel.recommendCount}`}
-          </button>
-          <span className="text-[13px] text-tg-hint">· {channel.category}</span>
         </div>
       </div>
 
