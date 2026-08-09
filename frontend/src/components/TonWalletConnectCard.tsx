@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { shortenTonAddress } from '../utils/tonAmount';
 import { useTonWalletLink } from '../hooks/useTonWalletLink';
 
 interface TonWalletConnectCardProps {
@@ -45,7 +44,7 @@ export function TonWalletConnectCard({
           disabled={linking}
           className="mt-3 w-full rounded-xl bg-white py-2.5 text-sm font-medium text-blue-700 ring-1 ring-blue-100 disabled:opacity-50"
         >
-          텔레그램 Wallet 다시 연결
+          {linking ? '등록 중…' : '텔레그램 Wallet 변경하기'}
         </button>
       </section>
     );
@@ -65,7 +64,7 @@ export function TonWalletConnectCard({
         {linking
           ? '등록 중…'
           : connectedAddress
-            ? `연결 확정 (${shortenTonAddress(connectedAddress)})`
+            ? '텔레그램 Wallet 변경하기'
             : '텔레그램 Wallet 연결하기'}
       </button>
     </section>

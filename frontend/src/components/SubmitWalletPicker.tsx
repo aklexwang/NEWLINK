@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { shortenTonAddress } from '../utils/tonAmount';
 import { isTrc20UsdtAddress, identifyWalletAddress } from '../utils/walletAddress';
 import { useTonWalletLink } from '../hooks/useTonWalletLink';
 import { WalletNetworkBadge } from './WalletNetworkBadge';
@@ -122,11 +121,9 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
           >
             {linking
               ? '등록 중…'
-              : connectedAddress
-                ? `연결 확정 (${shortenTonAddress(connectedAddress)})`
-                : isLinked && savedInfo.kind === 'ton'
-                  ? '텔레그램 Wallet 주소 바꾸기'
-                  : '텔레그램 Wallet 연결하기'}
+              : (isLinked && savedInfo.kind === 'ton') || connectedAddress
+                ? '텔레그램 Wallet 변경하기'
+                : '텔레그램 Wallet 연결하기'}
           </button>
         </div>
       ) : (
