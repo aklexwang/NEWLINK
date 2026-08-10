@@ -88,24 +88,28 @@ export function MyPage() {
       setRewardNotice(pending[0] ?? null);
     };
 
-    const loadSubmissions = () => {
-      setSubmissionsLoading(true);
+    const loadSubmissions = (opts?: { silent?: boolean }) => {
+      if (!opts?.silent) setSubmissionsLoading(true);
       getMySubmissions()
         .then((items) => {
           setSubmissions(items);
           pickRewardNotice(items);
         })
         .catch(() => {
-          setSubmissions([]);
-          setRewardNotice(null);
+          if (!opts?.silent) {
+            setSubmissions([]);
+            setRewardNotice(null);
+          }
         })
-        .finally(() => setSubmissionsLoading(false));
+        .finally(() => {
+          if (!opts?.silent) setSubmissionsLoading(false);
+        });
     };
 
     loadSubmissions();
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') loadSubmissions();
+      if (document.visibilityState === 'visible') loadSubmissions({ silent: true });
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);

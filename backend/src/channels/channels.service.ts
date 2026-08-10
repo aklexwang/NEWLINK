@@ -409,13 +409,28 @@ export class ChannelsService implements OnModuleInit {
       .limit(limit)
       .getMany();
 
-    return Promise.all(
-      this.dedupeByLink(channels).map((channel) => this.ensureMirroredAvatar(channel)),
-    );
+    // 회원 목록은 텔레그램 미리보기를 동기 호출하지 않음 (느림). 필요 시 프록시 URL만 붙인다.
+    return this.dedupeByLink(channels).map((channel) => this.withListAvatar(channel));
   }
 
   private needsAvatarRefresh(channel: Channel): boolean {
     return this.isStaleAvatarUrl(channel.avatarUrl);
+  }
+
+  /** 목록 API용: 네트워크 없이 표시 가능한 avatarUrl로 보정 */
+  private withListAvatar(channel: Channel): Channel {
+    if (!this.needsAvatarRefresh(channel)) return channel;
+    channel.avatarUrl = this.buildAvatarProxyUrl(channel.link);
+    if (!channel.avatarApproved) channel.avatarApproved = true;
+    return channel;
+  }
+
+  private resolveListAvatarUrl(channel: Channel): string | null {
+    if (!channel.avatarApproved) return null;
+    if (channel.avatarUrl && !this.isStaleAvatarUrl(channel.avatarUrl)) {
+      return channel.avatarUrl;
+    }
+    return this.buildAvatarProxyUrl(channel.link);
   }
 
   isStaleAvatarUrl(avatarUrl: string | null | undefined): boolean {
@@ -453,13 +468,18 @@ export class ChannelsService implements OnModuleInit {
     }
 
     try {
+      // Render 등 ephemeral: 미리보기 스크랩 없이 프록시 URL만 저장 (목록이 안 느려지게)
+      if (!this.shouldMirrorLocally()) {
+        channel.avatarUrl = this.buildAvatarProxyUrl(channel.link);
+        channel.avatarApproved = true;
+        return this.channelRepository.save(channel);
+      }
+
       const preview = await this.telegramPreviewService.fetchPreview(channel.link);
       if (!preview.avatarUrl || /telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)) {
         return channel;
       }
-      channel.avatarUrl = !this.shouldMirrorLocally()
-        ? this.buildAvatarProxyUrl(channel.link)
-        : await this.mirrorAvatarImage(preview.avatarUrl);
+      channel.avatarUrl = await this.mirrorAvatarImage(preview.avatarUrl);
       channel.avatarApproved = true;
       return this.channelRepository.save(channel);
     } catch {
@@ -800,21 +820,13 @@ export class ChannelsService implements OnModuleInit {
     });
 
     const slice = items.slice(0, normalizedLimit);
-    const refreshed = await Promise.all(
-      slice.map(async (channel) => {
-        if (this.needsAvatarRefresh(channel)) {
-          return this.ensureMirroredAvatar(channel);
-        }
-        return channel;
-      }),
-    );
 
-    return refreshed.map((channel) => ({
+    return slice.map((channel) => ({
       id: channel.id,
       title: channel.title,
       username: this.extractUsername(channel.link),
       link: channel.link,
-      avatarUrl: channel.avatarApproved ? channel.avatarUrl : null,
+      avatarUrl: this.resolveListAvatarUrl(channel),
       participantsCount: channel.memberCount ?? 0,
       recommendCount: channel.recommendCount,
       category: channel.category,
@@ -823,8 +835,12 @@ export class ChannelsService implements OnModuleInit {
   }
 
   async getRankingCounts(): Promise<Record<string, number>> {
+    // 전체 엔티티 대신 집계에 필요한 필드만 로드
     const channels = this.dedupeByLink(
-      await this.channelRepository.find({ where: { status: ChannelStatus.ACTIVE } }),
+      await this.channelRepository.find({
+        where: { status: ChannelStatus.ACTIVE },
+        select: ['id', 'link', 'category'],
+      }),
     );
 
     const counts: Record<string, number> = { all: channels.length };

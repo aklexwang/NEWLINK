@@ -9,14 +9,13 @@ function isRealTelegramEnv(): boolean {
         TelegramWebviewProxy?: unknown;
         Telegram?: { WebApp?: { initData?: string } };
       };
+      // Mini App WebView만 진짜 텔레그램 환경으로 본다.
+      // UA에 Telegram이 있어도(인앱 브라우저) initData가 없으면 웹 로그인 위젯을 써야 한다.
       if (w.TelegramWebviewProxy) return true;
       if (w.Telegram?.WebApp?.initData) return true;
-      if (/Telegram/i.test(navigator.userAgent)) return true;
     }
     if (typeof WebApp?.ready !== 'function') return false;
-    if (WebApp.initData) return true;
-    const platform = WebApp.platform;
-    return Boolean(platform && platform !== 'unknown');
+    return Boolean(WebApp.initData);
   } catch {
     return false;
   }

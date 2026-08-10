@@ -60,9 +60,8 @@ export function RankingPage() {
   }, []);
 
   useEffect(() => {
-    if (categoriesLoading) return;
     void fetchRanking(selectedCategory);
-  }, [selectedCategory, fetchRanking, categoriesLoading]);
+  }, [selectedCategory, fetchRanking]);
 
   const selectedLabel =
     categories.find((category) => category.id === selectedCategory)?.name ?? '전체';

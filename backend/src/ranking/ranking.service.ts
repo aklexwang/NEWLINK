@@ -6,14 +6,35 @@ import { TgstatService } from './tgstat.service';
 
 export type RankingSource = 'tgstat' | 'database';
 
+interface CacheEntry<T> {
+  expiresAt: number;
+  data: T;
+}
+
 @Injectable()
 export class RankingService {
+  private readonly listCache = new Map<string, CacheEntry<unknown>>();
+  private readonly listCacheTtlMs = 30_000;
+
   constructor(
     private readonly tgstatService: TgstatService,
     private readonly telegramRankingService: TelegramRankingService,
     private readonly channelsService: ChannelsService,
     private readonly categoriesService: CategoriesService,
   ) {}
+
+  private getCached<T>(key: string): T | null {
+    const entry = this.listCache.get(key);
+    if (!entry || entry.expiresAt < Date.now()) {
+      this.listCache.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  }
+
+  private setCached<T>(key: string, data: T) {
+    this.listCache.set(key, { data, expiresAt: Date.now() + this.listCacheTtlMs });
+  }
 
   getSource(): RankingSource {
     return this.tgstatService.isConfigured() ? 'tgstat' : 'database';
@@ -44,6 +65,10 @@ export class RankingService {
   }
 
   async getCategories(): Promise<RankingCategoryItem[]> {
+    const cacheKey = 'ranking:categories';
+    const cached = this.getCached<RankingCategoryItem[]>(cacheKey);
+    if (cached) return cached;
+
     const adminCategories = await this.categoriesService.findActive();
     const iconMap = Object.fromEntries(
       adminCategories.map((category) => [category.name, category.iconUrl ?? null]),
@@ -51,10 +76,12 @@ export class RankingService {
 
     if (this.tgstatService.isConfigured()) {
       const items = await this.telegramRankingService.getCategories();
-      return items.map((item) => ({
+      const mapped = items.map((item) => ({
         ...item,
         iconUrl: item.id === 'all' ? null : (iconMap[item.name] ?? null),
       }));
+      this.setCached(cacheKey, mapped);
+      return mapped;
     }
 
     const counts = await this.channelsService.getRankingCounts();
@@ -81,15 +108,24 @@ export class RankingService {
       items.push({ id: name, name, emoji: '📁', iconUrl: iconMap[name] ?? null, count });
     }
 
+    this.setCached(cacheKey, items);
     return items;
   }
 
   async getChannels(category?: string, limit = 50) {
+    const cacheKey = `ranking:channels:${category ?? 'all'}:${limit}`;
+    const cached = this.getCached<unknown[]>(cacheKey);
+    if (cached) return cached;
+
     if (this.tgstatService.isConfigured()) {
-      return this.tgstatService.getRanking(category, limit);
+      const items = await this.tgstatService.getRanking(category, limit);
+      this.setCached(cacheKey, items);
+      return items;
     }
 
     const items = await this.channelsService.getRanking(category, limit);
-    return items.map((item) => ({ ...item, source: 'database' as const }));
+    const mapped = items.map((item) => ({ ...item, source: 'database' as const }));
+    this.setCached(cacheKey, mapped);
+    return mapped;
   }
 }
