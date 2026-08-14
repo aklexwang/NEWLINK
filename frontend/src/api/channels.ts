@@ -6,6 +6,7 @@ export async function searchChannels(params: {
   q?: string;
   category?: string;
   page?: number;
+  limit?: number;
 }): Promise<SearchResult> {
   const { data } = await apiClient.get<SearchResult>('/channels/search', { params });
   return data;

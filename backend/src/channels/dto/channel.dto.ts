@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsIn,
   IsInt,
@@ -42,11 +43,13 @@ export class SearchChannelDto {
   @IsOptional()
   category?: string;
 
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @IsOptional()
   page?: number = 1;
 
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @IsOptional()

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { searchChannels } from '../api/channels';
 import { ChannelList } from '../components/ChannelList';
@@ -9,8 +9,12 @@ import { useMyFavorites } from '../hooks/useMyFavorites';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
 import { useAuth } from '../providers/AuthProvider';
 import { hapticSuccess, notifyUser, useTelegram } from '../hooks/useTelegram';
+import type { Channel } from '../types/channel';
 
 type HomeView = 'landing' | 'search';
+
+const SUGGEST_LIMIT = 8;
+const SUGGEST_DEBOUNCE_MS = 200;
 
 export function HomePage() {
   const location = useLocation();
@@ -23,22 +27,31 @@ export function HomePage() {
 
   const [query, setQuery] = useState('');
   const [view, setView] = useState<HomeView>('landing');
-  const [searchChannelsList, setSearchChannelsList] = useState<
-    Awaited<ReturnType<typeof searchChannels>>['items']
-  >([]);
+  const [searchChannelsList, setSearchChannelsList] = useState<Channel[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<Channel[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestRequestId = useRef(0);
 
   const isLoggedIn = authStatus === 'authenticated' && Boolean(user);
 
   const resetToHome = useCallback(() => {
     setQuery('');
     setSearchChannelsList([]);
+    setSuggestions([]);
+    setShowSuggestions(false);
     setView('landing');
+  }, []);
+
+  const closeSuggestions = useCallback(() => {
+    setShowSuggestions(false);
   }, []);
 
   const loadSearch = useCallback(
     async (keyword: string) => {
       setSearchLoading(true);
+      setShowSuggestions(false);
       try {
         const result = await searchChannels({ q: keyword });
         setSearchChannelsList(result.items);
@@ -60,10 +73,49 @@ export function HomePage() {
     resetToHome();
   }, [location.state, resetToHome]);
 
+  useEffect(() => {
+    const keyword = query.trim();
+    if (!keyword) {
+      suggestRequestId.current += 1;
+      setSuggestions([]);
+      setSuggestionsLoading(false);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setShowSuggestions(true);
+    setSuggestionsLoading(true);
+    const requestId = ++suggestRequestId.current;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          // limit 쿼리는 배포된 API ValidationPipe에서 400을 내는 경우가 있어
+          // 기본 검색 후 클라이언트에서 잘라 쓴다.
+          const result = await searchChannels({ q: keyword });
+          if (requestId !== suggestRequestId.current) return;
+          setSuggestions(result.items.slice(0, SUGGEST_LIMIT));
+        } catch {
+          if (requestId !== suggestRequestId.current) return;
+          setSuggestions([]);
+        } finally {
+          if (requestId === suggestRequestId.current) {
+            setSuggestionsLoading(false);
+          }
+        }
+      })();
+    }, SUGGEST_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
   const handleQueryChange = (value: string) => {
     setQuery(value);
     if (!value.trim() && view === 'search') {
       resetToHome();
+      return;
+    }
+    if (value.trim()) {
+      setShowSuggestions(true);
     }
   };
 
@@ -74,6 +126,11 @@ export function HomePage() {
       return;
     }
     void loadSearch(keyword);
+  };
+
+  const handleSelectSuggestion = (channel: Channel) => {
+    setQuery(channel.title);
+    void loadSearch(channel.title);
   };
 
   const handleRecommend = async (id: string) => {
@@ -107,6 +164,19 @@ export function HomePage() {
     }
   };
 
+  const searchBarProps = {
+    value: query,
+    onChange: handleQueryChange,
+    onSearch: handleSearch,
+    isLoading: searchLoading,
+    variant: 'google' as const,
+    suggestions,
+    suggestionsLoading,
+    showSuggestions,
+    onSelectSuggestion: handleSelectSuggestion,
+    onCloseSuggestions: closeSuggestions,
+  };
+
   if (view === 'search') {
     return (
       <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-white">
@@ -114,14 +184,7 @@ export function HomePage() {
           <button type="button" onClick={resetToHome} className="mx-auto block" aria-label="홈으로">
             <NewLinkLogo compact />
           </button>
-          <SearchBar
-            value={query}
-            onChange={handleQueryChange}
-            onSearch={handleSearch}
-            isLoading={searchLoading}
-            variant="google"
-            className="mt-2 max-w-none px-0"
-          />
+          <SearchBar {...searchBarProps} className="mt-2 max-w-none px-0" />
         </div>
 
         <ChannelList
@@ -143,14 +206,7 @@ export function HomePage() {
     <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-white">
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-[12vh]">
         <NewLinkLogo />
-        <SearchBar
-          value={query}
-          onChange={handleQueryChange}
-          onSearch={handleSearch}
-          isLoading={searchLoading}
-          variant="google"
-          className="mt-8 w-full"
-        />
+        <SearchBar {...searchBarProps} className="mt-8 w-full" />
       </div>
     </div>
   );

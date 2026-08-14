@@ -363,7 +363,8 @@ export class ChannelsService implements OnModuleInit {
               sub
                 .where(`LOWER(channel.title) LIKE :${param}`, { [param]: pattern })
                 .orWhere(`LOWER(channel.description) LIKE :${param}`, { [param]: pattern })
-                .orWhere(`LOWER(channel.category) LIKE :${param}`, { [param]: pattern });
+                .orWhere(`LOWER(channel.category) LIKE :${param}`, { [param]: pattern })
+                .orWhere(`LOWER(channel.link) LIKE :${param}`, { [param]: pattern });
             });
             if (index === 0) outer.where(clause);
             else outer.orWhere(clause);
