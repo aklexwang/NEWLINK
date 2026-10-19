@@ -26,6 +26,8 @@ import {
   toDateInputValue,
 } from '../../utils/promotion';
 import { refreshAdminBadges } from '../../utils/adminBadges';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { formatPercent } from '../../utils/formatCount';
 
 export function AdminAdsManagePage() {
   const [promoted, setPromoted] = useState<Channel[]>([]);
@@ -185,7 +187,7 @@ export function AdminAdsManagePage() {
   };
 
   const activeCount = promoted.filter((item) => isPromotionActive(item.isPromoted, item.promotedUntil)).length;
-  const colCount = canReorder ? 9 : 8;
+  const colCount = canReorder ? 12 : 11;
 
   return (
     <>
@@ -229,6 +231,9 @@ export function AdminAdsManagePage() {
                     <tr>
                       <AdminTh className="w-12" />
                       <AdminTh>제목</AdminTh>
+                      <AdminTh className="w-16">인증</AdminTh>
+                      <AdminTh className="w-14">점수</AdminTh>
+                      <AdminTh className="w-16">조회율</AdminTh>
                       <AdminTh className="w-16">유형</AdminTh>
                       <AdminTh className="w-28">종료일</AdminTh>
                       <AdminTh className="w-20" />
@@ -241,6 +246,15 @@ export function AdminAdsManagePage() {
                         <AdminTd>
                           <p className="max-w-[180px] truncate font-medium text-slate-900">{channel.title}</p>
                           {channel.isPromoted && <span className="text-[10px] text-purple-600">등록됨</span>}
+                        </AdminTd>
+                        <AdminTd>
+                          {channel.isVerified ? <VerifiedBadge size="sm" /> : <span className="text-[11px] text-slate-400">미인증</span>}
+                        </AdminTd>
+                        <AdminTd>
+                          <span className="text-xs font-semibold text-slate-800">{channel.score ?? '—'}</span>
+                        </AdminTd>
+                        <AdminTd>
+                          <span className="text-xs text-slate-700">{formatPercent(channel.viewRate)}</span>
                         </AdminTd>
                         <AdminTd>
                           <LinkTypeToggle
@@ -301,6 +315,9 @@ export function AdminAdsManagePage() {
                   {canReorder && <AdminTh className="w-10">순서</AdminTh>}
                   <AdminTh className="w-12" />
                   <AdminTh>제목</AdminTh>
+                  <AdminTh className="w-16">인증</AdminTh>
+                  <AdminTh className="w-14">점수</AdminTh>
+                  <AdminTh className="w-16">조회율</AdminTh>
                   <AdminTh className="w-16">유형</AdminTh>
                   <AdminTh className="w-20">노출</AdminTh>
                   <AdminTh className="w-40">종료일</AdminTh>
@@ -366,6 +383,15 @@ export function AdminAdsManagePage() {
                           <p className="truncate text-[11px] text-slate-500">{channel.category}</p>
                         </AdminTd>
                         <AdminTd>
+                          {channel.isVerified ? <VerifiedBadge size="sm" /> : <span className="text-[11px] text-slate-400">미인증</span>}
+                        </AdminTd>
+                        <AdminTd>
+                          <span className="text-xs font-semibold text-slate-800">{channel.score ?? '—'}</span>
+                        </AdminTd>
+                        <AdminTd>
+                          <span className="text-xs text-slate-700">{formatPercent(channel.viewRate)}</span>
+                        </AdminTd>
+                        <AdminTd>
                           <LinkTypeToggle
                             value={channel.linkType ?? 'channel'}
                             onChange={(type) => handleUpdateLinkType(channel.id, type)}
@@ -423,6 +449,11 @@ export function AdminAdsManagePage() {
                               <a href={channel.link} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-blue-600 hover:underline">
                                 {channel.link}
                               </a>
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                {channel.isVerified ? <VerifiedBadge size="sm" /> : <span>미인증</span>}
+                                <span>점수 {channel.score ?? '—'}</span>
+                                <span>조회율 {formatPercent(channel.viewRate)}</span>
+                              </div>
                               <AdClientDetail channel={channel} />
                               <ChannelAvatarEditor
                                 key={`${channel.id}-${channel.avatarUrl ?? 'none'}`}

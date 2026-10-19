@@ -27,6 +27,9 @@ export interface Channel {
   submittedBy?: number | null;
   avatarUrl?: string | null;
   avatarApproved?: boolean;
+  isVerified?: boolean;
+  score?: number | null;
+  viewRate?: number | null;
   createdAt: string;
   /** Reporter reward paid in TON */
   rewardTonAmount?: number | null;

@@ -42,7 +42,7 @@ export function CategoryIconPicker({
         typeof err.response.data === 'object' &&
         'message' in err.response.data
           ? String(err.response.data.message)
-          : '이미지 업로드에 실패했습니다. (512KB 이하 PNG/JPG 등)';
+          : '이미지 업로드에 실패했습니다. (512KB 이하 PNG/JPG/WEBP/GIF)';
       setError(message);
     } finally {
       setUploading(false);
@@ -81,7 +81,7 @@ export function CategoryIconPicker({
         <input
           ref={inputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+          accept="image/png,image/jpeg,image/webp,image/gif"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];

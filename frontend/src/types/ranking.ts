@@ -1,4 +1,5 @@
 import type { LinkType } from './channel';
+import type { ChannelBadge, ChannelGrade } from './stats';
 
 export interface RankingChannel {
   id: string;
@@ -11,6 +12,13 @@ export interface RankingChannel {
   category: string;
   linkType: LinkType;
   source?: 'database' | 'telegram' | 'tgstat';
+  score?: number | null;
+  grade?: ChannelGrade | null;
+  viewRate?: number | null;
+  growth7d?: number | null;
+  isVerified?: boolean;
+  badges?: ChannelBadge[];
+  sparkline14?: (number | null)[];
 }
 
 export interface RankingCategoryItem {

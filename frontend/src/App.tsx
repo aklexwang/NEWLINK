@@ -17,11 +17,14 @@ import { AdminManualRegisterPage } from './pages/admin/AdminManualRegisterPage';
 import { AdminPendingPage } from './pages/admin/AdminPendingPage';
 import { AdminTonPaymentsPage } from './pages/admin/AdminTonPaymentsPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { ChannelDetailPage } from './pages/ChannelDetailPage';
+import { ComparePage } from './pages/ComparePage';
 import { HomePage } from './pages/HomePage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { MyPage } from './pages/MyPage';
 import { RankingPage } from './pages/RankingPage';
 import { SubmitPage } from './pages/SubmitPage';
+import { WeeklyPage } from './pages/WeeklyPage';
 
 export default function App() {
   return (
@@ -49,7 +52,10 @@ export default function App() {
                 </Route>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<HomePage />} />
+                  <Route path="/c/:username" element={<ChannelDetailPage />} />
                   <Route path="/ranking" element={<RankingPage />} />
+                  <Route path="/weekly" element={<WeeklyPage />} />
+                  <Route path="/compare" element={<ComparePage />} />
                   <Route path="/search" element={<Navigate to="/" replace />} />
                   <Route path="/favorites" element={<FavoritesPage />} />
                   <Route path="/submit" element={<SubmitPage />} />

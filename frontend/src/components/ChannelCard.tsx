@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Channel } from '../types/channel';
-import { getChannelAvatarSources } from '../utils/channelAvatar';
+import { extractTelegramUsername, getChannelAvatarSources } from '../utils/channelAvatar';
 import { linkTypeBadgeClass, linkTypeLabel } from '../utils/linkType';
 import { CategoryIcon } from './CategoryIcon';
+import { VerifiedBadge } from './VerifiedBadge';
 
 interface ChannelCardProps {
   channel: Channel;
@@ -23,6 +25,8 @@ export function ChannelCard({
   onToggleFavorite,
   showFavorite = true,
 }: ChannelCardProps) {
+  const navigate = useNavigate();
+  const username = extractTelegramUsername(channel.link);
   const promoted = channel.isPromoted;
   const description = (channel.description ?? '').trim();
   const avatarSources = useMemo(
@@ -42,8 +46,18 @@ export function ChannelCard({
     setAvatarFailed(false);
   }, [channel.id, channel.avatarUrl, channel.link, avatarSources]);
 
+  const openDetail = () => {
+    if (username) navigate(`/c/${username}`);
+  };
+
   return (
     <div className="flex items-center gap-3 px-4 py-3">
+      <button
+        type="button"
+        onClick={openDetail}
+        disabled={!username}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
+      >
       {showChannelAvatar ? (
         <img
           src={avatarSrc}
@@ -70,7 +84,10 @@ export function ChannelCard({
       )}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[16px] font-semibold leading-tight text-tg-text">{channel.title}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="min-w-0 truncate text-[16px] font-semibold leading-tight text-tg-text">{channel.title}</p>
+          {channel.isVerified && <VerifiedBadge size="sm" />}
+        </div>
         {description ? (
           <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-tg-hint">{description}</p>
         ) : null}
@@ -85,6 +102,7 @@ export function ChannelCard({
           )}
         </div>
       </div>
+      </button>
 
       <div className="flex shrink-0 items-center gap-2">
         {showFavorite && onToggleFavorite && (
