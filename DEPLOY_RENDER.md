@@ -31,7 +31,7 @@ PC Nest + Cloudflare 터널 대신, Render에 API를 올려 두면 PC를 꺼도 
 
 | 키 | 값 예시 |
 |----|---------|
-| `ADMIN_ACCESS_KEY` | 지금 쓰는 관리자 키 |
+| `ADMIN_ACCESS_KEY` | (.env 참고) |
 | `TELEGRAM_BOT_TOKEN` | BotFather 토큰 |
 | `TELEGRAM_ADMIN_IDS` | 관리자 텔레그램 숫자 ID |
 | `SERPER_API_KEY` | (선택) Serper 키 |
