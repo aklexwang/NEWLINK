@@ -4,7 +4,10 @@ import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { TelegramLoginWidgetDto } from './dto/telegram-login-widget.dto';
 import { TelegramOidcLoginDto } from './dto/telegram-oidc-login.dto';
 import { JwtAuthService } from './jwt-auth.service';
-import { TelegramAuthGuard, type AuthenticatedRequest } from './telegram-auth.guard';
+import {
+  TelegramAuthGuard,
+  type AuthenticatedRequest,
+} from './telegram-auth.guard';
 import { TelegramAuthService } from './telegram-auth.service';
 
 @Controller('auth')
@@ -25,9 +28,8 @@ export class AuthController {
   @Post('telegram')
   async loginWithTelegram(@Body() dto: TelegramAuthDto) {
     const initData = this.telegramAuthService.validateInitData(dto.initData);
-    const { user, isNewUser } = await this.usersService.loginOrRegisterWithTelegram(
-      initData.user,
-    );
+    const { user, isNewUser } =
+      await this.usersService.loginOrRegisterWithTelegram(initData.user);
 
     return {
       accessToken: this.jwtAuthService.sign(user),
@@ -53,7 +55,9 @@ export class AuthController {
   /** 신규 Telegram Login (OIDC id_token) */
   @Post('telegram-oidc')
   async loginWithTelegramOidc(@Body() dto: TelegramOidcLoginDto) {
-    const telegramUser = await this.telegramAuthService.validateOidcIdToken(dto.idToken);
+    const telegramUser = await this.telegramAuthService.validateOidcIdToken(
+      dto.idToken,
+    );
     const { user, isNewUser } =
       await this.usersService.loginOrRegisterWithTelegram(telegramUser);
 

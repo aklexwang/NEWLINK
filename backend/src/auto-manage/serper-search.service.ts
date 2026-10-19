@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   GoogleCseService,
@@ -51,9 +56,15 @@ export class SerperSearchService {
       );
     }
 
-    const query = this.googleCseService.buildQuery(params.topic, params.preset, params.customQuery);
+    const query = this.googleCseService.buildQuery(
+      params.topic,
+      params.preset,
+      params.customQuery,
+    );
     if (!query) {
-      throw new BadRequestException('검색어(주제 또는 커스텀 쿼리)를 입력해 주세요.');
+      throw new BadRequestException(
+        '검색어(주제 또는 커스텀 쿼리)를 입력해 주세요.',
+      );
     }
 
     const pages = Math.min(Math.max(params.pages ?? 1, 1), 5);
@@ -83,7 +94,9 @@ export class SerperSearchService {
     const all = [...byLink.values()];
     const strict = params.strictTopic !== false && params.preset !== 'custom';
     const hits = strict
-      ? all.filter((hit) => this.googleCseService.matchesTopic(hit, params.topic))
+      ? all.filter((hit) =>
+          this.googleCseService.matchesTopic(hit, params.topic),
+        )
       : all;
 
     return {
@@ -99,7 +112,9 @@ export class SerperSearchService {
     query: string,
     page: number,
   ): Promise<{ items: SerperOrganicItem[]; totalResults: number }> {
-    const apiKey = (this.configService.get<string>('SERPER_API_KEY') ?? '').trim();
+    const apiKey = (
+      this.configService.get<string>('SERPER_API_KEY') ?? ''
+    ).trim();
     const response = await fetch('https://google.serper.dev/search', {
       method: 'POST',
       headers: {

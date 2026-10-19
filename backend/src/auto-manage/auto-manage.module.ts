@@ -18,6 +18,11 @@ import { SerperSearchService } from './serper-search.service';
     RankingModule,
   ],
   controllers: [AdminAutoManageController],
-  providers: [AutoManageService, GoogleCseService, SerperSearchService, CategoryAiService],
+  providers: [
+    AutoManageService,
+    GoogleCseService,
+    SerperSearchService,
+    CategoryAiService,
+  ],
 })
 export class AutoManageModule {}

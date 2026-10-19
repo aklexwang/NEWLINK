@@ -1,4 +1,8 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export interface TgstatRankingChannel {
@@ -62,7 +66,10 @@ const TGSTAT_MERGE_MAX = 1000;
 @Injectable()
 export class TgstatService {
   private readonly logger = new Logger(TgstatService.name);
-  private readonly cache = new Map<string, CacheEntry<TgstatRankingChannel[]>>();
+  private readonly cache = new Map<
+    string,
+    CacheEntry<TgstatRankingChannel[]>
+  >();
   private readonly ttlMs = 60 * 60 * 1000;
 
   constructor(private readonly configService: ConfigService) {}
@@ -76,19 +83,25 @@ export class TgstatService {
     return { all: 0 };
   }
 
-  async getRanking(category?: string, limit = 50): Promise<TgstatRankingChannel[]> {
+  async getRanking(
+    category?: string,
+    limit = 50,
+  ): Promise<TgstatRankingChannel[]> {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException('TGStat API is not configured.');
     }
 
-    const maxAllowed = !category || category === 'all' ? TGSTAT_MERGE_MAX : TGSTAT_API_MAX;
+    const maxAllowed =
+      !category || category === 'all' ? TGSTAT_MERGE_MAX : TGSTAT_API_MAX;
     const normalizedLimit = Math.min(Math.max(limit, 1), maxAllowed);
     const cacheKey = `tgstat:${category ?? 'all'}:${normalizedLimit}:ko`;
     const cached = this.getCache(cacheKey);
     if (cached) return cached;
 
     const tgstatCategory =
-      !category || category === 'all' ? undefined : TGSTAT_CATEGORY_MAP[category] ?? category;
+      !category || category === 'all'
+        ? undefined
+        : (TGSTAT_CATEGORY_MAP[category] ?? category);
 
     let items: TgstatRankingChannel[];
     if (!tgstatCategory) {
@@ -107,15 +120,22 @@ export class TgstatService {
     return ranked;
   }
 
-  private async fetchMergedRanking(_limit: number): Promise<TgstatRankingChannel[]> {
+  private async fetchMergedRanking(
+    _limit: number,
+  ): Promise<TgstatRankingChannel[]> {
     const perCategory = TGSTAT_API_MAX;
     const jobs: { code: string; category: string }[] = [
-      ...Object.entries(TGSTAT_CATEGORY_MAP).map(([category, code]) => ({ code, category })),
+      ...Object.entries(TGSTAT_CATEGORY_MAP).map(([category, code]) => ({
+        code,
+        category,
+      })),
       ...EXTRA_TGSTAT_CATEGORIES,
     ];
 
     const batches = await Promise.all(
-      jobs.map(({ code, category }) => this.fetchCategoryRanking(code, category, perCategory)),
+      jobs.map(({ code, category }) =>
+        this.fetchCategoryRanking(code, category, perCategory),
+      ),
     );
 
     const seen = new Set<string>();
@@ -136,8 +156,12 @@ export class TgstatService {
     limit: number,
   ): Promise<TgstatRankingChannel[]> {
     // 한국은 웹 UI에 없어 글로벌 + 한국어 언어 필터 사용
-    const country = (this.configService.get<string>('TGSTAT_COUNTRY') ?? '').trim();
-    const language = (this.configService.get<string>('TGSTAT_LANGUAGE') ?? 'korean').trim();
+    const country = (
+      this.configService.get<string>('TGSTAT_COUNTRY') ?? ''
+    ).trim();
+    const language = (
+      this.configService.get<string>('TGSTAT_LANGUAGE') ?? 'korean'
+    ).trim();
 
     const params: Record<string, string> = {
       language: language || 'korean',
@@ -146,12 +170,20 @@ export class TgstatService {
       peer_type: 'channel',
     };
 
-    if (country && country !== 'global' && country !== 'all' && country !== 'kr') {
+    if (
+      country &&
+      country !== 'global' &&
+      country !== 'all' &&
+      country !== 'kr'
+    ) {
       params.country = country;
     }
 
     try {
-      const data = await this.apiGet<TgstatChannelRaw[]>('channels/search', params);
+      const data = await this.apiGet<TgstatChannelRaw[]>(
+        'channels/search',
+        params,
+      );
       return data.map((item) => this.normalizeChannel(item, displayCategory));
     } catch (error) {
       this.logger.warn(
@@ -163,8 +195,13 @@ export class TgstatService {
     }
   }
 
-  private normalizeChannel(item: TgstatChannelRaw, category: string): TgstatRankingChannel {
-    const link = item.link.startsWith('http') ? item.link : `https://${item.link}`;
+  private normalizeChannel(
+    item: TgstatChannelRaw,
+    category: string,
+  ): TgstatRankingChannel {
+    const link = item.link.startsWith('http')
+      ? item.link
+      : `https://${item.link}`;
     const avatarPath = item.image100 ?? item.image640 ?? null;
 
     return {
@@ -172,7 +209,11 @@ export class TgstatService {
       title: item.title,
       username: item.username ?? null,
       link,
-      avatarUrl: avatarPath ? (avatarPath.startsWith('http') ? avatarPath : `https:${avatarPath}`) : null,
+      avatarUrl: avatarPath
+        ? avatarPath.startsWith('http')
+          ? avatarPath
+          : `https:${avatarPath}`
+        : null,
       participantsCount: item.participants_count ?? 0,
       recommendCount: 0,
       category,
@@ -181,9 +222,13 @@ export class TgstatService {
     };
   }
 
-  private async apiGet<T>(path: string, params: Record<string, string>): Promise<T> {
+  private async apiGet<T>(
+    path: string,
+    params: Record<string, string>,
+  ): Promise<T> {
     const token = this.configService.get<string>('TGSTAT_API_TOKEN');
-    if (!token) throw new ServiceUnavailableException('TGStat API is not configured.');
+    if (!token)
+      throw new ServiceUnavailableException('TGStat API is not configured.');
 
     const url = new URL(`https://api.tgstat.ru/${path}`);
     url.searchParams.set('token', token);
@@ -192,9 +237,15 @@ export class TgstatService {
     }
 
     const res = await fetch(url.toString());
-    const body = (await res.json()) as { status: string; response?: T; error?: string };
+    const body = (await res.json()) as {
+      status: string;
+      response?: T;
+      error?: string;
+    };
     if (body.status !== 'ok' || !body.response) {
-      throw new ServiceUnavailableException(body.error ?? 'TGStat API request failed.');
+      throw new ServiceUnavailableException(
+        body.error ?? 'TGStat API request failed.',
+      );
     }
     return body.response;
   }

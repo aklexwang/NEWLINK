@@ -30,7 +30,10 @@ export class TelegramPreviewService {
 
       const fromBot = await this.fetchViaBotApi(username);
       if (fromBot.avatarUrl) {
-        return { ...fromBot, memberCount: scraped.memberCount ?? fromBot.memberCount };
+        return {
+          ...fromBot,
+          memberCount: scraped.memberCount ?? fromBot.memberCount,
+        };
       }
     }
 
@@ -49,7 +52,8 @@ export class TelegramPreviewService {
     const match = link.match(/t\.me\/([a-zA-Z0-9_]{4,})/i);
     if (!match) return null;
     const name = match[1];
-    if (name.startsWith('+') || name === 's' || name === 'joinchat') return null;
+    if (name.startsWith('+') || name === 's' || name === 'joinchat')
+      return null;
     return name;
   }
 
@@ -74,7 +78,12 @@ export class TelegramPreviewService {
       };
     } catch (error) {
       this.logger.warn(`Failed to scrape ${url}: ${error}`);
-      return { title: null, description: null, avatarUrl: null, memberCount: null };
+      return {
+        title: null,
+        description: null,
+        avatarUrl: null,
+        memberCount: null,
+      };
     }
   }
 
@@ -134,7 +143,12 @@ export class TelegramPreviewService {
   private async fetchViaBotApi(username: string): Promise<TelegramPreview> {
     const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
     if (!token || token.includes('placeholder')) {
-      return { title: null, description: null, avatarUrl: null, memberCount: null };
+      return {
+        title: null,
+        description: null,
+        avatarUrl: null,
+        memberCount: null,
+      };
     }
 
     try {
@@ -151,7 +165,12 @@ export class TelegramPreviewService {
       };
 
       if (!chatData.ok || !chatData.result) {
-        return { title: null, description: null, avatarUrl: null, memberCount: null };
+        return {
+          title: null,
+          description: null,
+          avatarUrl: null,
+          memberCount: null,
+        };
       }
 
       let avatarUrl: string | null = null;
@@ -177,7 +196,12 @@ export class TelegramPreviewService {
       };
     } catch (error) {
       this.logger.warn(`Bot API preview failed for @${username}: ${error}`);
-      return { title: null, description: null, avatarUrl: null, memberCount: null };
+      return {
+        title: null,
+        description: null,
+        avatarUrl: null,
+        memberCount: null,
+      };
     }
   }
 }

@@ -7,7 +7,9 @@ import { CategoriesController } from './categories.controller';
 import { CategoriesService } from './categories.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CategoryEntity, Channel, ChannelImportCandidate])],
+  imports: [
+    TypeOrmModule.forFeature([CategoryEntity, Channel, ChannelImportCandidate]),
+  ],
   controllers: [CategoriesController],
   providers: [CategoriesService],
   exports: [CategoriesService],

@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChannelImportCandidate } from '../auto-manage/channel-import-candidate.entity';
@@ -57,9 +62,13 @@ export class CategoriesService implements OnModuleInit {
   /** 기본 카테고리가 없으면 추가, 있으면 이모지·정렬 동기화 */
   async ensureDefaults() {
     for (const item of DEFAULT_CATEGORIES) {
-      const existing = await this.categoryRepository.findOne({ where: { name: item.name } });
+      const existing = await this.categoryRepository.findOne({
+        where: { name: item.name },
+      });
       if (!existing) {
-        await this.categoryRepository.save(this.categoryRepository.create(item));
+        await this.categoryRepository.save(
+          this.categoryRepository.create(item),
+        );
         continue;
       }
       let dirty = false;
@@ -79,7 +88,9 @@ export class CategoriesService implements OnModuleInit {
     }
 
     for (const name of OBSOLETE_CATEGORIES) {
-      const obsolete = await this.categoryRepository.findOne({ where: { name } });
+      const obsolete = await this.categoryRepository.findOne({
+        where: { name },
+      });
       if (obsolete?.isActive) {
         obsolete.isActive = false;
         await this.categoryRepository.save(obsolete);
@@ -101,7 +112,9 @@ export class CategoriesService implements OnModuleInit {
   }
 
   async create(dto: CreateCategoryDto) {
-    const exists = await this.categoryRepository.findOne({ where: { name: dto.name } });
+    const exists = await this.categoryRepository.findOne({
+      where: { name: dto.name },
+    });
     if (exists) throw new ConflictException('이미 존재하는 카테고리입니다.');
 
     const category = this.categoryRepository.create({
@@ -119,8 +132,11 @@ export class CategoriesService implements OnModuleInit {
 
     if (dto.name && dto.name !== category.name) {
       const nextName = dto.name.trim();
-      if (!nextName) throw new ConflictException('카테고리 이름을 입력해 주세요.');
-      const exists = await this.categoryRepository.findOne({ where: { name: nextName } });
+      if (!nextName)
+        throw new ConflictException('카테고리 이름을 입력해 주세요.');
+      const exists = await this.categoryRepository.findOne({
+        where: { name: nextName },
+      });
       if (exists) throw new ConflictException('이미 존재하는 카테고리입니다.');
       category.name = nextName;
     }
@@ -132,8 +148,14 @@ export class CategoriesService implements OnModuleInit {
     const saved = await this.categoryRepository.save(category);
 
     if (saved.name !== previousName) {
-      await this.channelRepository.update({ category: previousName }, { category: saved.name });
-      await this.candidateRepository.update({ category: previousName }, { category: saved.name });
+      await this.channelRepository.update(
+        { category: previousName },
+        { category: saved.name },
+      );
+      await this.candidateRepository.update(
+        { category: previousName },
+        { category: saved.name },
+      );
       await this.candidateRepository.update(
         { categoryAiSuggested: previousName },
         { categoryAiSuggested: saved.name },

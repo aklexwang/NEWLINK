@@ -1,7 +1,14 @@
-import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { CategoriesService, DEFAULT_CATEGORIES } from '../categories/categories.service';
+import {
+  CategoriesService,
+  DEFAULT_CATEGORIES,
+} from '../categories/categories.service';
 import { ChannelStatus, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { TelegramRankingService } from '../ranking/telegram-ranking.service';
@@ -11,7 +18,10 @@ import {
   ChannelImportCandidate,
   ImportCandidateStatus,
 } from './channel-import-candidate.entity';
-import { GoogleCseService, type GoogleSearchPreset } from './google-cse.service';
+import {
+  GoogleCseService,
+  type GoogleSearchPreset,
+} from './google-cse.service';
 import { SerperSearchService } from './serper-search.service';
 import { isKoreanChannelText } from './korean-channel.filter';
 
@@ -61,7 +71,11 @@ export class AutoManageService {
       googleConfigured,
       serperConfigured,
       searchConfigured,
-      searchProvider: serperConfigured ? 'serper' : googleConfigured ? 'google' : null,
+      searchProvider: serperConfigured
+        ? 'serper'
+        : googleConfigured
+          ? 'google'
+          : null,
       aiConfigured,
       label: searchConfigured
         ? `텔레그램 시드 · TGStat · ${serperConfigured ? 'Serper' : 'Google CSE'} · AI 분류`
@@ -84,7 +98,10 @@ export class AutoManageService {
     const categories = await this.resolveSyncCategories(category);
 
     for (const cat of categories) {
-      const telegramItems = await this.telegramRankingService.getRanking(cat, TELEGRAM_SYNC_LIMIT);
+      const telegramItems = await this.telegramRankingService.getRanking(
+        cat,
+        TELEGRAM_SYNC_LIMIT,
+      );
       items.push(
         ...telegramItems.map((item) => ({
           title: item.title,
@@ -99,7 +116,10 @@ export class AutoManageService {
 
       if (this.tgstatService.isConfigured()) {
         try {
-          const tgstatItems = await this.tgstatService.getRanking(cat, TGSTAT_SYNC_LIMIT);
+          const tgstatItems = await this.tgstatService.getRanking(
+            cat,
+            TGSTAT_SYNC_LIMIT,
+          );
           items.push(
             ...tgstatItems.map((item) => ({
               title: item.title,
@@ -126,7 +146,9 @@ export class AutoManageService {
       if (!isKoreanChannelText(item.title)) {
         skippedNonKorean += 1;
         const link = this.channelsService.normalizeTelegramLink(item.link);
-        const existingCandidate = await this.candidateRepository.findOne({ where: { link } });
+        const existingCandidate = await this.candidateRepository.findOne({
+          where: { link },
+        });
         if (
           existingCandidate &&
           existingCandidate.status === ImportCandidateStatus.PENDING &&
@@ -140,13 +162,16 @@ export class AutoManageService {
 
       const link = this.channelsService.normalizeTelegramLink(item.link);
       const existingChannel = await this.channelsService.findByLink(link);
-      const existingCandidate = await this.candidateRepository.findOne({ where: { link } });
+      const existingCandidate = await this.candidateRepository.findOne({
+        where: { link },
+      });
 
       if (existingChannel?.status === ChannelStatus.ACTIVE) {
         if (existingCandidate) {
           existingCandidate.status = ImportCandidateStatus.PUBLISHED;
           existingCandidate.publishedChannelId = existingChannel.id;
-          existingCandidate.publishedAt = existingCandidate.publishedAt ?? new Date();
+          existingCandidate.publishedAt =
+            existingCandidate.publishedAt ?? new Date();
           await this.candidateRepository.save(existingCandidate);
           updated += 1;
         }
@@ -168,7 +193,8 @@ export class AutoManageService {
       };
 
       if (existingCandidate) {
-        if (existingCandidate.status === ImportCandidateStatus.SKIPPED) continue;
+        if (existingCandidate.status === ImportCandidateStatus.SKIPPED)
+          continue;
         if (existingCandidate.categoryReviewed) {
           const {
             category: _c,
@@ -188,7 +214,9 @@ export class AutoManageService {
         await this.candidateRepository.save(existingCandidate);
         updated += 1;
       } else {
-        await this.candidateRepository.save(this.candidateRepository.create(payload));
+        await this.candidateRepository.save(
+          this.candidateRepository.create(payload),
+        );
         created += 1;
       }
     }
@@ -232,13 +260,16 @@ export class AutoManageService {
     for (const hit of hits) {
       const link = this.channelsService.normalizeTelegramLink(hit.link);
       const existingChannel = await this.channelsService.findByLink(link);
-      const existingCandidate = await this.candidateRepository.findOne({ where: { link } });
+      const existingCandidate = await this.candidateRepository.findOne({
+        where: { link },
+      });
 
       if (existingChannel?.status === ChannelStatus.ACTIVE) {
         if (existingCandidate) {
           existingCandidate.status = ImportCandidateStatus.PUBLISHED;
           existingCandidate.publishedChannelId = existingChannel.id;
-          existingCandidate.publishedAt = existingCandidate.publishedAt ?? new Date();
+          existingCandidate.publishedAt =
+            existingCandidate.publishedAt ?? new Date();
           await this.candidateRepository.save(existingCandidate);
         }
         skippedExisting += 1;
@@ -288,8 +319,14 @@ export class AutoManageService {
         }
         // 관리자가 이미 검수한 항목은 카테고리 덮어쓰지 않음
         if (existingCandidate.categoryReviewed) {
-          const { category: _c, categoryAiSuggested: _a, categoryConfidence: _f, categorySource: _s, categoryReviewed: _r, ...rest } =
-            payload;
+          const {
+            category: _c,
+            categoryAiSuggested: _a,
+            categoryConfidence: _f,
+            categorySource: _s,
+            categoryReviewed: _r,
+            ...rest
+          } = payload;
           Object.assign(existingCandidate, rest);
         } else {
           Object.assign(existingCandidate, payload);
@@ -300,7 +337,9 @@ export class AutoManageService {
         await this.candidateRepository.save(existingCandidate);
         updated += 1;
       } else {
-        await this.candidateRepository.save(this.candidateRepository.create(payload));
+        await this.candidateRepository.save(
+          this.candidateRepository.create(payload),
+        );
         created += 1;
       }
     }
@@ -341,7 +380,9 @@ export class AutoManageService {
   }
 
   async classifyCandidates(ids: string[]) {
-    const candidates = await this.candidateRepository.find({ where: { id: In(ids) } });
+    const candidates = await this.candidateRepository.find({
+      where: { id: In(ids) },
+    });
     return this.runClassify(candidates);
   }
 
@@ -368,7 +409,8 @@ export class AutoManageService {
 
     if (dto.title !== undefined) candidate.title = dto.title.slice(0, 255);
     if (dto.linkType !== undefined) {
-      candidate.linkType = dto.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
+      candidate.linkType =
+        dto.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
     }
     if (dto.category !== undefined) {
       candidate.category = dto.category;
@@ -391,12 +433,18 @@ export class AutoManageService {
 
       let description = '';
       try {
-        const lookup = await this.channelsService.lookupTelegramLink(candidate.link);
+        const lookup = await this.channelsService.lookupTelegramLink(
+          candidate.link,
+        );
         if (lookup.title) candidate.title = lookup.title.slice(0, 255);
         description = lookup.description ?? '';
-        if (lookup.memberCount != null) candidate.participantsCount = Number(lookup.memberCount) || 0;
+        if (lookup.memberCount != null)
+          candidate.participantsCount = Number(lookup.memberCount) || 0;
         if (lookup.avatarUrl) {
-          candidate.avatarUrl = await this.resolveCandidateAvatar(candidate.link, lookup.avatarUrl);
+          candidate.avatarUrl = await this.resolveCandidateAvatar(
+            candidate.link,
+            lookup.avatarUrl,
+          );
         }
       } catch {
         // 미리보기 실패해도 제목만으로 분류
@@ -446,13 +494,19 @@ export class AutoManageService {
     return cleaned;
   }
 
-  async list(filters?: { status?: ImportCandidateStatus; category?: string; source?: string }) {
+  async list(filters?: {
+    status?: ImportCandidateStatus;
+    category?: string;
+    source?: string;
+  }) {
     const qb = this.candidateRepository.createQueryBuilder('candidate');
     if (filters?.status) {
       qb.andWhere('candidate.status = :status', { status: filters.status });
     }
     if (filters?.category) {
-      qb.andWhere('candidate.category = :category', { category: filters.category });
+      qb.andWhere('candidate.category = :category', {
+        category: filters.category,
+      });
     }
     if (filters?.source) {
       qb.andWhere('candidate.source = :source', { source: filters.source });
@@ -479,13 +533,20 @@ export class AutoManageService {
         .createQueryBuilder('candidate')
         .select('candidate.category', 'category')
         .addSelect('COUNT(*)', 'count')
-        .where('candidate.status = :status', { status: ImportCandidateStatus.PENDING })
+        .where('candidate.status = :status', {
+          status: ImportCandidateStatus.PENDING,
+        })
         .groupBy('candidate.category')
         .getRawMany<{ category: string; count: string }>(),
     ]);
 
-    const countMap = Object.fromEntries(counts.map((row) => [row.category, Number(row.count)]));
-    const pendingTotal = counts.reduce((sum, row) => sum + Number(row.count), 0);
+    const countMap = Object.fromEntries(
+      counts.map((row) => [row.category, Number(row.count)]),
+    );
+    const pendingTotal = counts.reduce(
+      (sum, row) => sum + Number(row.count),
+      0,
+    );
 
     return [
       { id: 'all', name: '전체', emoji: '📥', count: pendingTotal },
@@ -501,12 +562,18 @@ export class AutoManageService {
   }
 
   async publish(ids: string[]) {
-    const candidates = await this.candidateRepository.find({ where: { id: In(ids) } });
+    const candidates = await this.candidateRepository.find({
+      where: { id: In(ids) },
+    });
     const results: { id: string; ok: boolean; message?: string }[] = [];
 
     for (const candidate of candidates) {
       if (candidate.status === ImportCandidateStatus.SKIPPED) {
-        results.push({ id: candidate.id, ok: false, message: '제외된 항목입니다.' });
+        results.push({
+          id: candidate.id,
+          ok: false,
+          message: '제외된 항목입니다.',
+        });
         continue;
       }
 
@@ -542,7 +609,9 @@ export class AutoManageService {
   }
 
   async skip(ids: string[]) {
-    await this.candidateRepository.update(ids, { status: ImportCandidateStatus.SKIPPED });
+    await this.candidateRepository.update(ids, {
+      status: ImportCandidateStatus.SKIPPED,
+    });
     return { ok: true, count: ids.length };
   }
 
@@ -562,7 +631,9 @@ export class AutoManageService {
   private dedupeExternal(items: ExternalItem[]): ExternalItem[] {
     const byLink = new Map<string, ExternalItem>();
     for (const item of items) {
-      const key = this.channelsService.normalizeTelegramLink(item.link).toLowerCase();
+      const key = this.channelsService
+        .normalizeTelegramLink(item.link)
+        .toLowerCase();
       const existing = byLink.get(key);
       if (!existing || item.participantsCount > existing.participantsCount) {
         byLink.set(key, item);
@@ -571,7 +642,10 @@ export class AutoManageService {
     return [...byLink.values()];
   }
 
-  private async resolveCandidateAvatar(link: string, avatarUrl: string | null): Promise<string | null> {
+  private async resolveCandidateAvatar(
+    link: string,
+    avatarUrl: string | null,
+  ): Promise<string | null> {
     if (!this.channelsService.isStaleAvatarUrl(avatarUrl)) {
       return avatarUrl;
     }
@@ -589,7 +663,9 @@ export class AutoManageService {
           if (!this.channelsService.isStaleAvatarUrl(item.avatarUrl)) {
             return item;
           }
-          const mirrored = await this.channelsService.mirrorAvatarForLink(item.link);
+          const mirrored = await this.channelsService.mirrorAvatarForLink(
+            item.link,
+          );
           if (mirrored && mirrored !== item.avatarUrl) {
             item.avatarUrl = mirrored;
             return this.candidateRepository.save(item);

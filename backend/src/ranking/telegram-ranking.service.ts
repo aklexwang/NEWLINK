@@ -43,11 +43,16 @@ interface SeedFile {
 @Injectable()
 export class TelegramRankingService {
   private readonly logger = new Logger(TelegramRankingService.name);
-  private readonly cache = new Map<string, CacheEntry<ExternalRankingChannel[]>>();
+  private readonly cache = new Map<
+    string,
+    CacheEntry<ExternalRankingChannel[]>
+  >();
   private readonly ttlMs = 60 * 60 * 1000;
   private seeds: SeedFile | null = null;
 
-  constructor(private readonly telegramPreviewService: TelegramPreviewService) {}
+  constructor(
+    private readonly telegramPreviewService: TelegramPreviewService,
+  ) {}
 
   getCategories(): RankingCategoryItem[] {
     const seedData = this.loadSeeds();
@@ -85,7 +90,10 @@ export class TelegramRankingService {
     return counts;
   }
 
-  async getRanking(category?: string, limit = 50): Promise<ExternalRankingChannel[]> {
+  async getRanking(
+    category?: string,
+    limit = 50,
+  ): Promise<ExternalRankingChannel[]> {
     // 시드 대량 수집용 (자동관리 카테고리별 동기화)
     const normalizedLimit = Math.min(Math.max(limit, 1), 500);
     const cacheKey = `telegram:${category ?? 'all'}:${normalizedLimit}`;
@@ -94,7 +102,9 @@ export class TelegramRankingService {
 
     const seedData = this.loadSeeds();
     const linkCategoryPairs = this.collectLinks(seedData, category);
-    const uniqueLinks = [...new Map(linkCategoryPairs.map((item) => [item.link, item])).values()];
+    const uniqueLinks = [
+      ...new Map(linkCategoryPairs.map((item) => [item.link, item])).values(),
+    ];
 
     const items: ExternalRankingChannel[] = [];
     const batchSize = 4;
@@ -110,7 +120,11 @@ export class TelegramRankingService {
           }
         }),
       );
-      items.push(...batchResults.filter((item): item is ExternalRankingChannel => item !== null));
+      items.push(
+        ...batchResults.filter(
+          (item): item is ExternalRankingChannel => item !== null,
+        ),
+      );
     }
 
     items.sort((a, b) => b.participantsCount - a.participantsCount);
@@ -119,9 +133,13 @@ export class TelegramRankingService {
     return ranked;
   }
 
-  private async buildChannelItem(link: string, category: string): Promise<ExternalRankingChannel | null> {
+  private async buildChannelItem(
+    link: string,
+    category: string,
+  ): Promise<ExternalRankingChannel | null> {
     const normalizedLink = this.normalizeLink(link);
-    const preview = await this.telegramPreviewService.fetchPreview(normalizedLink);
+    const preview =
+      await this.telegramPreviewService.fetchPreview(normalizedLink);
     const participantsCount = this.parseMemberCount(preview.memberCount);
 
     if (!preview.title && participantsCount === 0) return null;

@@ -16,7 +16,9 @@ async function bootstrap() {
   ensureUploadDirs();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/api/uploads/' });
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/api/uploads/',
+  });
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: true,

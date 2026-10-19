@@ -26,13 +26,22 @@ export class TelegramAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const devBypass = this.configService.get('DEV_ADMIN_BYPASS') === 'true';
     const devHeader = request.headers['x-dev-admin'] === 'true';
-    const adminAccessKey = this.configService.get<string>('ADMIN_ACCESS_KEY', '');
-    const accessHeader = request.headers['x-admin-access-key'] as string | undefined;
+    const adminAccessKey = this.configService.get<string>(
+      'ADMIN_ACCESS_KEY',
+      '',
+    );
+    const accessHeader = request.headers['x-admin-access-key'] as
+      | string
+      | undefined;
 
     if (adminAccessKey && accessHeader && accessHeader === adminAccessKey) {
       request.telegramInitData = {
         user: {
-          id: Number(this.configService.get('TELEGRAM_ADMIN_IDS', '123456789').split(',')[0]),
+          id: Number(
+            this.configService
+              .get('TELEGRAM_ADMIN_IDS', '123456789')
+              .split(',')[0],
+          ),
           first_name: 'Admin',
         },
         auth_date: Math.floor(Date.now() / 1000),
@@ -44,7 +53,11 @@ export class TelegramAuthGuard implements CanActivate {
     if (devBypass && devHeader) {
       request.telegramInitData = {
         user: {
-          id: Number(this.configService.get('TELEGRAM_ADMIN_IDS', '123456789').split(',')[0]),
+          id: Number(
+            this.configService
+              .get('TELEGRAM_ADMIN_IDS', '123456789')
+              .split(',')[0],
+          ),
           first_name: 'DevAdmin',
         },
         auth_date: Math.floor(Date.now() / 1000),
@@ -53,7 +66,9 @@ export class TelegramAuthGuard implements CanActivate {
       return true;
     }
 
-    const demoTelegramId = request.headers['x-demo-telegram-id'] as string | undefined;
+    const demoTelegramId = request.headers['x-demo-telegram-id'] as
+      | string
+      | undefined;
     if (devBypass && demoTelegramId && /^\d+$/.test(demoTelegramId)) {
       request.telegramInitData = {
         user: {

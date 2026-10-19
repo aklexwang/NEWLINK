@@ -17,7 +17,9 @@ export class AdminPromotionsController {
   @Get()
   async list(@Query('q') q?: string) {
     const channels = await this.channelsService.findPromotionsAdmin({ q });
-    return Promise.all(channels.map((channel) => this.toPromotionView(channel)));
+    return Promise.all(
+      channels.map((channel) => this.toPromotionView(channel)),
+    );
   }
 
   @Patch('order')
@@ -28,7 +30,9 @@ export class AdminPromotionsController {
 
   private async toPromotionView(channel: Channel) {
     const user = channel.promotionClientTelegramId
-      ? await this.usersService.getReporterOrNull(channel.promotionClientTelegramId)
+      ? await this.usersService.getReporterOrNull(
+          channel.promotionClientTelegramId,
+        )
       : null;
 
     return {

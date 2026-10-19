@@ -32,7 +32,9 @@ export class UsersService {
 
   assertNotBlocked(user: User | null | undefined) {
     if (user?.isBlocked) {
-      throw new ForbiddenException('차단된 회원입니다. 관리자에게 문의해 주세요.');
+      throw new ForbiddenException(
+        '차단된 회원입니다. 관리자에게 문의해 주세요.',
+      );
     }
   }
 
@@ -67,7 +69,6 @@ export class UsersService {
       isNewUser: true,
     };
   }
-
 
   async syncFromTelegram(telegramUser: TelegramUser): Promise<User> {
     let user = await this.userRepository.findOne({
@@ -105,7 +106,10 @@ export class UsersService {
     return user;
   }
 
-  async register(telegramUser: TelegramUser, dto: RegisterUserDto): Promise<User> {
+  async register(
+    telegramUser: TelegramUser,
+    dto: RegisterUserDto,
+  ): Promise<User> {
     const user = await this.syncFromTelegram(telegramUser);
     this.assertNotBlocked(user);
     user.tonWalletAddress = dto.tonWalletAddress.trim();
@@ -145,7 +149,9 @@ export class UsersService {
   async requireRegistered(telegramUser: TelegramUser): Promise<User> {
     const user = await this.getMe(telegramUser);
     if (!user.isRegistered || !user.tonWalletAddress) {
-      throw new BadRequestException('Registration with TON wallet is required.');
+      throw new BadRequestException(
+        'Registration with TON wallet is required.',
+      );
     }
     return user;
   }
@@ -169,7 +175,9 @@ export class UsersService {
     return { ok: true, telegramId, isBlocked };
   }
 
-  async deleteByTelegramId(telegramId: number): Promise<{ ok: true; telegramId: number }> {
+  async deleteByTelegramId(
+    telegramId: number,
+  ): Promise<{ ok: true; telegramId: number }> {
     const user = await this.findByTelegramId(telegramId);
     if (!user) {
       throw new NotFoundException('회원을 찾을 수 없습니다.');

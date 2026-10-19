@@ -17,12 +17,16 @@ export class TelegramAdminNotifyService {
   constructor(private readonly configService: ConfigService) {}
 
   async notifyNewSubmission(payload: AdminSubmitAlertPayload): Promise<void> {
-    const token = (this.configService.get<string>('TELEGRAM_BOT_TOKEN') ?? '').trim();
+    const token = (
+      this.configService.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
+    ).trim();
     if (!token || token.includes('placeholder') || token.includes('your_bot')) {
       return;
     }
 
-    const adminIds = (this.configService.get<string>('TELEGRAM_ADMIN_IDS') ?? '')
+    const adminIds = (
+      this.configService.get<string>('TELEGRAM_ADMIN_IDS') ?? ''
+    )
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean);
@@ -30,7 +34,8 @@ export class TelegramAdminNotifyService {
     if (adminIds.length === 0) return;
 
     const typeLabel = payload.linkType === 'group' ? '그룹' : '채널';
-    const reporter = payload.reporterLabel?.trim() || `ID ${payload.submittedBy}`;
+    const reporter =
+      payload.reporterLabel?.trim() || `ID ${payload.submittedBy}`;
     const text = [
       '🆕 <b>새 제보 · 승인 대기</b>',
       '',
@@ -46,19 +51,24 @@ export class TelegramAdminNotifyService {
     await Promise.all(
       adminIds.map(async (chatId) => {
         try {
-          const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text,
-              parse_mode: 'HTML',
-              disable_web_page_preview: true,
-            }),
-          });
+          const res = await fetch(
+            `https://api.telegram.org/bot${token}/sendMessage`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text,
+                parse_mode: 'HTML',
+                disable_web_page_preview: true,
+              }),
+            },
+          );
           if (!res.ok) {
             const body = await res.text();
-            this.logger.warn(`admin notify failed (${chatId}): ${res.status} ${body}`);
+            this.logger.warn(
+              `admin notify failed (${chatId}): ${res.status} ${body}`,
+            );
           }
         } catch (error) {
           this.logger.warn(

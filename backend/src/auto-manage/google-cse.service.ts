@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export type GoogleSearchPreset =
@@ -58,12 +63,20 @@ export class GoogleCseService {
   constructor(private readonly configService: ConfigService) {}
 
   isConfigured(): boolean {
-    const key = (this.configService.get<string>('GOOGLE_CSE_API_KEY') ?? '').trim();
+    const key = (
+      this.configService.get<string>('GOOGLE_CSE_API_KEY') ?? ''
+    ).trim();
     const cx = (this.configService.get<string>('GOOGLE_CSE_CX') ?? '').trim();
-    return Boolean(key && cx && !key.includes('placeholder') && !cx.includes('placeholder'));
+    return Boolean(
+      key && cx && !key.includes('placeholder') && !cx.includes('placeholder'),
+    );
   }
 
-  buildQuery(topic: string, preset: GoogleSearchPreset, customQuery?: string): string {
+  buildQuery(
+    topic: string,
+    preset: GoogleSearchPreset,
+    customQuery?: string,
+  ): string {
     const t = topic.trim();
     switch (preset) {
       case 'groups':
@@ -100,9 +113,15 @@ export class GoogleCseService {
       );
     }
 
-    const query = this.buildQuery(params.topic, params.preset, params.customQuery);
+    const query = this.buildQuery(
+      params.topic,
+      params.preset,
+      params.customQuery,
+    );
     if (!query) {
-      throw new BadRequestException('검색어(주제 또는 커스텀 쿼리)를 입력해 주세요.');
+      throw new BadRequestException(
+        '검색어(주제 또는 커스텀 쿼리)를 입력해 주세요.',
+      );
     }
 
     const pages = Math.min(Math.max(params.pages ?? 1, 1), 5);
@@ -132,7 +151,9 @@ export class GoogleCseService {
 
     const all = [...byLink.values()];
     const strict = params.strictTopic !== false && params.preset !== 'custom';
-    const hits = strict ? all.filter((hit) => this.matchesTopic(hit, params.topic)) : all;
+    const hits = strict
+      ? all.filter((hit) => this.matchesTopic(hit, params.topic))
+      : all;
 
     return {
       query,
@@ -161,7 +182,11 @@ export class GoogleCseService {
       const key = hit.link.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      hits.push({ ...hit, title: this.cleanTitle(result.title, hit) || hit.title, snippet });
+      hits.push({
+        ...hit,
+        title: this.cleanTitle(result.title, hit) || hit.title,
+        snippet,
+      });
     }
 
     const secondaryText = [result.title, result.snippet, result.extraText]
@@ -181,7 +206,9 @@ export class GoogleCseService {
   matchesTopic(hit: GoogleCseHit, topic: string): boolean {
     const tokens = this.topicTokens(topic);
     if (tokens.length === 0) return true;
-    const haystack = this.normalizeForMatch([hit.link, hit.title, hit.snippet].join(' '));
+    const haystack = this.normalizeForMatch(
+      [hit.link, hit.title, hit.snippet].join(' '),
+    );
     return tokens.every((token) => haystack.includes(token));
   }
 
@@ -238,7 +265,7 @@ export class GoogleCseService {
 
   private cleanTitle(raw: string | undefined, hit: GoogleCseHit): string {
     if (!raw?.trim()) return '';
-    let title = raw
+    const title = raw
       .replace(/https?:\/\/\S+/gi, '')
       .replace(/\s*[-|–—]\s*Telegram.*$/i, '')
       .replace(/\s+/g, ' ')
@@ -251,7 +278,9 @@ export class GoogleCseService {
     query: string,
     start: number,
   ): Promise<{ items: GoogleCseItem[]; totalResults: number }> {
-    const key = (this.configService.get<string>('GOOGLE_CSE_API_KEY') ?? '').trim();
+    const key = (
+      this.configService.get<string>('GOOGLE_CSE_API_KEY') ?? ''
+    ).trim();
     const cx = (this.configService.get<string>('GOOGLE_CSE_CX') ?? '').trim();
     const url = new URL('https://www.googleapis.com/customsearch/v1');
     url.searchParams.set('key', key);
@@ -264,7 +293,8 @@ export class GoogleCseService {
     const data = (await response.json()) as GoogleCseResponse;
 
     if (!response.ok) {
-      const message = data.error?.message ?? `Google CSE HTTP ${response.status}`;
+      const message =
+        data.error?.message ?? `Google CSE HTTP ${response.status}`;
       this.logger.warn(`CSE 실패: ${message}`);
       throw new ServiceUnavailableException(message);
     }

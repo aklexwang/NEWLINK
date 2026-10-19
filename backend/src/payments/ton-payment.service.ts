@@ -50,18 +50,20 @@ export class TonPaymentService {
   }
 
   async create(input: CreateTonPaymentInput): Promise<TonPayment> {
-    const channel = await this.channelRepository.findOne({ where: { id: input.channelId } });
+    const channel = await this.channelRepository.findOne({
+      where: { id: input.channelId },
+    });
     if (!channel && !input.channelTitle) {
       throw new NotFoundException('Channel not found');
     }
 
     let reporterName = input.reporterName ?? null;
-    let telegramId = input.telegramId ?? channel?.submittedBy ?? null;
+    const telegramId = input.telegramId ?? channel?.submittedBy ?? null;
     if (!reporterName && telegramId) {
       const reporter = await this.usersService.getReporterOrNull(telegramId);
       reporterName = reporter?.username
         ? `@${reporter.username}`
-        : reporter?.firstName ?? null;
+        : (reporter?.firstName ?? null);
     }
 
     const row = this.tonPaymentRepository.create({

@@ -29,27 +29,59 @@ const KEYWORD_RULES: { category: string; patterns: RegExp[] }[] = [
   },
   {
     category: '카지노',
-    patterns: [/카지노|바카라|슬롯|토토|스포츠토토|배팅|도박|\b(casino|baccarat|betting)\b/i],
+    patterns: [
+      /카지노|바카라|슬롯|토토|스포츠토토|배팅|도박|\b(casino|baccarat|betting)\b/i,
+    ],
   },
-  { category: '암호화폐', patterns: [/crypto|bitcoin|\bbtc\b|\beth\b|nft|디파이|코인|암호화폐|블록체인|\bton\b|USDT/i] },
-  { category: '뉴스', patterns: [/news|뉴스|속보|언론|신문|뉴스타파|헤드라인/i] },
-  { category: '경제', patterns: [/경제|주식|증권|투자|펀드|환율|finance|\bstock\b|trading|재테크/i] },
-  { category: '쇼핑', patterns: [/쇼핑|할인|공구|핫딜|shopping|\bdeal\b|쿠폰|특가|알리미/i] },
-  { category: '교육', patterns: [/교육|강의|공부|학습|입시|토익|\bpython\b|프로그래밍|공부방/i] },
+  {
+    category: '암호화폐',
+    patterns: [
+      /crypto|bitcoin|\bbtc\b|\beth\b|nft|디파이|코인|암호화폐|블록체인|\bton\b|USDT/i,
+    ],
+  },
+  {
+    category: '뉴스',
+    patterns: [/news|뉴스|속보|언론|신문|뉴스타파|헤드라인/i],
+  },
+  {
+    category: '경제',
+    patterns: [
+      /경제|주식|증권|투자|펀드|환율|finance|\bstock\b|trading|재테크/i,
+    ],
+  },
+  {
+    category: '쇼핑',
+    patterns: [/쇼핑|할인|공구|핫딜|shopping|\bdeal\b|쿠폰|특가|알리미/i],
+  },
+  {
+    category: '교육',
+    patterns: [/교육|강의|공부|학습|입시|토익|\bpython\b|프로그래밍|공부방/i],
+  },
   // IT/AI/tech는 단어 경계 필수 — available·site·invite 등 영문 스니펫 오탐 방지
   {
     category: '기술',
-    patterns: [/기술|개발|코딩|소프트웨어|개발자|프로그래밍|\b(IT|AI|tech|developer|software)\b/i],
+    patterns: [
+      /기술|개발|코딩|소프트웨어|개발자|프로그래밍|\b(IT|AI|tech|developer|software)\b/i,
+    ],
   },
   { category: '게임', patterns: [/게임|\bgame\b|e-?sport|롤|배그|스팀/i] },
-  { category: '스포츠', patterns: [/스포츠|축구|야구|농구|\b(sport|football|soccer)\b/i] },
+  {
+    category: '스포츠',
+    patterns: [/스포츠|축구|야구|농구|\b(sport|football|soccer)\b/i],
+  },
   { category: '음악', patterns: [/음악|music|playlist|노래|케이팝|k-?pop/i] },
-  { category: '엔터테인먼트', patterns: [/연예|예능|영화|드라마|유머|meme|entertainment|웹툰|만화/i] },
+  {
+    category: '엔터테인먼트',
+    patterns: [/연예|예능|영화|드라마|유머|meme|entertainment|웹툰|만화/i],
+  },
   { category: '여행', patterns: [/여행|관광|항공|호텔|travel|tour/i] },
   { category: '맛집', patterns: [/맛집|음식|요리|카페|food|restaurant/i] },
   { category: '건강', patterns: [/건강|운동|다이어트|헬스|fitness|health/i] },
   { category: '부동산', patterns: [/부동산|아파트|전세|매매|real\s*estate/i] },
-  { category: '구인구직', patterns: [/채용|구인|구직|알바|취업|\b(job|career|hiring)\b/i] },
+  {
+    category: '구인구직',
+    patterns: [/채용|구인|구직|알바|취업|\b(job|career|hiring)\b/i],
+  },
   { category: '커뮤니티', patterns: [/커뮤니티|모임|동호회|박제|블랙리스트/i] },
 ];
 
@@ -68,9 +100,13 @@ export class CategoryAiService {
     return DEFAULT_CATEGORIES.map((item) => item.name);
   }
 
-  async classify(input: CategoryClassifyInput): Promise<CategoryClassifyResult> {
+  async classify(
+    input: CategoryClassifyInput,
+  ): Promise<CategoryClassifyResult> {
     const allowed =
-      input.allowedCategories.length > 0 ? input.allowedCategories : this.defaultCategoryNames();
+      input.allowedCategories.length > 0
+        ? input.allowedCategories
+        : this.defaultCategoryNames();
     const fallback = this.classifyByKeywords(input, allowed);
 
     if (!this.isConfigured()) {
@@ -95,15 +131,22 @@ export class CategoryAiService {
     input: CategoryClassifyInput,
     allowedCategories: string[],
   ): CategoryClassifyResult {
-    const titleText = [input.title, input.description].filter(Boolean).join(' \n ');
-    const fullText = [input.title, input.description, input.snippet, input.topicHint]
+    const titleText = [input.title, input.description]
+      .filter(Boolean)
+      .join(' \n ');
+    const fullText = [
+      input.title,
+      input.description,
+      input.snippet,
+      input.topicHint,
+    ]
       .filter(Boolean)
       .join(' \n ');
     const topic = (input.topicHint ?? '').trim();
 
     let bestCategory = allowedCategories.includes('기타')
       ? '기타'
-      : allowedCategories[0] ?? '기타';
+      : (allowedCategories[0] ?? '기타');
     let bestScore = 0;
 
     for (const rule of KEYWORD_RULES) {
@@ -128,7 +171,12 @@ export class CategoryAiService {
     }
 
     if (bestScore <= 0) {
-      return { category: bestCategory, confidence: 0.2, source: 'fallback', reason: 'default' };
+      return {
+        category: bestCategory,
+        confidence: 0.2,
+        source: 'fallback',
+        reason: 'default',
+      };
     }
 
     return {
@@ -143,11 +191,16 @@ export class CategoryAiService {
     input: CategoryClassifyInput,
     allowedCategories: string[],
   ): Promise<CategoryClassifyResult | null> {
-    const apiKey = (this.configService.get<string>('OPENAI_API_KEY') ?? '').trim();
+    const apiKey = (
+      this.configService.get<string>('OPENAI_API_KEY') ?? ''
+    ).trim();
     const model =
-      (this.configService.get<string>('OPENAI_MODEL') ?? 'gpt-4o-mini').trim() || 'gpt-4o-mini';
+      (
+        this.configService.get<string>('OPENAI_MODEL') ?? 'gpt-4o-mini'
+      ).trim() || 'gpt-4o-mini';
     const baseUrl = (
-      this.configService.get<string>('OPENAI_BASE_URL') ?? 'https://api.openai.com/v1'
+      this.configService.get<string>('OPENAI_BASE_URL') ??
+      'https://api.openai.com/v1'
     ).replace(/\/$/, '');
 
     const system = [

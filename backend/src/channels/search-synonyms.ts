@@ -67,7 +67,11 @@ export function expandSearchKeywords(query: string): string[] {
 
   for (const group of SYNONYM_GROUPS) {
     const normalizedGroup = group.map(normalizeTerm);
-    if (normalizedGroup.some((term) => raw === term || raw.includes(term) || term.includes(raw))) {
+    if (
+      normalizedGroup.some(
+        (term) => raw === term || raw.includes(term) || term.includes(raw),
+      )
+    ) {
       for (const term of normalizedGroup) {
         if (term) expanded.add(term);
       }

@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import {
@@ -26,7 +35,9 @@ export class AdminAutoManageController {
 
   @Post('sync')
   sync(@Query('category') category?: string) {
-    return this.autoManageService.sync(category && category !== 'all' ? category : undefined);
+    return this.autoManageService.sync(
+      category && category !== 'all' ? category : undefined,
+    );
   }
 
   @Post('google-search')
@@ -52,7 +63,10 @@ export class AdminAutoManageController {
   }
 
   @Patch('candidates/:id')
-  updateCandidate(@Param('id') id: string, @Body() dto: UpdateImportCandidateDto) {
+  updateCandidate(
+    @Param('id') id: string,
+    @Body() dto: UpdateImportCandidateDto,
+  ) {
     return this.autoManageService.updateCandidate(id, dto);
   }
 

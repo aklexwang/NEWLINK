@@ -18,13 +18,17 @@ export class TelegramAvatarService {
   private readonly logger = new Logger(TelegramAvatarService.name);
   private readonly cache = new Map<string, CachedAvatar>();
 
-  constructor(private readonly telegramPreviewService: TelegramPreviewService) {}
+  constructor(
+    private readonly telegramPreviewService: TelegramPreviewService,
+  ) {}
 
   async fetchAvatarImage(params: {
     link?: string;
     username?: string;
   }): Promise<{ buffer: Buffer; contentType: string } | null> {
-    const cacheKey = (params.link || params.username || '').trim().toLowerCase();
+    const cacheKey = (params.link || params.username || '')
+      .trim()
+      .toLowerCase();
     if (!cacheKey) return null;
 
     const cached = this.cache.get(cacheKey);
@@ -48,12 +52,17 @@ export class TelegramAvatarService {
   }): Promise<string | null> {
     const link =
       params.link?.trim() ||
-      (params.username ? `https://t.me/${params.username.replace(/^@/, '')}` : '');
+      (params.username
+        ? `https://t.me/${params.username.replace(/^@/, '')}`
+        : '');
     if (!link) return null;
 
     try {
       const preview = await this.telegramPreviewService.fetchPreview(link);
-      if (preview.avatarUrl && !/telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)) {
+      if (
+        preview.avatarUrl &&
+        !/telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)
+      ) {
         return preview.avatarUrl;
       }
     } catch (error) {
@@ -66,7 +75,12 @@ export class TelegramAvatarService {
       params.username?.replace(/^@/, '') ||
       link.match(/t\.me\/([a-zA-Z0-9_]{4,})/i)?.[1] ||
       null;
-    if (!username || username === 'joinchat' || username === 's' || username.startsWith('+')) {
+    if (
+      !username ||
+      username === 'joinchat' ||
+      username === 's' ||
+      username.startsWith('+')
+    ) {
       return null;
     }
     return `https://t.me/i/userpic/320/${username}.jpg`;
@@ -77,7 +91,10 @@ export class TelegramAvatarService {
   ): Promise<{ buffer: Buffer; contentType: string } | null> {
     try {
       const parsed = new URL(sourceUrl);
-      if (!ALLOWED_HOST_RE.test(parsed.hostname) && !parsed.hostname.endsWith('t.me')) {
+      if (
+        !ALLOWED_HOST_RE.test(parsed.hostname) &&
+        !parsed.hostname.endsWith('t.me')
+      ) {
         this.logger.warn(`blocked avatar host: ${parsed.hostname}`);
         return null;
       }
@@ -101,7 +118,10 @@ export class TelegramAvatarService {
         return null;
       }
 
-      return { buffer, contentType: contentType.split(';')[0].trim() || 'image/jpeg' };
+      return {
+        buffer,
+        contentType: contentType.split(';')[0].trim() || 'image/jpeg',
+      };
     } catch (error) {
       this.logger.warn(
         `download failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -110,7 +130,10 @@ export class TelegramAvatarService {
     }
   }
 
-  private putCache(key: string, value: { buffer: Buffer; contentType: string }) {
+  private putCache(
+    key: string,
+    value: { buffer: Buffer; contentType: string },
+  ) {
     if (this.cache.size >= MAX_CACHE_ENTRIES) {
       const first = this.cache.keys().next().value;
       if (first) this.cache.delete(first);

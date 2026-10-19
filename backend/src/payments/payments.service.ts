@@ -40,7 +40,9 @@ export class PaymentsService {
     const channel = await this.channelsService.findById(dto.channelId);
 
     if (channel.status !== 'active') {
-      throw new BadRequestException('승인된 채널만 상단 노출 결제가 가능합니다.');
+      throw new BadRequestException(
+        '승인된 채널만 상단 노출 결제가 가능합니다.',
+      );
     }
 
     const payload: PromotionInvoicePayload = {
