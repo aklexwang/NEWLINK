@@ -1,0 +1,58 @@
+name: stats-cron
+
+on:
+  schedule:
+    # UTC 18:05 = KST 03:05 (Render Free 기동 여유)
+    - cron: '5 18 * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    steps:
+      - name: POST /api/internal/stats/run 후 완료까지 대기
+        env:
+          NEWLINK_API_URL: ${{ secrets.NEWLINK_API_URL }}
+          INTERNAL_CRON_TOKEN: ${{ secrets.INTERNAL_CRON_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEWLINK_API_URL}" ] || [ -z "${INTERNAL_CRON_TOKEN}" ]; then
+            echo "NEWLINK_API_URL 또는 INTERNAL_CRON_TOKEN 시크릿이 없습니다."
+            exit 1
+          fi
+          BASE="${NEWLINK_API_URL%/}"
+          HEADER="X-Internal-Token: ${INTERNAL_CRON_TOKEN}"
+
+          curl -fsS --retry 3 --retry-delay 10 --max-time 120 -X POST \
+            -H "${HEADER}" \
+            "${BASE}/api/internal/stats/run"
+
+          MAX_MINUTES=100
+          INTERVAL=300
+          ELAPSED=0
+          STATUS_JSON=""
+
+          while true; do
+            sleep "${INTERVAL}"
+            ELAPSED=$((ELAPSED + 5))
+            STATUS_JSON="$(curl -fsS --retry 3 --retry-delay 10 --max-time 60 \
+              -H "${HEADER}" \
+              "${BASE}/api/internal/stats/status")"
+            echo "elapsed=${ELAPSED}m status=${STATUS_JSON}"
+
+            RUNNING="$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1]).get("running")).lower())' "${STATUS_JSON}")"
+            if [ "${RUNNING}" = "false" ]; then
+              break
+            fi
+            if [ "${ELAPSED}" -ge "${MAX_MINUTES}" ]; then
+              echo "수집이 ${MAX_MINUTES}분 안에 끝나지 않았습니다."
+              exit 1
+            fi
+          done
+
+          python3 -c '
+          import json, sys
+          s = json.loads(sys.argv[1])
+          print("processed=%s total=%s failed=%s" % (s.get("processed"), s.get("total"), s.get("failed")))
+          ' "${STATUS_JSON}"
