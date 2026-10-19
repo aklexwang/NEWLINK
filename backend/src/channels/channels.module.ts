@@ -10,16 +10,32 @@ import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.serv
 import { TelegramAvatarController } from './telegram-avatar.controller';
 import { TelegramAvatarService } from './telegram-avatar.service';
 import { TelegramPreviewService } from './telegram-preview.service';
+import { ChannelVerifyService } from './channel-verify.service';
+import { ChannelEvent } from '../stats/channel-event.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Channel, ChannelRecommendation, ChannelFavorite]), UsersModule],
+  imports: [
+    TypeOrmModule.forFeature([
+      Channel,
+      ChannelRecommendation,
+      ChannelFavorite,
+      ChannelEvent,
+    ]),
+    UsersModule,
+  ],
   controllers: [ChannelsController, TelegramAvatarController],
   providers: [
     ChannelsService,
     TelegramPreviewService,
     TelegramAvatarService,
     TelegramAdminNotifyService,
+    ChannelVerifyService,
   ],
-  exports: [ChannelsService, TelegramPreviewService, TelegramAvatarService],
+  exports: [
+    ChannelsService,
+    TelegramPreviewService,
+    TelegramAvatarService,
+    ChannelVerifyService,
+  ],
 })
 export class ChannelsModule {}

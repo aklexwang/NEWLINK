@@ -27,8 +27,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PUBLIC_SITE_URL
+        value: https://global-spay.com
       - key: TYPEORM_SYNC
-        value: "true"
+        value: "false"
       # Blueprint 내부 URL (실패 시 대시보드에서 External URL로 덮어쓰기)
       - key: DATABASE_URL
         fromDatabase:
@@ -62,3 +64,8 @@ services:
         sync: false
       - key: TGSTAT_LANGUAGE
         value: korean
+      # Render Free는 잠들어서 프로세스 크론이 안 돕니다. GitHub Actions가 깨웁니다.
+      - key: STATS_CRON_ENABLED
+        value: "false"
+      - key: INTERNAL_CRON_TOKEN
+        sync: false

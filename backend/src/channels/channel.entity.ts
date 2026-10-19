@@ -5,9 +5,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import {
-  bigintNumberTransformer,
-} from '../common/bigint-transformer';
+import { bigintNumberTransformer } from '../common/bigint-transformer';
+import { dateTimeColumnType } from '../common/db-types';
 
 export enum ChannelStatus {
   PENDING = 'pending',
@@ -20,6 +19,10 @@ export enum LinkType {
   GROUP = 'group',
 }
 
+export type ChannelCollectStatus = 'ok' | 'failed' | 'gone' | 'private';
+
+export type ChannelListGrade = 'S' | 'A' | 'B' | 'C' | 'D';
+
 @Entity('channels')
 export class Channel {
   @PrimaryGeneratedColumn('uuid')
@@ -31,7 +34,12 @@ export class Channel {
   @Column({ length: 512 })
   link: string;
 
-  @Column({ name: 'link_type', type: 'varchar', length: 20, default: LinkType.CHANNEL })
+  @Column({
+    name: 'link_type',
+    type: 'varchar',
+    length: 20,
+    default: LinkType.CHANNEL,
+  })
   linkType: LinkType;
 
   @Column({ length: 100 })
@@ -49,7 +57,11 @@ export class Channel {
   @Column({ name: 'is_promoted', default: false })
   isPromoted: boolean;
 
-  @Column({ name: 'promoted_until', type: 'timestamptz', nullable: true })
+  @Column({
+    name: 'promoted_until',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
   promotedUntil: Date | null;
 
   @Column({
@@ -60,7 +72,12 @@ export class Channel {
   })
   promotionClientTelegramId: number | null;
 
-  @Column({ name: 'promotion_client_name', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'promotion_client_name',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   promotionClientName: string | null;
 
   @Column({ name: 'promotion_ton_amount', type: 'real', nullable: true })
@@ -86,6 +103,85 @@ export class Channel {
   @Column({ name: 'member_count', type: 'integer', nullable: true })
   memberCount: number | null;
 
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  username: string | null;
+
+  @Column({
+    name: 'telegram_chat_id',
+    type: 'bigint',
+    nullable: true,
+    transformer: bigintNumberTransformer,
+  })
+  telegramChatId: number | null;
+
+  @Column({
+    name: 'first_observed_at',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
+  firstObservedAt: Date | null;
+
+  @Column({
+    name: 'last_collected_at',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
+  lastCollectedAt: Date | null;
+
+  @Column({
+    name: 'collect_status',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  collectStatus: ChannelCollectStatus | null;
+
+  @Column({ name: 'collect_fail_count', type: 'integer', default: 0 })
+  collectFailCount: number;
+
+  /** 목록용 최신 점수 캐시 */
+  @Column({ type: 'integer', nullable: true })
+  score: number | null;
+
+  @Column({ type: 'varchar', length: 1, nullable: true })
+  grade: ChannelListGrade | null;
+
+  @Column({ name: 'view_rate', type: 'real', nullable: true })
+  viewRate: number | null;
+
+  @Column({ name: 'growth_24h', type: 'real', nullable: true })
+  growth24h: number | null;
+
+  @Column({ name: 'growth_7d', type: 'real', nullable: true })
+  growth7d: number | null;
+
+  @Column({ name: 'growth_30d', type: 'real', nullable: true })
+  growth30d: number | null;
+
+  @Column({ name: 'median_views_7d', type: 'integer', nullable: true })
+  medianViews7d: number | null;
+
+  @Column({ name: 'posts_7d', type: 'integer', nullable: true })
+  posts7d: number | null;
+
+  @Column({ name: 'observed_days', type: 'integer', nullable: true })
+  observedDays: number | null;
+
+  /** 봇으로 확인한 채널/그룹 운영자 인증 */
+  @Column({ name: 'is_verified', default: false })
+  isVerified: boolean;
+
+  @Column({ name: 'verified_at', type: dateTimeColumnType(), nullable: true })
+  verifiedAt: Date | null;
+
+  @Column({
+    name: 'verified_owner_telegram_id',
+    type: 'bigint',
+    nullable: true,
+    transformer: bigintNumberTransformer,
+  })
+  verifiedOwnerTelegramId: number | null;
+
   /** Reporter reward: TON amount paid */
   @Column({ name: 'reward_ton_amount', type: 'real', nullable: true })
   rewardTonAmount: number | null;
@@ -98,15 +194,24 @@ export class Channel {
   @Column({ name: 'reward_ton_usd_rate', type: 'real', nullable: true })
   rewardTonUsdRate: number | null;
 
-  @Column({ name: 'reward_paid_at', type: 'timestamptz', nullable: true })
+  @Column({
+    name: 'reward_paid_at',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
   rewardPaidAt: Date | null;
 
-  @Column({ name: 'reward_wallet', type: 'varchar', length: 128, nullable: true })
+  @Column({
+    name: 'reward_wallet',
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+  })
   rewardWallet: string | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: dateTimeColumnType() })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: dateTimeColumnType() })
   updatedAt: Date;
 }

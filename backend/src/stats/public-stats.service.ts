@@ -1,0 +1,539 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
+import { Channel, ChannelStatus } from '../channels/channel.entity';
+import { ChannelsService } from '../channels/channels.service';
+import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
+import {
+  buildChannelBadges,
+  RISING_MIN_MEMBERS,
+  type ChannelBadge,
+} from './channel-badges';
+import { ChannelEvent, ChannelEventType } from './channel-event.entity';
+import {
+  addKstDays,
+  DATA_SHORT_DAYS,
+  formatKstYmd,
+} from './channel-metrics.math';
+import { ChannelPost } from './channel-post.entity';
+import { ChannelScore } from './channel-score.entity';
+import { ChannelSnapshot } from './channel-snapshot.entity';
+import type {
+  RankingQueryDto,
+  RankingSort,
+  StatsRange,
+} from './dto/public-stats.dto';
+import { parseCompareIds } from './dto/public-stats.dto';
+import {
+  formatIsoWeek,
+  isoWeekRangeKst,
+  parseIsoWeek,
+  previousIsoWeek,
+} from './kst-week';
+
+const WEEKLY_EVENT_TYPES: ChannelEventType[] = [
+  'title_changed',
+  'username_changed',
+  'first_seen',
+  'rank_up',
+];
+
+@Injectable()
+export class PublicStatsService {
+  constructor(
+    @InjectRepository(Channel)
+    private readonly channelRepository: Repository<Channel>,
+    @InjectRepository(ChannelScore)
+    private readonly scoreRepository: Repository<ChannelScore>,
+    @InjectRepository(ChannelSnapshot)
+    private readonly snapshotRepository: Repository<ChannelSnapshot>,
+    @InjectRepository(ChannelPost)
+    private readonly postRepository: Repository<ChannelPost>,
+    @InjectRepository(ChannelEvent)
+    private readonly eventRepository: Repository<ChannelEvent>,
+    private readonly channelsService: ChannelsService,
+  ) {}
+
+  async getDetailByUsername(usernameRaw: string) {
+    const username = usernameRaw.replace(/^@/, '').trim().toLowerCase();
+    if (!username) {
+      throw new BadRequestException('username이 필요합니다.');
+    }
+    const channel = await this.channelRepository
+      .createQueryBuilder('channel')
+      .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
+      .andWhere('LOWER(channel.username) = :username', { username })
+      .getOne();
+    if (!channel) {
+      throw new NotFoundException('채널을 찾을 수 없습니다.');
+    }
+    return this.buildDetail(channel);
+  }
+
+  async getDetailById(id: string) {
+    const channel = await this.requireActive(id);
+    return this.buildDetail(channel);
+  }
+
+  async getStatsSeries(id: string, range: StatsRange = '7') {
+    const channel = await this.requireActive(id);
+    const days = Number(range);
+    const today = formatKstYmd();
+    const start = addKstDays(today, -(days - 1));
+    const snaps = await this.snapshotRepository.find({
+      where: { channelId: channel.id },
+    });
+    const byDay = new Map(snaps.map((s) => [s.capturedOn, s]));
+    const points: {
+      date: string;
+      memberCount: number | null;
+      medianViews7d: number | null;
+    }[] = [];
+    for (let i = 0; i < days; i += 1) {
+      const date = addKstDays(start, i);
+      const snap = byDay.get(date);
+      points.push({
+        date,
+        memberCount: snap ? snap.memberCount : null,
+        medianViews7d: snap ? snap.medianViews7d : null,
+      });
+    }
+    return { channelId: channel.id, range: days, points };
+  }
+
+  async getPosts(id: string, limit = 20) {
+    const channel = await this.requireActive(id);
+    const posts = await this.postRepository.find({
+      where: { channelId: channel.id },
+      order: { postedAt: 'DESC' },
+      take: limit,
+    });
+    const username =
+      channel.username ?? extractTelegramUsernameFromLink(channel.link);
+    return posts.map((post) => ({
+      messageId: post.messageId,
+      postedAt: post.postedAt.toISOString(),
+      views: post.views,
+      mediaType: post.mediaType,
+      link: username
+        ? `https://t.me/${username}/${post.messageId}`
+        : channel.link,
+    }));
+  }
+
+  async getEvents(id: string, limit = 20) {
+    const channel = await this.requireActive(id);
+    const events = await this.eventRepository.find({
+      where: { channelId: channel.id },
+      order: { occurredAt: 'DESC' },
+      take: limit,
+    });
+    return events.map((event) => ({
+      id: event.id,
+      type: event.type,
+      before: event.before,
+      after: event.after,
+      occurredAt: event.occurredAt.toISOString(),
+    }));
+  }
+
+  async getMediaMix(id: string) {
+    const channel = await this.requireActive(id);
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const posts = await this.postRepository.find({
+      where: { channelId: channel.id, postedAt: MoreThanOrEqual(since) },
+    });
+    const byType: Record<string, number> = {
+      text: 0,
+      photo: 0,
+      video: 0,
+      file: 0,
+      other: 0,
+    };
+    const sourceCounts = new Map<string, number>();
+    for (const post of posts) {
+      byType[post.mediaType] = (byType[post.mediaType] ?? 0) + 1;
+      if (post.forwardedFrom) {
+        sourceCounts.set(
+          post.forwardedFrom,
+          (sourceCounts.get(post.forwardedFrom) ?? 0) + 1,
+        );
+      }
+    }
+    const topSources = [...sourceCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 10)
+      .map(([source, count]) => ({ source, count }));
+    return {
+      channelId: channel.id,
+      rangeDays: 90,
+      total: posts.length,
+      byType,
+      topSources,
+    };
+  }
+
+  async getWeekly(weekRaw?: string) {
+    const today = formatKstYmd();
+    let year: number;
+    let week: number;
+    if (weekRaw) {
+      const parsed = parseIsoWeek(weekRaw);
+      if (!parsed) {
+        throw new BadRequestException('week는 YYYY-Www 형식이어야 합니다.');
+      }
+      year = parsed.year;
+      week = parsed.week;
+    } else {
+      const prev = previousIsoWeek(today);
+      year = prev.year;
+      week = prev.week;
+    }
+    const { startYmd, endYmd } = isoWeekRangeKst(year, week);
+    const start = new Date(`${startYmd}T00:00:00+09:00`);
+    const end = new Date(`${endYmd}T23:59:59.999+09:00`);
+    const events = await this.eventRepository.find({
+      where: {
+        type: In(WEEKLY_EVENT_TYPES),
+        occurredAt: Between(start, end),
+      },
+      order: { occurredAt: 'DESC' },
+    });
+    const channelIds = [...new Set(events.map((e) => e.channelId))];
+    const channels =
+      channelIds.length === 0
+        ? []
+        : await this.channelRepository.find({ where: { id: In(channelIds) } });
+    const channelMap = new Map(channels.map((c) => [c.id, c]));
+
+    const mapEvent = (event: ChannelEvent) => {
+      const ch = channelMap.get(event.channelId);
+      return {
+        id: event.id,
+        channelId: event.channelId,
+        channelTitle: ch?.title ?? null,
+        username: ch?.username ?? null,
+        type: event.type,
+        before: event.before,
+        after: event.after,
+        occurredAt: event.occurredAt.toISOString(),
+      };
+    };
+
+    const titleChanged = events
+      .filter((e) => e.type === 'title_changed')
+      .map(mapEvent);
+    const usernameChanged = events
+      .filter((e) => e.type === 'username_changed')
+      .map(mapEvent);
+    const firstSeen = events
+      .filter((e) => e.type === 'first_seen')
+      .map(mapEvent);
+    const rankUp = events.filter((e) => e.type === 'rank_up').map(mapEvent);
+
+    return {
+      week: formatIsoWeek(year, week),
+      start: startYmd,
+      end: endYmd,
+      counts: {
+        titleChanged: titleChanged.length,
+        usernameChanged: usernameChanged.length,
+        firstSeen: firstSeen.length,
+        rankUp: rankUp.length,
+      },
+      titleChanged,
+      usernameChanged,
+      firstSeen,
+      rankUp,
+    };
+  }
+
+  async compare(idsRaw: string) {
+    const ids = parseCompareIds(idsRaw);
+    if (ids.length < 1) {
+      throw new BadRequestException('ids가 필요합니다.');
+    }
+    if (ids.length > 3) {
+      throw new BadRequestException('비교는 최대 3개입니다.');
+    }
+    const items = [];
+    for (const id of ids) {
+      const channel = await this.requireActive(id);
+      const detail = await this.buildDetail(channel);
+      const stats = await this.getStatsSeries(channel.id, '30');
+      items.push({
+        id: channel.id,
+        title: channel.title,
+        username: channel.username,
+        score: detail.score,
+        grade: detail.grade,
+        viewRate: detail.viewRate,
+        growth7d: detail.growth7d,
+        memberCount: detail.memberCount,
+        badges: detail.badges,
+        latestScore: detail.latestScore,
+        stats: stats.points,
+      });
+    }
+    return { items };
+  }
+
+  async listRanking(query: RankingQueryDto) {
+    const sort: RankingSort = query.sort ?? 'members';
+    const limit = Math.min(Math.max(query.limit ?? 50, 1), 100);
+    const today = formatKstYmd();
+
+    let channels = await this.channelRepository.find({
+      where: { status: ChannelStatus.ACTIVE },
+    });
+    channels = this.dedupeByLink(channels);
+
+    if (query.category && query.category !== 'all') {
+      channels = channels.filter((c) => c.category === query.category);
+    }
+    if (query.type) {
+      channels = channels.filter((c) => c.linkType === query.type);
+    }
+    if (query.hideLowData) {
+      channels = channels.filter(
+        (c) => (c.observedDays ?? 0) >= DATA_SHORT_DAYS,
+      );
+    }
+    if (query.verifiedOnly) {
+      channels = channels.filter((c) => c.isVerified);
+    }
+    if (sort === 'rising') {
+      channels = channels.filter(
+        (c) => (c.memberCount ?? 0) >= RISING_MIN_MEMBERS,
+      );
+    }
+
+    channels.sort((a, b) => this.compareRanking(a, b, sort));
+    const slice = channels.slice(0, limit);
+
+    const latestScores = await this.latestScoresByChannel(
+      slice.map((c) => c.id),
+    );
+    const categoryCounts = this.countByCategory(channels);
+    const sparkByChannel = await this.sparkline14(
+      slice.map((c) => c.id),
+      today,
+    );
+
+    return slice.map((channel) => {
+      const score = latestScores.get(channel.id) ?? null;
+      const badges = buildChannelBadges({
+        viewRate: channel.viewRate,
+        firstObservedAt: channel.firstObservedAt,
+        createdAt: channel.createdAt,
+        observedDays: channel.observedDays,
+        categoryRank: score?.categoryRank ?? null,
+        categoryCount: categoryCounts.get(channel.category) ?? 0,
+        manipulationSuspected: score?.manipulationSuspected ?? false,
+        todayYmd: today,
+      });
+      return {
+        id: channel.id,
+        title: channel.title,
+        username: channel.username
+          ? `@${channel.username}`
+          : extractTelegramUsernameFromLink(channel.link),
+        link: channel.link,
+        avatarUrl: this.channelsService.getListAvatarUrl(channel),
+        participantsCount: channel.memberCount ?? 0,
+        recommendCount: channel.recommendCount,
+        category: channel.category,
+        linkType: channel.linkType,
+        source: 'database' as const,
+        score: channel.score,
+        grade: channel.grade,
+        viewRate: channel.viewRate,
+        growth7d: channel.growth7d,
+        isVerified: Boolean(channel.isVerified),
+        badges,
+        sparkline14: sparkByChannel.get(channel.id) ?? [],
+      };
+    });
+  }
+
+  private compareRanking(a: Channel, b: Channel, sort: RankingSort): number {
+    const num = (v: number | null | undefined) => v ?? -Infinity;
+    const date = (v: Date | null | undefined) => (v ? v.getTime() : 0);
+    switch (sort) {
+      case 'score':
+        return (
+          num(b.score) - num(a.score) ||
+          (b.memberCount ?? 0) - (a.memberCount ?? 0)
+        );
+      case 'views':
+        return num(b.medianViews7d) - num(a.medianViews7d);
+      case 'viewRate':
+        return num(b.viewRate) - num(a.viewRate);
+      case 'rising':
+      case 'growth7d':
+        return num(b.growth7d) - num(a.growth7d);
+      case 'growth24h':
+        return num(b.growth24h) - num(a.growth24h);
+      case 'growth30d':
+        return num(b.growth30d) - num(a.growth30d);
+      case 'activity':
+        return num(b.posts7d) - num(a.posts7d);
+      case 'newest':
+        return (
+          date(b.firstObservedAt ?? b.createdAt) -
+          date(a.firstObservedAt ?? a.createdAt)
+        );
+      case 'members':
+      default:
+        return (
+          (b.memberCount ?? 0) - (a.memberCount ?? 0) ||
+          b.recommendCount - a.recommendCount
+        );
+    }
+  }
+
+  private async buildDetail(channel: Channel) {
+    const today = formatKstYmd();
+    const latest = await this.latestScore(channel.id);
+    const categoryCount = await this.channelRepository.count({
+      where: { status: ChannelStatus.ACTIVE, category: channel.category },
+    });
+    const badges: ChannelBadge[] = buildChannelBadges({
+      viewRate: channel.viewRate,
+      firstObservedAt: channel.firstObservedAt,
+      createdAt: channel.createdAt,
+      observedDays: channel.observedDays,
+      categoryRank: latest?.categoryRank ?? null,
+      categoryCount,
+      manipulationSuspected: latest?.manipulationSuspected ?? false,
+      todayYmd: today,
+    });
+
+    return {
+      id: channel.id,
+      title: channel.title,
+      username: channel.username,
+      link: channel.link,
+      linkType: channel.linkType,
+      category: channel.category,
+      description: channel.description,
+      avatarUrl: this.channelsService.getListAvatarUrl(channel),
+      memberCount: channel.memberCount,
+      firstObservedAt: channel.firstObservedAt?.toISOString() ?? null,
+      lastCollectedAt: channel.lastCollectedAt?.toISOString() ?? null,
+      observedDays: channel.observedDays,
+      score: channel.score,
+      grade: channel.grade,
+      viewRate: channel.viewRate,
+      growth24h: channel.growth24h,
+      growth7d: channel.growth7d,
+      growth30d: channel.growth30d,
+      medianViews7d: channel.medianViews7d,
+      posts7d: channel.posts7d,
+      isVerified: Boolean(channel.isVerified),
+      verifiedAt: channel.verifiedAt?.toISOString() ?? null,
+      latestScore: latest
+        ? {
+            scoredOn: latest.scoredOn,
+            total: latest.total,
+            grade: latest.grade,
+            scaleScore: latest.scaleScore,
+            viewRateScore: latest.viewRateScore,
+            activityScore: latest.activityScore,
+            growthScore: latest.growthScore,
+            manipulationSuspected: latest.manipulationSuspected,
+            overallRank: latest.overallRank,
+            categoryRank: latest.categoryRank,
+          }
+        : null,
+      badges,
+    };
+  }
+
+  private async latestScore(channelId: string): Promise<ChannelScore | null> {
+    return this.scoreRepository.findOne({
+      where: { channelId },
+      order: { scoredOn: 'DESC' },
+    });
+  }
+
+  private async latestScoresByChannel(
+    ids: string[],
+  ): Promise<Map<string, ChannelScore>> {
+    const map = new Map<string, ChannelScore>();
+    if (ids.length === 0) return map;
+    const scores = await this.scoreRepository.find({
+      where: { channelId: In(ids) },
+      order: { scoredOn: 'DESC' },
+    });
+    for (const score of scores) {
+      if (!map.has(score.channelId)) map.set(score.channelId, score);
+    }
+    return map;
+  }
+
+  private countByCategory(channels: Channel[]): Map<string, number> {
+    const map = new Map<string, number>();
+    for (const ch of channels) {
+      map.set(ch.category, (map.get(ch.category) ?? 0) + 1);
+    }
+    return map;
+  }
+
+  private async sparkline14(
+    ids: string[],
+    today: string,
+  ): Promise<Map<string, (number | null)[]>> {
+    const result = new Map<string, (number | null)[]>();
+    if (ids.length === 0) return result;
+    const start = addKstDays(today, -13);
+    const snaps = await this.snapshotRepository.find({
+      where: { channelId: In(ids) },
+    });
+    const byChannel = new Map<string, Map<string, number>>();
+    for (const snap of snaps) {
+      let days = byChannel.get(snap.channelId);
+      if (!days) {
+        days = new Map();
+        byChannel.set(snap.channelId, days);
+      }
+      days.set(snap.capturedOn, snap.memberCount);
+    }
+    for (const id of ids) {
+      const days = byChannel.get(id);
+      const series: (number | null)[] = [];
+      for (let i = 0; i < 14; i += 1) {
+        const date = addKstDays(start, i);
+        series.push(days?.get(date) ?? null);
+      }
+      result.set(id, series);
+    }
+    return result;
+  }
+
+  private async requireActive(id: string): Promise<Channel> {
+    const channel = await this.channelRepository.findOne({
+      where: { id, status: ChannelStatus.ACTIVE },
+    });
+    if (!channel) {
+      throw new NotFoundException('채널을 찾을 수 없습니다.');
+    }
+    return channel;
+  }
+
+  private dedupeByLink(channels: Channel[]): Channel[] {
+    const seen = new Set<string>();
+    const result: Channel[] = [];
+    for (const channel of channels) {
+      const key = channel.link.replace(/\/+$/, '').toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(channel);
+    }
+    return result;
+  }
+}

@@ -1,0 +1,53 @@
+import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Channel } from '../channels/channel.entity';
+import { ChannelsModule } from '../channels/channels.module';
+import { ChannelEvent } from './channel-event.entity';
+import { ChannelPost } from './channel-post.entity';
+import { ChannelScore } from './channel-score.entity';
+import { ChannelSnapshot } from './channel-snapshot.entity';
+import { ChannelCollectorService } from './channel-collector.service';
+import { ChannelMetricsService } from './channel-metrics.service';
+import { InternalCronGuard } from './internal-cron.guard';
+import { InternalStatsController } from './internal-stats.controller';
+import { PublicChannelStatsController } from './public-channel-stats.controller';
+import { PublicStatsController } from './public-stats.controller';
+import { PublicStatsService } from './public-stats.service';
+import { StatsJobService } from './stats-job.service';
+import { StatsService } from './stats.service';
+
+@Module({
+  imports: [
+    ScheduleModule.forRoot(),
+    ChannelsModule,
+    TypeOrmModule.forFeature([
+      Channel,
+      ChannelSnapshot,
+      ChannelPost,
+      ChannelScore,
+      ChannelEvent,
+    ]),
+  ],
+  controllers: [
+    InternalStatsController,
+    PublicChannelStatsController,
+    PublicStatsController,
+  ],
+  providers: [
+    StatsService,
+    ChannelCollectorService,
+    ChannelMetricsService,
+    StatsJobService,
+    InternalCronGuard,
+    PublicStatsService,
+  ],
+  exports: [
+    StatsService,
+    ChannelCollectorService,
+    ChannelMetricsService,
+    StatsJobService,
+    PublicStatsService,
+  ],
+})
+export class StatsModule {}

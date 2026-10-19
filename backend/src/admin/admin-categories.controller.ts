@@ -19,10 +19,18 @@ import { randomBytes } from 'crypto';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { CategoriesService } from '../categories/categories.service';
-import { CreateCategoryDto, UpdateCategoryDto } from '../categories/dto/category.dto';
+import {
+  CreateCategoryDto,
+  UpdateCategoryDto,
+} from '../categories/dto/category.dto';
 
 const UPLOAD_DIR = join(process.cwd(), 'uploads', 'categories');
-const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']);
+const ALLOWED_MIME = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+]);
 
 function ensureUploadDir() {
   if (!existsSync(UPLOAD_DIR)) {
@@ -61,7 +69,12 @@ export class AdminCategoriesController {
       limits: { fileSize: 512 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_MIME.has(file.mimetype)) {
-          cb(new BadRequestException('PNG, JPG, WEBP, GIF, SVG 이미지만 업로드할 수 있습니다.'), false);
+          cb(
+            new BadRequestException(
+              'PNG, JPG, WEBP, GIF 이미지만 업로드할 수 있습니다.',
+            ),
+            false,
+          );
           return;
         }
         cb(null, true);

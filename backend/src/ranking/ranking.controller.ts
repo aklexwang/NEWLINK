@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { RankingQueryDto } from '../stats/dto/public-stats.dto';
 import { RankingService } from './ranking.service';
 
 @Controller('ranking')
@@ -21,8 +22,7 @@ export class RankingController {
   }
 
   @Get('channels')
-  channels(@Query('category') category?: string, @Query('limit') limit?: string) {
-    const parsedLimit = limit ? Number(limit) : 50;
-    return this.rankingService.getChannels(category, Number.isFinite(parsedLimit) ? parsedLimit : 50);
+  channels(@Query() query: RankingQueryDto) {
+    return this.rankingService.getChannels(query);
   }
 }

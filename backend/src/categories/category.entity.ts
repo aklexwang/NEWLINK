@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { dateTimeColumnType } from '../common/db-types';
 
 @Entity('categories')
 export class CategoryEntity {
@@ -26,9 +27,9 @@ export class CategoryEntity {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: dateTimeColumnType() })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: dateTimeColumnType() })
   updatedAt: Date;
 }

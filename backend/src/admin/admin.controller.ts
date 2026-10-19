@@ -23,10 +23,22 @@ import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { ChannelsService } from '../channels/channels.service';
 import { TonPaymentService } from '../payments/ton-payment.service';
 import { UsersService } from '../users/users.service';
-import { ApproveChannelDto, AdminCreateChannelDto, LookupChannelQueryDto, PromoteChannelDto, RecordRewardDto, UpdateChannelDto } from './dto/admin.dto';
+import {
+  ApproveChannelDto,
+  AdminCreateChannelDto,
+  LookupChannelQueryDto,
+  PromoteChannelDto,
+  RecordRewardDto,
+  UpdateChannelDto,
+} from './dto/admin.dto';
 
 const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
-const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']);
+const ALLOWED_MIME = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+]);
 
 function ensureChannelUploadDir() {
   if (!existsSync(CHANNEL_UPLOAD_DIR)) {
@@ -49,7 +61,9 @@ export class AdminController {
     return Promise.all(
       channels.map(async (channel) => ({
         ...channel,
-        reporter: await this.usersService.getReporterOrNull(channel.submittedBy),
+        reporter: await this.usersService.getReporterOrNull(
+          channel.submittedBy,
+        ),
       })),
     );
   }
@@ -67,13 +81,22 @@ export class AdminController {
     @Query('category') category?: string,
     @Query('linkType') linkType?: LinkType,
   ) {
-    const channels = await this.channelsService.findAllAdmin({ status, q, category, linkType });
+    const channels = await this.channelsService.findAllAdmin({
+      status,
+      q,
+      category,
+      linkType,
+    });
     return Promise.all(
       channels.map(async (channel) => {
-        const base = channel.isPromoted ? await this.withAdClient(channel) : channel;
+        const base = channel.isPromoted
+          ? await this.withAdClient(channel)
+          : channel;
         return {
           ...base,
-          reporter: await this.usersService.getReporterOrNull(channel.submittedBy),
+          reporter: await this.usersService.getReporterOrNull(
+            channel.submittedBy,
+          ),
         };
       }),
     );
@@ -105,7 +128,12 @@ export class AdminController {
       limits: { fileSize: 512 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_MIME.has(file.mimetype)) {
-          cb(new BadRequestException('PNG, JPG, WEBP, GIF, SVG 이미지만 업로드할 수 있습니다.'), false);
+          cb(
+            new BadRequestException(
+              'PNG, JPG, WEBP, GIF, SVG 이미지만 업로드할 수 있습니다.',
+            ),
+            false,
+          );
           return;
         }
         cb(null, true);
@@ -120,9 +148,13 @@ export class AdminController {
     return { avatarUrl: `/api/uploads/channels/${file.filename}` };
   }
 
-  private async withAdClient(channel: Awaited<ReturnType<ChannelsService['findById']>>) {
+  private async withAdClient(
+    channel: Awaited<ReturnType<ChannelsService['findById']>>,
+  ) {
     const user = channel.promotionClientTelegramId
-      ? await this.usersService.getReporterOrNull(channel.promotionClientTelegramId)
+      ? await this.usersService.getReporterOrNull(
+          channel.promotionClientTelegramId,
+        )
       : null;
 
     return {
@@ -165,7 +197,9 @@ export class AdminController {
   promote(@Param('id') id: string, @Body() dto: PromoteChannelDto) {
     return this.channelsService.promote(id, {
       durationDays: dto.durationDays,
-      promotedUntil: dto.promotedUntil ? new Date(dto.promotedUntil) : undefined,
+      promotedUntil: dto.promotedUntil
+        ? new Date(dto.promotedUntil)
+        : undefined,
       clientTelegramId: dto.clientTelegramId,
       clientName: dto.clientName,
       tonAmount: dto.tonAmount,
@@ -179,7 +213,9 @@ export class AdminController {
       wallet: dto.wallet,
     });
 
-    const reporter = await this.usersService.getReporterOrNull(channel.submittedBy);
+    const reporter = await this.usersService.getReporterOrNull(
+      channel.submittedBy,
+    );
     await this.tonPaymentService.create({
       channelId: channel.id,
       amount: dto.amountTon,
@@ -189,7 +225,7 @@ export class AdminController {
       telegramId: channel.submittedBy ?? null,
       reporterName: reporter?.username
         ? `@${reporter.username}`
-        : reporter?.firstName ?? null,
+        : (reporter?.firstName ?? null),
       channelTitle: channel.title,
       channelLink: channel.link,
     });

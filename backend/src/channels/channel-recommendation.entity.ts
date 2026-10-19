@@ -6,6 +6,7 @@ import {
   Unique,
 } from 'typeorm';
 import { bigintNumberRequiredTransformer } from '../common/bigint-transformer';
+import { dateTimeColumnType } from '../common/db-types';
 
 @Entity('channel_recommendations')
 @Unique(['userId', 'channelId'])
@@ -23,6 +24,6 @@ export class ChannelRecommendation {
   @Column({ name: 'channel_id', type: 'uuid' })
   channelId: string;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: dateTimeColumnType() })
   createdAt: Date;
 }

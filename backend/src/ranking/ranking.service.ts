@@ -1,7 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { CategoriesService } from '../categories/categories.service';
 import { ChannelsService } from '../channels/channels.service';
-import { TelegramRankingService, type RankingCategoryItem } from './telegram-ranking.service';
+import {
+  RankingQueryDto,
+  SCORE_FAMILY_SORTS,
+} from '../stats/dto/public-stats.dto';
+import { PublicStatsService } from '../stats/public-stats.service';
+import {
+  TelegramRankingService,
+  type RankingCategoryItem,
+} from './telegram-ranking.service';
 import { TgstatService } from './tgstat.service';
 
 export type RankingSource = 'tgstat' | 'database';
@@ -21,6 +29,7 @@ export class RankingService {
     private readonly telegramRankingService: TelegramRankingService,
     private readonly channelsService: ChannelsService,
     private readonly categoriesService: CategoriesService,
+    private readonly publicStatsService: PublicStatsService,
   ) {}
 
   private getCached<T>(key: string): T | null {
@@ -33,7 +42,10 @@ export class RankingService {
   }
 
   private setCached<T>(key: string, data: T) {
-    this.listCache.set(key, { data, expiresAt: Date.now() + this.listCacheTtlMs });
+    this.listCache.set(key, {
+      data,
+      expiresAt: Date.now() + this.listCacheTtlMs,
+    });
   }
 
   getSource(): RankingSource {
@@ -71,7 +83,10 @@ export class RankingService {
 
     const adminCategories = await this.categoriesService.findActive();
     const iconMap = Object.fromEntries(
-      adminCategories.map((category) => [category.name, category.iconUrl ?? null]),
+      adminCategories.map((category) => [
+        category.name,
+        category.iconUrl ?? null,
+      ]),
     );
 
     if (this.tgstatService.isConfigured()) {
@@ -87,7 +102,13 @@ export class RankingService {
     const counts = await this.channelsService.getRankingCounts();
 
     const items: RankingCategoryItem[] = [
-      { id: 'all', name: '전체', emoji: '🏆', iconUrl: null, count: counts.all ?? 0 },
+      {
+        id: 'all',
+        name: '전체',
+        emoji: '🏆',
+        iconUrl: null,
+        count: counts.all ?? 0,
+      },
     ];
 
     const seen = new Set<string>();
@@ -105,27 +126,42 @@ export class RankingService {
 
     for (const [name, count] of Object.entries(counts)) {
       if (name === 'all' || seen.has(name)) continue;
-      items.push({ id: name, name, emoji: '📁', iconUrl: iconMap[name] ?? null, count });
+      items.push({
+        id: name,
+        name,
+        emoji: '📁',
+        iconUrl: iconMap[name] ?? null,
+        count,
+      });
     }
 
     this.setCached(cacheKey, items);
     return items;
   }
 
-  async getChannels(category?: string, limit = 50) {
-    const cacheKey = `ranking:channels:${category ?? 'all'}:${limit}`;
+  async getChannels(query: RankingQueryDto) {
+    const category = query.category;
+    const limit = query.limit ?? 50;
+    const sort = query.sort ?? 'members';
+    const useDatabase =
+      !this.tgstatService.isConfigured() ||
+      SCORE_FAMILY_SORTS.has(sort) ||
+      Boolean(query.type) ||
+      Boolean(query.hideLowData) ||
+      Boolean(query.verifiedOnly);
+
+    const cacheKey = `ranking:channels:${category ?? 'all'}:${limit}:${sort}:${query.type ?? ''}:${query.hideLowData ? '1' : '0'}:${query.verifiedOnly ? '1' : '0'}:${useDatabase ? 'db' : 'tg'}`;
     const cached = this.getCached<unknown[]>(cacheKey);
     if (cached) return cached;
 
-    if (this.tgstatService.isConfigured()) {
+    if (!useDatabase) {
       const items = await this.tgstatService.getRanking(category, limit);
       this.setCached(cacheKey, items);
       return items;
     }
 
-    const items = await this.channelsService.getRanking(category, limit);
-    const mapped = items.map((item) => ({ ...item, source: 'database' as const }));
-    this.setCached(cacheKey, mapped);
-    return mapped;
+    const items = await this.publicStatsService.listRanking(query);
+    this.setCached(cacheKey, items);
+    return items;
   }
 }

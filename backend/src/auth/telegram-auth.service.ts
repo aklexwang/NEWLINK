@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, createHmac } from 'crypto';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import {
   TelegramInitData,
@@ -14,7 +14,9 @@ export class TelegramAuthService {
   private readonly maxAuthAgeSeconds = 86400;
 
   constructor(private readonly configService: ConfigService) {
-    this.botToken = (this.configService.getOrThrow<string>('TELEGRAM_BOT_TOKEN') ?? '').trim();
+    this.botToken = (
+      this.configService.getOrThrow<string>('TELEGRAM_BOT_TOKEN') ?? ''
+    ).trim();
   }
 
   private buildDataCheckString(
@@ -32,7 +34,19 @@ export class TelegramAuthService {
     const secretKey = createHmac('sha256', 'WebAppData')
       .update(this.botToken)
       .digest();
-    return createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    return createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+  }
+
+  /** 타이밍 공격 방지를 위해 길이가 다르면 바로 false */
+  private hashesEqual(expected: string, received: string): boolean {
+    const a = Buffer.from(expected);
+    const b = Buffer.from(received);
+    if (a.length !== b.length) {
+      return false;
+    }
+    return timingSafeEqual(a, b);
   }
 
   validateInitData(initData: string): TelegramInitData {
@@ -53,8 +67,8 @@ export class TelegramAuthService {
       this.buildDataCheckString(params, ['hash', 'signature']),
     ];
 
-    const matched = candidates.some(
-      (checkString) => this.calcInitDataHash(checkString) === hash,
+    const matched = candidates.some((checkString) =>
+      this.hashesEqual(this.calcInitDataHash(checkString), hash),
     );
 
     if (!matched) {
@@ -105,7 +119,9 @@ export class TelegramAuthService {
     }
 
     const dataCheckString = Object.entries(rest)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .filter(
+        ([, value]) => value !== undefined && value !== null && value !== '',
+      )
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
@@ -115,12 +131,15 @@ export class TelegramAuthService {
       .update(dataCheckString)
       .digest('hex');
 
-    if (calculatedHash !== hash) {
+    if (!this.hashesEqual(calculatedHash, hash)) {
       throw new UnauthorizedException('Telegram 로그인 검증에 실패했습니다.');
     }
 
     const now = Math.floor(Date.now() / 1000);
-    if (!payload.auth_date || now - payload.auth_date > this.maxAuthAgeSeconds) {
+    if (
+      !payload.auth_date ||
+      now - payload.auth_date > this.maxAuthAgeSeconds
+    ) {
       throw new UnauthorizedException('Telegram 로그인이 만료되었습니다.');
     }
 
@@ -135,13 +154,17 @@ export class TelegramAuthService {
 
   /** BotFather Web Login Client ID (보통 봇 숫자 ID) */
   getLoginClientId(): number {
-    const fromEnv = this.configService.get<string>('TELEGRAM_CLIENT_ID')?.trim();
+    const fromEnv = this.configService
+      .get<string>('TELEGRAM_CLIENT_ID')
+      ?.trim();
     if (fromEnv && /^\d+$/.test(fromEnv)) {
       return Number(fromEnv);
     }
     const botId = this.botToken.split(':')[0];
     if (!botId || !/^\d+$/.test(botId)) {
-      throw new UnauthorizedException('TELEGRAM_BOT_TOKEN에서 Client ID를 읽을 수 없습니다.');
+      throw new UnauthorizedException(
+        'TELEGRAM_BOT_TOKEN에서 Client ID를 읽을 수 없습니다.',
+      );
     }
     return Number(botId);
   }
@@ -186,12 +209,16 @@ export class TelegramAuthService {
     return {
       id,
       first_name: givenName,
-      last_name: typeof payload.family_name === 'string' ? payload.family_name : undefined,
+      last_name:
+        typeof payload.family_name === 'string'
+          ? payload.family_name
+          : undefined,
       username:
         typeof payload.preferred_username === 'string'
           ? payload.preferred_username
           : undefined,
-      photo_url: typeof payload.picture === 'string' ? payload.picture : undefined,
+      photo_url:
+        typeof payload.picture === 'string' ? payload.picture : undefined,
     };
   }
 

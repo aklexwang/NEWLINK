@@ -9,10 +9,17 @@ import { ChannelsModule } from './channels/channels.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AutoManageModule } from './auto-manage/auto-manage.module';
 import { RankingModule } from './ranking/ranking.module';
+import { SeoModule } from './seo/seo.module';
+import { StatsModule } from './stats/stats.module';
 import { UsersModule } from './users/users.module';
+import { isPostgresConfig } from './common/db-types';
+import { AddChannelStats1760852400000 } from './migrations/1760852400000-AddChannelStats';
+import { AddChannelVerified1760860800000 } from './migrations/1760860800000-AddChannelVerified';
 
 function truthy(value: string | undefined): boolean {
-  return ['1', 'true', 'yes', 'on'].includes((value ?? '').trim().toLowerCase());
+  return ['1', 'true', 'yes', 'on'].includes(
+    (value ?? '').trim().toLowerCase(),
+  );
 }
 
 @Module({
@@ -23,13 +30,20 @@ function truthy(value: string | undefined): boolean {
       inject: [ConfigService],
       useFactory: (config: ConfigService): TypeOrmModuleOptions => {
         const databaseUrl = (config.get<string>('DATABASE_URL') ?? '').trim();
-        const dbType = (config.get<string>('DATABASE_TYPE') ?? 'sqlite').trim().toLowerCase();
         const isProd = config.get<string>('NODE_ENV') === 'production';
         // 운영 첫 배포·스키마 추가 시에만 true. 안정화 후 false 권장.
-        const synchronize = truthy(config.get<string>('TYPEORM_SYNC')) || !isProd;
+        const synchronize =
+          truthy(config.get<string>('TYPEORM_SYNC')) || !isProd;
 
-        if (databaseUrl || dbType === 'postgres' || dbType === 'postgresql') {
-          const sslDisabled = truthy(config.get<string>('DATABASE_SSL_DISABLE'));
+        if (
+          isPostgresConfig({
+            DATABASE_URL: config.get<string>('DATABASE_URL'),
+            DATABASE_TYPE: config.get<string>('DATABASE_TYPE'),
+          })
+        ) {
+          const sslDisabled = truthy(
+            config.get<string>('DATABASE_SSL_DISABLE'),
+          );
 
           if (databaseUrl) {
             return {
@@ -37,6 +51,11 @@ function truthy(value: string | undefined): boolean {
               url: databaseUrl,
               autoLoadEntities: true,
               synchronize,
+              migrations: [
+                AddChannelStats1760852400000,
+                AddChannelVerified1760860800000,
+              ],
+              migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
               retryAttempts: 20,
               retryDelay: 3000,
@@ -52,6 +71,11 @@ function truthy(value: string | undefined): boolean {
             database: config.get<string>('DATABASE_NAME', 'newlink'),
             autoLoadEntities: true,
             synchronize,
+            migrations: [
+              AddChannelStats1760852400000,
+              AddChannelVerified1760860800000,
+            ],
+            migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
             retryAttempts: 20,
             retryDelay: 3000,
@@ -63,6 +87,10 @@ function truthy(value: string | undefined): boolean {
           database: config.get<string>('DATABASE_PATH', 'data/newlink.sqlite'),
           autoLoadEntities: true,
           synchronize: true,
+          migrations: [
+            AddChannelStats1760852400000,
+            AddChannelVerified1760860800000,
+          ],
         };
       },
     }),
@@ -74,6 +102,8 @@ function truthy(value: string | undefined): boolean {
     AutoManageModule,
     PaymentsModule,
     RankingModule,
+    StatsModule,
+    SeoModule,
   ],
   controllers: [AppController],
 })

@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { bigintNumberRequiredTransformer } from '../common/bigint-transformer';
+import { dateTimeColumnType } from '../common/db-types';
 
 @Entity('users')
 export class User {
@@ -22,7 +23,12 @@ export class User {
   @Column({ type: 'varchar', length: 100, nullable: true })
   username: string | null;
 
-  @Column({ name: 'ton_wallet_address', type: 'varchar', length: 128, nullable: true })
+  @Column({
+    name: 'ton_wallet_address',
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+  })
   tonWalletAddress: string | null;
 
   @Column({ name: 'is_registered', default: false })
@@ -31,9 +37,9 @@ export class User {
   @Column({ name: 'is_blocked', default: false })
   isBlocked: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: dateTimeColumnType() })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: dateTimeColumnType() })
   updatedAt: Date;
 }

@@ -6,13 +6,14 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { bigintNumberTransformer } from '../common/bigint-transformer';
+import { dateTimeColumnType } from '../common/db-types';
 
 @Entity('ton_payments')
 export class TonPayment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @CreateDateColumn({ name: 'paid_at', type: 'timestamptz' })
+  @CreateDateColumn({ name: 'paid_at', type: dateTimeColumnType() })
   paidAt: Date;
 
   @Column({ type: 'float' })
@@ -29,7 +30,12 @@ export class TonPayment {
   })
   telegramId: number | null;
 
-  @Column({ name: 'reporter_name', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'reporter_name',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   reporterName: string | null;
 
   @Index()

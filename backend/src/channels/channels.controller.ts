@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
@@ -14,12 +15,14 @@ import type { TelegramUser } from '../auth/interfaces/telegram-user.interface';
 import { UsersService } from '../users/users.service';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
+import { ChannelVerifyService } from './channel-verify.service';
 
 @Controller('channels')
 export class ChannelsController {
   constructor(
     private readonly channelsService: ChannelsService,
     private readonly usersService: UsersService,
+    private readonly channelVerifyService: ChannelVerifyService,
   ) {}
 
   @Get('search')
@@ -92,6 +95,16 @@ export class ChannelsController {
   ) {
     await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.removeFavorite(id, user.id);
+  }
+
+  @Post(':id/verify')
+  @UseGuards(TelegramAuthGuard)
+  async verifyOwner(
+    @Param('id', ParseUUIDPipe) id: string,
+    @TelegramUserParam() user: TelegramUser,
+  ) {
+    await this.usersService.assertActiveByTelegramId(user.id);
+    return this.channelVerifyService.verifyOwner(id, user.id);
   }
 
   @Post(':id/recommend')

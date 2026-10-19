@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { dateTimeColumnType } from '../common/db-types';
 import { LinkType } from '../channels/channel.entity';
 
 export enum ImportCandidateStatus {
@@ -28,7 +29,12 @@ export class ChannelImportCandidate {
   category: string;
 
   /** AI/키워드가 제안한 카테고리 */
-  @Column({ name: 'category_ai_suggested', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'category_ai_suggested',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   categoryAiSuggested: string | null;
 
   @Column({ name: 'category_confidence', type: 'real', nullable: true })
@@ -39,10 +45,20 @@ export class ChannelImportCandidate {
   categoryReviewed: boolean;
 
   /** ai | fallback | manual | seed */
-  @Column({ name: 'category_source', type: 'varchar', length: 20, default: 'seed' })
+  @Column({
+    name: 'category_source',
+    type: 'varchar',
+    length: 20,
+    default: 'seed',
+  })
   categorySource: string;
 
-  @Column({ name: 'link_type', type: 'varchar', length: 20, default: LinkType.CHANNEL })
+  @Column({
+    name: 'link_type',
+    type: 'varchar',
+    length: 20,
+    default: LinkType.CHANNEL,
+  })
   linkType: LinkType;
 
   @Column({ name: 'participants_count', type: 'integer', default: 0 })
@@ -54,18 +70,27 @@ export class ChannelImportCandidate {
   @Column({ length: 20 })
   source: string;
 
-  @Column({ type: 'varchar', length: 20, default: ImportCandidateStatus.PENDING })
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: ImportCandidateStatus.PENDING,
+  })
   status: ImportCandidateStatus;
 
-  @Column({ name: 'published_channel_id', type: 'varchar', length: 36, nullable: true })
+  @Column({
+    name: 'published_channel_id',
+    type: 'varchar',
+    length: 36,
+    nullable: true,
+  })
   publishedChannelId: string | null;
 
-  @CreateDateColumn({ name: 'fetched_at' })
+  @CreateDateColumn({ name: 'fetched_at', type: dateTimeColumnType() })
   fetchedAt: Date;
 
-  @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
+  @Column({ name: 'published_at', type: dateTimeColumnType(), nullable: true })
   publishedAt: Date | null;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: dateTimeColumnType() })
   updatedAt: Date;
 }

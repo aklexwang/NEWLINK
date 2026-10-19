@@ -1,0 +1,117 @@
+import {
+  isMissingChannelHtml,
+  isPrivateChannelHtml,
+  parseCount,
+  parseTelegramChannelHtml,
+} from './telegram-preview-html';
+
+describe('parseCount', () => {
+  it('K·M 접미사를 정수로 변환한다', () => {
+    expect(parseCount('1.2K')).toBe(1200);
+    expect(parseCount('3.4M')).toBe(3_400_000);
+    expect(parseCount('1.5B')).toBe(1_500_000_000);
+    expect(parseCount('12.34K')).toBe(12340);
+  });
+
+  it('쉼표·공백이 있는 숫자를 처리한다', () => {
+    expect(parseCount('1,234')).toBe(1234);
+    expect(parseCount('1 234')).toBe(1234);
+    expect(parseCount('  56 ')).toBe(56);
+  });
+
+  it('빈 값은 null이다', () => {
+    expect(parseCount(null)).toBeNull();
+    expect(parseCount('')).toBeNull();
+    expect(parseCount('   ')).toBeNull();
+  });
+});
+
+const SAMPLE_HTML = `
+<div class="tgme_channel_info">
+  <div class="tgme_channel_info_header_title"><span>뉴스채널</span></div>
+  <div class="tgme_channel_info_counters">
+    <div class="tgme_channel_info_counter">
+      <span class="counter_value">1.2K</span>
+      <span class="counter_type">subscribers</span>
+    </div>
+    <div class="tgme_channel_info_counter">
+      <span class="counter_value">80</span>
+      <span class="counter_type">photos</span>
+    </div>
+  </div>
+</div>
+<div class="tgme_widget_message" data-post="news_kr/101">
+  <time datetime="2026-10-18T03:00:00+00:00"></time>
+  <span class="tgme_widget_message_views">3.4M</span>
+  <a class="tgme_widget_message_forwarded_from_name" href="https://t.me/source_ch/9">출처</a>
+  <div class="tgme_widget_message_photo_wrap"></div>
+  <span class="tgme_widget_message_edited">edited</span>
+</div>
+<div class="tgme_widget_message" data-post="news_kr/100">
+  <time datetime="2026-10-17T01:00:00+00:00"></time>
+  <span class="tgme_widget_message_views">88</span>
+  <div class="tgme_widget_message_video_wrap"><video></video></div>
+</div>
+<div class="tgme_widget_message" data-post="news_kr/99">
+  <time datetime="2026-10-16T01:00:00+00:00"></time>
+  <a class="tgme_widget_message_document" href="#"></a>
+</div>
+`;
+
+describe('parseTelegramChannelHtml', () => {
+  const parsed = parseTelegramChannelHtml(SAMPLE_HTML);
+
+  it('제목과 구독자 수를 읽는다', () => {
+    expect(parsed.title).toBe('뉴스채널');
+    expect(parsed.memberCount).toBe(1200);
+    expect(parsed.hasPreview).toBe(true);
+    expect(parsed.usernameFromPosts).toBe('news_kr');
+  });
+
+  it('게시글 messageId·조회수·전달·수정·미디어를 파싱한다', () => {
+    expect(parsed.posts).toHaveLength(3);
+
+    const photo = parsed.posts.find((p) => p.messageId === 101);
+    expect(photo?.views).toBe(3_400_000);
+    expect(photo?.forwardedFrom).toBe('https://t.me/source_ch/9');
+    expect(photo?.isEdited).toBe(true);
+    expect(photo?.mediaType).toBe('photo');
+    expect(photo?.postedAt.toISOString()).toBe('2026-10-18T03:00:00.000Z');
+
+    const video = parsed.posts.find((p) => p.messageId === 100);
+    expect(video?.views).toBe(88);
+    expect(video?.forwardedFrom).toBeNull();
+    expect(video?.isEdited).toBe(false);
+    expect(video?.mediaType).toBe('video');
+
+    const file = parsed.posts.find((p) => p.messageId === 99);
+    expect(file?.mediaType).toBe('file');
+    expect(file?.views).toBeNull();
+  });
+
+  it('그룹 members 카운터도 읽는다', () => {
+    const html = `
+      <div class="tgme_channel_info">
+        <div class="tgme_channel_info_header_title">모임</div>
+        <div class="tgme_channel_info_counter">
+          <span class="counter_value">45</span>
+          <span class="counter_type">members</span>
+        </div>
+      </div>`;
+    expect(parseTelegramChannelHtml(html).memberCount).toBe(45);
+  });
+});
+
+describe('채널 상태 HTML', () => {
+  it('존재하지 않는 채널 문구를 감지한다', () => {
+    expect(
+      isMissingChannelHtml("Sorry, this channel doesn't seem to exist."),
+    ).toBe(true);
+    expect(isMissingChannelHtml('뉴스채널')).toBe(false);
+  });
+
+  it('비공개 채널 문구를 감지한다', () => {
+    expect(isPrivateChannelHtml('This channel is private')).toBe(true);
+    expect(isPrivateChannelHtml('공개 채널')).toBe(false);
+  });
+});
