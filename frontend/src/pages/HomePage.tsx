@@ -346,9 +346,9 @@ export function HomePage() {
           type="button"
           onClick={toggleTheme}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-nl-card text-[16px] ring-1 ring-nl-line"
-          aria-label={theme === 'dark' ? '라이트 모드' : '다크 모드'}
+          aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {theme === 'dark' ? '🌞' : '🌙'}
         </button>
         <button
           type="button"
@@ -633,7 +633,9 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
         <span className="mt-0.5 block truncate text-[11px] text-nl-muted">
           {item.category} · 구독 {formatCount(item.memberCount)} · 7일 {formatSignedPercent(item.growth7d)}
         </span>
-        <span className="text-[11px] text-nl-muted">{formatRelativeKo(item.lastPostAt)}</span>
+        <span className="text-[11px] text-nl-muted">
+          {item.activityKind === 'members' ? '인원 수 갱신' : '게시글'} · {formatRelativeKo(item.lastPostAt)}
+        </span>
       </span>
     </button>
   );
