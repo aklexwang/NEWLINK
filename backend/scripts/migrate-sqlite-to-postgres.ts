@@ -85,6 +85,7 @@ const TABLES: TableSpec[] = [
       { name: 'first_observed_at', kind: 'date' },
       { name: 'last_collected_at', kind: 'date' },
       { name: 'collect_status', kind: 'text' },
+      { name: 'collect_error', kind: 'text' },
       { name: 'collect_fail_count', kind: 'int' },
       { name: 'score', kind: 'int' },
       { name: 'grade', kind: 'text' },

@@ -16,6 +16,7 @@ import { isPostgresConfig } from './common/db-types';
 import { AddChannelStats1760852400000 } from './migrations/1760852400000-AddChannelStats';
 import { AddChannelVerified1760860800000 } from './migrations/1760860800000-AddChannelVerified';
 import { AddChannelDiscovery1761019200000 } from './migrations/1761019200000-AddChannelDiscovery';
+import { AddCollectError1761033600000 } from './migrations/1761033600000-AddCollectError';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -56,6 +57,7 @@ function truthy(value: string | undefined): boolean {
                 AddChannelStats1760852400000,
                 AddChannelVerified1760860800000,
                 AddChannelDiscovery1761019200000,
+                AddCollectError1761033600000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -77,6 +79,7 @@ function truthy(value: string | undefined): boolean {
               AddChannelStats1760852400000,
               AddChannelVerified1760860800000,
               AddChannelDiscovery1761019200000,
+              AddCollectError1761033600000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -94,6 +97,7 @@ function truthy(value: string | undefined): boolean {
             AddChannelStats1760852400000,
             AddChannelVerified1760860800000,
             AddChannelDiscovery1761019200000,
+            AddCollectError1761033600000,
           ],
         };
       },

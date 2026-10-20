@@ -1,6 +1,10 @@
 import {
+  classifyTelegramAccountHtml,
+  clipCollectError,
   extractTmeUsernamesFromHtml,
+  formatBotCollectError,
   isMissingChannelHtml,
+  isPlaceholderTitle,
   isPrivateChannelHtml,
   parseCount,
   parseTelegramChannelHtml,
@@ -143,5 +147,76 @@ describe('채널 상태 HTML', () => {
   it('비공개 채널 문구를 감지한다', () => {
     expect(isPrivateChannelHtml('This channel is private')).toBe(true);
     expect(isPrivateChannelHtml('공개 채널')).toBe(false);
+  });
+});
+
+describe('t.me 계정 종류 판별', () => {
+  it('subscribers 는 채널이다', () => {
+    const html = `
+      <div class="tgme_page_title"><span>뉴스채널</span></div>
+      <div class="tgme_page_extra">12 345 subscribers</div>`;
+    expect(classifyTelegramAccountHtml(html)).toMatchObject({
+      kind: 'channel',
+      reason: 'page:subscribers',
+      title: '뉴스채널',
+    });
+  });
+
+  it('members·online 은 그룹이다', () => {
+    const html = `
+      <div class="tgme_page_title"><span>소통방</span></div>
+      <div class="tgme_page_extra">1 869 members, 12 online</div>`;
+    expect(classifyTelegramAccountHtml(html)).toMatchObject({
+      kind: 'group',
+      reason: 'page:members',
+      title: '소통방',
+    });
+  });
+
+  it('봇 시작 버튼은 invalid 이다', () => {
+    const html = `
+      <div class="tgme_page_title"><span>Wallet</span></div>
+      <a class="tgme_action_button">Start Bot</a>`;
+    expect(classifyTelegramAccountHtml(html).kind).toBe('invalid');
+    expect(classifyTelegramAccountHtml(html).reason).toBe('page:bot');
+  });
+
+  it('개인 프로필 Send Message 는 invalid 이다', () => {
+    const html = `
+      <div class="tgme_page_title"><span>홍길동</span></div>
+      <a class="tgme_action_button">Send Message</a>`;
+    expect(classifyTelegramAccountHtml(html)).toMatchObject({
+      kind: 'invalid',
+      reason: 'page:user',
+    });
+  });
+
+  it('없는 아이디는 invalid 이다', () => {
+    expect(
+      classifyTelegramAccountHtml("Sorry, this channel doesn't seem to exist."),
+    ).toMatchObject({ kind: 'invalid', reason: 'page:not_found' });
+  });
+});
+
+describe('플레이스홀더 제목·수집 오류 문구', () => {
+  it('텔레그램 기본 문구 제목을 감지한다', () => {
+    expect(isPlaceholderTitle('Telegram: Contact @bloter_news')).toBe(true);
+    expect(isPlaceholderTitle('View @bugun_sport')).toBe(true);
+    expect(isPlaceholderTitle('Launch @wallet')).toBe(true);
+    expect(isPlaceholderTitle('Telegram: Join Group Chat')).toBe(true);
+    expect(isPlaceholderTitle('블랙리스트소통방')).toBe(false);
+  });
+
+  it('Bot API 오류를 error_code와 description으로 남긴다', () => {
+    expect(formatBotCollectError(400, 'Bad Request: chat not found')).toBe(
+      'bot:400:Bad Request: chat not found',
+    );
+    expect(formatBotCollectError(429, 'Too Many Requests: retry after 12')).toBe(
+      'bot:429:Too Many Requests: retry after 12',
+    );
+  });
+
+  it('collect_error 는 255자를 넘기지 않는다', () => {
+    expect(clipCollectError('a'.repeat(300)).length).toBe(255);
   });
 });

@@ -61,6 +61,71 @@ export function isPrivateChannelHtml(html: string): boolean {
   return /this (?:channel|group) is private/i.test(html);
 }
 
+export type TelegramAccountKind = 'channel' | 'group' | 'invalid';
+
+export interface ClassifiedTelegramAccount {
+  kind: TelegramAccountKind;
+  reason: string;
+  title: string | null;
+}
+
+const PLACEHOLDER_TITLE_RE =
+  /^(telegram:\s*contact\s+@|view\s+@|launch\s+@|telegram:\s*join group chat)/i;
+
+/** 텔레그램 기본 문구 제목(Contact/View/Launch/Join Group Chat)인지 */
+export function isPlaceholderTitle(title: string | null | undefined): boolean {
+  if (!title?.trim()) return false;
+  return PLACEHOLDER_TITLE_RE.test(title.trim());
+}
+
+export function clipCollectError(raw: string, max = 255): string {
+  const text = raw.replace(/\s+/g, ' ').trim();
+  if (text.length <= max) return text;
+  return text.slice(0, max);
+}
+
+export function formatBotCollectError(
+  errorCode?: number,
+  description?: string,
+): string {
+  const code = errorCode == null ? '?' : String(errorCode);
+  const desc = (description ?? '').replace(/\s+/g, ' ').trim() || 'error';
+  return clipCollectError(`bot:${code}:${desc}`);
+}
+
+/**
+ * t.me/{username} (s 없는 페이지) HTML로 채널/그룹/그 외를 판별합니다.
+ */
+export function classifyTelegramAccountHtml(
+  html: string,
+): ClassifiedTelegramAccount {
+  if (isMissingChannelHtml(html)) {
+    return { kind: 'invalid', reason: 'page:not_found', title: null };
+  }
+
+  const $ = load(html);
+  const title = textOrNull($('.tgme_page_title').first());
+  const extra = (textOrNull($('.tgme_page_extra').first()) ?? '').toLowerCase();
+  const action = ($('.tgme_action_button').first().text() || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (/\bsubscribers?\b/.test(extra)) {
+    return { kind: 'channel', reason: 'page:subscribers', title };
+  }
+  if (/\bmembers?\b/.test(extra) || /\bonline\b/.test(extra)) {
+    return { kind: 'group', reason: 'page:members', title };
+  }
+  if (action.includes('start')) {
+    return { kind: 'invalid', reason: 'page:bot', title };
+  }
+  if (action.includes('send message')) {
+    return { kind: 'invalid', reason: 'page:user', title };
+  }
+  return { kind: 'invalid', reason: 'page:unknown', title };
+}
+
 export function parseTelegramChannelHtml(html: string): ParsedTelegramPreview {
   const $ = load(html);
   const title = textOrNull($('.tgme_channel_info_header_title').first());

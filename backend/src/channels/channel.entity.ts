@@ -19,7 +19,12 @@ export enum LinkType {
   GROUP = 'group',
 }
 
-export type ChannelCollectStatus = 'ok' | 'failed' | 'gone' | 'private';
+export type ChannelCollectStatus =
+  | 'ok'
+  | 'failed'
+  | 'gone'
+  | 'private'
+  | 'invalid';
 
 export type ChannelListGrade = 'S' | 'A' | 'B' | 'C' | 'D';
 
@@ -135,6 +140,14 @@ export class Channel {
     nullable: true,
   })
   collectStatus: ChannelCollectStatus | null;
+
+  @Column({
+    name: 'collect_error',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  collectError: string | null;
 
   @Column({ name: 'collect_fail_count', type: 'integer', default: 0 })
   collectFailCount: number;

@@ -8,7 +8,8 @@ export type ChannelEventType =
   | 'rank_up'
   | 'gone'
   | 'returned'
-  | 'unverified';
+  | 'unverified'
+  | 'type_corrected';
 
 /** 채널 상태 변화 이벤트 */
 @Entity('channel_events')

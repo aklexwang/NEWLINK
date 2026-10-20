@@ -7,7 +7,11 @@ import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import { ChannelEvent, ChannelEventType } from './channel-event.entity';
 import { ChannelPost } from './channel-post.entity';
 import {
+  classifyTelegramAccountHtml,
+  clipCollectError,
+  formatBotCollectError,
   isMissingChannelHtml,
+  isPlaceholderTitle,
   isPrivateChannelHtml,
   joinMentionedUsernames,
   parseTelegramChannelHtml,
@@ -18,13 +22,17 @@ import {
 
 const PAGE_DELAY_MS = 1500;
 const EXTRA_PAGES = 3;
+const FETCH_TIMEOUT_MS = 12_000;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const GONE_AFTER_FAILS = 3;
 
 export type CollectOneResult =
   | { ok: true; mode: 'preview' | 'bot' }
-  | { ok: false; reason: 'gone' | 'private' | 'failed' | 'no_username' };
+  | {
+      ok: false;
+      reason: 'gone' | 'private' | 'failed' | 'no_username' | 'invalid';
+    };
 
 @Injectable()
 export class ChannelCollectorService {
@@ -62,9 +70,18 @@ export class ChannelCollectorService {
         else fail += 1;
       } catch (error) {
         fail += 1;
-        this.logger.warn(
-          `채널 수집 실패(${channels[i].id}): ${error instanceof Error ? error.message : error}`,
-        );
+        const message =
+          error instanceof Error ? error.message : String(error);
+        this.logger.warn(`채널 수집 실패(${channels[i].id}): ${message}`);
+        try {
+          await this.markFailed(
+            channels[i],
+            'failed',
+            clipCollectError(`fetch:${isTimeoutError(error) ? 'timeout' : 'error'}`),
+          );
+        } catch {
+          /* ignore */
+        }
       }
       onProgress?.({ processed: i + 1, total, failed: fail });
       if (i < channels.length - 1) {
@@ -87,36 +104,52 @@ export class ChannelCollectorService {
     }
 
     const username = this.resolveUsername(channel);
-    const isGroup = channel.linkType === LinkType.GROUP;
 
     if (!username) {
-      await this.markFailed(channel, 'failed');
+      await this.markFailed(channel, 'failed', 'no_username');
       return { ok: false, reason: 'no_username' };
     }
 
+    const classified = await this.classifyAccount(channel, username);
+    if (classified === 'invalid') {
+      return { ok: false, reason: 'invalid' };
+    }
+    if (classified === 'failed') {
+      return { ok: false, reason: 'failed' };
+    }
+
+    const isGroup = channel.linkType === LinkType.GROUP;
     if (isGroup) {
       return this.collectViaBot(channel, username);
     }
 
     const first = await this.fetchPreviewPage(username);
+    if (first.error === 'fetch:timeout') {
+      await this.markFailed(channel, 'failed', 'fetch:timeout');
+      return { ok: false, reason: 'failed' };
+    }
     if (
       first.status === 404 ||
       (first.html && isMissingChannelHtml(first.html))
     ) {
-      return this.markGoneProgress(channel);
+      return this.markGoneProgress(channel, 'preview:not_found');
     }
     if (first.status >= 400 || !first.html) {
-      await this.markFailed(channel, 'failed');
+      await this.markFailed(
+        channel,
+        'failed',
+        first.error ?? `preview:http_${first.status || 0}`,
+      );
       return { ok: false, reason: 'failed' };
     }
     if (isPrivateChannelHtml(first.html)) {
-      await this.markFailed(channel, 'private');
+      await this.markFailed(channel, 'private', 'preview:private');
       return { ok: false, reason: 'private' };
     }
 
     let parsed = parseTelegramChannelHtml(first.html);
     if (!parsed.hasPreview) {
-      return this.collectViaBot(channel, username);
+      return this.collectViaBot(channel, username, 'preview:no_widget');
     }
 
     const postsById = new Map<number, ParsedPreviewPost>();
@@ -216,38 +249,99 @@ export class ChannelCollectorService {
     );
   }
 
+  private async classifyAccount(
+    channel: Channel,
+    username: string,
+  ): Promise<'ok' | 'invalid' | 'failed'> {
+    const page = await this.fetchHtml(`https://t.me/${username}`);
+    if (page.error === 'fetch:timeout') {
+      await this.markFailed(channel, 'failed', 'fetch:timeout');
+      return 'failed';
+    }
+    if (page.status >= 400 && page.status !== 404) {
+      await this.markFailed(
+        channel,
+        'failed',
+        page.error ?? `fetch:http_${page.status}`,
+      );
+      return 'failed';
+    }
+    if (!page.html) {
+      await this.markFailed(channel, 'failed', page.error ?? 'fetch:empty');
+      return 'failed';
+    }
+    if (isPrivateChannelHtml(page.html)) {
+      await this.markFailed(channel, 'private', 'page:private');
+      return 'failed';
+    }
+
+    const classified = classifyTelegramAccountHtml(page.html);
+    const realTitle = classified.title?.trim() || null;
+    if (realTitle && isPlaceholderTitle(channel.title) && !isPlaceholderTitle(realTitle)) {
+      channel.title = realTitle;
+    }
+
+    if (classified.kind === 'invalid') {
+      await this.markInvalid(channel, classified.reason);
+      return 'invalid';
+    }
+
+    const nextType =
+      classified.kind === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
+    if (channel.linkType !== nextType) {
+      await this.recordEvent(
+        channel.id,
+        'type_corrected',
+        channel.linkType,
+        nextType,
+      );
+      channel.linkType = nextType;
+    }
+    await this.channelRepository.save(channel);
+    return 'ok';
+  }
+
   private async collectViaBot(
     channel: Channel,
     username: string,
+    previewHint?: string,
   ): Promise<CollectOneResult> {
     const token = (
       this.configService.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
     ).trim();
     if (!token || token.includes('placeholder')) {
-      await this.markFailed(channel, 'failed');
+      await this.markFailed(
+        channel,
+        'failed',
+        previewHint ? `${previewHint};bot:no_token` : 'bot:no_token',
+      );
       return { ok: false, reason: 'failed' };
     }
 
     try {
       const chat = await this.botGetChat(token, username);
       if (!chat.ok) {
+        const botError = formatBotCollectError(
+          chat.errorCode,
+          chat.description,
+        );
         const description = (chat.description ?? '').toLowerCase();
         if (
           chat.errorCode === 400 &&
           (description.includes('chat not found') ||
             description.includes('not found'))
         ) {
-          return this.markGoneProgress(channel);
+          return this.markGoneProgress(channel, botError);
         }
         if (
           description.includes('not a member') ||
           description.includes('kicked') ||
           description.includes('private')
         ) {
-          await this.markFailed(channel, 'private');
+          await this.markFailed(channel, 'private', botError);
           return { ok: false, reason: 'private' };
         }
-        await this.markFailed(channel, 'failed');
+        await this.markFailed(channel, 'failed', botError);
         return { ok: false, reason: 'failed' };
       }
 
@@ -263,7 +357,10 @@ export class ChannelCollectorService {
       this.logger.warn(
         `Bot API 수집 실패(@${username}): ${error instanceof Error ? error.message : error}`,
       );
-      await this.markFailed(channel, 'failed');
+      const reason = isTimeoutError(error)
+        ? 'fetch:timeout'
+        : previewHint ?? 'bot:error';
+      await this.markFailed(channel, 'failed', reason);
       return { ok: false, reason: 'failed' };
     }
   }
@@ -271,23 +368,34 @@ export class ChannelCollectorService {
   private async fetchPreviewPage(
     username: string,
     before?: number,
-  ): Promise<{ status: number; html: string | null }> {
+  ): Promise<{ status: number; html: string | null; error?: string }> {
     const url =
       before != null
         ? `https://t.me/s/${username}?before=${before}`
         : `https://t.me/s/${username}`;
+    return this.fetchHtml(url);
+  }
+
+  private async fetchHtml(
+    url: string,
+  ): Promise<{ status: number; html: string | null; error?: string }> {
     try {
       const res = await fetch(url, {
         headers: TELEGRAM_FETCH_HEADERS,
         redirect: 'follow',
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       const html = await res.text();
       return { status: res.status, html };
     } catch (error) {
       this.logger.warn(
-        `미리보기 요청 실패(${url}): ${error instanceof Error ? error.message : error}`,
+        `미리보기 요청 실패: ${error instanceof Error ? error.message : error}`,
       );
-      return { status: 0, html: null };
+      return {
+        status: 0,
+        html: null,
+        error: isTimeoutError(error) ? 'fetch:timeout' : 'fetch:network',
+      };
     }
   }
 
@@ -303,6 +411,7 @@ export class ChannelCollectorService {
   }> {
     const res = await fetch(
       `https://api.telegram.org/bot${token}/getChat?chat_id=@${username}`,
+      { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) },
     );
     const data = (await res.json()) as {
       ok: boolean;
@@ -334,6 +443,7 @@ export class ChannelCollectorService {
   ): Promise<number | null> {
     const res = await fetch(
       `https://api.telegram.org/bot${token}/getChatMemberCount?chat_id=@${username}`,
+      { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) },
     );
     const data = (await res.json()) as { ok: boolean; result?: number };
     if (!data.ok || typeof data.result !== 'number') return null;
@@ -395,16 +505,21 @@ export class ChannelCollectorService {
       channel.telegramChatId = info.telegramChatId;
     channel.lastCollectedAt = now;
     channel.collectStatus = 'ok';
+    channel.collectError = null;
     channel.collectFailCount = 0;
     await this.channelRepository.save(channel);
   }
 
-  private async markGoneProgress(channel: Channel): Promise<CollectOneResult> {
+  private async markGoneProgress(
+    channel: Channel,
+    error: string,
+  ): Promise<CollectOneResult> {
     channel.collectFailCount = (channel.collectFailCount ?? 0) + 1;
+    channel.collectError = clipCollectError(error);
+    channel.lastCollectedAt = new Date();
     if (channel.collectFailCount >= GONE_AFTER_FAILS) {
       const alreadyGone = channel.collectStatus === 'gone';
       channel.collectStatus = 'gone';
-      channel.lastCollectedAt = new Date();
       await this.channelRepository.save(channel);
       if (!alreadyGone) {
         await this.recordEvent(channel.id, 'gone', 'ok', 'gone');
@@ -412,13 +527,24 @@ export class ChannelCollectorService {
       return { ok: false, reason: 'gone' };
     }
     channel.collectStatus = 'failed';
-    channel.lastCollectedAt = new Date();
     await this.channelRepository.save(channel);
     return { ok: false, reason: 'failed' };
   }
 
-  private async markFailed(channel: Channel, status: 'failed' | 'private') {
+  private async markFailed(
+    channel: Channel,
+    status: 'failed' | 'private',
+    error: string,
+  ) {
     channel.collectStatus = status;
+    channel.collectError = clipCollectError(error);
+    channel.lastCollectedAt = new Date();
+    await this.channelRepository.save(channel);
+  }
+
+  private async markInvalid(channel: Channel, error: string) {
+    channel.collectStatus = 'invalid';
+    channel.collectError = clipCollectError(error);
     channel.lastCollectedAt = new Date();
     await this.channelRepository.save(channel);
   }
@@ -454,4 +580,15 @@ function minMessageId(posts: Map<number, ParsedPreviewPost>): number | null {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTimeoutError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const name = 'name' in error ? String(error.name) : '';
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    name === 'TimeoutError' ||
+    name === 'AbortError' ||
+    /timeout|timed out|aborted/i.test(message)
+  );
 }
