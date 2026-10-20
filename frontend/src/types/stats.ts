@@ -48,6 +48,14 @@ export interface ChannelDetail {
   memberCount: number | null;
   firstObservedAt: string | null;
   lastCollectedAt: string | null;
+  collectStatus?:
+    | 'ok'
+    | 'failed'
+    | 'gone'
+    | 'private'
+    | 'invalid'
+    | 'invite_only'
+    | null;
   observedDays: number | null;
   score: number | null;
   grade: ChannelGrade | null;

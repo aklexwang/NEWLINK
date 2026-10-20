@@ -632,6 +632,7 @@ export class PublicStatsService {
       growth30d: channel.growth30d,
       medianViews7d: channel.medianViews7d,
       posts7d: channel.posts7d,
+      collectStatus: channel.collectStatus,
       isVerified: Boolean(channel.isVerified),
       verifiedAt: channel.verifiedAt?.toISOString() ?? null,
       latestScore: latest

@@ -39,7 +39,14 @@ export interface Channel {
   rewardPaidAt?: string | null;
   rewardWallet?: string | null;
   username?: string | null;
-  collectStatus?: 'ok' | 'failed' | 'gone' | 'private' | 'invalid' | null;
+  collectStatus?:
+    | 'ok'
+    | 'failed'
+    | 'gone'
+    | 'private'
+    | 'invalid'
+    | 'invite_only'
+    | null;
   collectError?: string | null;
   lastCollectedAt?: string | null;
 }

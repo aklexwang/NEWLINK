@@ -24,7 +24,10 @@ export type ChannelCollectStatus =
   | 'failed'
   | 'gone'
   | 'private'
-  | 'invalid';
+  | 'invalid'
+  | 'invite_only';
+
+export type ChannelClassifiedKind = 'channel' | 'group' | 'invalid';
 
 export type ChannelListGrade = 'S' | 'A' | 'B' | 'C' | 'D';
 
@@ -148,6 +151,21 @@ export class Channel {
     nullable: true,
   })
   collectError: string | null;
+
+  @Column({
+    name: 'classified_kind',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  classifiedKind: ChannelClassifiedKind | null;
+
+  @Column({
+    name: 'classified_at',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
+  classifiedAt: Date | null;
 
   @Column({ name: 'collect_fail_count', type: 'integer', default: 0 })
   collectFailCount: number;

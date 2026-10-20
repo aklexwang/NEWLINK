@@ -383,9 +383,8 @@ export class ChannelsService implements OnModuleInit {
     const qb = this.channelRepository
       .createQueryBuilder('channel')
       .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
-      .andWhere('channel.first_observed_at IS NOT NULL')
       .andWhere(
-        '(channel.collect_status IS NULL OR channel.collect_status NOT IN (:...hiddenCollect))',
+        `(channel.collect_status = 'invite_only' OR (channel.first_observed_at IS NOT NULL AND (channel.collect_status IS NULL OR channel.collect_status NOT IN (:...hiddenCollect))))`,
         { hiddenCollect: ['invalid', 'gone'] },
       );
 
@@ -861,7 +860,7 @@ export class ChannelsService implements OnModuleInit {
       });
     if (filters.collectStatus === 'failed') {
       qb.andWhere('channel.collect_status IN (:...collectFail)', {
-        collectFail: ['failed', 'private', 'invalid', 'gone'],
+        collectFail: ['failed', 'private', 'invalid', 'gone', 'invite_only'],
       });
     } else if (filters.collectStatus === 'invalid') {
       qb.andWhere('channel.collect_status = :collectInvalid', {

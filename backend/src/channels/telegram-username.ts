@@ -20,6 +20,16 @@ const RESERVED_PATHS = new Set([
   'giftcode',
 ]);
 
+/** 초대 링크(t.me/+ , joinchat)인지 */
+export function isInviteOnlyLink(link: string | null | undefined): boolean {
+  if (!link?.trim()) return false;
+  const raw = link.trim();
+  return (
+    /\/joinchat\//i.test(raw) ||
+    /(?:t\.me|telegram\.me|telegram\.dog)\/\+/i.test(raw)
+  );
+}
+
 /**
  * 채널 링크에서 공개 username을 뽑습니다.
  * 초대링크(t.me/+xxxx, joinchat)와 비공개 /c/ 경로는 null입니다.
@@ -30,10 +40,7 @@ export function extractTelegramUsernameFromLink(
   if (!link?.trim()) return null;
   const raw = link.trim();
 
-  if (
-    /\/joinchat\//i.test(raw) ||
-    /(?:t\.me|telegram\.me|telegram\.dog)\/\+/i.test(raw)
-  ) {
+  if (isInviteOnlyLink(raw)) {
     return null;
   }
 

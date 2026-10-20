@@ -443,6 +443,12 @@ export function ChannelDetailPage() {
         </div>
       </header>
 
+      {detail.collectStatus === 'invite_only' && (
+        <section className="mx-4 rounded-2xl bg-tg-secondary/70 px-4 py-3 text-[13px] leading-snug text-tg-hint">
+          비공개 초대방이라 통계를 수집할 수 없습니다
+        </section>
+      )}
+
       <section className="grid grid-cols-2 gap-2 px-4">
         <MetricCard label="구독자" value={formatCount(detail.memberCount)} />
         <MetricCard label="평균 조회 (7일)" value={formatCount(detail.medianViews7d)} />

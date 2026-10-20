@@ -232,6 +232,7 @@ export function AdminLinksManagePage({
     private: '비공개',
     gone: '사라짐',
     invalid: '채널·그룹 아님',
+    invite_only: '초대 전용',
   };
 
   const categoryOptions = categories.map((c) => c.name);

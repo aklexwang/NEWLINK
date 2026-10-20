@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
-import { isPublicCollectable } from './collect-visibility';
+import { isScoreCollectable } from './collect-visibility';
 import { ChannelEvent } from './channel-event.entity';
 import { ChannelPost } from './channel-post.entity';
 import { ChannelScore } from './channel-score.entity';
@@ -119,7 +119,7 @@ export class ChannelMetricsService {
       await this.channelRepository.find({
         where: { status: ChannelStatus.ACTIVE },
       })
-    ).filter(isPublicCollectable);
+    ).filter(isScoreCollectable);
     if (channels.length === 0) {
       this.logger.log('점수 계산 대상 채널이 없습니다.');
       return;
