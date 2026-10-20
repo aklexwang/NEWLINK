@@ -3,6 +3,7 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { AppLayout } from './components/AppLayout';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { AuthProvider } from './providers/AuthProvider';
+import { ThemeProvider } from './providers/ThemeProvider';
 import { AppToastProvider } from './providers/AppToastProvider';
 import { TonConnectProvider } from './providers/TonConnectProvider';
 import { AdminAutoManagePage } from './pages/admin/AdminAutoManagePage';
@@ -32,6 +33,7 @@ export default function App() {
       <AppToastProvider>
         <AppErrorBoundary>
           <TonConnectProvider>
+            <ThemeProvider>
             <AuthProvider>
               <Routes>
                 <Route path="/admin" element={<AdminLayout />}>
@@ -63,6 +65,7 @@ export default function App() {
                 </Route>
               </Routes>
             </AuthProvider>
+            </ThemeProvider>
           </TonConnectProvider>
         </AppErrorBoundary>
       </AppToastProvider>

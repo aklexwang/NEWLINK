@@ -77,7 +77,7 @@ function ShortcutItem({
       onClick={() => onOpen(channel.link)}
       className="group mx-auto flex w-[88px] flex-col items-center gap-2 active:scale-[0.97]"
     >
-      <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f1f3f4] transition group-hover:bg-[#e8eaed]">
+      <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-nl-elev ring-1 ring-nl-line">
         {currentSrc ? (
           <img
             src={currentSrc}
@@ -94,7 +94,7 @@ function ShortcutItem({
           <CategoryIcon emoji={meta.emoji} iconUrl={meta.iconUrl} size="md" className="bg-transparent" />
         )}
       </div>
-      <span className="block min-h-[2.5em] w-full px-0.5 text-center text-[12px] font-medium leading-snug text-[#3c4043] line-clamp-2 break-words">
+      <span className="block min-h-[2.5em] w-full px-0.5 text-center text-[12px] font-medium leading-snug text-nl-text line-clamp-2 break-words">
         {label}
       </span>
     </button>
@@ -112,12 +112,12 @@ export function PromotedShortcuts({
 
   if (isLoading) {
     return (
-      <div className="mt-12 w-full">
+      <div className="w-full">
         <div className="mx-auto grid max-w-[360px] grid-cols-4 gap-x-2 gap-y-8">
           {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="mx-auto flex w-[88px] flex-col items-center gap-3">
-              <div className="h-14 w-14 animate-pulse rounded-full bg-tg-secondary" />
-              <div className="h-3 w-16 animate-pulse rounded bg-tg-secondary" />
+              <div className="h-14 w-14 animate-pulse rounded-full bg-nl-elev" />
+              <div className="h-3 w-16 animate-pulse rounded bg-nl-elev" />
             </div>
           ))}
         </div>
@@ -127,12 +127,12 @@ export function PromotedShortcuts({
 
   if (displayChannels.length === 0) {
     return (
-      <p className="mt-12 text-center text-sm text-tg-hint">등록된 Promoted 채널이 없습니다.</p>
+      <p className="py-4 text-center text-sm text-nl-muted">등록된 광고 채널이 없습니다.</p>
     );
   }
 
   return (
-    <section className="mt-12 w-full">
+    <section className="w-full">
       <div
         className="mx-auto grid justify-items-center gap-x-2 gap-y-8"
         style={{

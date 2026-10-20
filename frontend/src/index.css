@@ -1,5 +1,36 @@
 @import 'tailwindcss';
 
+:root,
+html.dark {
+  --nl-bg: #101218;
+  --nl-card: #1b202b;
+  --nl-elev: #242b38;
+  --nl-text: #f3f5f8;
+  --nl-muted: #9aa3b5;
+  --nl-accent: #2ee59d;
+  --nl-line: rgba(255, 255, 255, 0.08);
+  --tg-theme-bg-color: #101218;
+  --tg-theme-text-color: #f3f5f8;
+  --tg-theme-hint-color: #9aa3b5;
+  --tg-theme-link-color: #2ee59d;
+  --tg-theme-secondary-bg-color: #1b202b;
+}
+
+html.light {
+  --nl-bg: #eef0f4;
+  --nl-card: #ffffff;
+  --nl-elev: #f7f8fa;
+  --nl-text: #12141a;
+  --nl-muted: #667085;
+  --nl-accent: #12b884;
+  --nl-line: rgba(16, 18, 24, 0.08);
+  --tg-theme-bg-color: #eef0f4;
+  --tg-theme-text-color: #12141a;
+  --tg-theme-hint-color: #667085;
+  --tg-theme-link-color: #12b884;
+  --tg-theme-secondary-bg-color: #ffffff;
+}
+
 @theme {
   --color-tg-bg: var(--tg-theme-bg-color, #ffffff);
   --color-tg-text: var(--tg-theme-text-color, #1a1a1a);
@@ -10,6 +41,13 @@
   --color-tg-secondary: var(--tg-theme-secondary-bg-color, #f2f2f7);
   --color-tg-open-bg: #e8f4fd;
   --color-tg-open-text: #2481cc;
+  --color-nl-bg: var(--nl-bg);
+  --color-nl-card: var(--nl-card);
+  --color-nl-elev: var(--nl-elev);
+  --color-nl-text: var(--nl-text);
+  --color-nl-muted: var(--nl-muted);
+  --color-nl-accent: var(--nl-accent);
+  --color-nl-line: var(--nl-line);
 }
 
 html, body, #root { height: 100%; margin: 0; }

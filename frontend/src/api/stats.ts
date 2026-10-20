@@ -59,6 +59,70 @@ export async function getChannelMediaMix(id: string): Promise<ChannelMediaMix> {
   return data;
 }
 
+export interface HomeCard {
+  id: string;
+  title: string;
+  username: string | null;
+  link: string;
+  avatarUrl: string | null;
+  score?: number | null;
+  memberCount?: number | null;
+  category: string;
+  linkType: 'channel' | 'group';
+  grade?: string | null;
+}
+
+export interface HomeHeadlines {
+  risingTitle: string | null;
+  risingUsername: string | null;
+  firstSeenCount: number;
+  rankUpCount: number;
+  firstSeen: { id: string; title: string | null; username: string | null }[];
+  rankUp: { id: string; title: string | null; username: string | null }[];
+}
+
+export interface HomeDashboard {
+  week: string;
+  topBy: 'score' | 'members';
+  topChannels: HomeCard[];
+  headlines: HomeHeadlines;
+  promoted: HomeCard[];
+}
+
+export interface HomeFeedItem {
+  id: string;
+  title: string;
+  username: string | null;
+  link: string;
+  avatarUrl: string | null;
+  category: string;
+  linkType: 'channel' | 'group';
+  memberCount: number | null;
+  growth7d: number | null;
+  grade: 'S' | 'A' | 'B' | 'C' | 'D' | null;
+  score: number | null;
+  lastPostAt: string;
+}
+
+export interface HomeFeedPage {
+  items: HomeFeedItem[];
+  nextCursor: string | null;
+}
+
+export async function getHomeDashboard(): Promise<HomeDashboard> {
+  const { data } = await apiClient.get<HomeDashboard>('/stats/home');
+  return data;
+}
+
+export async function getHomeFeed(params: {
+  type?: 'channel' | 'all' | 'group';
+  cursor?: string;
+  limit?: number;
+}): Promise<HomeFeedPage> {
+  const { data } = await apiClient.get<HomeFeedPage>('/stats/feed', { params });
+  return data;
+}
+
 export async function getWeeklyStats(week?: string): Promise<WeeklyStats> {
   const { data } = await apiClient.get<WeeklyStats>('/stats/weekly', {
     params: week ? { week } : undefined,

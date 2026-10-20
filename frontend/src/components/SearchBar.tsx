@@ -7,13 +7,16 @@ interface SearchBarProps {
   onChange: (value: string) => void;
   onSearch: () => void;
   isLoading?: boolean;
-  variant?: 'default' | 'google';
+  variant?: 'default' | 'google' | 'dashboard';
   className?: string;
   suggestions?: Channel[];
   suggestionsLoading?: boolean;
   showSuggestions?: boolean;
   onSelectSuggestion?: (channel: Channel) => void;
   onCloseSuggestions?: () => void;
+  placeholder?: string;
+  linkType?: 'all' | 'channel' | 'group';
+  onLinkTypeChange?: (value: 'all' | 'channel' | 'group') => void;
 }
 
 function SearchIcon({ className = '' }: { className?: string }) {
@@ -36,6 +39,9 @@ export function SearchBar({
   showSuggestions = false,
   onSelectSuggestion,
   onCloseSuggestions,
+  placeholder = '텔레그램 채널·그룹 검색',
+  linkType = 'all',
+  onLinkTypeChange,
 }: SearchBarProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const open =
@@ -91,6 +97,91 @@ export function SearchBar({
     </ul>
   ) : null;
 
+  if (variant === 'dashboard') {
+    return (
+      <div id="search-section" ref={rootRef} className={`relative w-full ${className}`}>
+        <div
+          className={`flex h-12 items-stretch overflow-hidden rounded-2xl border border-nl-line bg-nl-elev ${
+            open ? 'rounded-b-none' : ''
+          }`}
+        >
+          <label className="sr-only" htmlFor="search-type">
+            종류
+          </label>
+          <select
+            id="search-type"
+            value={linkType}
+            onChange={(e) => onLinkTypeChange?.(e.target.value as 'all' | 'channel' | 'group')}
+            className="w-[4.6rem] shrink-0 border-r border-nl-line bg-transparent px-1.5 text-[12px] font-semibold text-nl-text outline-none"
+          >
+            <option value="all">전체</option>
+            <option value="channel">채널</option>
+            <option value="group">그룹</option>
+          </select>
+          <input
+            id="search-input"
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSearch();
+              if (e.key === 'Escape') onCloseSuggestions?.();
+            }}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={placeholder}
+            className="min-w-0 flex-1 bg-transparent px-2.5 text-[15px] text-nl-text outline-none placeholder:text-nl-muted"
+          />
+          {isLoading ? (
+            <span className="flex items-center px-3 text-xs text-nl-muted">...</span>
+          ) : (
+            <button
+              type="button"
+              onClick={onSearch}
+              className="m-1 shrink-0 rounded-xl bg-nl-accent px-3 text-[13px] font-bold text-[#082016]"
+            >
+              검색
+            </button>
+          )}
+        </div>
+        {open ? (
+          <ul
+            role="listbox"
+            aria-label="검색 제안"
+            className="absolute left-0 right-0 z-20 overflow-hidden rounded-b-2xl border border-t-0 border-nl-line bg-nl-card shadow-lg"
+          >
+            {suggestionsLoading && suggestions.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-nl-muted">검색 중…</li>
+            ) : (
+              suggestions.map((channel) => {
+                const subtitle =
+                  (channel.description ?? '').trim() ||
+                  `${linkTypeLabel(channel.linkType)} · ${channel.category}`;
+                return (
+                  <li key={channel.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => onSelectSuggestion?.(channel)}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-nl-elev"
+                    >
+                      <SearchIcon className="h-[18px] w-[18px] shrink-0 fill-[#9aa3b5]" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] text-nl-text">{channel.title}</span>
+                        <span className="mt-0.5 block truncate text-[12px] text-nl-muted">{subtitle}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        ) : null}
+      </div>
+    );
+  }
+
   if (variant === 'google') {
     return (
       <div id="search-section" ref={rootRef} className={`relative w-full max-w-[520px] ${className}`}>
@@ -112,7 +203,7 @@ export function SearchBar({
             }}
             autoComplete="off"
             spellCheck={false}
-            placeholder="텔레그램 채널·그룹 검색"
+            placeholder={placeholder}
             className="min-w-0 flex-1 bg-transparent px-1 text-[16px] text-[#202124] outline-none placeholder:text-[#9aa0a6]"
           />
           {value && !isLoading && (
@@ -164,7 +255,7 @@ export function SearchBar({
           }}
           autoComplete="off"
           spellCheck={false}
-          placeholder="텔레그램 채널·그룹 검색"
+          placeholder={placeholder}
           className="min-w-0 flex-1 bg-transparent px-1 text-[15px] text-tg-text outline-none placeholder:text-tg-hint"
         />
         {value && !isLoading && (

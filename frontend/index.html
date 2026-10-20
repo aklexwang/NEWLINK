@@ -4,8 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/tonconnect-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#ffffff" />
-    <title>New Link</title>
+    <meta name="theme-color" content="#101218" />
+    <title>NEWLINK</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('newlink-theme') === 'light' ? 'light' : 'dark';
+          document.documentElement.classList.add(t);
+          document.documentElement.dataset.theme = t;
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
     <!-- deploy-bump: 2026-08-09-eod -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>

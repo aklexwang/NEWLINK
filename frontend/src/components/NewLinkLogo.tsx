@@ -3,19 +3,19 @@ interface NewLinkLogoProps {
 }
 
 export function NewLinkLogo({ compact = false }: NewLinkLogoProps) {
-  const height = compact ? 34 : 76;
+  const height = compact ? 28 : 76;
 
   return (
-    <header className={`flex flex-col items-center ${compact ? 'pb-2' : ''}`}>
-      <h1 className="m-0 leading-none">
+    <span className={`inline-flex ${compact ? 'items-center' : 'flex-col items-center pb-2'}`}>
+      <span className="m-0 leading-none">
         <img
           src="/assets/newlink-logo.png"
           alt="NEW LINK"
           draggable={false}
-          className="logo-image block w-auto max-w-[min(100%,520px)] select-none"
+          className={`logo-image block w-auto select-none ${compact ? 'max-w-[118px]' : 'max-w-[min(100%,520px)]'}`}
           style={{ height }}
         />
-      </h1>
-    </header>
+      </span>
+    </span>
   );
 }

@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
-import { Channel, ChannelStatus } from '../channels/channel.entity';
+import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import {
@@ -23,6 +23,7 @@ import { ChannelPost } from './channel-post.entity';
 import { ChannelScore } from './channel-score.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import type {
+  HomeFeedQueryDto,
   RankingQueryDto,
   RankingSort,
   StatsRange,
@@ -35,6 +36,8 @@ import {
   previousIsoWeek,
 } from './kst-week';
 
+const HOME_CACHE_MS = 3 * 60 * 1000;
+
 const WEEKLY_EVENT_TYPES: ChannelEventType[] = [
   'title_changed',
   'username_changed',
@@ -44,6 +47,9 @@ const WEEKLY_EVENT_TYPES: ChannelEventType[] = [
 
 @Injectable()
 export class PublicStatsService {
+  private homeCache: { expiresAt: number; data: unknown } | null = null;
+  private readonly feedCache = new Map<string, { expiresAt: number; data: unknown }>();
+
   constructor(
     @InjectRepository(Channel)
     private readonly channelRepository: Repository<Channel>,
@@ -250,6 +256,181 @@ export class PublicStatsService {
       firstSeen,
       rankUp,
     };
+  }
+
+  async getHome() {
+    if (this.homeCache && this.homeCache.expiresAt > Date.now()) {
+      return this.homeCache.data;
+    }
+
+    const weekly = await this.getWeekly();
+    let topBy: 'score' | 'members' = 'score';
+    let top = await this.listRanking({ sort: 'score', limit: 10 });
+    const scoredCount = top.filter((item) => item.score != null).length;
+    if (scoredCount < 3) {
+      topBy = 'members';
+      top = await this.listRanking({ sort: 'members', limit: 10 });
+    }
+
+    const rising = await this.listRanking({ sort: 'rising', limit: 1 });
+    const promoted = await this.channelsService.findActivePromoted(8);
+
+    const data = {
+      week: weekly.week,
+      topBy,
+      topChannels: top.map((item) => this.toHomeCard(item)),
+      headlines: {
+        risingTitle: rising[0]?.title ?? null,
+        risingUsername: this.stripAt(rising[0]?.username),
+        firstSeenCount: weekly.counts.firstSeen,
+        rankUpCount: weekly.counts.rankUp,
+        firstSeen: weekly.firstSeen.slice(0, 8).map((item) => ({
+          id: item.channelId,
+          title: item.channelTitle,
+          username: item.username,
+        })),
+        rankUp: weekly.rankUp.slice(0, 8).map((item) => ({
+          id: item.channelId,
+          title: item.channelTitle,
+          username: item.username,
+        })),
+      },
+      promoted: promoted.map((ch) => ({
+        id: ch.id,
+        title: ch.title,
+        username:
+          ch.username ?? extractTelegramUsernameFromLink(ch.link),
+        link: ch.link,
+        avatarUrl: this.channelsService.getListAvatarUrl(ch),
+        category: ch.category,
+        linkType: ch.linkType,
+      })),
+    };
+
+    this.homeCache = { expiresAt: Date.now() + HOME_CACHE_MS, data };
+    return data;
+  }
+
+  async getFeed(query: HomeFeedQueryDto) {
+    const type = query.type ?? 'channel';
+    const limit = Math.min(Math.max(query.limit ?? 20, 1), 50);
+    const cacheKey = `feed:${type}:${query.cursor ?? ''}:${limit}`;
+    const cached = this.feedCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
+    let channels = await this.channelRepository.find({
+      where: { status: ChannelStatus.ACTIVE },
+    });
+    channels = this.dedupeByLink(channels);
+    if (type === 'channel') {
+      channels = channels.filter((c) => c.linkType === LinkType.CHANNEL);
+    } else if (type === 'group') {
+      channels = channels.filter((c) => c.linkType === LinkType.GROUP);
+    }
+
+    const lastPosts = await this.postRepository
+      .createQueryBuilder('post')
+      .select('post.channel_id', 'channelId')
+      .addSelect('MAX(post.posted_at)', 'lastPostAt')
+      .groupBy('post.channel_id')
+      .getRawMany<Record<string, unknown>>();
+    const lastMap = new Map<string, Date>();
+    for (const row of lastPosts) {
+      const id = String(row.channelId ?? row.channel_id ?? '');
+      const rawAt = row.lastPostAt ?? row.last_post_at;
+      const at = rawAt instanceof Date ? rawAt : new Date(String(rawAt ?? ''));
+      if (id && !Number.isNaN(at.getTime())) lastMap.set(id, at);
+    }
+
+    const rows = channels
+      .map((channel) => {
+        const lastPostAt =
+          lastMap.get(channel.id) ?? channel.lastCollectedAt ?? null;
+        return { channel, lastPostAt };
+      })
+      .filter((row) => row.lastPostAt != null)
+      .sort((a, b) => {
+        const dt = (b.lastPostAt as Date).getTime() - (a.lastPostAt as Date).getTime();
+        if (dt !== 0) return dt;
+        return b.channel.id.localeCompare(a.channel.id);
+      });
+
+    const cursor = parseFeedCursor(query.cursor);
+    let start = 0;
+    if (cursor) {
+      start = rows.findIndex((row) => {
+        const at = (row.lastPostAt as Date).getTime();
+        if (at < cursor.at) return true;
+        if (at === cursor.at && row.channel.id < cursor.id) return true;
+        return false;
+      });
+      if (start < 0) start = rows.length;
+    }
+
+    const slice = rows.slice(start, start + limit);
+    const last = slice[slice.length - 1];
+    const nextCursor =
+      slice.length === limit && last?.lastPostAt
+        ? `${(last.lastPostAt as Date).toISOString()}::${last.channel.id}`
+        : null;
+
+    const data = {
+      items: slice.map(({ channel, lastPostAt }) => ({
+        id: channel.id,
+        title: channel.title,
+        username:
+          channel.username ?? extractTelegramUsernameFromLink(channel.link),
+        link: channel.link,
+        avatarUrl: this.channelsService.getListAvatarUrl(channel),
+        category: channel.category,
+        linkType: channel.linkType,
+        memberCount: channel.memberCount,
+        growth7d: channel.growth7d,
+        grade: channel.grade,
+        score: channel.score,
+        lastPostAt: (lastPostAt as Date).toISOString(),
+      })),
+      nextCursor,
+    };
+    this.feedCache.set(cacheKey, {
+      expiresAt: Date.now() + HOME_CACHE_MS,
+      data,
+    });
+    return data;
+  }
+
+  private toHomeCard(item: {
+    id: string;
+    title: string;
+    username: string | null;
+    link: string;
+    avatarUrl: string | null;
+    score?: number | null;
+    participantsCount: number;
+    category: string;
+    linkType: string;
+    grade?: string | null;
+  }) {
+    return {
+      id: item.id,
+      title: item.title,
+      username: this.stripAt(item.username),
+      link: item.link,
+      avatarUrl: item.avatarUrl,
+      score: item.score ?? null,
+      memberCount: item.participantsCount,
+      category: item.category,
+      linkType: item.linkType,
+      grade: item.grade ?? null,
+    };
+  }
+
+  private stripAt(username: string | null | undefined): string | null {
+    if (!username) return null;
+    const u = username.replace(/^@/, '').trim();
+    return u || null;
   }
 
   async compare(idsRaw: string) {
@@ -536,4 +717,16 @@ export class PublicStatsService {
     }
     return result;
   }
+}
+
+function parseFeedCursor(
+  raw: string | undefined,
+): { at: number; id: string } | null {
+  if (!raw?.trim()) return null;
+  const sep = raw.lastIndexOf('::');
+  if (sep <= 0) return null;
+  const at = new Date(raw.slice(0, sep)).getTime();
+  const id = raw.slice(sep + 2);
+  if (!id || Number.isNaN(at)) return null;
+  return { at, id };
 }

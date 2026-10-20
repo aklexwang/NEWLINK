@@ -103,6 +103,23 @@ export class RankingQueryDto {
   limit?: number = 50;
 }
 
+export class HomeFeedQueryDto {
+  @IsOptional()
+  @IsIn(['channel', 'all', 'group'])
+  type?: 'channel' | 'all' | 'group' = 'channel';
+
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  @IsOptional()
+  limit?: number = 20;
+}
+
 export function parseCompareIds(raw: string): string[] {
   return [
     ...new Set(
