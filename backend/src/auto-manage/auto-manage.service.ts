@@ -522,6 +522,11 @@ export class AutoManageService {
         alreadyOnMemberPage:
           item.status === ImportCandidateStatus.PUBLISHED ||
           Boolean(await this.channelsService.findByLink(item.link)),
+        discoverySources: (item.discoverySources ?? '')
+          .split(',')
+          .map((name) => name.trim())
+          .filter(Boolean)
+          .slice(0, 3),
       })),
     );
   }

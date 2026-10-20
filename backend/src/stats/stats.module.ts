@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CategoryAiService } from '../auto-manage/category-ai.service';
+import { ChannelImportCandidate } from '../auto-manage/channel-import-candidate.entity';
 import { Channel } from '../channels/channel.entity';
 import { ChannelsModule } from '../channels/channels.module';
 import { ChannelEvent } from './channel-event.entity';
@@ -8,7 +10,9 @@ import { ChannelPost } from './channel-post.entity';
 import { ChannelScore } from './channel-score.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import { ChannelCollectorService } from './channel-collector.service';
+import { ChannelDiscoveryService } from './channel-discovery.service';
 import { ChannelMetricsService } from './channel-metrics.service';
+import { DiscoveredUsername } from './discovered-username.entity';
 import { InternalCronGuard } from './internal-cron.guard';
 import { InternalStatsController } from './internal-stats.controller';
 import { PublicChannelStatsController } from './public-channel-stats.controller';
@@ -27,6 +31,8 @@ import { StatsService } from './stats.service';
       ChannelPost,
       ChannelScore,
       ChannelEvent,
+      ChannelImportCandidate,
+      DiscoveredUsername,
     ]),
   ],
   controllers: [
@@ -37,6 +43,8 @@ import { StatsService } from './stats.service';
   providers: [
     StatsService,
     ChannelCollectorService,
+    ChannelDiscoveryService,
+    CategoryAiService,
     ChannelMetricsService,
     StatsJobService,
     InternalCronGuard,

@@ -63,6 +63,7 @@ export function AdminAutoManagePage() {
   const [candidates, setCandidates] = useState<ImportCandidate[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
+  const [sourceFilter, setSourceFilter] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -90,6 +91,7 @@ export function AdminAutoManagePage() {
         getAutoManageCandidates({
           status: statusFilter,
           category: categoryFilter || undefined,
+          source: sourceFilter || undefined,
         }),
         getAdminCategories().catch(() => [] as CategoryItem[]),
       ]);
@@ -113,7 +115,7 @@ export function AdminAutoManagePage() {
     } finally {
       setLoading(false);
     }
-  }, [categoryFilter, statusFilter]);
+  }, [categoryFilter, sourceFilter, statusFilter]);
 
   useEffect(() => {
     void load();
@@ -576,6 +578,17 @@ export function AdminAutoManagePage() {
               {tab.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setSourceFilter((prev) => (prev === 'discovery' ? '' : 'discovery'))}
+            className={`rounded-full px-4 py-2 text-sm font-medium ${
+              sourceFilter === 'discovery'
+                ? 'bg-violet-600 text-white'
+                : 'bg-white text-slate-600 ring-1 ring-black/10 hover:bg-slate-50'
+            }`}
+          >
+            발견됨
+          </button>
         </div>
 
         {categories.length > 0 && (
@@ -658,7 +671,7 @@ export function AdminAutoManagePage() {
                   <AdminTh className="w-20">유형</AdminTh>
                   <AdminTh className="min-w-[140px]">카테고리 (검수)</AdminTh>
                   <AdminTh className="w-24">구독자</AdminTh>
-                  <AdminTh className="w-20">소스</AdminTh>
+                  <AdminTh className="min-w-[120px]">소스</AdminTh>
                   <AdminTh className="w-24">미리보기</AdminTh>
                 </tr>
               </thead>
@@ -757,7 +770,20 @@ export function AdminAutoManagePage() {
                         <span className="text-xs tabular-nums">{formatCount(item.participantsCount)}</span>
                       </AdminTd>
                       <AdminTd>
-                        <span className="text-xs uppercase text-slate-500">{item.source}</span>
+                        <div className="space-y-0.5">
+                          <span className="text-xs text-slate-500">
+                            {item.source === 'discovery' ? '발견됨' : item.source}
+                          </span>
+                          {item.source === 'discovery' &&
+                            (item.discoverySources ?? []).length > 0 && (
+                              <p className="text-[10px] leading-snug text-slate-400">
+                                {(item.discoverySources ?? [])
+                                  .slice(0, 3)
+                                  .map((name) => `@${name}`)
+                                  .join(', ')}
+                              </p>
+                            )}
+                        </div>
                       </AdminTd>
                       <AdminTd>
                         <button

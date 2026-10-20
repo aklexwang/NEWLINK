@@ -5,6 +5,7 @@ import { getMemberAuthHeaders } from '../utils/memberAuth';
 export async function searchChannels(params: {
   q?: string;
   category?: string;
+  type?: 'channel' | 'group';
   page?: number;
   limit?: number;
 }): Promise<SearchResult> {

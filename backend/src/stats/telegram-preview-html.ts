@@ -1,5 +1,9 @@
 import { load, type CheerioAPI, type Cheerio } from 'cheerio';
 import type { Element } from 'domhandler';
+import {
+  extractTelegramUsernameFromLink,
+  isDiscoverableUsername,
+} from '../channels/telegram-username';
 import type { ChannelPostMediaType } from './channel-post.entity';
 
 export const TELEGRAM_FETCH_HEADERS = {
@@ -15,6 +19,7 @@ export interface ParsedPreviewPost {
   mediaType: ChannelPostMediaType;
   forwardedFrom: string | null;
   isEdited: boolean;
+  mentionedUsernames: string[];
 }
 
 export interface ParsedTelegramPreview {
@@ -116,6 +121,11 @@ function parsePosts($: CheerioAPI): ParsedPreviewPost[] {
         .first()
         .attr('href') ?? null;
     const forwardedFrom = forwardedHref?.trim() || null;
+    const selfUsername = dataPost.split('/')[0]?.replace(/^@/, '').trim() || null;
+    const mentionedUsernames = extractTmeUsernamesFromHtml(
+      node.html() ?? '',
+      selfUsername,
+    );
 
     posts.push({
       messageId,
@@ -124,9 +134,68 @@ function parsePosts($: CheerioAPI): ParsedPreviewPost[] {
       mediaType: detectMediaType(node),
       forwardedFrom,
       isEdited: node.find('.tgme_widget_message_edited').length > 0,
+      mentionedUsernames,
     });
   });
   return posts;
+}
+
+const TME_URL_RE =
+  /(?:https?:\/\/)?(?:t\.me|telegram\.me|telegram\.dog)\/[^\s"'<>]+/gi;
+
+/**
+ * 게시글 HTML에서 t.me 공개 채널 아이디를 뽑습니다.
+ * 초대 링크, t.me/s, 봇, 자기 자신은 제외합니다. 글 링크(t.me/id/숫자)는 아이디만 남깁니다.
+ */
+export function extractTmeUsernamesFromHtml(
+  html: string,
+  selfUsername?: string | null,
+): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const add = (raw: string) => {
+    const username = extractTelegramUsernameFromLink(raw);
+    if (!isDiscoverableUsername(username, selfUsername)) return;
+    if (seen.has(username)) return;
+    seen.add(username);
+    found.push(username);
+  };
+
+  if (!html.trim()) return found;
+
+  const $ = load(html);
+  $('a[href]').each((_, el) => {
+    const href = $(el).attr('href');
+    if (href) add(href);
+  });
+
+  TME_URL_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = TME_URL_RE.exec(html))) {
+    add(match[0]);
+  }
+
+  return found;
+}
+
+export function joinMentionedUsernames(names: string[]): string | null {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const name of names) {
+    const u = name.replace(/^@/, '').toLowerCase().trim();
+    if (!u || seen.has(u)) continue;
+    seen.add(u);
+    unique.push(u);
+  }
+  return unique.length > 0 ? unique.join(',') : null;
+}
+
+export function splitMentionedUsernames(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(/[,;\s]+/)
+    .map((part) => part.replace(/^@/, '').toLowerCase().trim())
+    .filter(Boolean);
 }
 
 function detectMediaType(node: Cheerio<Element>): ChannelPostMediaType {

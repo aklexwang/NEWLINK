@@ -386,6 +386,9 @@ export class ChannelsService implements OnModuleInit {
     if (dto.category)
       qb.andWhere('channel.category = :category', { category: dto.category });
 
+    if (dto.type)
+      qb.andWhere('channel.link_type = :linkType', { linkType: dto.type });
+
     if (dto.q?.trim()) {
       const keywords = expandSearchKeywords(dto.q);
       qb.andWhere(

@@ -9,6 +9,7 @@ import { ChannelPost } from './channel-post.entity';
 import {
   isMissingChannelHtml,
   isPrivateChannelHtml,
+  joinMentionedUsernames,
   parseTelegramChannelHtml,
   TELEGRAM_FETCH_HEADERS,
   type ParsedPreviewPost,
@@ -207,6 +208,7 @@ export class ChannelCollectorService {
         views: post.views,
         mediaType: post.mediaType,
         forwardedFrom: post.forwardedFrom,
+        mentionedUsernames: joinMentionedUsernames(post.mentionedUsernames),
         isEdited: post.isEdited,
         lastSeenAt: now,
       })),

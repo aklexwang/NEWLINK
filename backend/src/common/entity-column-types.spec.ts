@@ -10,6 +10,7 @@ const ENTITY_IMPORTS = [
   '../stats/channel-post.entity',
   '../stats/channel-score.entity',
   '../stats/channel-snapshot.entity',
+  '../stats/discovered-username.entity',
 ];
 
 function loadEntitiesForEnv(kind: 'postgres' | 'sqlite') {

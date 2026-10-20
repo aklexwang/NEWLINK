@@ -43,6 +43,10 @@ export class SearchChannelDto {
   @IsOptional()
   category?: string;
 
+  @IsOptional()
+  @IsIn([LinkType.CHANNEL, LinkType.GROUP])
+  type?: LinkType;
+
   @Type(() => Number)
   @IsInt()
   @Min(1)

@@ -44,7 +44,7 @@ export class ChannelImportCandidate {
   @Column({ name: 'category_reviewed', type: 'boolean', default: false })
   categoryReviewed: boolean;
 
-  /** ai | fallback | manual | seed */
+  /** ai | fallback | manual | seed | discovery */
   @Column({
     name: 'category_source',
     type: 'varchar',
@@ -52,6 +52,15 @@ export class ChannelImportCandidate {
     default: 'seed',
   })
   categorySource: string;
+
+  /** 눈덩이 발견 시 언급한 채널 아이디 (쉼표, 상위 몇 개) */
+  @Column({
+    name: 'discovery_sources',
+    type: 'varchar',
+    length: 512,
+    nullable: true,
+  })
+  discoverySources: string | null;
 
   @Column({
     name: 'link_type',

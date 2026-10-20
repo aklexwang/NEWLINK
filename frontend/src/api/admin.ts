@@ -289,6 +289,7 @@ export interface ImportCandidate {
   participantsCount: number;
   avatarUrl: string | null;
   source: string;
+  discoverySources?: string[];
   status: 'pending' | 'published' | 'skipped';
   publishedChannelId: string | null;
   fetchedAt: string;

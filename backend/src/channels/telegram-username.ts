@@ -74,3 +74,22 @@ export function extractTelegramUsernameFromLink(
 
   return candidate.toLowerCase();
 }
+
+/** 봇 username (…bot / …_bot) */
+export function isTelegramBotUsername(username: string): boolean {
+  return /bot$/i.test(username.replace(/^@/, '').trim());
+}
+
+/** 눈덩이 발견에 넣을 수 있는 공개 채널 아이디인지 */
+export function isDiscoverableUsername(
+  username: string | null | undefined,
+  selfUsername?: string | null,
+): username is string {
+  if (!username) return false;
+  const u = username.replace(/^@/, '').toLowerCase();
+  if (!u) return false;
+  if (isTelegramBotUsername(u)) return false;
+  const self = selfUsername?.replace(/^@/, '').trim().toLowerCase();
+  if (self && u === self) return false;
+  return true;
+}

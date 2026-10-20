@@ -1,4 +1,5 @@
 import {
+  extractTmeUsernamesFromHtml,
   isMissingChannelHtml,
   isPrivateChannelHtml,
   parseCount,
@@ -46,6 +47,14 @@ const SAMPLE_HTML = `
   <a class="tgme_widget_message_forwarded_from_name" href="https://t.me/source_ch/9">출처</a>
   <div class="tgme_widget_message_photo_wrap"></div>
   <span class="tgme_widget_message_edited">edited</span>
+  <div class="tgme_widget_message_text">
+    <a href="https://t.me/good_news/12">글</a>
+    <a href="https://t.me/+invitehash">초대</a>
+    <a href="https://t.me/joinchat/AAAA">조인</a>
+    <a href="https://t.me/s">미리보기</a>
+    <a href="https://t.me/helper_bot">봇</a>
+    <a href="https://t.me/news_kr/5">자기자신</a>
+  </div>
 </div>
 <div class="tgme_widget_message" data-post="news_kr/100">
   <time datetime="2026-10-17T01:00:00+00:00"></time>
@@ -77,6 +86,7 @@ describe('parseTelegramChannelHtml', () => {
     expect(photo?.isEdited).toBe(true);
     expect(photo?.mediaType).toBe('photo');
     expect(photo?.postedAt.toISOString()).toBe('2026-10-18T03:00:00.000Z');
+    expect(photo?.mentionedUsernames).toEqual(['source_ch', 'good_news']);
 
     const video = parsed.posts.find((p) => p.messageId === 100);
     expect(video?.views).toBe(88);
@@ -99,6 +109,26 @@ describe('parseTelegramChannelHtml', () => {
         </div>
       </div>`;
     expect(parseTelegramChannelHtml(html).memberCount).toBe(45);
+  });
+});
+
+describe('extractTmeUsernamesFromHtml', () => {
+  it('글 링크에서 아이디만 남기고 초대·s·봇·자기 자신은 뺀다', () => {
+    const html = `
+      <a href="https://t.me/alpha/99">a</a>
+      <a href="https://t.me/+xxxx">inv</a>
+      <a href="https://t.me/joinchat/yyyy">j</a>
+      <a href="https://t.me/s">s</a>
+      <a href="https://t.me/s/beta">preview user</a>
+      <a href="https://t.me/MyHelperBot">bot</a>
+      <a href="https://t.me/selfchan/1">self</a>
+      텍스트 https://t.me/gamma
+    `;
+    expect(extractTmeUsernamesFromHtml(html, 'selfchan')).toEqual([
+      'alpha',
+      'beta',
+      'gamma',
+    ]);
   });
 });
 

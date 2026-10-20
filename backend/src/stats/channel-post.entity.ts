@@ -39,6 +39,10 @@ export class ChannelPost {
   })
   forwardedFrom: string | null;
 
+  /** 본문 t.me 링크에서 뽑은 아이디 (쉼표 구분) */
+  @Column({ name: 'mentioned_usernames', type: 'text', nullable: true })
+  mentionedUsernames: string | null;
+
   @Column({ name: 'is_edited', type: 'boolean', default: false })
   isEdited: boolean;
 

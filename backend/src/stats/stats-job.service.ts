@@ -6,6 +6,10 @@ import { Repository } from 'typeorm';
 import { Channel } from '../channels/channel.entity';
 import { ChannelVerifyService } from '../channels/channel-verify.service';
 import { ChannelCollectorService } from './channel-collector.service';
+import {
+  ChannelDiscoveryService,
+  type DiscoveryRunResult,
+} from './channel-discovery.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 
 function envFalsy(value: string | undefined): boolean {
@@ -21,6 +25,7 @@ export interface StatsJobStatus {
   processed: number;
   total: number;
   failed: number;
+  lastDiscovery: DiscoveryRunResult | null;
 }
 
 @Injectable()
@@ -33,6 +38,7 @@ export class StatsJobService {
     processed: 0,
     total: 0,
     failed: 0,
+    lastDiscovery: null,
   };
 
   constructor(
@@ -40,6 +46,7 @@ export class StatsJobService {
     private readonly collector: ChannelCollectorService,
     private readonly metrics: ChannelMetricsService,
     private readonly channelVerify: ChannelVerifyService,
+    private readonly discovery: ChannelDiscoveryService,
     @InjectRepository(Channel)
     private readonly channelRepository: Repository<Channel>,
   ) {}
@@ -87,7 +94,9 @@ export class StatsJobService {
   }
 
   private async runPipeline() {
-    this.logger.log('통계 파이프라인 시작: 수집 → 점수 → 정리 → 인증 재확인');
+    this.logger.log(
+      '통계 파이프라인 시작: 수집 → 점수 → 정리 → 인증 재확인 → 눈덩이 발견',
+    );
     try {
       await this.collector.collectAll((progress) =>
         this.noteProgress(progress),
@@ -98,6 +107,7 @@ export class StatsJobService {
         this.logger.log(`90일 지난 게시글 ${pruned}건을 삭제했습니다.`);
       }
       await this.channelVerify.recheckVerifiedChannels();
+      this.status.lastDiscovery = await this.discovery.discover();
       this.logger.log('통계 파이프라인이 끝났습니다.');
     } catch (error) {
       this.logger.error(
@@ -129,6 +139,7 @@ export class StatsJobService {
       processed: 0,
       total,
       failed: 0,
+      lastDiscovery: this.status.lastDiscovery,
     };
   }
 
