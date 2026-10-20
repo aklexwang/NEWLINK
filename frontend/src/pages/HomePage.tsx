@@ -530,17 +530,19 @@ export function HomePage() {
         )}
       </section>
 
-      <section className="px-4 pt-5">
-        <h2 className="text-[15px] font-bold">광고 채널</h2>
-        <div className="mt-3 rounded-2xl bg-nl-card px-3 py-4 ring-1 ring-nl-line">
-          <PromotedShortcuts
-            channels={promotedAsChannels}
-            categoryEmojis={searchCategories}
-            isLoading={homeLoading}
-            onOpen={(link) => openTelegramChannel(webApp, isLocalBrowser, link)}
-          />
-        </div>
-      </section>
+      {!homeLoading && promotedAsChannels.length > 0 && (
+        <section className="px-4 pt-5">
+          <h2 className="text-[15px] font-bold">광고 채널</h2>
+          <div className="mt-3 rounded-2xl bg-nl-card px-3 py-4 ring-1 ring-nl-line">
+            <PromotedShortcuts
+              channels={promotedAsChannels}
+              categoryEmojis={searchCategories}
+              isLoading={false}
+              onOpen={(link) => openTelegramChannel(webApp, isLocalBrowser, link)}
+            />
+          </div>
+        </section>
+      )}
 
       <section className="px-4 pt-5">
         <h2 className="text-[15px] font-bold">최근 활발한 채널</h2>

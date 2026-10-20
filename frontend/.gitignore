@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# 로컬 스크린샷·임시 파일
+tmp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
