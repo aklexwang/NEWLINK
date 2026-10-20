@@ -102,6 +102,7 @@ export interface HomeFeedItem {
   grade: 'S' | 'A' | 'B' | 'C' | 'D' | null;
   score: number | null;
   lastPostAt: string;
+  activityKind?: 'post' | 'members';
 }
 
 export interface HomeFeedPage {

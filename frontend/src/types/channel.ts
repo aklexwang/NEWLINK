@@ -38,6 +38,10 @@ export interface Channel {
   rewardTonUsdRate?: number | null;
   rewardPaidAt?: string | null;
   rewardWallet?: string | null;
+  username?: string | null;
+  collectStatus?: 'ok' | 'failed' | 'gone' | 'private' | 'invalid' | null;
+  collectError?: string | null;
+  lastCollectedAt?: string | null;
 }
 
 export interface ChannelPreview {

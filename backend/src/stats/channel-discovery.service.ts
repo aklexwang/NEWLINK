@@ -8,6 +8,7 @@ import {
 } from '../auto-manage/channel-import-candidate.entity';
 import { isKoreanChannelText } from '../auto-manage/korean-channel.filter';
 import { Channel, LinkType } from '../channels/channel.entity';
+import { isPublicCollectable } from './collect-visibility';
 import { TelegramPreviewService } from '../channels/telegram-preview.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import {
@@ -57,9 +58,11 @@ export class ChannelDiscoveryService {
       where: { postedAt: MoreThanOrEqual(lookback) },
     });
     const channels = await this.channelRepository.find();
-    const channelById = new Map(channels.map((ch) => [ch.id, ch]));
+    const sourceChannels = channels.filter(isPublicCollectable);
+    const channelById = new Map(sourceChannels.map((ch) => [ch.id, ch]));
+    const usablePosts = posts.filter((post) => channelById.has(post.channelId));
 
-    const rows: MentionRow[] = posts.map((post) => {
+    const rows: MentionRow[] = usablePosts.map((post) => {
       const source = channelById.get(post.channelId);
       return {
         sourceChannelId: post.channelId,

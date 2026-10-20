@@ -7,6 +7,7 @@ import {
   getAdminChannels,
   promoteChannel,
   rejectChannel,
+  rejectInvalidChannels,
   updateAdminChannel,
 } from '../../api/admin';
 import { AdminCategoryChipBar } from '../../components/admin/AdminCategoryChipBar';
@@ -76,6 +77,8 @@ export function AdminLinksManagePage({
   const [message, setMessage] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [collectFailedOnly, setCollectFailedOnly] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [promoteDates, setPromoteDates] = useState<Record<string, string>>({});
@@ -85,16 +88,18 @@ export function AdminLinksManagePage({
     try {
       const [items, countItems, categoryItems] = await Promise.all([
         getAdminChannels({
-          status: statusFilter || undefined,
+          status: collectFailedOnly ? undefined : statusFilter || undefined,
           q: query.trim() || undefined,
           category: categoryFilter || undefined,
           linkType,
+          collectStatus: collectFailedOnly ? 'failed' : undefined,
         }),
         // 카테고리 칩의 총 연결 수는 상태/검색 필터와 무관하게 전체 기준으로 집계
         getAdminChannels({ linkType }),
         getAdminCategories(),
       ]);
       setChannels(items);
+      setSelectedIds(new Set());
       setCountSource(countItems);
       setCategories(categoryItems.filter((c) => c.isActive));
       setPromoteDates((prev) => {
@@ -112,7 +117,7 @@ export function AdminLinksManagePage({
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, query, categoryFilter, linkType, itemLabel]);
+  }, [statusFilter, collectFailedOnly, query, categoryFilter, linkType, itemLabel]);
 
   useEffect(() => {
     load();
@@ -192,8 +197,47 @@ export function AdminLinksManagePage({
     }
   };
 
+  const handleHideInvalid = async () => {
+    const ids = channels
+      .filter((item) => selectedIds.has(item.id) && item.collectStatus === 'invalid')
+      .map((item) => item.id);
+    if (ids.length === 0) {
+      setMessage('숨길 invalid 항목을 선택하세요.');
+      return;
+    }
+    if (!window.confirm(`선택한 invalid ${ids.length}개를 숨김(거절) 처리할까요? 삭제되지 않습니다.`)) {
+      return;
+    }
+    try {
+      const result = await rejectInvalidChannels(ids);
+      setMessage(`${result.rejected}개를 숨김 처리했습니다.`);
+      await load();
+    } catch {
+      setMessage('숨김 처리에 실패했습니다.');
+    }
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const collectLabel: Record<string, string> = {
+    ok: '성공',
+    failed: '실패',
+    private: '비공개',
+    gone: '사라짐',
+    invalid: '채널·그룹 아님',
+  };
+
   const categoryOptions = categories.map((c) => c.name);
-  const colCount = (showTypeColumn ? 8 : 7) + 1;
+  const colCount = collectFailedOnly
+    ? 8
+    : (showTypeColumn ? 8 : 7) + 1;
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { '': countSource.length };
@@ -257,13 +301,39 @@ export function AdminLinksManagePage({
             <button
               key={value || 'all'}
               type="button"
-              onClick={() => setStatusFilter(value)}
-              className={`rounded-full px-4 py-2 text-sm font-medium ${statusFilter === value ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-black/10 hover:bg-slate-50'}`}
+              onClick={() => {
+                setCollectFailedOnly(false);
+                setStatusFilter(value);
+              }}
+              className={`rounded-full px-4 py-2 text-sm font-medium ${!collectFailedOnly && statusFilter === value ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-black/10 hover:bg-slate-50'}`}
             >
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              setCollectFailedOnly(true);
+              setStatusFilter('');
+            }}
+            className={`rounded-full px-4 py-2 text-sm font-medium ${collectFailedOnly ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-black/10 hover:bg-slate-50'}`}
+          >
+            수집 실패
+          </button>
         </div>
+
+        {collectFailedOnly && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleHideInvalid()}
+              className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900"
+            >
+              선택한 invalid 숨김
+            </button>
+            <p className="text-xs text-slate-500">채널·그룹이 아닌 항목만 거절 처리합니다. 삭제는 하지 않습니다.</p>
+          </div>
+        )}
 
         <form onSubmit={handleSearch} className="mb-4 flex gap-2">
           <input
@@ -286,15 +356,32 @@ export function AdminLinksManagePage({
             <AdminTable>
               <thead className="bg-slate-50">
                 <tr>
-                  <AdminTh className="w-12" />
-                  <AdminTh>제목</AdminTh>
-                  {showTypeColumn && <AdminTh className="w-16">유형</AdminTh>}
-                  <AdminTh className="w-24">카테고리</AdminTh>
-                  <AdminTh className="w-16">상태</AdminTh>
-                  <AdminTh className="w-12">👍</AdminTh>
-                  <AdminTh className="min-w-[100px]">광고 의뢰</AdminTh>
-                  <AdminTh className="w-24">광고</AdminTh>
-                  <AdminTh className="w-10" />
+                  {collectFailedOnly ? (
+                    <>
+                      <AdminTh className="w-10">
+                        <span className="sr-only">선택</span>
+                      </AdminTh>
+                      <AdminTh>제목</AdminTh>
+                      <AdminTh className="w-28">아이디</AdminTh>
+                      <AdminTh className="w-16">종류</AdminTh>
+                      <AdminTh className="w-28">수집</AdminTh>
+                      <AdminTh>원인</AdminTh>
+                      <AdminTh className="w-40">마지막 시도</AdminTh>
+                      <AdminTh className="w-10" />
+                    </>
+                  ) : (
+                    <>
+                      <AdminTh className="w-12" />
+                      <AdminTh>제목</AdminTh>
+                      {showTypeColumn && <AdminTh className="w-16">유형</AdminTh>}
+                      <AdminTh className="w-24">카테고리</AdminTh>
+                      <AdminTh className="w-16">상태</AdminTh>
+                      <AdminTh className="w-12">👍</AdminTh>
+                      <AdminTh className="min-w-[100px]">광고 의뢰</AdminTh>
+                      <AdminTh className="w-24">광고</AdminTh>
+                      <AdminTh className="w-10" />
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -306,54 +393,101 @@ export function AdminLinksManagePage({
                         onClick={() => setExpandedId(expanded ? null : channel.id)}
                         className={`cursor-pointer transition hover:bg-slate-50/80 ${expanded ? 'bg-blue-50/40' : ''}`}
                       >
-                        <AdminTd><ChannelAvatar channel={channel} /></AdminTd>
-                        <AdminTd>
-                          <p className="max-w-[200px] truncate font-medium text-slate-900">{channel.title}</p>
-                          {channel.isPromoted && (
-                            <span className="mt-0.5 inline-block rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">광고</span>
-                          )}
-                        </AdminTd>
-                        {showTypeColumn && (
-                          <AdminTd>
-                            <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(channel.linkType)}`}>
-                              {linkTypeLabel(channel.linkType)}
-                            </span>
-                          </AdminTd>
-                        )}
-                        <AdminTd><span className="text-xs">{channel.category}</span></AdminTd>
-                        <AdminTd>
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClass[channel.status]}`}>
-                            {statusLabel[channel.status]}
-                          </span>
-                        </AdminTd>
-                        <AdminTd><span className="text-xs tabular-nums">{channel.recommendCount}</span></AdminTd>
-                        <AdminTd>
-                          {channel.isPromoted ? <AdClientCells channel={channel} /> : <span className="text-xs text-slate-400">-</span>}
-                        </AdminTd>
-                        <AdminTd>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            {channel.status === 'active' ? (
-                              isPromotionActive(channel.isPromoted, channel.promotedUntil) ? (
-                                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-700">
-                                  노출 중
+                        {collectFailedOnly ? (
+                          <>
+                            <AdminTd>
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(channel.id)}
+                                onChange={() => toggleSelected(channel.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={channel.collectStatus !== 'invalid'}
+                              />
+                            </AdminTd>
+                            <AdminTd>
+                              <p className="max-w-[220px] truncate font-medium text-slate-900">{channel.title}</p>
+                            </AdminTd>
+                            <AdminTd>
+                              <span className="text-xs text-slate-600">@{channel.username || '-'}</span>
+                            </AdminTd>
+                            <AdminTd>
+                              <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(channel.linkType)}`}>
+                                {linkTypeLabel(channel.linkType)}
+                              </span>
+                            </AdminTd>
+                            <AdminTd>
+                              <span className="text-xs font-medium text-slate-700">
+                                {collectLabel[channel.collectStatus ?? ''] ?? channel.collectStatus ?? '-'}
+                              </span>
+                            </AdminTd>
+                            <AdminTd>
+                              <span className="block max-w-[280px] truncate font-mono text-[11px] text-slate-600" title={channel.collectError ?? ''}>
+                                {channel.collectError || '-'}
+                              </span>
+                            </AdminTd>
+                            <AdminTd>
+                              <span className="text-xs text-slate-500">
+                                {channel.lastCollectedAt
+                                  ? new Date(channel.lastCollectedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+                                  : '-'}
+                              </span>
+                            </AdminTd>
+                            <AdminTd>
+                              <span className={`inline-block text-slate-400 transition ${expanded ? 'rotate-180' : ''}`}>▼</span>
+                            </AdminTd>
+                          </>
+                        ) : (
+                          <>
+                            <AdminTd><ChannelAvatar channel={channel} /></AdminTd>
+                            <AdminTd>
+                              <p className="max-w-[200px] truncate font-medium text-slate-900">{channel.title}</p>
+                              {channel.isPromoted && (
+                                <span className="mt-0.5 inline-block rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">광고</span>
+                              )}
+                            </AdminTd>
+                            {showTypeColumn && (
+                              <AdminTd>
+                                <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(channel.linkType)}`}>
+                                  {linkTypeLabel(channel.linkType)}
                                 </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleAddToAds(channel, e)}
-                                  className="rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-purple-700"
-                                >
-                                  광고 추가
-                                </button>
-                              )
-                            ) : (
-                              <span className="text-xs text-slate-400">-</span>
+                              </AdminTd>
                             )}
-                          </div>
-                        </AdminTd>
-                        <AdminTd>
-                          <span className={`inline-block text-slate-400 transition ${expanded ? 'rotate-180' : ''}`}>▼</span>
-                        </AdminTd>
+                            <AdminTd><span className="text-xs">{channel.category}</span></AdminTd>
+                            <AdminTd>
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClass[channel.status]}`}>
+                                {statusLabel[channel.status]}
+                              </span>
+                            </AdminTd>
+                            <AdminTd><span className="text-xs tabular-nums">{channel.recommendCount}</span></AdminTd>
+                            <AdminTd>
+                              {channel.isPromoted ? <AdClientCells channel={channel} /> : <span className="text-xs text-slate-400">-</span>}
+                            </AdminTd>
+                            <AdminTd>
+                              <div onClick={(e) => e.stopPropagation()}>
+                                {channel.status === 'active' ? (
+                                  isPromotionActive(channel.isPromoted, channel.promotedUntil) ? (
+                                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-700">
+                                      노출 중
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleAddToAds(channel, e)}
+                                      className="rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-purple-700"
+                                    >
+                                      광고 추가
+                                    </button>
+                                  )
+                                ) : (
+                                  <span className="text-xs text-slate-400">-</span>
+                                )}
+                              </div>
+                            </AdminTd>
+                            <AdminTd>
+                              <span className={`inline-block text-slate-400 transition ${expanded ? 'rotate-180' : ''}`}>▼</span>
+                            </AdminTd>
+                          </>
+                        )}
                       </tr>
                       {expanded && (
                         <tr className="bg-slate-50/60">

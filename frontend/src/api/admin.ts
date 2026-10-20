@@ -68,6 +68,7 @@ export async function getAdminChannels(params?: {
   q?: string;
   category?: string;
   linkType?: 'channel' | 'group';
+  collectStatus?: string;
 }): Promise<PendingChannel[]> {
   const { data } = await apiClient.get<PendingChannel[]>('/admin/channels/all', {
     headers: getAdminAuthHeaders(),
@@ -161,6 +162,15 @@ export async function rejectChannel(id: string) {
   const { data } = await apiClient.patch(`/admin/channels/${id}/reject`, {}, {
     headers: getAdminAuthHeaders(),
   });
+  return data;
+}
+
+export async function rejectInvalidChannels(ids: string[]): Promise<{ rejected: number }> {
+  const { data } = await apiClient.post<{ rejected: number }>(
+    '/admin/channels/reject-invalid',
+    { ids },
+    { headers: getAdminAuthHeaders() },
+  );
   return data;
 }
 

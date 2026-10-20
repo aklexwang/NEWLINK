@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
+import { isPublicCollectable } from './collect-visibility';
 import { ChannelsService } from '../channels/channels.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import {
@@ -215,6 +216,10 @@ export class PublicStatsService {
         ? []
         : await this.channelRepository.find({ where: { id: In(channelIds) } });
     const channelMap = new Map(channels.map((c) => [c.id, c]));
+    const visibleEvents = events.filter((event) => {
+      const ch = channelMap.get(event.channelId);
+      return ch != null && ch.status === ChannelStatus.ACTIVE && isPublicCollectable(ch);
+    });
 
     const mapEvent = (event: ChannelEvent) => {
       const ch = channelMap.get(event.channelId);
@@ -230,16 +235,16 @@ export class PublicStatsService {
       };
     };
 
-    const titleChanged = events
+    const titleChanged = visibleEvents
       .filter((e) => e.type === 'title_changed')
       .map(mapEvent);
-    const usernameChanged = events
+    const usernameChanged = visibleEvents
       .filter((e) => e.type === 'username_changed')
       .map(mapEvent);
-    const firstSeen = events
+    const firstSeen = visibleEvents
       .filter((e) => e.type === 'first_seen')
       .map(mapEvent);
-    const rankUp = events.filter((e) => e.type === 'rank_up').map(mapEvent);
+    const rankUp = visibleEvents.filter((e) => e.type === 'rank_up').map(mapEvent);
 
     return {
       week: formatIsoWeek(year, week),
@@ -273,7 +278,9 @@ export class PublicStatsService {
     }
 
     const rising = await this.listRanking({ sort: 'rising', limit: 1 });
-    const promoted = await this.channelsService.findActivePromoted(8);
+    const promoted = (await this.channelsService.findActivePromoted(8)).filter(
+      (ch) => isPublicCollectable(ch),
+    );
 
     const data = {
       week: weekly.week,
@@ -323,7 +330,7 @@ export class PublicStatsService {
     let channels = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
-    channels = this.dedupeByLink(channels);
+    channels = this.dedupeByLink(channels).filter(isPublicCollectable);
     if (type === 'channel') {
       channels = channels.filter((c) => c.linkType === LinkType.CHANNEL);
     } else if (type === 'group') {
@@ -346,9 +353,18 @@ export class PublicStatsService {
 
     const rows = channels
       .map((channel) => {
-        const lastPostAt =
-          lastMap.get(channel.id) ?? channel.lastCollectedAt ?? null;
-        return { channel, lastPostAt };
+        if (channel.linkType === LinkType.GROUP) {
+          if (channel.collectStatus !== 'ok' || !channel.lastCollectedAt) {
+            return { channel, lastPostAt: null as Date | null, activityKind: 'members' as const };
+          }
+          return {
+            channel,
+            lastPostAt: channel.lastCollectedAt,
+            activityKind: 'members' as const,
+          };
+        }
+        const lastPostAt = lastMap.get(channel.id) ?? null;
+        return { channel, lastPostAt, activityKind: 'post' as const };
       })
       .filter((row) => row.lastPostAt != null)
       .sort((a, b) => {
@@ -377,7 +393,7 @@ export class PublicStatsService {
         : null;
 
     const data = {
-      items: slice.map(({ channel, lastPostAt }) => ({
+      items: slice.map(({ channel, lastPostAt, activityKind }) => ({
         id: channel.id,
         title: channel.title,
         username:
@@ -391,6 +407,7 @@ export class PublicStatsService {
         grade: channel.grade,
         score: channel.score,
         lastPostAt: (lastPostAt as Date).toISOString(),
+        activityKind,
       })),
       nextCursor,
     };
@@ -471,7 +488,7 @@ export class PublicStatsService {
     let channels = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
-    channels = this.dedupeByLink(channels);
+    channels = this.dedupeByLink(channels).filter(isPublicCollectable);
 
     if (query.category && query.category !== 'all') {
       channels = channels.filter((c) => c.category === query.category);

@@ -10,8 +10,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { extname, join } from 'path';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from './channel.entity';
+import { isPublicCollectable } from '../stats/collect-visibility';
 import { ChannelFavorite } from './channel-favorite.entity';
 import { ChannelRecommendation } from './channel-recommendation.entity';
 import { UsersService } from '../users/users.service';
@@ -381,7 +382,12 @@ export class ChannelsService implements OnModuleInit {
 
     const qb = this.channelRepository
       .createQueryBuilder('channel')
-      .where('channel.status = :status', { status: ChannelStatus.ACTIVE });
+      .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
+      .andWhere('channel.first_observed_at IS NOT NULL')
+      .andWhere(
+        '(channel.collect_status IS NULL OR channel.collect_status NOT IN (:...hiddenCollect))',
+        { hiddenCollect: ['invalid', 'gone'] },
+      );
 
     if (dto.category)
       qb.andWhere('channel.category = :category', { category: dto.category });
@@ -706,6 +712,21 @@ export class ChannelsService implements OnModuleInit {
     return this.channelRepository.save(channel);
   }
 
+  async rejectInvalidSelected(ids: string[]): Promise<{ rejected: number }> {
+    if (ids.length === 0) return { rejected: 0 };
+    const channels = await this.channelRepository.find({
+      where: { id: In(ids) },
+    });
+    let rejected = 0;
+    for (const channel of channels) {
+      if (channel.collectStatus !== 'invalid') continue;
+      channel.status = ChannelStatus.REJECTED;
+      await this.channelRepository.save(channel);
+      rejected += 1;
+    }
+    return { rejected };
+  }
+
   async promote(
     id: string,
     options: {
@@ -825,6 +846,7 @@ export class ChannelsService implements OnModuleInit {
     q?: string;
     category?: string;
     linkType?: LinkType;
+    collectStatus?: string;
   }) {
     const qb = this.channelRepository.createQueryBuilder('channel');
     if (filters.status)
@@ -837,10 +859,19 @@ export class ChannelsService implements OnModuleInit {
       qb.andWhere('channel.link_type = :linkType', {
         linkType: filters.linkType,
       });
+    if (filters.collectStatus === 'failed') {
+      qb.andWhere('channel.collect_status IN (:...collectFail)', {
+        collectFail: ['failed', 'private', 'invalid', 'gone'],
+      });
+    } else if (filters.collectStatus === 'invalid') {
+      qb.andWhere('channel.collect_status = :collectInvalid', {
+        collectInvalid: 'invalid',
+      });
+    }
     if (filters.q?.trim()) {
       const keyword = `%${filters.q.trim().toLowerCase()}%`;
       qb.andWhere(
-        '(LOWER(channel.title) LIKE :keyword OR LOWER(channel.link) LIKE :keyword OR LOWER(channel.category) LIKE :keyword)',
+        '(LOWER(channel.title) LIKE :keyword OR LOWER(channel.link) LIKE :keyword OR LOWER(channel.category) LIKE :keyword OR LOWER(channel.username) LIKE :keyword)',
         { keyword },
       );
     }
@@ -938,7 +969,9 @@ export class ChannelsService implements OnModuleInit {
       qb.andWhere('channel.category = :category', { category });
     }
 
-    const items = this.dedupeByLink(await qb.getMany());
+    const items = this.dedupeByLink(await qb.getMany()).filter(
+      isPublicCollectable,
+    );
     items.sort((a, b) => {
       const memberA = a.memberCount ?? 0;
       const memberB = b.memberCount ?? 0;
@@ -966,9 +999,15 @@ export class ChannelsService implements OnModuleInit {
     const channels = this.dedupeByLink(
       await this.channelRepository.find({
         where: { status: ChannelStatus.ACTIVE },
-        select: ['id', 'link', 'category'],
+        select: [
+          'id',
+          'link',
+          'category',
+          'firstObservedAt',
+          'collectStatus',
+        ],
       }),
-    );
+    ).filter(isPublicCollectable);
 
     const counts: Record<string, number> = { all: channels.length };
     for (const channel of channels) {

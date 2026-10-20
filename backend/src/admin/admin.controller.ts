@@ -26,6 +26,7 @@ import { UsersService } from '../users/users.service';
 import {
   ApproveChannelDto,
   AdminCreateChannelDto,
+  CandidateIdsDto,
   LookupChannelQueryDto,
   PromoteChannelDto,
   RecordRewardDto,
@@ -80,12 +81,14 @@ export class AdminController {
     @Query('q') q?: string,
     @Query('category') category?: string,
     @Query('linkType') linkType?: LinkType,
+    @Query('collectStatus') collectStatus?: string,
   ) {
     const channels = await this.channelsService.findAllAdmin({
       status,
       q,
       category,
       linkType,
+      collectStatus,
     });
     return Promise.all(
       channels.map(async (channel) => {
@@ -110,6 +113,11 @@ export class AdminController {
   @Post('register')
   register(@Body() dto: AdminCreateChannelDto) {
     return this.channelsService.createByAdmin(dto);
+  }
+
+  @Post('reject-invalid')
+  rejectInvalid(@Body() dto: CandidateIdsDto) {
+    return this.channelsService.rejectInvalidSelected(dto.ids);
   }
 
   @Post('upload-avatar')
