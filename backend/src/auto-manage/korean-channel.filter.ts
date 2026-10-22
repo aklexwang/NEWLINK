@@ -1,9 +1,7 @@
-/** 한글(완성형·자모) 포함 여부 */
-const HANGUL_RE = /[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/;
-
-/** 비어 있거나 텔레그램 미존재/연락처 페이지만 있는 제목 */
-const INVALID_TITLE_RE =
-  /^(telegram\s*:?\s*contact|contact\s*@|undefined|null)$/i;
+import {
+  hasHangul,
+  isPlaceholderContactTitle,
+} from '../channels/channel-language.logic';
 
 /**
  * 한국 채널로 볼지 판별.
@@ -17,7 +15,6 @@ export function isKoreanChannelText(
   const t = (title ?? '').trim();
   const d = (description ?? '').trim();
   if (!t && !d) return false;
-  if (INVALID_TITLE_RE.test(t)) return false;
-  if (/^telegram:\s*contact@/i.test(t)) return false;
-  return HANGUL_RE.test(t) || HANGUL_RE.test(d);
+  if (isPlaceholderContactTitle(t)) return false;
+  return hasHangul(t) || hasHangul(d);
 }

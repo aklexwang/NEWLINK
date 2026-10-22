@@ -22,7 +22,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "migrate:data": "ts-node --transpile-only --project scripts/tsconfig.json scripts/migrate-sqlite-to-postgres.ts",
-    "merge:duplicates": "ts-node --transpile-only --project scripts/tsconfig.json scripts/merge-duplicate-channels.ts"
+    "merge:duplicates": "ts-node --transpile-only --project scripts/tsconfig.json scripts/merge-duplicate-channels.ts",
+    "classify:language": "ts-node --transpile-only --project scripts/tsconfig.json scripts/classify-channel-language.ts --dry-run"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

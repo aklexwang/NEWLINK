@@ -32,6 +32,8 @@ export type ChannelClassifiedKind = 'channel' | 'group' | 'invalid';
 
 export type ChannelListGrade = 'S' | 'A' | 'B' | 'C' | 'D';
 
+export type ChannelLanguage = 'ko' | 'foreign' | 'unknown';
+
 @Entity('channels')
 export class Channel {
   @PrimaryGeneratedColumn('uuid')
@@ -167,6 +169,17 @@ export class Channel {
     nullable: true,
   })
   classifiedAt: Date | null;
+
+  @Column({
+    type: 'varchar',
+    length: 10,
+    default: 'unknown',
+  })
+  language: ChannelLanguage;
+
+  /** 관리자가 수동으로 정한 언어. 자동 판별이 덮어쓰지 않음 */
+  @Column({ name: 'language_locked', default: false })
+  languageLocked: boolean;
 
   @Column({ name: 'collect_fail_count', type: 'integer', default: 0 })
   collectFailCount: number;

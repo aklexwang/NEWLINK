@@ -39,6 +39,8 @@ export interface Channel {
   rewardPaidAt?: string | null;
   rewardWallet?: string | null;
   username?: string | null;
+  language?: 'ko' | 'foreign' | 'unknown';
+  languageLocked?: boolean;
   collectStatus?:
     | 'ok'
     | 'failed'

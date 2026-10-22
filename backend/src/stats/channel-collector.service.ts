@@ -303,6 +303,7 @@ export class ChannelCollectorService {
         mediaType: post.mediaType,
         forwardedFrom: post.forwardedFrom,
         mentionedUsernames: joinMentionedUsernames(post.mentionedUsernames),
+        textExcerpt: post.textExcerpt,
         isEdited: post.isEdited,
         lastSeenAt: now,
       })),

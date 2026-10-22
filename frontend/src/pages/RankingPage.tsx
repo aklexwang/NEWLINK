@@ -43,6 +43,9 @@ export function RankingPage() {
     searchParams.get('hideLowData') === '1' || searchParams.get('hideLowData') === 'true';
   const verifiedOnly =
     searchParams.get('verified') === '1' || searchParams.get('verifiedOnly') === '1';
+  const includeForeign =
+    searchParams.get('includeForeign') === '1' ||
+    searchParams.get('includeForeign') === 'true';
 
   const [categories, setCategories] = useState<RankingCategoryItem[]>([]);
   const [channels, setChannels] = useState<RankingChannel[]>([]);
@@ -59,6 +62,7 @@ export function RankingPage() {
       category?: string;
       hideLowData?: boolean;
       verifiedOnly?: boolean;
+      includeForeign?: boolean;
     }) => {
       const next = new URLSearchParams(searchParams);
       if (patch.sort) next.set('sort', patch.sort);
@@ -77,6 +81,10 @@ export function RankingPage() {
       if (patch.verifiedOnly !== undefined) {
         if (patch.verifiedOnly) next.set('verified', '1');
         else next.delete('verified');
+      }
+      if (patch.includeForeign !== undefined) {
+        if (patch.includeForeign) next.set('includeForeign', '1');
+        else next.delete('includeForeign');
       }
       setSearchParams(next, { replace: true });
     },
@@ -112,6 +120,7 @@ export function RankingPage() {
         type,
         hideLowData,
         verifiedOnly,
+        includeForeign,
       });
       setChannels(items);
       if (items.length === 0) {
@@ -135,7 +144,7 @@ export function RankingPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [category, sort, type, hideLowData, verifiedOnly]);
+  }, [category, sort, type, hideLowData, verifiedOnly, includeForeign]);
 
   useEffect(() => {
     void fetchRanking();
@@ -250,6 +259,15 @@ export function RankingPage() {
             className="h-4 w-4 accent-[#2481cc]"
           />
           인증 채널만
+        </label>
+        <label className="flex items-center gap-2 text-[13px] text-tg-text">
+          <input
+            type="checkbox"
+            checked={includeForeign}
+            onChange={(e) => patchParams({ includeForeign: e.target.checked })}
+            className="h-4 w-4 accent-[#2481cc]"
+          />
+          외국어 채널 포함
         </label>
       </div>
 

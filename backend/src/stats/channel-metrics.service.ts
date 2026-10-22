@@ -257,11 +257,23 @@ export class ChannelMetricsService {
   }
 
   private scoreRows(rows: ChannelMetricsRow[]): ScoredRow[] {
-    const channels = rows.filter((r) => !r.isGroup);
-    const groups = rows.filter((r) => r.isGroup);
+    const domesticChannels = rows.filter(
+      (r) => !r.isGroup && r.channel.language !== 'foreign',
+    );
+    const foreignChannels = rows.filter(
+      (r) => !r.isGroup && r.channel.language === 'foreign',
+    );
+    const domesticGroups = rows.filter(
+      (r) => r.isGroup && r.channel.language !== 'foreign',
+    );
+    const foreignGroups = rows.filter(
+      (r) => r.isGroup && r.channel.language === 'foreign',
+    );
     return [
-      ...this.scorePool(channels, false),
-      ...this.scorePool(groups, true),
+      ...this.scorePool(domesticChannels, false),
+      ...this.scorePool(foreignChannels, false),
+      ...this.scorePool(domesticGroups, true),
+      ...this.scorePool(foreignGroups, true),
     ];
   }
 

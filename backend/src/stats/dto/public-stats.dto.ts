@@ -95,6 +95,10 @@ export class RankingQueryDto {
   @Transform(({ value }) => value === true || value === 'true' || value === '1')
   verifiedOnly?: boolean;
 
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  includeForeign?: boolean;
+
   @Type(() => Number)
   @IsInt()
   @Min(1)

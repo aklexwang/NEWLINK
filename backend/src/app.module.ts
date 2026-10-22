@@ -18,6 +18,7 @@ import { AddChannelVerified1760860800000 } from './migrations/1760860800000-AddC
 import { AddChannelDiscovery1761019200000 } from './migrations/1761019200000-AddChannelDiscovery';
 import { AddCollectError1761033600000 } from './migrations/1761033600000-AddCollectError';
 import { AddCollectClassifyCache1761040800000 } from './migrations/1761040800000-AddCollectClassifyCache';
+import { AddChannelLanguage1761120000000 } from './migrations/1761120000000-AddChannelLanguage';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -60,6 +61,7 @@ function truthy(value: string | undefined): boolean {
                 AddChannelDiscovery1761019200000,
                 AddCollectError1761033600000,
                 AddCollectClassifyCache1761040800000,
+                AddChannelLanguage1761120000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -83,6 +85,7 @@ function truthy(value: string | undefined): boolean {
               AddChannelDiscovery1761019200000,
               AddCollectError1761033600000,
               AddCollectClassifyCache1761040800000,
+              AddChannelLanguage1761120000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -102,6 +105,7 @@ function truthy(value: string | undefined): boolean {
             AddChannelDiscovery1761019200000,
             AddCollectError1761033600000,
             AddCollectClassifyCache1761040800000,
+            AddChannelLanguage1761120000000,
           ],
         };
       },

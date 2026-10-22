@@ -43,6 +43,10 @@ export class ChannelPost {
   @Column({ name: 'mentioned_usernames', type: 'text', nullable: true })
   mentionedUsernames: string | null;
 
+  /** 언어 판별용 본문 앞부분 */
+  @Column({ name: 'text_excerpt', type: 'varchar', length: 200, nullable: true })
+  textExcerpt: string | null;
+
   @Column({ name: 'is_edited', type: 'boolean', default: false })
   isEdited: boolean;
 

@@ -4,6 +4,7 @@ import {
   extractTelegramUsernameFromLink,
   isDiscoverableUsername,
 } from '../channels/telegram-username';
+import { clipPostExcerpt } from '../channels/channel-language.logic';
 import type { ChannelPostMediaType } from './channel-post.entity';
 
 export const TELEGRAM_FETCH_HEADERS = {
@@ -20,6 +21,7 @@ export interface ParsedPreviewPost {
   forwardedFrom: string | null;
   isEdited: boolean;
   mentionedUsernames: string[];
+  textExcerpt: string | null;
 }
 
 export interface ParsedTelegramPreview {
@@ -191,6 +193,10 @@ function parsePosts($: CheerioAPI): ParsedPreviewPost[] {
       node.html() ?? '',
       selfUsername,
     );
+    const rawText =
+      node.find('.tgme_widget_message_text').first().text() ||
+      node.find('.tgme_widget_message_caption').first().text() ||
+      '';
 
     posts.push({
       messageId,
@@ -200,6 +206,7 @@ function parsePosts($: CheerioAPI): ParsedPreviewPost[] {
       forwardedFrom,
       isEdited: node.find('.tgme_widget_message_edited').length > 0,
       mentionedUsernames,
+      textExcerpt: clipPostExcerpt(rawText),
     });
   });
   return posts;

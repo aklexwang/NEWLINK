@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
+import { isVisibleOnPublicLists } from '../channels/channel-language.logic';
 import { isPublicCollectable } from './collect-visibility';
 import { ChannelsService } from '../channels/channels.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
@@ -330,7 +331,9 @@ export class PublicStatsService {
     let channels = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
-    channels = this.dedupeByLink(channels).filter(isPublicCollectable);
+    channels = this.dedupeByLink(channels)
+      .filter(isPublicCollectable)
+      .filter(isVisibleOnPublicLists);
     if (type === 'channel') {
       channels = channels.filter((c) => c.linkType === LinkType.CHANNEL);
     } else if (type === 'group') {
@@ -489,6 +492,9 @@ export class PublicStatsService {
       where: { status: ChannelStatus.ACTIVE },
     });
     channels = this.dedupeByLink(channels).filter(isPublicCollectable);
+    if (!query.includeForeign) {
+      channels = channels.filter(isVisibleOnPublicLists);
+    }
 
     if (query.category && query.category !== 'all') {
       channels = channels.filter((c) => c.category === query.category);

@@ -8,5 +8,9 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["./**/*.ts", "../src/channels/merge-duplicate-channels.logic.ts"]
+  "include": [
+    "./**/*.ts",
+    "../src/channels/merge-duplicate-channels.logic.ts",
+    "../src/channels/channel-language.logic.ts"
+  ]
 }

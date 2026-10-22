@@ -11,6 +11,7 @@ import { ChannelScore } from './channel-score.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import { ChannelCollectorService } from './channel-collector.service';
 import { ChannelDiscoveryService } from './channel-discovery.service';
+import { ChannelLanguageService } from './channel-language.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 import { DiscoveredUsername } from './discovered-username.entity';
 import { InternalCronGuard } from './internal-cron.guard';
@@ -44,6 +45,7 @@ import { StatsService } from './stats.service';
     StatsService,
     ChannelCollectorService,
     ChannelDiscoveryService,
+    ChannelLanguageService,
     CategoryAiService,
     ChannelMetricsService,
     StatsJobService,

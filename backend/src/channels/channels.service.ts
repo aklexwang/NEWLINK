@@ -16,6 +16,7 @@ import {
   HIDDEN_COLLECT_STATUSES,
   isPublicCollectable,
 } from '../stats/collect-visibility';
+import { isVisibleOnPublicLists } from './channel-language.logic';
 import { extractTelegramUsernameFromLink } from './telegram-username';
 import { ALREADY_REGISTERED_CHANNEL } from './merge-duplicate-channels.logic';
 import { ChannelFavorite } from './channel-favorite.entity';
@@ -960,6 +961,8 @@ export class ChannelsService implements OnModuleInit {
         | 'promotionTonAmount'
         | 'avatarUrl'
         | 'avatarApproved'
+        | 'language'
+        | 'languageLocked'
       >
     >,
   ) {
@@ -990,6 +993,13 @@ export class ChannelsService implements OnModuleInit {
     }
     if (data.avatarApproved !== undefined)
       channel.avatarApproved = data.avatarApproved;
+    if (data.language !== undefined) {
+      channel.language = data.language;
+      channel.languageLocked = true;
+    }
+    if (data.languageLocked !== undefined) {
+      channel.languageLocked = data.languageLocked;
+    }
     if (data.status === ChannelStatus.ACTIVE && channel.avatarUrl)
       channel.avatarApproved = true;
     return this.channelRepository.save(channel);
@@ -1006,9 +1016,9 @@ export class ChannelsService implements OnModuleInit {
       qb.andWhere('channel.category = :category', { category });
     }
 
-    const items = this.dedupeByLink(await qb.getMany()).filter(
-      isPublicCollectable,
-    );
+    const items = this.dedupeByLink(await qb.getMany())
+      .filter(isPublicCollectable)
+      .filter(isVisibleOnPublicLists);
     items.sort((a, b) => {
       const memberA = a.memberCount ?? 0;
       const memberB = b.memberCount ?? 0;
@@ -1042,9 +1052,13 @@ export class ChannelsService implements OnModuleInit {
           'category',
           'firstObservedAt',
           'collectStatus',
+          'language',
+          'isPromoted',
         ],
       }),
-    ).filter(isPublicCollectable);
+    )
+      .filter(isPublicCollectable)
+      .filter(isVisibleOnPublicLists);
 
     const counts: Record<string, number> = { all: channels.length };
     for (const channel of channels) {

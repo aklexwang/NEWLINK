@@ -142,7 +142,12 @@ export function AdminLinksManagePage({
 
   const handleUpdateMeta = async (
     id: string,
-    payload: { category?: string; title?: string },
+    payload: {
+      category?: string;
+      title?: string;
+      language?: 'ko' | 'foreign' | 'unknown';
+      languageLocked?: boolean;
+    },
   ) => {
     try {
       await updateAdminChannel(id, payload);
@@ -237,9 +242,15 @@ export function AdminLinksManagePage({
   };
 
   const categoryOptions = categories.map((c) => c.name);
+  const languageLabel: Record<string, string> = {
+    ko: '한국어',
+    foreign: '외국어',
+    unknown: '미확인',
+  };
+
   const colCount = collectFailedOnly
     ? 8
-    : (showTypeColumn ? 8 : 7) + 1;
+    : (showTypeColumn ? 9 : 8) + 1;
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { '': countSource.length };
@@ -377,6 +388,7 @@ export function AdminLinksManagePage({
                       <AdminTh>제목</AdminTh>
                       {showTypeColumn && <AdminTh className="w-16">유형</AdminTh>}
                       <AdminTh className="w-24">카테고리</AdminTh>
+                      <AdminTh className="w-16">언어</AdminTh>
                       <AdminTh className="w-16">상태</AdminTh>
                       <AdminTh className="w-12">👍</AdminTh>
                       <AdminTh className="min-w-[100px]">광고 의뢰</AdminTh>
@@ -455,6 +467,12 @@ export function AdminLinksManagePage({
                               </AdminTd>
                             )}
                             <AdminTd><span className="text-xs">{channel.category}</span></AdminTd>
+                            <AdminTd>
+                              <span className="text-[11px] text-slate-600">
+                                {languageLabel[channel.language ?? 'unknown'] ?? '미확인'}
+                                {channel.languageLocked ? ' · 수동' : ''}
+                              </span>
+                            </AdminTd>
                             <AdminTd>
                               <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClass[channel.status]}`}>
                                 {statusLabel[channel.status]}
@@ -556,6 +574,34 @@ export function AdminLinksManagePage({
                                   }}
                                 />
                               )}
+
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500">언어</span>
+                                <select
+                                  value={
+                                    channel.languageLocked
+                                      ? (channel.language ?? 'unknown')
+                                      : 'auto'
+                                  }
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === 'auto') {
+                                      handleUpdateMeta(channel.id, { languageLocked: false });
+                                      return;
+                                    }
+                                    handleUpdateMeta(channel.id, {
+                                      language: value as 'ko' | 'foreign' | 'unknown',
+                                      languageLocked: true,
+                                    });
+                                  }}
+                                  className="rounded-lg bg-white px-2 py-1 text-xs outline-none ring-1 ring-black/10"
+                                >
+                                  <option value="auto">자동 판별</option>
+                                  <option value="ko">한국어</option>
+                                  <option value="foreign">외국어</option>
+                                  <option value="unknown">미확인</option>
+                                </select>
+                              </div>
 
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-slate-500">카테고리</span>

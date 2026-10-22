@@ -17,6 +17,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { ChannelStatus, LinkType } from '../../channels/channel.entity';
+import type { ChannelLanguage } from '../../channels/channel.entity';
 
 export class CandidateIdsDto {
   @IsArray()
@@ -161,6 +162,14 @@ export class UpdateChannelDto {
   @IsBoolean()
   @IsOptional()
   avatarApproved?: boolean;
+
+  @IsIn(['ko', 'foreign', 'unknown'])
+  @IsOptional()
+  language?: ChannelLanguage;
+
+  @IsBoolean()
+  @IsOptional()
+  languageLocked?: boolean;
 }
 
 export class GoogleSearchCandidatesDto {

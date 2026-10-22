@@ -260,6 +260,8 @@ export class AdminController {
       promotionTonAmount: dto.promotionTonAmount,
       avatarUrl: dto.avatarUrl,
       avatarApproved: dto.avatarApproved,
+      language: dto.language,
+      languageLocked: dto.languageLocked,
     });
   }
 

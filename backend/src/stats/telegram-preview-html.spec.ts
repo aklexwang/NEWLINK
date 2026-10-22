@@ -91,6 +91,7 @@ describe('parseTelegramChannelHtml', () => {
     expect(photo?.mediaType).toBe('photo');
     expect(photo?.postedAt.toISOString()).toBe('2026-10-18T03:00:00.000Z');
     expect(photo?.mentionedUsernames).toEqual(['source_ch', 'good_news']);
+    expect(photo?.textExcerpt).toContain('글');
 
     const video = parsed.posts.find((p) => p.messageId === 100);
     expect(video?.views).toBe(88);

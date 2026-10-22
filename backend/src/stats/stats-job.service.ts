@@ -10,6 +10,7 @@ import {
   ChannelDiscoveryService,
   type DiscoveryRunResult,
 } from './channel-discovery.service';
+import { ChannelLanguageService } from './channel-language.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 
 function envFalsy(value: string | undefined): boolean {
@@ -45,6 +46,7 @@ export class StatsJobService {
     private readonly configService: ConfigService,
     private readonly collector: ChannelCollectorService,
     private readonly metrics: ChannelMetricsService,
+    private readonly languages: ChannelLanguageService,
     private readonly channelVerify: ChannelVerifyService,
     private readonly discovery: ChannelDiscoveryService,
     @InjectRepository(Channel)
@@ -95,12 +97,13 @@ export class StatsJobService {
 
   private async runPipeline() {
     this.logger.log(
-      '통계 파이프라인 시작: 수집 → 점수 → 정리 → 인증 재확인 → 눈덩이 발견',
+      '통계 파이프라인 시작: 수집 → 언어 → 점수 → 정리 → 인증 재확인 → 눈덩이 발견',
     );
     try {
       await this.collector.collectAll((progress) =>
         this.noteProgress(progress),
       );
+      await this.languages.classifyAll();
       await this.metrics.computeToday();
       const pruned = await this.collector.pruneOldPosts();
       if (pruned > 0) {

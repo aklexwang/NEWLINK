@@ -148,9 +148,10 @@ export class RankingService {
       SCORE_FAMILY_SORTS.has(sort) ||
       Boolean(query.type) ||
       Boolean(query.hideLowData) ||
-      Boolean(query.verifiedOnly);
+      Boolean(query.verifiedOnly) ||
+      Boolean(query.includeForeign);
 
-    const cacheKey = `ranking:channels:${category ?? 'all'}:${limit}:${sort}:${query.type ?? ''}:${query.hideLowData ? '1' : '0'}:${query.verifiedOnly ? '1' : '0'}:${useDatabase ? 'db' : 'tg'}`;
+    const cacheKey = `ranking:channels:${category ?? 'all'}:${limit}:${sort}:${query.type ?? ''}:${query.hideLowData ? '1' : '0'}:${query.verifiedOnly ? '1' : '0'}:${query.includeForeign ? '1' : '0'}:${useDatabase ? 'db' : 'tg'}`;
     const cached = this.getCached<unknown[]>(cacheKey);
     if (cached) return cached;
 

@@ -9,6 +9,7 @@ export interface RankingChannelsQuery {
   type?: 'channel' | 'group';
   hideLowData?: boolean;
   verifiedOnly?: boolean;
+  includeForeign?: boolean;
 }
 
 export async function getRankingStatus(): Promise<RankingStatus> {
@@ -39,6 +40,7 @@ export async function getRankingChannels(
       type: extra?.type,
       hideLowData: extra?.hideLowData,
       verifiedOnly: extra?.verifiedOnly,
+      includeForeign: extra?.includeForeign,
     },
     timeout: 120000,
   });

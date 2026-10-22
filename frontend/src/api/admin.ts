@@ -136,6 +136,8 @@ export async function updateAdminChannel(
     promotionTonAmount?: number | null;
     avatarUrl?: string | null;
     avatarApproved?: boolean;
+    language?: 'ko' | 'foreign' | 'unknown';
+    languageLocked?: boolean;
   }>,
 ) {
   const { data } = await apiClient.patch(`/admin/channels/${id}`, payload, {

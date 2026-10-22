@@ -88,6 +88,8 @@ const TABLES: TableSpec[] = [
       { name: 'collect_error', kind: 'text' },
       { name: 'classified_kind', kind: 'text' },
       { name: 'classified_at', kind: 'date' },
+      { name: 'language', kind: 'text' },
+      { name: 'language_locked', kind: 'bool' },
       { name: 'collect_fail_count', kind: 'int' },
       { name: 'score', kind: 'int' },
       { name: 'grade', kind: 'text' },
