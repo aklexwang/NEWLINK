@@ -45,6 +45,15 @@ export function formatIsoWeek(year: number, week: number): string {
   return `${year}-W${String(week).padStart(2, '0')}`;
 }
 
+export function currentIsoWeek(todayYmd: string): {
+  year: number;
+  week: number;
+  label: string;
+} {
+  const parts = isoWeekFromYmd(todayYmd);
+  return { ...parts, label: formatIsoWeek(parts.year, parts.week) };
+}
+
 export function previousIsoWeek(todayYmd: string): {
   year: number;
   week: number;
@@ -53,4 +62,15 @@ export function previousIsoWeek(todayYmd: string): {
   const ymd = addKstDays(todayYmd, -7);
   const parts = isoWeekFromYmd(ymd);
   return { ...parts, label: formatIsoWeek(parts.year, parts.week) };
+}
+
+export function isAfterIsoWeek(
+  year: number,
+  week: number,
+  todayYmd: string,
+): boolean {
+  const current = currentIsoWeek(todayYmd);
+  return (
+    year > current.year || (year === current.year && week > current.week)
+  );
 }

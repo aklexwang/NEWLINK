@@ -37,7 +37,9 @@ import type {
 import { parseCompareIds } from './dto/public-stats.dto';
 import {
   formatIsoWeek,
+  currentIsoWeek,
   isoWeekRangeKst,
+  isAfterIsoWeek,
   parseIsoWeek,
   previousIsoWeek,
 } from './kst-week';
@@ -210,6 +212,11 @@ export class PublicStatsService {
       }
       year = parsed.year;
       week = parsed.week;
+      if (isAfterIsoWeek(year, week, today)) {
+        const current = currentIsoWeek(today);
+        year = current.year;
+        week = current.week;
+      }
     } else {
       const prev = previousIsoWeek(today);
       year = prev.year;
@@ -217,7 +224,9 @@ export class PublicStatsService {
     }
     const { startYmd, endYmd } = isoWeekRangeKst(year, week);
     const start = new Date(`${startYmd}T00:00:00+09:00`);
-    const end = new Date(`${endYmd}T23:59:59.999+09:00`);
+    const weekEnd = new Date(`${endYmd}T23:59:59.999+09:00`);
+    const now = new Date();
+    const end = weekEnd.getTime() > now.getTime() ? now : weekEnd;
     const events = await this.eventRepository.find({
       where: {
         type: In(WEEKLY_EVENT_TYPES),
@@ -283,7 +292,7 @@ export class PublicStatsService {
       return this.homeCache.data;
     }
 
-    const weekly = await this.getWeekly();
+    const weekly = await this.getWeekly(currentIsoWeek(formatKstYmd()).label);
     let topBy: 'score' | 'members' = 'score';
     let top = await this.listRanking({ sort: 'score', limit: 10 });
     const scoredCount = top.filter((item) => item.score != null).length;

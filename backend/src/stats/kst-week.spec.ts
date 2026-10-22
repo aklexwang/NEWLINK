@@ -1,4 +1,5 @@
 import {
+  currentIsoWeek,
   isoWeekFromYmd,
   isoWeekRangeKst,
   parseIsoWeek,
@@ -21,5 +22,10 @@ describe('ISO 주차', () => {
 
   it('지난주는 7일 전의 주차이다', () => {
     expect(previousIsoWeek('2026-10-19').label).toBe('2026-W42');
+  });
+
+  it('이번 주는 해당 날짜의 주차이다', () => {
+    expect(currentIsoWeek('2026-10-22').label).toBe('2026-W43');
+    expect(isoWeekRangeKst(2026, 43).startYmd).toBe('2026-10-19');
   });
 });

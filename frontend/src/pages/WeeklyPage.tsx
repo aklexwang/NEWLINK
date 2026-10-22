@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getWeeklyStats } from '../api/stats';
 import type { WeeklyStats, WeeklyStatsEvent } from '../types/stats';
-import { shiftIsoWeek } from '../utils/isoWeek';
+import {
+  formatIsoWeek,
+  formatKstYmd,
+  isoWeekFromYmd,
+  shiftIsoWeek,
+} from '../utils/isoWeek';
 import { channelDetailPath } from '../utils/channelDetailPath';
 
 const EVENT_TITLE: Record<string, string> = {
@@ -42,11 +47,23 @@ export function WeeklyPage() {
     };
   }, [week, setParams]);
 
+  const thisWeekParts = isoWeekFromYmd(formatKstYmd());
+  const thisWeekLabel = formatIsoWeek(thisWeekParts.year, thisWeekParts.week);
+  const displayedWeek = data?.week ?? week;
+  const canGoNext = Boolean(displayedWeek) && displayedWeek !== thisWeekLabel;
+
   const go = (delta: number) => {
-    const current = data?.week ?? week;
+    const current = displayedWeek;
     if (!current) return;
+    if (delta > 0 && !canGoNext) return;
     const next = new URLSearchParams(params);
     next.set('week', shiftIsoWeek(current, delta));
+    setParams(next);
+  };
+
+  const goThisWeek = () => {
+    const next = new URLSearchParams(params);
+    next.set('week', thisWeekLabel);
     setParams(next);
   };
 
@@ -74,8 +91,26 @@ export function WeeklyPage() {
             </p>
           )}
         </div>
-        <button type="button" onClick={() => go(1)} className="rounded-full bg-tg-secondary px-3 py-1.5 text-[13px] font-semibold">
+        <button
+          type="button"
+          onClick={() => go(1)}
+          disabled={!canGoNext}
+          className="rounded-full bg-tg-secondary px-3 py-1.5 text-[13px] font-semibold disabled:opacity-40"
+        >
           다음
+        </button>
+      </div>
+      <div className="mt-2 flex justify-center">
+        <button
+          type="button"
+          onClick={goThisWeek}
+          className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
+            displayedWeek === thisWeekLabel
+              ? 'bg-tg-open-bg text-tg-open-text'
+              : 'bg-tg-secondary text-tg-hint'
+          }`}
+        >
+          이번 주
         </button>
       </div>
 
