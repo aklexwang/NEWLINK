@@ -170,6 +170,11 @@ export class UpdateChannelDto {
   @IsBoolean()
   @IsOptional()
   languageLocked?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(512)
+  link?: string;
 }
 
 export class GoogleSearchCandidatesDto {

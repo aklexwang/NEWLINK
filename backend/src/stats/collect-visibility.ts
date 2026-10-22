@@ -4,6 +4,7 @@ const HIDDEN_COLLECT: ReadonlySet<string> = new Set([
   'invalid',
   'gone',
   'merged',
+  'invite_expired',
 ]);
 
 /** 홈·피드·랭킹·검색에 올릴 수 있는 채널인지 */
@@ -27,4 +28,9 @@ export function isScoreCollectable(channel: {
   return isPublicCollectable(channel);
 }
 
-export const HIDDEN_COLLECT_STATUSES = ['invalid', 'gone', 'merged'] as const;
+export const HIDDEN_COLLECT_STATUSES = [
+  'invalid',
+  'gone',
+  'merged',
+  'invite_expired',
+] as const;

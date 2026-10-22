@@ -262,6 +262,7 @@ export class AdminController {
       avatarApproved: dto.avatarApproved,
       language: dto.language,
       languageLocked: dto.languageLocked,
+      link: dto.link,
     });
   }
 

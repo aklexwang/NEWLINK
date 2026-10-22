@@ -10,7 +10,8 @@ import { SearchBar } from '../components/SearchBar';
 import { useCategories } from '../hooks/useCategories';
 import { useMyFavorites } from '../hooks/useMyFavorites';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
-import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
+import { hapticSuccess, notifyUser, useTelegram } from '../hooks/useTelegram';
+import { channelDetailPath } from '../utils/channelDetailPath';
 import { useAuth } from '../providers/AuthProvider';
 import { useTheme } from '../providers/ThemeProvider';
 import type { Channel } from '../types/channel';
@@ -24,15 +25,6 @@ type FeedType = 'channel' | 'all' | 'group';
 const SUGGEST_LIMIT = 8;
 const SUGGEST_DEBOUNCE_MS = 200;
 
-function detailPath(username: string | null, link: string): string | null {
-  const fromName = username?.replace(/^@/, '').trim();
-  if (fromName) return `/c/${encodeURIComponent(fromName)}`;
-  const fromLink = link.match(/t\.me\/([a-zA-Z0-9_]{4,})/i)?.[1];
-  if (fromLink && fromLink !== 's' && fromLink !== 'joinchat') {
-    return `/c/${encodeURIComponent(fromLink)}`;
-  }
-  return null;
-}
 
 function Avatar({
   channel,
@@ -313,11 +305,13 @@ export function HomePage() {
     }
   };
 
-  const goChannel = (item: { username: string | null; link?: string }) => {
-    const link = item.link || (item.username ? `https://t.me/${item.username}` : '');
-    const path = detailPath(item.username, link);
+  const goChannel = (item: { id?: string; username: string | null; link?: string }) => {
+    const path = channelDetailPath({
+      id: item.id,
+      username: item.username,
+      link: item.link,
+    });
     if (path) navigate(path);
-    else if (link) openTelegramChannel(webApp, isLocalBrowser, link);
   };
 
   const searchBarProps = {
@@ -436,8 +430,9 @@ export function HomePage() {
                     className="font-semibold text-nl-accent"
                     onClick={() =>
                       goChannel({
+                        id: home.headlines.risingId ?? undefined,
                         username: home.headlines.risingUsername,
-                        link: `https://t.me/${home.headlines.risingUsername ?? ''}`,
+                        link: home.headlines.risingLink ?? undefined,
                       })
                     }
                   >
@@ -538,7 +533,10 @@ export function HomePage() {
               channels={promotedAsChannels}
               categoryEmojis={searchCategories}
               isLoading={false}
-              onOpen={(link) => openTelegramChannel(webApp, isLocalBrowser, link)}
+              onOpen={(channel) => {
+                const path = channelDetailPath(channel);
+                if (path) navigate(path);
+              }}
             />
           </div>
         </section>

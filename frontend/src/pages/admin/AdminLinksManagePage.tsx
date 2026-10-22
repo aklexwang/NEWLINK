@@ -147,13 +147,18 @@ export function AdminLinksManagePage({
       title?: string;
       language?: 'ko' | 'foreign' | 'unknown';
       languageLocked?: boolean;
+      link?: string;
     },
   ) => {
     try {
       await updateAdminChannel(id, payload);
-      setChannels((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, ...payload } : item)),
-      );
+      if (payload.link) {
+        await load();
+      } else {
+        setChannels((prev) =>
+          prev.map((item) => (item.id === id ? { ...item, ...payload } : item)),
+        );
+      }
       setMessage('정보가 저장되었습니다.');
     } catch {
       setMessage('저장에 실패했습니다.');
@@ -238,6 +243,7 @@ export function AdminLinksManagePage({
     gone: '사라짐',
     invalid: '채널·그룹 아님',
     invite_only: '초대 전용',
+    invite_expired: '초대 만료',
     merged: '합침',
   };
 
@@ -430,7 +436,13 @@ export function AdminLinksManagePage({
                               </span>
                             </AdminTd>
                             <AdminTd>
-                              <span className="text-xs font-medium text-slate-700">
+                              <span
+                                className={`text-xs font-medium ${
+                                  channel.collectStatus === 'invite_expired'
+                                    ? 'text-amber-700'
+                                    : 'text-slate-700'
+                                }`}
+                              >
                                 {collectLabel[channel.collectStatus ?? ''] ?? channel.collectStatus ?? '-'}
                               </span>
                             </AdminTd>
@@ -544,6 +556,37 @@ export function AdminLinksManagePage({
                               <a href={channel.link} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-blue-600 hover:underline">
                                 {channel.link}
                               </a>
+
+                              {(channel.collectStatus === 'invite_expired' ||
+                                channel.collectStatus === 'invite_only' ||
+                                /t\.me\/\+|joinchat/i.test(channel.link)) && (
+                                <form
+                                  className="flex flex-wrap items-center gap-2"
+                                  onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const form = e.currentTarget;
+                                    const input = form.elements.namedItem('inviteLink') as HTMLInputElement;
+                                    const value = input.value.trim();
+                                    if (value && value !== channel.link) {
+                                      handleUpdateMeta(channel.id, { link: value });
+                                    }
+                                  }}
+                                >
+                                  <span className="text-xs text-slate-500">초대 링크 교체</span>
+                                  <input
+                                    name="inviteLink"
+                                    defaultValue={channel.link}
+                                    className="min-w-0 flex-1 rounded-lg bg-white px-3 py-1.5 font-mono text-xs outline-none ring-1 ring-black/10 focus:ring-blue-300"
+                                    placeholder="https://t.me/+..."
+                                  />
+                                  <button
+                                    type="submit"
+                                    className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+                                  >
+                                    링크 저장
+                                  </button>
+                                </form>
+                              )}
 
                               {channel.isPromoted && <AdClientDetail channel={channel} />}
 

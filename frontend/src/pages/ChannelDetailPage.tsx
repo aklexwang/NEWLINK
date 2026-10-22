@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import {
+  getChannelDetailById,
   getChannelDetailByUsername,
   getChannelEvents,
   getChannelMediaMix,
@@ -39,6 +40,7 @@ import { addCompareId } from '../utils/compareChannels';
 import { getSiteOrigin } from '../config/site';
 import { formatCount, formatPercent, formatSignedPercent } from '../utils/formatCount';
 import { resolveMediaUrl } from '../utils/mediaUrl';
+import { channelDetailPath, isInviteLink } from '../utils/channelDetailPath';
 
 const EVENT_LABEL: Record<ChannelEventType, string> = {
   first_seen: '처음 관측',
@@ -113,8 +115,9 @@ function sourceLabel(href: string): string {
 }
 
 export function ChannelDetailPage() {
-  const { username: usernameParam } = useParams();
+  const { username: usernameParam, id: idParam } = useParams();
   const username = (usernameParam ?? '').replace(/^@/, '');
+  const channelIdParam = idParam?.trim() ?? '';
   const { webApp, isLocalBrowser } = useTelegram();
   const { status: authStatus } = useAuth();
   const { searchCategories } = useCategories();
@@ -144,7 +147,7 @@ export function ChannelDetailPage() {
   }, []);
 
   useEffect(() => {
-    if (!username) {
+    if (!username && !channelIdParam) {
       setNotFound(true);
       setLoading(false);
       return;
@@ -156,7 +159,9 @@ export function ChannelDetailPage() {
     setDetail(null);
     void (async () => {
       try {
-        const data = await getChannelDetailByUsername(username);
+        const data = channelIdParam
+          ? await getChannelDetailById(channelIdParam)
+          : await getChannelDetailByUsername(username);
         if (cancelled) return;
         setDetail(data);
         try {
@@ -177,7 +182,7 @@ export function ChannelDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [username, loadSecondary]);
+  }, [username, channelIdParam, loadSecondary]);
 
   useEffect(() => {
     if (!detail) return;
@@ -199,7 +204,20 @@ export function ChannelDetailPage() {
   }, [detail, range]);
 
   const categoryMeta = searchCategories.find((c) => c.id === detail?.category);
-  const handle = detail?.username ? `@${detail.username.replace(/^@/, '')}` : username ? `@${username}` : '';
+  const handle = detail?.username
+    ? `@${detail.username.replace(/^@/, '')}`
+    : username
+      ? `@${username}`
+      : isInviteLink(detail?.link)
+        ? '초대 전용 방'
+        : '';
+  const inviteExpired = detail?.collectStatus === 'invite_expired';
+  const inviteRoom = Boolean(
+    detail &&
+      (detail.collectStatus === 'invite_only' ||
+        inviteExpired ||
+        isInviteLink(detail.link)),
+  );
   const favorited = detail ? favoriteIds.has(detail.id) : false;
   const lowData =
     (detail?.observedDays != null && detail.observedDays < 7) ||
@@ -306,7 +324,12 @@ export function ChannelDetailPage() {
   };
 
   const handleShare = async () => {
-    const path = `/c/${(detail?.username ?? username).replace(/^@/, '')}`;
+    const path =
+      channelDetailPath({
+        id: detail?.id ?? channelIdParam,
+        username: detail?.username ?? username,
+        link: detail?.link,
+      }) ?? '/';
     const url = `${getSiteOrigin()}${path}`;
     const title = detail?.title ?? 'NEWLINK 채널';
     try {
@@ -352,7 +375,7 @@ export function ChannelDetailPage() {
         <p className="text-[48px] leading-none">🔎</p>
         <h1 className="mt-4 text-lg font-bold text-tg-text">채널을 찾을 수 없습니다</h1>
         <p className="mt-2 text-sm text-tg-hint">
-          @{username || 'username'} 은 등록되어 있지 않거나 아직 공개되지 않았습니다.
+          등록되어 있지 않거나 아직 공개되지 않았습니다.
         </p>
         <Link
           to="/"
@@ -443,9 +466,14 @@ export function ChannelDetailPage() {
         </div>
       </header>
 
-      {detail.collectStatus === 'invite_only' && (
+      {inviteRoom && !inviteExpired && (
         <section className="mx-4 rounded-2xl bg-tg-secondary/70 px-4 py-3 text-[13px] leading-snug text-tg-hint">
-          비공개 초대방이라 통계를 수집할 수 없습니다
+          비공개 초대방이라 인원 수만 집계합니다
+        </section>
+      )}
+      {inviteExpired && (
+        <section className="mx-4 rounded-2xl bg-tg-secondary/70 px-4 py-3 text-[13px] leading-snug text-tg-hint">
+          초대 링크가 만료됐습니다. 새 링크를 제보해 주세요
         </section>
       )}
 
@@ -631,12 +659,31 @@ export function ChannelDetailPage() {
       )}
 
       <div className="fixed bottom-[68px] left-0 right-0 z-20 mx-auto max-w-lg border-t border-black/[0.06] bg-tg-bg/95 px-3 py-2 backdrop-blur-md">
-        <div className="grid grid-cols-4 gap-1">
-          <ActionButton onClick={openTelegram}>텔레그램</ActionButton>
-          <ActionButton onClick={() => void handleFavorite()}>{favorited ? '★ 해제' : '☆ 즐겨찾기'}</ActionButton>
-          <ActionButton onClick={handleCompare}>비교 추가</ActionButton>
-          <ActionButton onClick={() => void handleShare()}>공유</ActionButton>
-        </div>
+        {inviteExpired ? (
+          <div className="space-y-2">
+            <p className="text-center text-[12px] leading-snug text-tg-hint">
+              초대 링크가 만료됐습니다. 새 링크를 제보해 주세요
+            </p>
+            <div className="grid grid-cols-4 gap-1">
+              <Link
+                to="/submit"
+                className="rounded-xl bg-tg-open-bg px-1 py-2 text-center text-[11px] font-semibold text-tg-open-text"
+              >
+                제보
+              </Link>
+              <ActionButton onClick={() => void handleFavorite()}>{favorited ? '★ 해제' : '☆ 즐겨찾기'}</ActionButton>
+              <ActionButton onClick={handleCompare}>비교 추가</ActionButton>
+              <ActionButton onClick={() => void handleShare()}>공유</ActionButton>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-1">
+            <ActionButton onClick={openTelegram}>텔레그램에서 열기</ActionButton>
+            <ActionButton onClick={() => void handleFavorite()}>{favorited ? '★ 해제' : '☆ 즐겨찾기'}</ActionButton>
+            <ActionButton onClick={handleCompare}>비교 추가</ActionButton>
+            <ActionButton onClick={() => void handleShare()}>공유</ActionButton>
+          </div>
+        )}
       </div>
     </div>
   );

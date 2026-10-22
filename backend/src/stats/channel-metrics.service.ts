@@ -18,7 +18,7 @@ import {
   GRADE_C_MIN,
   GRADE_S_MIN,
   gradeFromTotal,
-  growthRate,
+  growthFromSnapshots,
   isManipulationSuspected,
   MANIPULATION_SCORE_MULTIPLIER,
   MEMBER_SPIKE_RATIO,
@@ -199,18 +199,23 @@ export class ChannelMetricsService {
         ? null
         : medianViews7d / memberCount;
 
-    const snapByDay = new Map(snapshots.map((s) => [s.capturedOn, s]));
-    const growth24h = growthRate(
+    const growth24h = growthFromSnapshots(
+      snapshots,
+      today,
       memberCount,
-      snapByDay.get(addKstDays(today, -1))?.memberCount ?? null,
+      1,
     );
-    const growth7d = growthRate(
+    const growth7d = growthFromSnapshots(
+      snapshots,
+      today,
       memberCount,
-      snapByDay.get(addKstDays(today, -7))?.memberCount ?? null,
+      7,
     );
-    const growth30d = growthRate(
+    const growth30d = growthFromSnapshots(
+      snapshots,
+      today,
       memberCount,
-      snapByDay.get(addKstDays(today, -30))?.memberCount ?? null,
+      30,
     );
 
     const observedDays = countObservedDays(channel.firstObservedAt, today);

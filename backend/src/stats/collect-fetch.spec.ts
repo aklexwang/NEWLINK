@@ -8,6 +8,7 @@ import {
   runFetchRetries,
   shouldRetrySameDayFailed,
   shouldSkipDailyCollect,
+  shouldSkipInviteExpiredRecheck,
 } from './collect-fetch';
 
 describe('수집 재시도 간격', () => {
@@ -51,7 +52,7 @@ describe('HTTP 429 Retry-After', () => {
     );
     expect(calls).toBe(2);
     expect(slept).toEqual([5_000]);
-    expect(result).toEqual({ status: 200, html: 'ok' });
+    expect(result).toEqual({ status: 200, html: 'ok', finalUrl: null });
   });
 });
 
@@ -68,8 +69,8 @@ describe('fetch 오류 문구·상태 분류', () => {
     expect(describeFetchError(err)).toBe('fetch:timeout');
   });
 
-  it('invite_only 는 매일 수집에서 빼고, failed 만 같은 날 재시도한다', () => {
-    expect(shouldSkipDailyCollect('invite_only')).toBe(true);
+  it('merged 만 매일 수집에서 빼고, failed 만 같은 날 재시도한다', () => {
+    expect(shouldSkipDailyCollect('invite_only')).toBe(false);
     expect(shouldSkipDailyCollect('merged')).toBe(true);
     expect(shouldSkipDailyCollect('failed')).toBe(false);
     expect(shouldRetrySameDayFailed('failed', '2026-10-20', '2026-10-20')).toBe(
@@ -91,5 +92,18 @@ describe('fetch 오류 문구·상태 분류', () => {
     expect(isClassifyFresh(fresh, now)).toBe(true);
     expect(isClassifyFresh(stale, now)).toBe(false);
     expect(isClassifyFresh(null, now)).toBe(false);
+  });
+
+  it('invite_expired 는 7일이 지나기 전에는 다시 확인하지 않는다', () => {
+    const now = Date.parse('2026-10-22T12:00:00+09:00');
+    const threeDaysAgo = new Date(now - 3 * 24 * 60 * 60 * 1000);
+    const eightDaysAgo = new Date(now - 8 * 24 * 60 * 60 * 1000);
+    expect(shouldSkipInviteExpiredRecheck('invite_expired', threeDaysAgo, now)).toBe(
+      true,
+    );
+    expect(shouldSkipInviteExpiredRecheck('invite_expired', eightDaysAgo, now)).toBe(
+      false,
+    );
+    expect(shouldSkipInviteExpiredRecheck('ok', threeDaysAgo, now)).toBe(false);
   });
 });

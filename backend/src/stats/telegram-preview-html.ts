@@ -270,6 +270,101 @@ export function splitMentionedUsernames(raw: string | null | undefined): string[
     .filter(Boolean);
 }
 
+export function isTelegramOrgUrl(url: string | null | undefined): boolean {
+  if (!url?.trim()) return false;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+    return host === 'telegram.org' || host.endsWith('.telegram.org');
+  } catch {
+    return false;
+  }
+}
+
+export interface ParsedInvitePreview {
+  expired: boolean;
+  title: string | null;
+  memberCount: number | null;
+  description: string | null;
+  avatarUrl: string | null;
+}
+
+function parseInviteMemberCount(extra: string | null): number | null {
+  if (!extra) return null;
+  const match = extra.match(
+    /([\d][\d\s,.]*[KMB]?)\s*(members?|subscribers?)\b/i,
+  );
+  return parseCount(match?.[1] ?? null);
+}
+
+function isGenericTelegramLogo(url: string | null | undefined): boolean {
+  if (!url) return true;
+  return /t_logo|telegram_logo|\/img\/telegram/i.test(url);
+}
+
+function isInvitePreviewExpired(input: {
+  html: string;
+  title: string | null;
+  extra: string | null;
+  memberCount: number | null;
+}): boolean {
+  if (isMissingChannelHtml(input.html)) return true;
+  if (isPlaceholderTitle(input.title)) return true;
+  const title = (input.title ?? '').trim().toLowerCase();
+  if (!title) return true;
+  if (title === 'telegram' || title === 'telegram messenger') return true;
+  if (/join group chat/i.test(title) && input.memberCount == null) return true;
+  if (
+    /you can no longer (join|access)/i.test(input.html) ||
+    /this invite link is (invalid|expired)/i.test(input.html) ||
+    /invite link has expired/i.test(input.html)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** t.me/+ · joinchat 공개 미리보기만 읽습니다. 로그인·가입은 하지 않습니다. */
+export function parseInviteLinkHtml(
+  html: string,
+  finalUrl?: string | null,
+): ParsedInvitePreview {
+  if (isTelegramOrgUrl(finalUrl)) {
+    return {
+      expired: true,
+      title: null,
+      memberCount: null,
+      description: null,
+      avatarUrl: null,
+    };
+  }
+
+  const $ = load(html);
+  const title =
+    textOrNull($('.tgme_page_title').first()) ||
+    $('meta[property="og:title"]').attr('content')?.trim() ||
+    null;
+  const extra = textOrNull($('.tgme_page_extra').first());
+  const description =
+    textOrNull($('.tgme_page_description').first()) ||
+    $('meta[property="og:description"]').attr('content')?.trim() ||
+    null;
+  const rawAvatar =
+    $('meta[property="og:image"]').attr('content')?.trim() ||
+    $('.tgme_page_photo img').first().attr('src')?.trim() ||
+    null;
+  const avatarUrl = isGenericTelegramLogo(rawAvatar) ? null : rawAvatar;
+  const memberCount = parseInviteMemberCount(extra);
+  const expired = isInvitePreviewExpired({ html, title, extra, memberCount });
+
+  return {
+    expired,
+    title: expired ? title : title,
+    memberCount: expired ? null : memberCount,
+    description: expired ? null : description,
+    avatarUrl: expired ? null : avatarUrl,
+  };
+}
+
 function detectMediaType(node: Cheerio<Element>): ChannelPostMediaType {
   if (
     node.find(

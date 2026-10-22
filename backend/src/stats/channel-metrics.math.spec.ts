@@ -1,6 +1,7 @@
 import {
   addKstDays,
   countObservedDays,
+  growthFromSnapshots,
   isManipulationSuspected,
   median,
   percentile,
@@ -136,5 +137,41 @@ describe('KST 일수', () => {
   it('addKstDays가 날짜 문자열을 민다', () => {
     expect(addKstDays('2026-10-19', -1)).toBe('2026-10-18');
     expect(addKstDays('2026-10-19', -7)).toBe('2026-10-12');
+  });
+});
+
+describe('growthFromSnapshots', () => {
+  it('스냅샷이 2일 미만이면 null이다', () => {
+    expect(growthFromSnapshots([], '2026-10-22', 1000, 7)).toBeNull();
+    expect(
+      growthFromSnapshots(
+        [{ capturedOn: '2026-10-22', memberCount: 900 }],
+        '2026-10-22',
+        1000,
+        7,
+      ),
+    ).toBeNull();
+  });
+
+  it('옮겨 온 인원 수만 있고 어제 스냅샷이 없으면 계산하지 않는다', () => {
+    expect(
+      growthFromSnapshots(
+        [{ capturedOn: '2026-10-01', memberCount: 10 }],
+        '2026-10-22',
+        5000,
+        1,
+      ),
+    ).toBeNull();
+  });
+
+  it('같은 채널 스냅샷이 2일 이상이면 해당 구간 성장률을 계산한다', () => {
+    expect(
+      growthFromSnapshots(
+        [{ capturedOn: '2026-10-15', memberCount: 100 }],
+        '2026-10-22',
+        130,
+        7,
+      ),
+    ).toBeCloseTo(0.3);
   });
 });

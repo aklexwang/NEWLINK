@@ -12,6 +12,15 @@ describe('isPublicCollectable', () => {
     ).toBe(false);
   });
 
+  it('invite_expired 는 공개 화면에서 제외한다', () => {
+    expect(
+      isPublicCollectable({
+        firstObservedAt: observed,
+        collectStatus: 'invite_expired',
+      }),
+    ).toBe(false);
+  });
+
   it('invalid·gone·merged 는 제외한다', () => {
     expect(
       isPublicCollectable({

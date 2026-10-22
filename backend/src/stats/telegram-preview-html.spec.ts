@@ -6,7 +6,9 @@ import {
   isMissingChannelHtml,
   isPlaceholderTitle,
   isPrivateChannelHtml,
+  isTelegramOrgUrl,
   parseCount,
+  parseInviteLinkHtml,
   parseTelegramChannelHtml,
 } from './telegram-preview-html';
 
@@ -219,5 +221,52 @@ describe('플레이스홀더 제목·수집 오류 문구', () => {
 
   it('collect_error 는 255자를 넘기지 않는다', () => {
     expect(clipCollectError('a'.repeat(300)).length).toBe(255);
+  });
+});
+
+const INVITE_HTML = `
+<div class="tgme_page">
+  <div class="tgme_page_photo"><img src="https://cdn4.telegram-cdn.org/file/abc.jpg"></div>
+  <div class="tgme_page_title">초대방 이름</div>
+  <div class="tgme_page_extra">1 234 members, 12 online</div>
+  <div class="tgme_page_description">공개된 소개글</div>
+</div>
+<meta property="og:image" content="https://cdn4.telegram-cdn.org/file/abc.jpg">
+`;
+
+const EXPIRED_INVITE_HTML = `
+<title>Telegram: Join Group Chat</title>
+<div class="tgme_page_title">Telegram: Join Group Chat</div>
+<div class="tgme_page_description">If you have Telegram, you can contact ...</div>
+<meta property="og:image" content="https://telegram.org/img/t_logo.png">
+`;
+
+describe('parseInviteLinkHtml', () => {
+  it('초대 페이지에서 이름·인원·소개·사진을 읽는다', () => {
+    const parsed = parseInviteLinkHtml(INVITE_HTML, 'https://t.me/+abc');
+    expect(parsed.expired).toBe(false);
+    expect(parsed.title).toBe('초대방 이름');
+    expect(parsed.memberCount).toBe(1234);
+    expect(parsed.description).toBe('공개된 소개글');
+    expect(parsed.avatarUrl).toContain('telegram-cdn.org');
+  });
+
+  it('만료되면 telegram.org 랜딩이나 Join Group Chat 페이지로 본다', () => {
+    expect(isTelegramOrgUrl('https://telegram.org/')).toBe(true);
+    expect(
+      parseInviteLinkHtml('<html></html>', 'https://telegram.org/').expired,
+    ).toBe(true);
+    const expired = parseInviteLinkHtml(
+      EXPIRED_INVITE_HTML,
+      'https://t.me/+abc',
+    );
+    expect(expired.expired).toBe(true);
+    expect(expired.memberCount).toBeNull();
+    expect(
+      parseInviteLinkHtml(
+        '<div class="tgme_page_title">Join group chat on Telegram</div>',
+        'https://t.me/+abc',
+      ).expired,
+    ).toBe(true);
   });
 });

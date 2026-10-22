@@ -138,6 +138,7 @@ export async function updateAdminChannel(
     avatarApproved?: boolean;
     language?: 'ko' | 'foreign' | 'unknown';
     languageLocked?: boolean;
+    link?: string;
   }>,
 ) {
   const { data } = await apiClient.patch(`/admin/channels/${id}`, payload, {

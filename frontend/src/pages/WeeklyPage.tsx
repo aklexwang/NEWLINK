@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getWeeklyStats } from '../api/stats';
 import type { WeeklyStats, WeeklyStatsEvent } from '../types/stats';
 import { shiftIsoWeek } from '../utils/isoWeek';
+import { channelDetailPath } from '../utils/channelDetailPath';
 
 const EVENT_TITLE: Record<string, string> = {
   title_changed: '제목 변경',
@@ -119,6 +120,10 @@ function WeeklySection({
         <ul className="mt-2 divide-y divide-black/[0.06]">
           {sorted.map((item) => {
             const handle = item.username?.replace(/^@/, '');
+            const path = channelDetailPath({
+              id: item.channelId,
+              username: item.username,
+            });
             const inner = (
               <>
                 <p className="truncate text-[14px] font-medium text-tg-text">
@@ -132,8 +137,8 @@ function WeeklySection({
             );
             return (
               <li key={item.id} className="py-2">
-                {handle ? (
-                  <Link to={`/c/${handle}`} className="block">
+                {path ? (
+                  <Link to={path} className="block">
                     {inner}
                   </Link>
                 ) : (

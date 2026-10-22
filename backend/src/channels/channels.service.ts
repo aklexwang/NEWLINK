@@ -17,7 +17,10 @@ import {
   isPublicCollectable,
 } from '../stats/collect-visibility';
 import { isVisibleOnPublicLists } from './channel-language.logic';
-import { extractTelegramUsernameFromLink } from './telegram-username';
+import {
+  extractTelegramUsernameFromLink,
+  isInviteOnlyLink,
+} from './telegram-username';
 import { ALREADY_REGISTERED_CHANNEL } from './merge-duplicate-channels.logic';
 import { ChannelFavorite } from './channel-favorite.entity';
 import { ChannelRecommendation } from './channel-recommendation.entity';
@@ -899,7 +902,14 @@ export class ChannelsService implements OnModuleInit {
       });
     if (filters.collectStatus === 'failed') {
       qb.andWhere('channel.collect_status IN (:...collectFail)', {
-        collectFail: ['failed', 'private', 'invalid', 'gone', 'invite_only'],
+        collectFail: [
+          'failed',
+          'private',
+          'invalid',
+          'gone',
+          'invite_only',
+          'invite_expired',
+        ],
       });
     } else if (filters.collectStatus === 'invalid') {
       qb.andWhere('channel.collect_status = :collectInvalid', {
@@ -963,10 +973,37 @@ export class ChannelsService implements OnModuleInit {
         | 'avatarApproved'
         | 'language'
         | 'languageLocked'
+        | 'link'
       >
     >,
   ) {
     const channel = await this.findById(id);
+    if (data.link !== undefined) {
+      const normalized = this.normalizeTelegramLink(data.link);
+      if (!normalized) {
+        throw new BadRequestException('링크가 필요합니다.');
+      }
+      const other = await this.channelRepository
+        .createQueryBuilder('channel')
+        .where('LOWER(channel.link) = :key', { key: this.linkKey(normalized) })
+        .andWhere('channel.id <> :id', { id })
+        .getOne();
+      if (other) {
+        throw new ConflictException('이미 등록된 채널/그룹 링크입니다.');
+      }
+      channel.link = normalized;
+      const username = extractTelegramUsernameFromLink(normalized);
+      if (username) {
+        channel.username = username;
+      } else if (isInviteOnlyLink(normalized)) {
+        channel.username = null;
+      }
+      channel.collectStatus = isInviteOnlyLink(normalized)
+        ? 'invite_only'
+        : null;
+      channel.collectError = null;
+      channel.collectFailCount = 0;
+    }
     if (data.title !== undefined) channel.title = data.title;
     if (data.category !== undefined) channel.category = data.category;
     if (data.linkType !== undefined) channel.linkType = data.linkType;

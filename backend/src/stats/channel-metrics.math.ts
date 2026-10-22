@@ -75,6 +75,29 @@ export function growthRate(
   return (current - baseline) / baseline;
 }
 
+/**
+ * 같은 채널의 스냅샷이 서로 다른 날짜로 2일 이상일 때만 성장률을 계산합니다.
+ * 옮겨 온 member_count 는 쓰지 않고, 오늘 값도 스냅샷 맵에 넣은 뒤 비교합니다.
+ */
+export function growthFromSnapshots(
+  snapshots: { capturedOn: string; memberCount: number }[],
+  todayYmd: string,
+  todayMemberCount: number,
+  daysBack: number,
+): number | null {
+  const byDay = new Map<string, number>();
+  for (const snap of snapshots) {
+    if (!snap.capturedOn) continue;
+    byDay.set(snap.capturedOn, snap.memberCount);
+  }
+  byDay.set(todayYmd, todayMemberCount);
+  if (byDay.size < 2) return null;
+  return growthRate(
+    byDay.get(todayYmd) ?? null,
+    byDay.get(addKstDays(todayYmd, -daysBack)) ?? null,
+  );
+}
+
 export function gradeFromTotal(total: number): ScoreGrade {
   if (total >= GRADE_S_MIN) return 'S';
   if (total >= GRADE_A_MIN) return 'A';

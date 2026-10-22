@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getRankingCategories, getRankingChannels, getRankingStatus } from '../api/ranking';
 import { RankingCategoryPicker } from '../components/RankingCategoryPicker';
 import { RankingChannelCard } from '../components/RankingChannelCard';
-import { openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import type { RankingCategoryItem, RankingChannel } from '../types/ranking';
 import type { RankingSort } from '../types/stats';
 import { resolveMediaUrl } from '../utils/mediaUrl';
@@ -33,7 +32,6 @@ function parseType(raw: string | null): 'channel' | 'group' | undefined {
 }
 
 export function RankingPage() {
-  const { webApp, isLocalBrowser } = useTelegram();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const sort = parseSort(searchParams.get('sort'));
@@ -296,7 +294,7 @@ export function RankingPage() {
                 rank={index + 1}
                 channel={channel}
                 avatarUrl={resolveMediaUrl(channel.avatarUrl)}
-                onOpen={() => openTelegramChannel(webApp, isLocalBrowser, channel.link)}
+                onOpen={() => undefined}
               />
             ))}
           </div>

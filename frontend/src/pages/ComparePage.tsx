@@ -17,6 +17,7 @@ import { toastMessage } from '../providers/ToastProvider';
 import type { Channel } from '../types/channel';
 import type { CompareStatsItem } from '../types/stats';
 import { extractTelegramUsername } from '../utils/channelAvatar';
+import { channelDetailPath } from '../utils/channelDetailPath';
 import { addCompareId, COMPARE_MAX, getCompareIds, removeCompareId } from '../utils/compareChannels';
 import { formatCount, formatPercent, formatSignedPercent } from '../utils/formatCount';
 
@@ -159,12 +160,15 @@ export function ComparePage() {
                 <tr>
                   <th className="px-2 py-2 font-medium text-tg-hint">항목</th>
                   {items.map((item, index) => {
-                    const handle = item.username?.replace(/^@/, '');
+                    const path = channelDetailPath({
+                      id: item.id,
+                      username: item.username,
+                    });
                     return (
                       <th key={item.id} className="px-2 py-2">
                         <div className="flex items-start justify-between gap-1">
-                          {handle ? (
-                            <Link to={`/c/${handle}`} className="font-semibold text-tg-text">
+                          {path ? (
+                            <Link to={path} className="font-semibold text-tg-text">
                               {item.title}
                             </Link>
                           ) : (

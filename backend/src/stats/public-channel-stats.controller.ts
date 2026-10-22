@@ -15,6 +15,11 @@ export class PublicChannelStatsController {
     return this.publicStatsService.getDetailByUsername(username);
   }
 
+  @Get(':id/detail')
+  getById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.publicStatsService.getDetailById(id);
+  }
+
   @Get(':id/stats')
   getStats(
     @Param('id', ParseUUIDPipe) id: string,

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RankingChannel } from '../types/ranking';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
+import { channelDetailPath } from '../utils/channelDetailPath';
 import { formatCount, formatPercent, formatSignedPercent } from '../utils/formatCount';
 import { GradeBadge } from './GradeBadge';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -17,7 +18,6 @@ interface RankingChannelCardProps {
 export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: RankingChannelCardProps) {
   const navigate = useNavigate();
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
-  const handle = channel.username?.replace(/^@/, '') || null;
   const growth = channel.growth7d;
   const growthClass =
     growth == null ? 'text-tg-hint' : growth > 0 ? 'text-emerald-600' : growth < 0 ? 'text-red-600' : 'text-tg-hint';
@@ -40,7 +40,8 @@ export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: Ranking
     <button
       type="button"
       onClick={() => {
-        if (handle) navigate(`/c/${handle}`);
+        const path = channelDetailPath(channel);
+        if (path) navigate(path);
         else onOpen();
       }}
       className="flex w-full items-start gap-2.5 px-4 py-3 text-left active:bg-black/[0.03]"

@@ -15,7 +15,7 @@ interface PromotedShortcutsProps {
   channels: Channel[];
   categoryEmojis: CategoryChip[];
   isLoading: boolean;
-  onOpen: (link: string) => void;
+  onOpen: (channel: Channel) => void;
 }
 
 function getGridColumns(count: number): number {
@@ -59,7 +59,7 @@ function ShortcutItem({
   channel: Channel;
   label: string;
   categoryEmojis: CategoryChip[];
-  onOpen: (link: string) => void;
+  onOpen: (channel: Channel) => void;
 }) {
   const meta = getCategoryMeta(categoryEmojis, channel.category);
   const avatarSources = useMemo(() => getChannelAvatarSources(channel), [channel]);
@@ -74,7 +74,7 @@ function ShortcutItem({
   return (
     <button
       type="button"
-      onClick={() => onOpen(channel.link)}
+      onClick={() => onOpen(channel)}
       className="group mx-auto flex w-[88px] flex-col items-center gap-2 active:scale-[0.97]"
     >
       <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-nl-elev ring-1 ring-nl-line">

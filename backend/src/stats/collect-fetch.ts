@@ -69,10 +69,25 @@ export function isClassifyFresh(
   return now - at < CLASSIFY_TTL_MS;
 }
 
+/** 만료된 초대 링크를 다시 확인하기까지 대기 */
+export const INVITE_EXPIRED_RECHECK_MS = 7 * 24 * 60 * 60 * 1000;
+
 export function shouldSkipDailyCollect(
   collectStatus: string | null | undefined,
 ): boolean {
-  return collectStatus === 'invite_only' || collectStatus === 'merged';
+  return collectStatus === 'merged';
+}
+
+export function shouldSkipInviteExpiredRecheck(
+  collectStatus: string | null | undefined,
+  lastCollectedAt: Date | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (collectStatus !== 'invite_expired') return false;
+  if (!lastCollectedAt) return false;
+  const at = lastCollectedAt.getTime();
+  if (Number.isNaN(at)) return false;
+  return now - at < INVITE_EXPIRED_RECHECK_MS;
 }
 
 export function shouldRetrySameDayFailed(
@@ -89,40 +104,63 @@ export type FetchAttemptOk = {
   status: number;
   retryAfter?: string | null;
   html: string | null;
+  finalUrl?: string | null;
 };
 
 export async function runFetchRetries(
   attempt: () => Promise<FetchAttemptOk>,
   sleepFn: (ms: number) => Promise<void>,
   now = () => Date.now(),
-): Promise<{ status: number; html: string | null; error?: string }> {
+): Promise<{
+  status: number;
+  html: string | null;
+  error?: string;
+  finalUrl?: string | null;
+}> {
   const maxTries = FETCH_RETRY_DELAYS_MS.length + 1;
   let lastError = 'fetch:network';
   let lastStatus = 0;
   let lastHtml: string | null = null;
+  let lastUrl: string | null = null;
 
   for (let tryIndex = 0; tryIndex < maxTries; tryIndex += 1) {
     try {
       const result = await attempt();
       lastStatus = result.status;
       lastHtml = result.html;
+      lastUrl = result.finalUrl ?? null;
       if (result.status === 429) {
         lastError = 'fetch:429';
         if (tryIndex >= maxTries - 1) {
-          return { status: 429, html: result.html, error: 'fetch:429' };
+          return {
+            status: 429,
+            html: result.html,
+            error: 'fetch:429',
+            finalUrl: lastUrl,
+          };
         }
         await sleepFn(parseRetryAfterMs(result.retryAfter, now()));
         continue;
       }
-      return { status: result.status, html: result.html };
+      return {
+        status: result.status,
+        html: result.html,
+        finalUrl: lastUrl,
+      };
     } catch (error) {
       lastError = describeFetchError(error);
       lastStatus = 0;
       lastHtml = null;
+      lastUrl = null;
       if (tryIndex >= maxTries - 1) break;
       await sleepFn(FETCH_RETRY_DELAYS_MS[tryIndex]);
     }
   }
 
-  return { status: lastStatus, html: lastHtml, error: lastError };
+  return {
+    status: lastStatus,
+    html: lastHtml,
+    error: lastError,
+    finalUrl: lastUrl,
+  };
 }

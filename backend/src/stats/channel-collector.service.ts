@@ -15,9 +15,11 @@ import {
   runFetchRetries,
   shouldRetrySameDayFailed,
   shouldSkipDailyCollect,
+  shouldSkipInviteExpiredRecheck,
 } from './collect-fetch';
 import { formatKstYmd } from './channel-metrics.math';
 import { ChannelPost } from './channel-post.entity';
+import { ChannelSnapshot } from './channel-snapshot.entity';
 import {
   classifyTelegramAccountHtml,
   clipCollectError,
@@ -26,6 +28,7 @@ import {
   isPlaceholderTitle,
   isPrivateChannelHtml,
   joinMentionedUsernames,
+  parseInviteLinkHtml,
   parseTelegramChannelHtml,
   TELEGRAM_FETCH_HEADERS,
   type ParsedPreviewPost,
@@ -47,7 +50,8 @@ export type CollectOneResult =
         | 'private'
         | 'failed'
         | 'invalid'
-        | 'invite_only';
+        | 'invite_only'
+        | 'invite_expired';
     };
 
 @Injectable()
@@ -61,6 +65,8 @@ export class ChannelCollectorService {
     private readonly postRepository: Repository<ChannelPost>,
     @InjectRepository(ChannelEvent)
     private readonly eventRepository: Repository<ChannelEvent>,
+    @InjectRepository(ChannelSnapshot)
+    private readonly snapshotRepository: Repository<ChannelSnapshot>,
     private readonly configService: ConfigService,
   ) {}
 
@@ -75,7 +81,9 @@ export class ChannelCollectorService {
       where: { status: ChannelStatus.ACTIVE },
     });
     const channels = allActive.filter(
-      (ch) => !shouldSkipDailyCollect(ch.collectStatus),
+      (ch) =>
+        !shouldSkipDailyCollect(ch.collectStatus) &&
+        !shouldSkipInviteExpiredRecheck(ch.collectStatus, ch.lastCollectedAt),
     );
 
     let ok = 0;
@@ -163,12 +171,16 @@ export class ChannelCollectorService {
     const username = this.resolveUsername(channel);
 
     if (shouldSkipDailyCollect(channel.collectStatus)) {
-      return { ok: false, reason: 'invite_only' };
+      return { ok: false, reason: 'failed' };
     }
 
-    if (!username || isInviteOnlyLink(channel.link)) {
-      await this.markInviteOnly(channel);
-      return { ok: false, reason: 'invite_only' };
+    if (isInviteOnlyLink(channel.link)) {
+      return this.collectInvitePreview(channel);
+    }
+
+    if (!username) {
+      await this.markFailed(channel, 'failed', 'collect:no_username');
+      return { ok: false, reason: 'failed' };
     }
 
     const classified = await this.classifyAccount(channel, username);
@@ -464,9 +476,50 @@ export class ChannelCollectorService {
     return this.fetchHtml(url);
   }
 
-  private async fetchHtml(
-    url: string,
-  ): Promise<{ status: number; html: string | null; error?: string }> {
+  private async collectInvitePreview(
+    channel: Channel,
+  ): Promise<CollectOneResult> {
+    const result = await this.fetchHtml(channel.link);
+    if (result.error === 'fetch:timeout') {
+      await this.markFailed(channel, 'failed', 'fetch:timeout');
+      return { ok: false, reason: 'failed' };
+    }
+    if (result.status === 404) {
+      await this.markInviteExpired(channel);
+      return { ok: false, reason: 'invite_expired' };
+    }
+    if (result.status >= 400 || !result.html) {
+      await this.markFailed(
+        channel,
+        'failed',
+        result.error ?? `invite:http_${result.status || 0}`,
+      );
+      return { ok: false, reason: 'failed' };
+    }
+
+    const parsed = parseInviteLinkHtml(result.html, result.finalUrl);
+    if (parsed.expired) {
+      await this.markInviteExpired(channel);
+      return { ok: false, reason: 'invite_expired' };
+    }
+
+    await this.applySuccessfulCollect(channel, {
+      title: parsed.title,
+      memberCount: parsed.memberCount,
+      keepUsername: true,
+      description: parsed.description,
+      avatarUrl: parsed.avatarUrl,
+    });
+    await this.upsertMemberSnapshot(channel.id, parsed.memberCount);
+    return { ok: true, mode: 'preview' };
+  }
+
+  private async fetchHtml(url: string): Promise<{
+    status: number;
+    html: string | null;
+    error?: string;
+    finalUrl?: string | null;
+  }> {
     return runFetchRetries(
       async () => {
         const res = await fetch(url, {
@@ -479,6 +532,7 @@ export class ChannelCollectorService {
           status: res.status,
           retryAfter: res.headers.get('retry-after'),
           html,
+          finalUrl: res.url,
         };
       },
       sleep,
@@ -541,14 +595,20 @@ export class ChannelCollectorService {
     info: {
       title: string | null;
       memberCount: number | null;
-      username: string;
+      username?: string | null;
+      keepUsername?: boolean;
+      description?: string | null;
+      avatarUrl?: string | null;
       telegramChatId?: number | null;
     },
   ) {
     const now = new Date();
     const wasGone = channel.collectStatus === 'gone';
     const isFirst = channel.firstObservedAt == null;
-    const nextUsername = info.username.replace(/^@/, '').toLowerCase();
+    const keepUsername = Boolean(info.keepUsername);
+    const nextUsername = keepUsername
+      ? (channel.username?.replace(/^@/, '').toLowerCase() ?? null)
+      : (info.username ?? '').replace(/^@/, '').toLowerCase();
     const prevUsername =
       channel.username?.replace(/^@/, '').toLowerCase() ?? null;
     const nextTitle = info.title?.trim() || null;
@@ -570,7 +630,12 @@ export class ChannelCollectorService {
           nextTitle,
         );
       }
-      if (prevUsername && nextUsername !== prevUsername) {
+      if (
+        !keepUsername &&
+        nextUsername &&
+        prevUsername &&
+        nextUsername !== prevUsername
+      ) {
         await this.recordEvent(
           channel.id,
           'username_changed',
@@ -585,8 +650,15 @@ export class ChannelCollectorService {
     }
 
     if (nextTitle) channel.title = nextTitle;
-    channel.username = nextUsername;
+    if (!keepUsername && nextUsername) channel.username = nextUsername;
     if (info.memberCount != null) channel.memberCount = info.memberCount;
+    if (info.description != null && info.description.trim()) {
+      channel.description = info.description.trim();
+    }
+    if (info.avatarUrl && !channel.avatarApproved) {
+      channel.avatarUrl = info.avatarUrl;
+      channel.avatarApproved = true;
+    }
     if (info.telegramChatId != null)
       channel.telegramChatId = info.telegramChatId;
     channel.lastCollectedAt = now;
@@ -594,6 +666,24 @@ export class ChannelCollectorService {
     channel.collectError = null;
     channel.collectFailCount = 0;
     await this.channelRepository.save(channel);
+  }
+
+  private async upsertMemberSnapshot(
+    channelId: string,
+    memberCount: number | null,
+  ) {
+    if (memberCount == null) return;
+    await this.snapshotRepository.upsert(
+      {
+        channelId,
+        capturedOn: formatKstYmd(),
+        memberCount,
+        medianViews7d: 0,
+        posts7d: 0,
+        forwardedRatio: 0,
+      },
+      ['channelId', 'capturedOn'],
+    );
   }
 
   private async markGoneProgress(
@@ -635,9 +725,9 @@ export class ChannelCollectorService {
     await this.channelRepository.save(channel);
   }
 
-  private async markInviteOnly(channel: Channel) {
-    channel.collectStatus = 'invite_only';
-    channel.collectError = null;
+  private async markInviteExpired(channel: Channel) {
+    channel.collectStatus = 'invite_expired';
+    channel.collectError = clipCollectError('invite:expired');
     channel.lastCollectedAt = new Date();
     await this.channelRepository.save(channel);
   }

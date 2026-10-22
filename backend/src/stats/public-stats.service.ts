@@ -289,7 +289,9 @@ export class PublicStatsService {
       topChannels: top.map((item) => this.toHomeCard(item)),
       headlines: {
         risingTitle: rising[0]?.title ?? null,
+        risingId: rising[0]?.id ?? null,
         risingUsername: this.stripAt(rising[0]?.username),
+        risingLink: rising[0]?.link ?? null,
         firstSeenCount: weekly.counts.firstSeen,
         rankUpCount: weekly.counts.rankUp,
         firstSeen: weekly.firstSeen.slice(0, 8).map((item) => ({
@@ -512,7 +514,8 @@ export class PublicStatsService {
     }
     if (sort === 'rising') {
       channels = channels.filter(
-        (c) => (c.memberCount ?? 0) >= RISING_MIN_MEMBERS,
+        (c) =>
+          (c.memberCount ?? 0) >= RISING_MIN_MEMBERS && c.growth7d != null,
       );
     }
 

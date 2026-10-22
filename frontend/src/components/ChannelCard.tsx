@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Channel } from '../types/channel';
-import { extractTelegramUsername, getChannelAvatarSources } from '../utils/channelAvatar';
+import { getChannelAvatarSources } from '../utils/channelAvatar';
+import { channelDetailPath } from '../utils/channelDetailPath';
 import { linkTypeBadgeClass, linkTypeLabel } from '../utils/linkType';
 import { CategoryIcon } from './CategoryIcon';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -26,7 +27,7 @@ export function ChannelCard({
   showFavorite = true,
 }: ChannelCardProps) {
   const navigate = useNavigate();
-  const username = extractTelegramUsername(channel.link);
+  const path = channelDetailPath(channel);
   const promoted = channel.isPromoted;
   const description = (channel.description ?? '').trim();
   const avatarSources = useMemo(
@@ -47,7 +48,7 @@ export function ChannelCard({
   }, [channel.id, channel.avatarUrl, channel.link, avatarSources]);
 
   const openDetail = () => {
-    if (username) navigate(`/c/${username}`);
+    if (path) navigate(path);
   };
 
   return (
@@ -55,7 +56,7 @@ export function ChannelCard({
       <button
         type="button"
         onClick={openDetail}
-        disabled={!username}
+        disabled={!path}
         className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
       >
       {showChannelAvatar ? (

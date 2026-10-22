@@ -33,6 +33,11 @@ export async function getChannelDetailByUsername(username: string): Promise<Chan
   return data;
 }
 
+export async function getChannelDetailById(id: string): Promise<ChannelDetail> {
+  const { data } = await apiClient.get<ChannelDetail>(`/channels/${id}/detail`);
+  return data;
+}
+
 export async function getChannelStats(id: string, range: 7 | 14 | 30 = 7): Promise<ChannelStatsSeries> {
   const { data } = await apiClient.get<ChannelStatsSeries>(`/channels/${id}/stats`, {
     params: { range: String(range) },
@@ -74,7 +79,9 @@ export interface HomeCard {
 
 export interface HomeHeadlines {
   risingTitle: string | null;
+  risingId: string | null;
   risingUsername: string | null;
+  risingLink: string | null;
   firstSeenCount: number;
   rankUpCount: number;
   firstSeen: { id: string; title: string | null; username: string | null }[];

@@ -54,6 +54,7 @@ export default function App() {
                 </Route>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<HomePage />} />
+                  <Route path="/c/id/:id" element={<ChannelDetailPage />} />
                   <Route path="/c/:username" element={<ChannelDetailPage />} />
                   <Route path="/ranking" element={<RankingPage />} />
                   <Route path="/weekly" element={<WeeklyPage />} />
