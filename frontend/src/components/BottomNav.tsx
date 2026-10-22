@@ -18,6 +18,7 @@ export function BottomNav() {
   const hasWallet = Boolean(user?.isRegistered && user.tonWalletAddress);
   const isSubmitActive = location.pathname === '/submit';
   const isFavoritesActive = location.pathname === '/favorites';
+  const isCategoriesActive = location.pathname.startsWith('/categories');
 
   const handleSubmitClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -70,16 +71,17 @@ export function BottomNav() {
           <span className="text-[22px] leading-none">🏠</span>
           <span>홈</span>
         </NavLink>
-        <a
-          href="/submit"
-          onClick={handleSubmitClick}
-          className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium ${
-            isSubmitActive ? 'text-tg-link' : 'text-tg-hint'
-          }`}
+        <NavLink
+          to="/categories"
+          className={() =>
+            `flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium ${
+              isCategoriesActive ? 'text-tg-link' : 'text-tg-hint'
+            }`
+          }
         >
-          <span className="text-[22px] leading-none">📣</span>
-          <span>제보</span>
-        </a>
+          <span className="text-[22px] leading-none">📂</span>
+          <span>카테고리</span>
+        </NavLink>
         <a
           href="/favorites"
           onClick={handleFavoritesClick}
@@ -89,6 +91,16 @@ export function BottomNav() {
         >
           <span className="text-[22px] leading-none">⭐</span>
           <span>즐겨찾기</span>
+        </a>
+        <a
+          href="/submit"
+          onClick={handleSubmitClick}
+          className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium ${
+            isSubmitActive ? 'text-tg-link' : 'text-tg-hint'
+          }`}
+        >
+          <span className="text-[22px] leading-none">📣</span>
+          <span>제보</span>
         </a>
         <NavLink to="/my" className={navClass}>
           <span className="text-[22px] leading-none">👤</span>
