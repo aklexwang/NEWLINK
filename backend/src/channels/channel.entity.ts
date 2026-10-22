@@ -182,6 +182,21 @@ export class Channel {
   @Column({ name: 'language_locked', default: false })
   languageLocked: boolean;
 
+  /** 공개 목록 노출. false 여도 수집은 계속한다 */
+  @Column({ name: 'is_visible', default: true })
+  isVisible: boolean;
+
+  /** 관리자가 카테고리를 고정하면 자동 분류가 덮어쓰지 않음 */
+  @Column({ name: 'category_locked', default: false })
+  categoryLocked: boolean;
+
+  @Column({ name: 'category_confidence', type: 'real', nullable: true })
+  categoryConfidence: number | null;
+
+  /** 조건 통과로 승인 없이 등록됨 */
+  @Column({ name: 'auto_registered', default: false })
+  autoRegistered: boolean;
+
   @Column({ name: 'collect_fail_count', type: 'integer', default: 0 })
   collectFailCount: number;
 
