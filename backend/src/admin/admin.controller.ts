@@ -20,6 +20,8 @@ import { randomBytes } from 'crypto';
 import { ChannelStatus, LinkType } from '../channels/channel.entity';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
+import { TelegramUserParam } from '../auth/telegram-user.decorator';
+import type { TelegramUser } from '../auth/interfaces/telegram-user.interface';
 import { ChannelsService } from '../channels/channels.service';
 import { TonPaymentService } from '../payments/ton-payment.service';
 import { UsersService } from '../users/users.service';
@@ -31,6 +33,7 @@ import {
   PromoteChannelDto,
   RecordRewardDto,
   UpdateChannelDto,
+  BulkVisibilityDto,
 } from './dto/admin.dto';
 
 const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
@@ -82,6 +85,8 @@ export class AdminController {
     @Query('category') category?: string,
     @Query('linkType') linkType?: LinkType,
     @Query('collectStatus') collectStatus?: string,
+    @Query('visibility') visibility?: 'visible' | 'hidden',
+    @Query('autoRegistered') autoRegistered?: string,
   ) {
     const channels = await this.channelsService.findAllAdmin({
       status,
@@ -89,6 +94,9 @@ export class AdminController {
       category,
       linkType,
       collectStatus,
+      visibility,
+      autoRegistered:
+        autoRegistered === '1' || autoRegistered === 'true' ? true : undefined,
     });
     return Promise.all(
       channels.map(async (channel) => {
@@ -118,6 +126,18 @@ export class AdminController {
   @Post('reject-invalid')
   rejectInvalid(@Body() dto: CandidateIdsDto) {
     return this.channelsService.rejectInvalidSelected(dto.ids);
+  }
+
+  @Post('visibility')
+  setVisibility(
+    @Body() dto: BulkVisibilityDto,
+    @TelegramUserParam() user: TelegramUser,
+  ) {
+    return this.channelsService.setVisibilityMany(
+      dto.ids,
+      dto.isVisible,
+      user.id,
+    );
   }
 
   @Post('upload-avatar')
@@ -242,8 +262,14 @@ export class AdminController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateChannelDto) {
-    return this.channelsService.updateAdmin(id, {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateChannelDto,
+    @TelegramUserParam() user: TelegramUser,
+  ) {
+    return this.channelsService.updateAdmin(
+      id,
+      {
       title: dto.title,
       category: dto.category,
       linkType: dto.linkType,
@@ -263,7 +289,11 @@ export class AdminController {
       language: dto.language,
       languageLocked: dto.languageLocked,
       link: dto.link,
-    });
+      isVisible: dto.isVisible,
+      categoryLocked: dto.categoryLocked,
+      },
+      user.id,
+    );
   }
 
   @Delete(':id')

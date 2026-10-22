@@ -128,6 +128,16 @@ describe('isVisibleOnPublicLists', () => {
       isVisibleOnPublicLists({ language: 'foreign', isPromoted: false }),
     ).toBe(false);
   });
+
+  it('비활성 채널은 광고여도 공개 목록에서 뺀다', () => {
+    expect(
+      isVisibleOnPublicLists({
+        language: 'ko',
+        isPromoted: true,
+        isVisible: false,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe('isKoreanChannelText 기준 맞춤', () => {

@@ -193,11 +193,13 @@ export function isDefaultPublicLanguage(
   return language !== 'foreign';
 }
 
-/** 광고 채널은 언어와 상관없이 공개 화면에 남김 */
+/** 광고 채널은 언어와 상관없이 공개 화면에 남김. 비활성은 광고여도 뺀다. */
 export function isVisibleOnPublicLists(channel: {
   language?: ChannelLanguage | string | null;
   isPromoted?: boolean;
+  isVisible?: boolean | null;
 }): boolean {
+  if (channel.isVisible === false) return false;
   if (channel.isPromoted) return true;
   return isDefaultPublicLanguage(channel.language);
 }

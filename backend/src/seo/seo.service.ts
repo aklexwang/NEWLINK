@@ -58,6 +58,7 @@ export class SeoService {
     return this.channelRepository
       .createQueryBuilder('channel')
       .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
+      .andWhere('channel.is_visible = :visible', { visible: true })
       .andWhere('channel.username IS NOT NULL')
       .andWhere("TRIM(channel.username) != ''");
   }

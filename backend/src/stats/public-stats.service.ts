@@ -7,6 +7,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { isVisibleOnPublicLists } from '../channels/channel-language.logic';
+import {
+  allowAdultInList,
+  isPendingCategory,
+} from '../channels/auto-expose.logic';
 import { isPublicCollectable } from './collect-visibility';
 import { ChannelsService } from '../channels/channels.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
@@ -335,7 +339,9 @@ export class PublicStatsService {
     });
     channels = this.dedupeByLink(channels)
       .filter(isPublicCollectable)
-      .filter(isVisibleOnPublicLists);
+      .filter(isVisibleOnPublicLists)
+      .filter((c) => allowAdultInList(c.category))
+      .filter((c) => !isPendingCategory(c.category));
     if (type === 'channel') {
       channels = channels.filter((c) => c.linkType === LinkType.CHANNEL);
     } else if (type === 'group') {
@@ -466,6 +472,9 @@ export class PublicStatsService {
     const items = [];
     for (const id of ids) {
       const channel = await this.requireActive(id);
+      if (channel.isVisible === false) {
+        throw new BadRequestException('노출이 중지된 채널입니다.');
+      }
       const detail = await this.buildDetail(channel);
       const stats = await this.getStatsSeries(channel.id, '30');
       items.push({
@@ -500,6 +509,11 @@ export class PublicStatsService {
 
     if (query.category && query.category !== 'all') {
       channels = channels.filter((c) => c.category === query.category);
+    } else {
+      channels = channels.filter(
+        (c) =>
+          allowAdultInList(c.category) && !isPendingCategory(c.category),
+      );
     }
     if (query.type) {
       channels = channels.filter((c) => c.linkType === query.type);
@@ -642,6 +656,7 @@ export class PublicStatsService {
       medianViews7d: channel.medianViews7d,
       posts7d: channel.posts7d,
       collectStatus: channel.collectStatus,
+      isVisible: channel.isVisible !== false,
       isVerified: Boolean(channel.isVerified),
       verifiedAt: channel.verifiedAt?.toISOString() ?? null,
       latestScore: latest

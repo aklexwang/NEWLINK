@@ -63,6 +63,22 @@ describe('isPublicCollectable', () => {
     ).toBe(true);
   });
 
+  it('is_visible=false 는 공개 화면에서 빼고 점수는 계산한다', () => {
+    expect(
+      isPublicCollectable({
+        firstObservedAt: observed,
+        collectStatus: 'ok',
+        isVisible: false,
+      }),
+    ).toBe(false);
+    expect(
+      isScoreCollectable({
+        firstObservedAt: observed,
+        collectStatus: 'ok',
+      }),
+    ).toBe(true);
+  });
+
   it('초대 전용 방은 관측 기록이 없어도 공개 화면에 남긴다', () => {
     expect(
       isPublicCollectable({

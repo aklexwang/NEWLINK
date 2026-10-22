@@ -175,6 +175,24 @@ export class UpdateChannelDto {
   @IsOptional()
   @MaxLength(512)
   link?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isVisible?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  categoryLocked?: boolean;
+}
+
+export class BulkVisibilityDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  ids: string[];
+
+  @IsBoolean()
+  isVisible: boolean;
 }
 
 export class GoogleSearchCandidatesDto {

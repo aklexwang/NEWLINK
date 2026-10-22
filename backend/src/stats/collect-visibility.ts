@@ -7,8 +7,7 @@ const HIDDEN_COLLECT: ReadonlySet<string> = new Set([
   'invite_expired',
 ]);
 
-/** 홈·피드·랭킹·검색에 올릴 수 있는 채널인지 */
-export function isPublicCollectable(channel: {
+function isCollectOk(channel: {
   firstObservedAt?: Date | null;
   collectStatus?: ChannelCollectStatus | null;
 }): boolean {
@@ -19,13 +18,23 @@ export function isPublicCollectable(channel: {
   return true;
 }
 
-/** 점수 계산 대상. 초대 전용 방은 통계가 없어 제외 */
+/** 홈·피드·랭킹·검색에 올릴 수 있는 채널인지 */
+export function isPublicCollectable(channel: {
+  firstObservedAt?: Date | null;
+  collectStatus?: ChannelCollectStatus | null;
+  isVisible?: boolean | null;
+}): boolean {
+  if (channel.isVisible === false) return false;
+  return isCollectOk(channel);
+}
+
+/** 점수 계산 대상. 비활성이어도 수집·점수는 이어간다 */
 export function isScoreCollectable(channel: {
   firstObservedAt?: Date | null;
   collectStatus?: ChannelCollectStatus | null;
 }): boolean {
   if (channel.collectStatus === 'invite_only') return false;
-  return isPublicCollectable(channel);
+  return isCollectOk(channel);
 }
 
 export const HIDDEN_COLLECT_STATUSES = [
