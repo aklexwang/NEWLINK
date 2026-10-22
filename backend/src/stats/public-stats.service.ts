@@ -119,6 +119,7 @@ export class PublicStatsService {
 
   async getPosts(id: string, limit = 20) {
     const channel = await this.requireActive(id);
+    if (channel.linkType === LinkType.GROUP) return [];
     const posts = await this.postRepository.find({
       where: { channelId: channel.id },
       order: { postedAt: 'DESC' },
@@ -155,6 +156,15 @@ export class PublicStatsService {
 
   async getMediaMix(id: string) {
     const channel = await this.requireActive(id);
+    if (channel.linkType === LinkType.GROUP) {
+      return {
+        channelId: channel.id,
+        rangeDays: 90,
+        total: 0,
+        byType: { text: 0, photo: 0, video: 0, file: 0, other: 0 },
+        topSources: [] as { source: string; count: number }[],
+      };
+    }
     const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     const posts = await this.postRepository.find({
       where: { channelId: channel.id, postedAt: MoreThanOrEqual(since) },
@@ -655,6 +665,7 @@ export class PublicStatsService {
       growth30d: channel.growth30d,
       medianViews7d: channel.medianViews7d,
       posts7d: channel.posts7d,
+      activity7d: channel.posts7d,
       collectStatus: channel.collectStatus,
       isVisible: channel.isVisible !== false,
       isVerified: Boolean(channel.isVerified),

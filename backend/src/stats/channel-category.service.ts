@@ -6,7 +6,7 @@ import {
   PENDING_CATEGORY,
   resolveCategoryWithConfidence,
 } from '../channels/auto-expose.logic';
-import { Channel, ChannelStatus } from '../channels/channel.entity';
+import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { LANGUAGE_POST_LIMIT } from '../channels/channel-language.logic';
 import { ChannelEvent } from './channel-event.entity';
 import { ChannelPost } from './channel-post.entity';
@@ -27,11 +27,14 @@ export class ChannelCategoryService {
 
   async classifyOne(channel: Channel): Promise<Channel> {
     if (channel.categoryLocked) return channel;
-    const posts = await this.postRepository.find({
-      where: { channelId: channel.id },
-      order: { postedAt: 'DESC' },
-      take: LANGUAGE_POST_LIMIT,
-    });
+    const posts =
+      channel.linkType === LinkType.GROUP
+        ? []
+        : await this.postRepository.find({
+            where: { channelId: channel.id },
+            order: { postedAt: 'DESC' },
+            take: LANGUAGE_POST_LIMIT,
+          });
     const allowed = this.categoryAi
       .defaultCategoryNames()
       .filter((name) => name !== PENDING_CATEGORY);

@@ -24,6 +24,13 @@ export type MentionAggregate = {
   mentionCount: number;
 };
 
+/** 눈덩이는 채널 글 속 링크만 씁니다. 그룹 대화는 쓰지 않습니다. */
+export function isDiscoverySourceChannel(
+  linkType: string | null | undefined,
+): boolean {
+  return linkType === 'channel';
+}
+
 /** 한 게시글의 전달·본문 언급 아이디 (자기 자신·봇 제외) */
 export function usernamesFromPost(row: MentionRow): string[] {
   const names = splitMentionedUsernames(row.mentionedUsernames);

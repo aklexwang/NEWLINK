@@ -1,7 +1,15 @@
 import {
   aggregateMentionedUsernames,
+  isDiscoverySourceChannel,
   usernamesFromPost,
 } from './channel-discovery.logic';
+
+describe('눈덩이 소스', () => {
+  it('그룹 메시지는 쓰지 않고 채널만 씁니다', () => {
+    expect(isDiscoverySourceChannel('channel')).toBe(true);
+    expect(isDiscoverySourceChannel('group')).toBe(false);
+  });
+});
 
 describe('usernamesFromPost', () => {
   it('본문 언급과 전달 출처를 합친다', () => {

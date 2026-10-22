@@ -20,6 +20,7 @@ import {
   DISCOVERY_MAX_PER_DAY,
   DISCOVERY_MIN_MEMBERS,
   DISCOVERY_RECHECK_DAYS,
+  isDiscoverySourceChannel,
   type MentionAggregate,
   type MentionRow,
 } from './channel-discovery.logic';
@@ -61,7 +62,9 @@ export class ChannelDiscoveryService {
       where: { postedAt: MoreThanOrEqual(lookback) },
     });
     const channels = await this.channelRepository.find();
-    const sourceChannels = channels.filter(isPublicCollectable);
+    const sourceChannels = channels.filter(
+      (ch) => isPublicCollectable(ch) && isDiscoverySourceChannel(ch.linkType),
+    );
     const channelById = new Map(sourceChannels.map((ch) => [ch.id, ch]));
     const usablePosts = posts.filter((post) => channelById.has(post.channelId));
 

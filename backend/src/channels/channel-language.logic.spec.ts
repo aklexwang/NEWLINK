@@ -20,6 +20,26 @@ describe('detectChannelLanguage', () => {
     ).toBe('ko');
   });
 
+  it('그룹처럼 게시글 본문을 빼면 제목·소개만으로 판별한다', () => {
+    const withPosts = detectChannelLanguage({
+      title: 'Daily Club',
+      description: 'chat room for members',
+      excerpts: [
+        '안녕하세요 오늘 날씨 좋네요',
+        '저녁에 같이 이야기해요',
+        '한국어로 수다 떠는 방입니다',
+        '서울 소식 공유합니다',
+        '주말 모임 어떠세요',
+      ],
+    });
+    const groupLike = detectChannelLanguage({
+      title: 'Daily Club',
+      description: 'chat room for members',
+    });
+    expect(withPosts).toBe('ko');
+    expect(groupLike).not.toBe('ko');
+  });
+
   it('영문 제목·설명만 있으면 본문 없이 foreign 하지 않는다', () => {
     expect(
       detectChannelLanguage({

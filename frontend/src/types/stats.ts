@@ -69,6 +69,7 @@ export interface ChannelDetail {
   growth30d: number | null;
   medianViews7d: number | null;
   posts7d: number | null;
+  activity7d?: number | null;
   isVerified?: boolean;
   verifiedAt?: string | null;
   isVisible?: boolean;

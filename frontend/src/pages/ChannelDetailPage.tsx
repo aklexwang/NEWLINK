@@ -167,7 +167,14 @@ export function ChannelDetailPage() {
         if (cancelled) return;
         setDetail(data);
         try {
-          await loadSecondary(data.id);
+          if (data.linkType === 'group') {
+            setPosts([]);
+            setMediaMix(null);
+            const eventList = await getChannelEvents(data.id, 20);
+            if (!cancelled) setEvents(eventList);
+          } else {
+            await loadSecondary(data.id);
+          }
         } catch {
           if (!cancelled) {
             toastMessage('부가 지표를 일부 불러오지 못했습니다.', 'info');
@@ -261,11 +268,12 @@ export function ChannelDetailPage() {
 
   const chartData = useMemo(() => {
     if (!stats) return [];
+    const membersOnly = detail?.linkType === 'group' || chartTab === 'members';
     return stats.points.map((p) => ({
       date: p.date.slice(5),
-      value: chartTab === 'members' ? p.memberCount : p.medianViews7d,
+      value: membersOnly ? p.memberCount : p.medianViews7d,
     }));
-  }, [stats, chartTab]);
+  }, [stats, chartTab, detail?.linkType]);
 
   const growthClass =
     detail?.growth7d == null
@@ -422,6 +430,7 @@ export function ChannelDetailPage() {
 
   const score = detail.latestScore;
   const avatarSrc = avatarSources[avatarIndex];
+  const isGroup = detail.linkType === 'group';
 
   return (
     <div className="pb-24">
@@ -496,9 +505,18 @@ export function ChannelDetailPage() {
       )}
 
       <section className="grid grid-cols-2 gap-2 px-4">
-        <MetricCard label="구독자" value={formatCount(detail.memberCount)} />
-        <MetricCard label="평균 조회 (7일)" value={formatCount(detail.medianViews7d)} />
-        <MetricCard label="실조회율" value={formatPercent(detail.viewRate)} />
+        <MetricCard label={isGroup ? '멤버' : '구독자'} value={formatCount(detail.memberCount)} />
+        {isGroup ? (
+          <MetricCard
+            label="최근 7일 메시지 수"
+            value={formatCount(detail.activity7d ?? detail.posts7d)}
+          />
+        ) : (
+          <MetricCard label="평균 조회 (7일)" value={formatCount(detail.medianViews7d)} />
+        )}
+        {isGroup ? null : (
+          <MetricCard label="실조회율" value={formatPercent(detail.viewRate)} />
+        )}
         <MetricCard label="7일 성장" value={formatSignedPercent(detail.growth7d)} valueClass={growthClass} />
       </section>
 
@@ -518,7 +536,7 @@ export function ChannelDetailPage() {
         )}
         <div className="mt-4 space-y-2">
           <ScoreBar label="규모" value={score?.scaleScore} />
-          <ScoreBar label="조회율" value={score?.viewRateScore} />
+          {isGroup ? null : <ScoreBar label="조회율" value={score?.viewRateScore} />}
           <ScoreBar label="활동" value={score?.activityScore} />
           <ScoreBar label="성장" value={score?.growthScore} />
         </div>
@@ -528,11 +546,13 @@ export function ChannelDetailPage() {
         <div className="flex items-center justify-between gap-2">
           <div className="flex rounded-full bg-tg-secondary p-0.5">
             <ChartTab active={chartTab === 'members'} onClick={() => setChartTab('members')}>
-              구독자 추이
+              {isGroup ? '멤버 추이' : '구독자 추이'}
             </ChartTab>
-            <ChartTab active={chartTab === 'views'} onClick={() => setChartTab('views')}>
-              평균 조회
-            </ChartTab>
+            {isGroup ? null : (
+              <ChartTab active={chartTab === 'views'} onClick={() => setChartTab('views')}>
+                평균 조회
+              </ChartTab>
+            )}
           </div>
           <div className="flex gap-1">
             {([7, 14, 30] as const).map((d) => (
@@ -559,7 +579,7 @@ export function ChannelDetailPage() {
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#8e8e93' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#8e8e93' }} width={48} />
                 <Tooltip
-                  formatter={(value) => [formatCount(typeof value === 'number' ? value : null), chartTab === 'members' ? '구독자' : '조회']}
+                  formatter={(value) => [formatCount(typeof value === 'number' ? value : null), isGroup || chartTab === 'members' ? (isGroup ? '멤버' : '구독자') : '조회']}
                   labelFormatter={(label) => String(label)}
                 />
                 <Line
@@ -576,6 +596,8 @@ export function ChannelDetailPage() {
         </div>
       </section>
 
+      {isGroup ? null : (
+        <>
       <section className="mt-5 px-4">
         <h2 className="text-[15px] font-semibold text-tg-text">글 구성 (90일)</h2>
         <MediaBars mix={mediaMix} />
@@ -620,6 +642,8 @@ export function ChannelDetailPage() {
           </ul>
         )}
       </section>
+        </>
+      )}
 
       <section className="mt-5 px-4">
         <h2 className="text-[15px] font-semibold text-tg-text">변경 기록</h2>

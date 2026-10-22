@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import {
   Channel,
   ChannelStatus,
+  LinkType,
   type ChannelLanguage,
 } from '../channels/channel.entity';
 import {
@@ -51,6 +52,12 @@ export class ChannelLanguageService {
   }
 
   async detectFor(channel: Channel): Promise<ChannelLanguage> {
+    if (channel.linkType === LinkType.GROUP) {
+      return detectChannelLanguage({
+        title: channel.title,
+        description: channel.description,
+      });
+    }
     const posts = await this.postRepository.find({
       where: { channelId: channel.id },
       order: { postedAt: 'DESC' },
