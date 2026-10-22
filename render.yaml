@@ -69,3 +69,13 @@ services:
         value: "false"
       - key: INTERNAL_CRON_TOKEN
         sync: false
+      - key: MTPROTO_ENABLED
+        value: "false"
+      - key: MTPROTO_DAILY_LIMIT
+        value: "3000"
+      - key: TELEGRAM_API_ID
+        sync: false
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: TELEGRAM_SESSION
+        sync: false

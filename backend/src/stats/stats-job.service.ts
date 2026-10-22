@@ -12,6 +12,7 @@ import {
 } from './channel-discovery.service';
 import { ChannelLanguageService } from './channel-language.service';
 import { ChannelCategoryService } from './channel-category.service';
+import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 
 function envFalsy(value: string | undefined): boolean {
@@ -28,12 +29,17 @@ export interface StatsJobStatus {
   total: number;
   failed: number;
   lastDiscovery: DiscoveryRunResult | null;
+  mtproto: {
+    enabled: boolean;
+    requestsToday: number;
+    lastError: string | null;
+  };
 }
 
 @Injectable()
 export class StatsJobService {
   private readonly logger = new Logger(StatsJobService.name);
-  private status: StatsJobStatus = {
+  private status: Omit<StatsJobStatus, 'mtproto'> = {
     running: false,
     startedAt: null,
     finishedAt: null,
@@ -51,6 +57,7 @@ export class StatsJobService {
     private readonly channelVerify: ChannelVerifyService,
     private readonly discovery: ChannelDiscoveryService,
     private readonly channelCategory: ChannelCategoryService,
+    private readonly mtproto: MtprotoCollectorService,
     @InjectRepository(Channel)
     private readonly channelRepository: Repository<Channel>,
   ) {}
@@ -60,7 +67,7 @@ export class StatsJobService {
   }
 
   getStatus(): StatsJobStatus {
-    return { ...this.status };
+    return { ...this.status, mtproto: this.mtproto.getPublicStatus() };
   }
 
   /** 매일 KST 03:00. STATS_CRON_ENABLED=false 이면 건너뜁니다. */

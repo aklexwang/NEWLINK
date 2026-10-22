@@ -25,7 +25,8 @@
     "merge:duplicates": "ts-node --transpile-only --project scripts/tsconfig.json scripts/merge-duplicate-channels.ts",
     "classify:language": "ts-node --transpile-only --project scripts/tsconfig.json scripts/classify-channel-language.ts --dry-run",
     "preview:invites": "ts-node --transpile-only --project scripts/tsconfig.json scripts/preview-invite-links.ts",
-    "preview:auto-expose": "ts-node --transpile-only --project scripts/tsconfig.json scripts/preview-auto-expose.ts"
+    "preview:auto-expose": "ts-node --transpile-only --project scripts/tsconfig.json scripts/preview-auto-expose.ts",
+    "telegram:login": "ts-node --transpile-only --project scripts/tsconfig.json scripts/telegram-login.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -45,8 +46,10 @@
     "class-validator": "^0.15.1",
     "jose": "^6.2.7",
     "pg": "^8.16.3",
+    "qrcode-terminal": "^0.12.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "telegram": "^2.26.22",
     "typeorm": "^0.3.31",
     "typescript": "^5.7.3"
   },

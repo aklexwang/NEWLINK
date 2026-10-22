@@ -20,6 +20,8 @@ import { AddCollectError1761033600000 } from './migrations/1761033600000-AddColl
 import { AddCollectClassifyCache1761040800000 } from './migrations/1761040800000-AddCollectClassifyCache';
 import { AddChannelLanguage1761120000000 } from './migrations/1761120000000-AddChannelLanguage';
 import { AddChannelVisibility1761210000000 } from './migrations/1761210000000-AddChannelVisibility';
+import { AddMtprotoCollectColumns1761220000000 } from './migrations/1761220000000-AddMtprotoCollectColumns';
+import { AddSnapshotActivity1761230000000 } from './migrations/1761230000000-AddSnapshotActivity';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -64,6 +66,8 @@ function truthy(value: string | undefined): boolean {
                 AddCollectClassifyCache1761040800000,
                 AddChannelLanguage1761120000000,
                 AddChannelVisibility1761210000000,
+                AddMtprotoCollectColumns1761220000000,
+                AddSnapshotActivity1761230000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -89,6 +93,8 @@ function truthy(value: string | undefined): boolean {
               AddCollectClassifyCache1761040800000,
               AddChannelLanguage1761120000000,
               AddChannelVisibility1761210000000,
+              AddMtprotoCollectColumns1761220000000,
+              AddSnapshotActivity1761230000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -110,6 +116,8 @@ function truthy(value: string | undefined): boolean {
             AddCollectClassifyCache1761040800000,
             AddChannelLanguage1761120000000,
             AddChannelVisibility1761210000000,
+            AddMtprotoCollectColumns1761220000000,
+            AddSnapshotActivity1761230000000,
           ],
         };
       },

@@ -12,6 +12,7 @@ import { ChannelSnapshot } from './channel-snapshot.entity';
 import { AutoExposeService } from './auto-expose.service';
 import { ChannelCategoryService } from './channel-category.service';
 import { ChannelCollectorService } from './channel-collector.service';
+import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelDiscoveryService } from './channel-discovery.service';
 import { ChannelLanguageService } from './channel-language.service';
 import { ChannelMetricsService } from './channel-metrics.service';
@@ -46,6 +47,7 @@ import { StatsService } from './stats.service';
   providers: [
     StatsService,
     ChannelCollectorService,
+    MtprotoCollectorService,
     ChannelDiscoveryService,
     ChannelLanguageService,
     CategoryAiService,

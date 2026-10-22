@@ -25,4 +25,12 @@ export class ChannelSnapshot {
 
   @Column({ name: 'forwarded_ratio', type: 'real', default: 0 })
   forwardedRatio: number;
+
+  /** 그룹 활동량: 최근 24시간 메시지 수. 채널은 0 */
+  @Column({ name: 'activity_24h', type: 'integer', default: 0 })
+  activity24h: number;
+
+  /** 그룹 활동량: 최근 7일 메시지 수. 채널은 0 */
+  @Column({ name: 'activity_7d', type: 'integer', default: 0 })
+  activity7d: number;
 }

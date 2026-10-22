@@ -52,4 +52,8 @@ export class ChannelPost {
 
   @Column({ name: 'last_seen_at', type: dateTimeColumnType() })
   lastSeenAt: Date;
+
+  /** 최근 수집에서 구간 안에 사라진 글 */
+  @Column({ name: 'deleted_at', type: dateTimeColumnType(), nullable: true })
+  deletedAt: Date | null;
 }

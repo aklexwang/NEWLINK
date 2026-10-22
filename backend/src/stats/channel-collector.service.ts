@@ -8,6 +8,7 @@ import {
   isInviteOnlyLink,
 } from '../channels/telegram-username';
 import { ChannelEvent, ChannelEventType } from './channel-event.entity';
+import { MtprotoCollectorService } from './mtproto-collector.service';
 import {
   CHANNEL_GAP_MS,
   describeFetchError,
@@ -42,7 +43,7 @@ const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const GONE_AFTER_FAILS = 3;
 
 export type CollectOneResult =
-  | { ok: true; mode: 'preview' | 'bot' }
+  | { ok: true; mode: 'preview' | 'bot' | 'mtproto' }
   | {
       ok: false;
       reason:
@@ -68,6 +69,7 @@ export class ChannelCollectorService {
     @InjectRepository(ChannelSnapshot)
     private readonly snapshotRepository: Repository<ChannelSnapshot>,
     private readonly configService: ConfigService,
+    private readonly mtproto: MtprotoCollectorService,
   ) {}
 
   async collectAll(
@@ -176,6 +178,11 @@ export class ChannelCollectorService {
 
     if (isInviteOnlyLink(channel.link)) {
       return this.collectInvitePreview(channel);
+    }
+
+    if (this.mtproto.canCollect(channel)) {
+      const mtprotoResult = await this.mtproto.collectAndSave(channel);
+      if (mtprotoResult.ok) return mtprotoResult;
     }
 
     if (!username) {

@@ -126,6 +126,10 @@ export class Channel {
   })
   telegramChatId: number | null;
 
+  /** 텔레그램 채널·그룹 개설일 (공개 정보) */
+  @Column({ name: 'created_on', type: dateTimeColumnType(), nullable: true })
+  createdOn: Date | null;
+
   @Column({
     name: 'first_observed_at',
     type: dateTimeColumnType(),

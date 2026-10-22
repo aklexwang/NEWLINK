@@ -36,6 +36,7 @@ import { ChannelEvent } from '../stats/channel-event.entity';
     TelegramPreviewService,
     TelegramAvatarService,
     ChannelVerifyService,
+    TelegramAdminNotifyService,
   ],
 })
 export class ChannelsModule {}

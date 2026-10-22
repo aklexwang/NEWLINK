@@ -82,6 +82,8 @@ interface ChannelMetricsRow {
   observedDays: number;
   memberCount: number;
   isGroup: boolean;
+  activity24h: number;
+  activity7d: number;
   manipulationSuspected: boolean;
 }
 
@@ -156,6 +158,8 @@ export class ChannelMetricsService {
           row.medianViews7d == null ? 0 : Math.round(row.medianViews7d),
         posts7d: row.posts7d,
         forwardedRatio: row.forwardedRatio,
+        activity24h: row.activity24h,
+        activity7d: row.activity7d,
       })),
       ['channelId', 'capturedOn'],
     );
@@ -178,6 +182,48 @@ export class ChannelMetricsService {
     const memberCount = channel.memberCount ?? 0;
     const sevenAgo = new Date(now.getTime() - SEVEN_DAYS_MS);
     const matureBefore = new Date(now.getTime() - TWENTY_FOUR_H_MS);
+    const todaySnap = snapshots.find((s) => s.capturedOn === today);
+
+    if (isGroup) {
+      const activity7d =
+        todaySnap?.activity7d ??
+        channel.posts7d ??
+        0;
+      const growth24h = growthFromSnapshots(
+        snapshots,
+        today,
+        memberCount,
+        1,
+      );
+      const growth7d = growthFromSnapshots(
+        snapshots,
+        today,
+        memberCount,
+        7,
+      );
+      const growth30d = growthFromSnapshots(
+        snapshots,
+        today,
+        memberCount,
+        30,
+      );
+      return {
+        channel,
+        medianViews7d: null,
+        posts7d: activity7d,
+        forwardedRatio: 0,
+        viewRate: null,
+        growth24h,
+        growth7d,
+        growth30d,
+        observedDays: countObservedDays(channel.firstObservedAt, today),
+        memberCount,
+        isGroup,
+        activity24h: todaySnap?.activity24h ?? 0,
+        activity7d,
+        manipulationSuspected: false,
+      };
+    }
 
     const posts7dList = posts.filter(
       (p) => p.postedAt.getTime() >= sevenAgo.getTime(),
@@ -225,7 +271,7 @@ export class ChannelMetricsService {
       .slice(0, THRESHOLDS.minPostsForCv)
       .map((p) => p.views as number);
 
-    const todaySnap = {
+    const todaySnapForFlag = {
       capturedOn: today,
       memberCount,
       medianViews7d: medianViews7d == null ? 0 : Math.round(medianViews7d),
@@ -238,7 +284,7 @@ export class ChannelMetricsService {
           memberCount: s.memberCount,
           medianViews7d: s.medianViews7d,
         })),
-      todaySnap,
+      todaySnapForFlag,
     ];
 
     return {
@@ -253,6 +299,8 @@ export class ChannelMetricsService {
       observedDays,
       memberCount,
       isGroup,
+      activity24h: 0,
+      activity7d: 0,
       manipulationSuspected: isManipulationSuspected({
         viewRate,
         snapshots: snapsForFlag,

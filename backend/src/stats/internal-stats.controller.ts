@@ -8,12 +8,16 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { InternalCronGuard } from './internal-cron.guard';
+import { MtprotoCollectorService } from './mtproto-collector.service';
 import { StatsJobService } from './stats-job.service';
 
 @Controller('internal/stats')
 @UseGuards(InternalCronGuard)
 export class InternalStatsController {
-  constructor(private readonly statsJobService: StatsJobService) {}
+  constructor(
+    private readonly statsJobService: StatsJobService,
+    private readonly mtproto: MtprotoCollectorService,
+  ) {}
 
   @Get('status')
   status() {
@@ -36,5 +40,10 @@ export class InternalStatsController {
     }
     const { started } = this.statsJobService.startOne(channel);
     return { accepted: true, started, channelId: channel.id };
+  }
+
+  @Post('mtproto-test/:username')
+  mtprotoTest(@Param('username') username: string) {
+    return this.mtproto.testPublicUsername(username);
   }
 }
