@@ -11,6 +11,7 @@ import {
   type DiscoveryRunResult,
 } from './channel-discovery.service';
 import { ChannelLanguageService } from './channel-language.service';
+import { ChannelCategoryService } from './channel-category.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 
 function envFalsy(value: string | undefined): boolean {
@@ -49,6 +50,7 @@ export class StatsJobService {
     private readonly languages: ChannelLanguageService,
     private readonly channelVerify: ChannelVerifyService,
     private readonly discovery: ChannelDiscoveryService,
+    private readonly channelCategory: ChannelCategoryService,
     @InjectRepository(Channel)
     private readonly channelRepository: Repository<Channel>,
   ) {}
@@ -70,6 +72,21 @@ export class StatsJobService {
     const result = this.startPipeline();
     if (!result.started) {
       this.logger.warn('통계 크론을 건너뜁니다. 이미 실행 중입니다.');
+    }
+  }
+
+  /** 매주 월요일 KST 04:00. 카테고리 고정이 아닌 채널을 게시글 본문으로 다시 분류합니다. */
+  @Cron('0 4 * * 1', { timeZone: 'Asia/Seoul' })
+  async handleWeeklyCategoryCron() {
+    if (envFalsy(this.configService.get<string>('STATS_CRON_ENABLED'))) {
+      return;
+    }
+    try {
+      await this.channelCategory.classifyUnlockedWeekly();
+    } catch (error) {
+      this.logger.warn(
+        `주간 카테고리 재분류 실패: ${error instanceof Error ? error.message : error}`,
+      );
     }
   }
 

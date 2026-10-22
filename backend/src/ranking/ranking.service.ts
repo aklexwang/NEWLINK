@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CategoriesService } from '../categories/categories.service';
+import { PENDING_CATEGORY } from '../channels/auto-expose.logic';
 import { ChannelsService } from '../channels/channels.service';
 import {
   RankingQueryDto,
@@ -113,6 +114,7 @@ export class RankingService {
 
     const seen = new Set<string>();
     for (const category of adminCategories) {
+      if (category.name === PENDING_CATEGORY) continue;
       const count = counts[category.name] ?? 0;
       seen.add(category.name);
       items.push({

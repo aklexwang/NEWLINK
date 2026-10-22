@@ -10,29 +10,9 @@ import { ChannelImportCandidate } from '../auto-manage/channel-import-candidate.
 import { Channel } from '../channels/channel.entity';
 import { CategoryEntity } from './category.entity';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
+import { DEFAULT_CATEGORIES } from './default-categories';
 
-/** 텔레그램 카탈로그에서 자주 쓰는 분류 기준으로 정리 */
-export const DEFAULT_CATEGORIES = [
-  { name: '뉴스', emoji: '📰', sortOrder: 1 },
-  { name: '경제', emoji: '💹', sortOrder: 2 },
-  { name: '암호화폐', emoji: '🪙', sortOrder: 3 },
-  { name: '쇼핑', emoji: '🛒', sortOrder: 4 },
-  { name: '교육', emoji: '📚', sortOrder: 5 },
-  { name: '기술', emoji: '💻', sortOrder: 6 },
-  { name: '엔터테인먼트', emoji: '🎬', sortOrder: 7 },
-  { name: '음악', emoji: '🎵', sortOrder: 8 },
-  { name: '게임', emoji: '🎮', sortOrder: 9 },
-  { name: '스포츠', emoji: '⚽', sortOrder: 10 },
-  { name: '커뮤니티', emoji: '👥', sortOrder: 11 },
-  { name: '여행', emoji: '✈️', sortOrder: 12 },
-  { name: '맛집', emoji: '🍽️', sortOrder: 13 },
-  { name: '건강', emoji: '💪', sortOrder: 14 },
-  { name: '부동산', emoji: '🏠', sortOrder: 15 },
-  { name: '구인구직', emoji: '💼', sortOrder: 16 },
-  { name: '성인', emoji: '🔞', sortOrder: 17 },
-  { name: '카지노', emoji: '🎰', sortOrder: 18 },
-  { name: '기타', emoji: '📁', sortOrder: 19 },
-];
+export { DEFAULT_CATEGORIES } from './default-categories';
 
 /** 새 분류로 대체된 옛 카테고리 (비활성) */
 const OBSOLETE_CATEGORIES = ['축구'];

@@ -1,12 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DEFAULT_CATEGORIES } from '../categories/categories.service';
+import { DEFAULT_CATEGORIES } from '../categories/default-categories';
 
 export interface CategoryClassifyInput {
   title: string;
   description?: string;
   snippet?: string;
   topicHint?: string;
+  /** 최근 게시글 본문 (최대 20개) */
+  posts?: string[];
   allowedCategories: string[];
 }
 
@@ -139,6 +141,7 @@ export class CategoryAiService {
       input.description,
       input.snippet,
       input.topicHint,
+      ...(input.posts ?? []),
     ]
       .filter(Boolean)
       .join(' \n ');
@@ -219,6 +222,7 @@ export class CategoryAiService {
       `description: ${input.description || '(none)'}`,
       `snippet: ${input.snippet || '(none)'}`,
       `topicHint: ${input.topicHint || '(none)'}`,
+      `posts: ${(input.posts ?? []).filter(Boolean).slice(0, 20).join('\n---\n') || '(none)'}`,
     ].join('\n');
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
