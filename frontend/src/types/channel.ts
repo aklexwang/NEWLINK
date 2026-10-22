@@ -46,6 +46,7 @@ export interface Channel {
     | 'private'
     | 'invalid'
     | 'invite_only'
+    | 'merged'
     | null;
   collectError?: string | null;
   lastCollectedAt?: string | null;

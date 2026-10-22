@@ -12,7 +12,12 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { extname, join } from 'path';
 import { Brackets, In, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from './channel.entity';
-import { isPublicCollectable } from '../stats/collect-visibility';
+import {
+  HIDDEN_COLLECT_STATUSES,
+  isPublicCollectable,
+} from '../stats/collect-visibility';
+import { extractTelegramUsernameFromLink } from './telegram-username';
+import { ALREADY_REGISTERED_CHANNEL } from './merge-duplicate-channels.logic';
 import { ChannelFavorite } from './channel-favorite.entity';
 import { ChannelRecommendation } from './channel-recommendation.entity';
 import { UsersService } from '../users/users.service';
@@ -85,7 +90,34 @@ export class ChannelsService implements OnModuleInit {
     }
   }
 
+  async findActiveByUsername(username: string): Promise<Channel | null> {
+    const u = username.replace(/^@/, '').trim().toLowerCase();
+    if (!u) return null;
+    return this.channelRepository
+      .createQueryBuilder('channel')
+      .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
+      .andWhere('LOWER(channel.username) = :u', { u })
+      .orderBy('channel.created_at', 'ASC')
+      .getOne();
+  }
+
+  async findActiveDuplicate(link: string): Promise<Channel | null> {
+    const normalized = this.normalizeTelegramLink(link);
+    const username = extractTelegramUsernameFromLink(normalized);
+    if (username) {
+      const byUser = await this.findActiveByUsername(username);
+      if (byUser) return byUser;
+    }
+    const byLink = await this.findByLink(normalized);
+    if (byLink?.status === ChannelStatus.ACTIVE) return byLink;
+    return null;
+  }
+
   async create(dto: CreateChannelDto, submittedBy: number): Promise<Channel> {
+    const duplicate = await this.findActiveDuplicate(dto.link);
+    if (duplicate) {
+      throw new ConflictException(ALREADY_REGISTERED_CHANNEL);
+    }
     const channel = this.channelRepository.create({
       ...dto,
       submittedBy,
@@ -188,6 +220,8 @@ export class ChannelsService implements OnModuleInit {
 
     const preview = await this.telegramPreviewService.fetchPreview(link);
     const existing = await this.findByLink(link);
+    const duplicate = await this.findActiveDuplicate(link);
+    const shown = duplicate ?? existing;
 
     return {
       link,
@@ -195,9 +229,9 @@ export class ChannelsService implements OnModuleInit {
       description: preview.description ?? '',
       avatarUrl: preview.avatarUrl,
       memberCount: preview.memberCount,
-      alreadyRegistered: Boolean(existing),
-      existingChannelId: existing?.id ?? null,
-      existingStatus: existing?.status ?? null,
+      alreadyRegistered: Boolean(duplicate ?? existing),
+      existingChannelId: shown?.id ?? null,
+      existingStatus: shown?.status ?? null,
     };
   }
 
@@ -210,6 +244,10 @@ export class ChannelsService implements OnModuleInit {
     isPromoted?: boolean;
   }): Promise<Channel> {
     const link = this.normalizeTelegramLink(data.link);
+    const duplicate = await this.findActiveDuplicate(link);
+    if (duplicate) {
+      throw new ConflictException(ALREADY_REGISTERED_CHANNEL);
+    }
     const existing = await this.findByLink(link);
     if (existing) {
       throw new ConflictException('이미 등록된 채널/그룹 링크입니다.');
@@ -385,7 +423,7 @@ export class ChannelsService implements OnModuleInit {
       .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
       .andWhere(
         `(channel.collect_status = 'invite_only' OR (channel.first_observed_at IS NOT NULL AND (channel.collect_status IS NULL OR channel.collect_status NOT IN (:...hiddenCollect))))`,
-        { hiddenCollect: ['invalid', 'gone'] },
+        { hiddenCollect: Array.from(HIDDEN_COLLECT_STATUSES) },
       );
 
     if (dto.category)

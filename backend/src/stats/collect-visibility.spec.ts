@@ -12,7 +12,7 @@ describe('isPublicCollectable', () => {
     ).toBe(false);
   });
 
-  it('invalid·gone 은 제외한다', () => {
+  it('invalid·gone·merged 는 제외한다', () => {
     expect(
       isPublicCollectable({
         firstObservedAt: observed,
@@ -23,6 +23,12 @@ describe('isPublicCollectable', () => {
       isPublicCollectable({
         firstObservedAt: observed,
         collectStatus: 'gone',
+      }),
+    ).toBe(false);
+    expect(
+      isPublicCollectable({
+        firstObservedAt: observed,
+        collectStatus: 'merged',
       }),
     ).toBe(false);
   });

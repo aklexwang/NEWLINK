@@ -7,7 +7,7 @@ import {
   ImportCandidateStatus,
 } from '../auto-manage/channel-import-candidate.entity';
 import { isKoreanChannelText } from '../auto-manage/korean-channel.filter';
-import { Channel, LinkType } from '../channels/channel.entity';
+import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { isPublicCollectable } from './collect-visibility';
 import { TelegramPreviewService } from '../channels/telegram-preview.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
@@ -162,6 +162,8 @@ export class ChannelDiscoveryService {
       where: { link: info.link },
     });
     if (existing) return;
+    const username = extractTelegramUsernameFromLink(info.link);
+    if (username && (await this.hasActiveUsername(username))) return;
 
     const classified = await this.categoryAi.classify({
       title: info.title,
@@ -197,9 +199,21 @@ export class ChannelDiscoveryService {
     await this.candidateRepository.save(candidate);
   }
 
+  private async hasActiveUsername(username: string): Promise<boolean> {
+    const u = username.replace(/^@/, '').trim().toLowerCase();
+    if (!u) return false;
+    const count = await this.channelRepository
+      .createQueryBuilder('channel')
+      .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
+      .andWhere('LOWER(channel.username) = :u', { u })
+      .getCount();
+    return count > 0;
+  }
+
   private async knownUsernames(channels: Channel[]): Promise<Set<string>> {
     const known = new Set<string>();
     for (const ch of channels) {
+      if (ch.status !== ChannelStatus.ACTIVE) continue;
       const fromCol = ch.username?.replace(/^@/, '').trim().toLowerCase();
       if (fromCol) known.add(fromCol);
       const fromLink = extractTelegramUsernameFromLink(ch.link);

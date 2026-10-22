@@ -72,7 +72,7 @@ export function isClassifyFresh(
 export function shouldSkipDailyCollect(
   collectStatus: string | null | undefined,
 ): boolean {
-  return collectStatus === 'invite_only';
+  return collectStatus === 'invite_only' || collectStatus === 'merged';
 }
 
 export function shouldRetrySameDayFailed(

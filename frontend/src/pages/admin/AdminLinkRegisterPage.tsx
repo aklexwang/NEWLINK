@@ -66,7 +66,7 @@ export function AdminLinkRegisterPage({
       setTitleValue(result.title);
       setDescription(result.description);
       if (result.alreadyRegistered) {
-        setError(`이미 등록된 링크입니다. ${itemLabel} 관리에서 확인해 주세요.`);
+        setError(`이미 등록된 채널입니다. ${itemLabel} 관리에서 확인해 주세요.`);
       }
     } catch {
       setError(`텔레그램에서 ${itemLabel} 정보를 찾지 못했습니다. 링크를 확인해 주세요.`);
@@ -82,7 +82,7 @@ export function AdminLinkRegisterPage({
       return;
     }
     if (lookup.alreadyRegistered) {
-      setError('이미 등록된 링크입니다.');
+      setError('이미 등록된 채널입니다.');
       return;
     }
 

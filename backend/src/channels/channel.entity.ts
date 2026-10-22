@@ -25,7 +25,8 @@ export type ChannelCollectStatus =
   | 'gone'
   | 'private'
   | 'invalid'
-  | 'invite_only';
+  | 'invite_only'
+  | 'merged';
 
 export type ChannelClassifiedKind = 'channel' | 'group' | 'invalid';
 

@@ -161,7 +161,9 @@ export class AutoManageService {
       }
 
       const link = this.channelsService.normalizeTelegramLink(item.link);
-      const existingChannel = await this.channelsService.findByLink(link);
+      const existingChannel =
+        (await this.channelsService.findActiveDuplicate(link)) ??
+        (await this.channelsService.findByLink(link));
       const existingCandidate = await this.candidateRepository.findOne({
         where: { link },
       });
@@ -259,7 +261,9 @@ export class AutoManageService {
 
     for (const hit of hits) {
       const link = this.channelsService.normalizeTelegramLink(hit.link);
-      const existingChannel = await this.channelsService.findByLink(link);
+      const existingChannel =
+        (await this.channelsService.findActiveDuplicate(link)) ??
+        (await this.channelsService.findByLink(link));
       const existingCandidate = await this.candidateRepository.findOne({
         where: { link },
       });
@@ -583,7 +587,12 @@ export class AutoManageService {
       }
 
       try {
-        let channel = await this.channelsService.findByLink(candidate.link);
+        let channel = await this.channelsService.findActiveDuplicate(
+          candidate.link,
+        );
+        if (!channel) {
+          channel = await this.channelsService.findByLink(candidate.link);
+        }
         if (!channel) {
           channel = await this.channelsService.createByAdmin({
             title: candidate.title,

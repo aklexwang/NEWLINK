@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { isAxiosError } from 'axios';
 import { submitChannel } from '../api/channels';
 import { SubmitWalletPicker, type WalletMethod } from '../components/SubmitWalletPicker';
 import { useCategories } from '../hooks/useCategories';
@@ -50,8 +51,15 @@ export function SubmitPage() {
       });
       notify('제보가 접수되었습니다. 관리자 승인 후 노출됩니다.');
       navigate('/');
-    } catch {
-      notify('제보 접수에 실패했습니다.');
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 409) {
+        const message = error.response.data?.message;
+        notify(
+          typeof message === 'string' ? message : '이미 등록된 채널입니다.',
+        );
+      } else {
+        notify('제보 접수에 실패했습니다.');
+      }
     } finally {
       setIsSubmitting(false);
     }

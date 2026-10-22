@@ -9,7 +9,8 @@ export type ChannelEventType =
   | 'gone'
   | 'returned'
   | 'unverified'
-  | 'type_corrected';
+  | 'type_corrected'
+  | 'merged_into';
 
 /** 채널 상태 변화 이벤트 */
 @Entity('channel_events')

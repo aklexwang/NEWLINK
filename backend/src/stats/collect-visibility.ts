@@ -1,6 +1,10 @@
 import type { ChannelCollectStatus } from '../channels/channel.entity';
 
-const HIDDEN_COLLECT: ReadonlySet<string> = new Set(['invalid', 'gone']);
+const HIDDEN_COLLECT: ReadonlySet<string> = new Set([
+  'invalid',
+  'gone',
+  'merged',
+]);
 
 /** 홈·피드·랭킹·검색에 올릴 수 있는 채널인지 */
 export function isPublicCollectable(channel: {
@@ -23,4 +27,4 @@ export function isScoreCollectable(channel: {
   return isPublicCollectable(channel);
 }
 
-export const HIDDEN_COLLECT_STATUSES = ['invalid', 'gone'] as const;
+export const HIDDEN_COLLECT_STATUSES = ['invalid', 'gone', 'merged'] as const;

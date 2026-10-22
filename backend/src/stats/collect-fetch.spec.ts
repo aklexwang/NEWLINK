@@ -70,6 +70,7 @@ describe('fetch 오류 문구·상태 분류', () => {
 
   it('invite_only 는 매일 수집에서 빼고, failed 만 같은 날 재시도한다', () => {
     expect(shouldSkipDailyCollect('invite_only')).toBe(true);
+    expect(shouldSkipDailyCollect('merged')).toBe(true);
     expect(shouldSkipDailyCollect('failed')).toBe(false);
     expect(shouldRetrySameDayFailed('failed', '2026-10-20', '2026-10-20')).toBe(
       true,

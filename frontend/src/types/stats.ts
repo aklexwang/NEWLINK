@@ -55,6 +55,7 @@ export interface ChannelDetail {
     | 'private'
     | 'invalid'
     | 'invite_only'
+    | 'merged'
     | null;
   observedDays: number | null;
   score: number | null;
