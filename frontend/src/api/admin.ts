@@ -69,6 +69,8 @@ export async function getAdminChannels(params?: {
   category?: string;
   linkType?: 'channel' | 'group';
   collectStatus?: string;
+  visibility?: 'visible' | 'hidden';
+  autoRegistered?: string;
 }): Promise<PendingChannel[]> {
   const { data } = await apiClient.get<PendingChannel[]>('/admin/channels/all', {
     headers: getAdminAuthHeaders(),
@@ -139,11 +141,25 @@ export async function updateAdminChannel(
     language?: 'ko' | 'foreign' | 'unknown';
     languageLocked?: boolean;
     link?: string;
+    isVisible?: boolean;
+    categoryLocked?: boolean;
   }>,
 ) {
   const { data } = await apiClient.patch(`/admin/channels/${id}`, payload, {
     headers: getAdminAuthHeaders(),
   });
+  return data;
+}
+
+export async function setAdminChannelsVisibility(
+  ids: string[],
+  isVisible: boolean,
+): Promise<{ ok: boolean; updated: number }> {
+  const { data } = await apiClient.post<{ ok: boolean; updated: number }>(
+    '/admin/channels/visibility',
+    { ids, isVisible },
+    { headers: getAdminAuthHeaders() },
+  );
   return data;
 }
 

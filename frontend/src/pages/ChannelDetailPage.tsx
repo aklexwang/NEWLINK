@@ -50,6 +50,8 @@ const EVENT_LABEL: Record<ChannelEventType, string> = {
   gone: '사라짐',
   returned: '복귀',
   unverified: '운영자 인증 해제',
+  category_changed: '카테고리 변경',
+  visibility_changed: '노출 변경',
 };
 
 const VERIFY_BOT =
@@ -398,6 +400,22 @@ export function ChannelDetailPage() {
         >
           다시 시도
         </button>
+      </div>
+    );
+  }
+
+  if (detail.isVisible === false) {
+    return (
+      <div className="flex min-h-[60dvh] flex-col items-center justify-center px-6 text-center">
+        <p className="text-[48px] leading-none">⏸</p>
+        <h1 className="mt-4 text-lg font-bold text-tg-text">노출이 중지된 채널입니다</h1>
+        <p className="mt-2 text-sm text-tg-hint">{detail.title}</p>
+        <Link
+          to="/"
+          className="mt-6 rounded-full bg-tg-open-bg px-5 py-2 text-sm font-semibold text-tg-open-text"
+        >
+          홈으로
+        </Link>
       </div>
     );
   }

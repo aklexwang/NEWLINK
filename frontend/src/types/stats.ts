@@ -9,7 +9,9 @@ export type ChannelEventType =
   | 'rank_up'
   | 'gone'
   | 'returned'
-  | 'unverified';
+  | 'unverified'
+  | 'category_changed'
+  | 'visibility_changed';
 
 export type ChannelBadgeCode =
   | 'high_engagement'
@@ -69,6 +71,7 @@ export interface ChannelDetail {
   posts7d: number | null;
   isVerified?: boolean;
   verifiedAt?: string | null;
+  isVisible?: boolean;
   latestScore: ChannelLatestScore | null;
   badges: ChannelBadge[];
 }

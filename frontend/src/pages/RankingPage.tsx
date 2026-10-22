@@ -6,6 +6,7 @@ import { RankingChannelCard } from '../components/RankingChannelCard';
 import type { RankingCategoryItem, RankingChannel } from '../types/ranking';
 import type { RankingSort } from '../types/stats';
 import { resolveMediaUrl } from '../utils/mediaUrl';
+import { AdultConfirmDialog, hasConfirmedAdult } from '../components/AdultConfirmDialog';
 
 const SORT_CHIPS: { id: RankingSort; label: string }[] = [
   { id: 'score', label: '종합' },
@@ -52,6 +53,9 @@ export function RankingPage() {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [adultOpen, setAdultOpen] = useState(
+    () => (searchParams.get('category') || '') === '성인' && !hasConfirmedAdult(),
+  );
 
   const patchParams = useCallback(
     (patch: {
@@ -113,7 +117,9 @@ export function RankingPage() {
     setIsLoading(true);
     setError('');
     try {
-      const items = await getRankingChannels(category, 50, {
+      const listCategory =
+        category === '성인' && !hasConfirmedAdult() ? 'all' : category;
+      const items = await getRankingChannels(listCategory, 50, {
         sort,
         type,
         hideLowData,
@@ -217,9 +223,23 @@ export function RankingPage() {
         <RankingCategoryPicker
           categories={categories}
           selected={category}
-          onSelect={(id) => patchParams({ category: id })}
+          onSelect={(id) => {
+            if (id === '성인' && !hasConfirmedAdult()) {
+              setAdultOpen(true);
+              return;
+            }
+            patchParams({ category: id });
+          }}
         />
       )}
+      <AdultConfirmDialog
+        open={adultOpen}
+        onCancel={() => setAdultOpen(false)}
+        onConfirm={() => {
+          setAdultOpen(false);
+          patchParams({ category: '성인' });
+        }}
+      />
 
       <div className="scrollbar-none flex gap-1.5 overflow-x-auto px-4 py-2">
         {SORT_CHIPS.map((chip) => {

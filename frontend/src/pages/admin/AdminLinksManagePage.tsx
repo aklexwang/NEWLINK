@@ -8,6 +8,7 @@ import {
   promoteChannel,
   rejectChannel,
   rejectInvalidChannels,
+  setAdminChannelsVisibility,
   updateAdminChannel,
 } from '../../api/admin';
 import { AdminCategoryChipBar } from '../../components/admin/AdminCategoryChipBar';
@@ -36,6 +37,7 @@ import {
 } from '../../utils/promotion';
 
 type StatusFilter = '' | 'pending' | 'active' | 'rejected';
+type ExtraFilter = '' | 'visible' | 'hidden' | 'pendingCat' | 'recentAuto';
 
 const statusLabel: Record<string, string> = {
   pending: '대기',
@@ -78,6 +80,7 @@ export function AdminLinksManagePage({
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [collectFailedOnly, setCollectFailedOnly] = useState(false);
+  const [extraFilter, setExtraFilter] = useState<ExtraFilter>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -90,9 +93,13 @@ export function AdminLinksManagePage({
         getAdminChannels({
           status: collectFailedOnly ? undefined : statusFilter || undefined,
           q: query.trim() || undefined,
-          category: categoryFilter || undefined,
+          category:
+            extraFilter === 'pendingCat' ? '분류대기' : categoryFilter || undefined,
           linkType,
           collectStatus: collectFailedOnly ? 'failed' : undefined,
+          visibility:
+            extraFilter === 'visible' ? 'visible' : extraFilter === 'hidden' ? 'hidden' : undefined,
+          autoRegistered: extraFilter === 'recentAuto' ? '1' : undefined,
         }),
         // 카테고리 칩의 총 연결 수는 상태/검색 필터와 무관하게 전체 기준으로 집계
         getAdminChannels({ linkType }),
@@ -117,7 +124,7 @@ export function AdminLinksManagePage({
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, collectFailedOnly, query, categoryFilter, linkType, itemLabel]);
+  }, [statusFilter, collectFailedOnly, extraFilter, query, categoryFilter, linkType, itemLabel]);
 
   useEffect(() => {
     load();
@@ -148,6 +155,7 @@ export function AdminLinksManagePage({
       language?: 'ko' | 'foreign' | 'unknown';
       languageLocked?: boolean;
       link?: string;
+      isVisible?: boolean;
     },
   ) => {
     try {
@@ -162,6 +170,19 @@ export function AdminLinksManagePage({
       setMessage('정보가 저장되었습니다.');
     } catch {
       setMessage('저장에 실패했습니다.');
+    }
+  };
+
+  const handleBulkVisibility = async (isVisible: boolean) => {
+    const ids =
+      selectedIds.size > 0 ? [...selectedIds] : channels.map((item) => item.id);
+    if (ids.length === 0) return;
+    try {
+      const result = await setAdminChannelsVisibility(ids, isVisible);
+      setMessage(`${result.updated}건의 노출을 ${isVisible ? '켰습니다' : '껐습니다'}.`);
+      await load();
+    } catch {
+      setMessage('노출 변경에 실패했습니다.');
     }
   };
 
@@ -256,7 +277,7 @@ export function AdminLinksManagePage({
 
   const colCount = collectFailedOnly
     ? 8
-    : (showTypeColumn ? 9 : 8) + 1;
+    : (showTypeColumn ? 9 : 8) + 2;
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { '': countSource.length };
@@ -322,6 +343,7 @@ export function AdminLinksManagePage({
               type="button"
               onClick={() => {
                 setCollectFailedOnly(false);
+                setExtraFilter('');
                 setStatusFilter(value);
               }}
               className={`rounded-full px-4 py-2 text-sm font-medium ${!collectFailedOnly && statusFilter === value ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-black/10 hover:bg-slate-50'}`}
@@ -333,12 +355,35 @@ export function AdminLinksManagePage({
             type="button"
             onClick={() => {
               setCollectFailedOnly(true);
+              setExtraFilter('');
               setStatusFilter('');
             }}
             className={`rounded-full px-4 py-2 text-sm font-medium ${collectFailedOnly ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-black/10 hover:bg-slate-50'}`}
           >
             수집 실패
           </button>
+          {(
+            [
+              ['visible', '활성'],
+              ['hidden', '비활성'],
+              ['pendingCat', '분류대기'],
+              ['recentAuto', '최근 자동 등록'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setCollectFailedOnly(false);
+                setExtraFilter((prev) => (prev === value ? '' : value));
+              }}
+              className={`rounded-full px-4 py-2 text-sm font-medium ${
+                extraFilter === value ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-black/10 hover:bg-slate-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {collectFailedOnly && (
@@ -353,6 +398,26 @@ export function AdminLinksManagePage({
             <p className="text-xs text-slate-500">채널·그룹이 아닌 항목만 거절 처리합니다. 삭제는 하지 않습니다.</p>
           </div>
         )}
+
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleBulkVisibility(true)}
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            선택 활성
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleBulkVisibility(false)}
+            className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            선택 비활성
+          </button>
+          <p className="text-xs text-slate-500">
+            체크한 항목이 있으면 그것만, 없으면 지금 보이는 목록을 한 번에 바꿉니다.
+          </p>
+        </div>
 
         <form onSubmit={handleSearch} className="mb-4 flex gap-2">
           <input
@@ -390,6 +455,9 @@ export function AdminLinksManagePage({
                     </>
                   ) : (
                     <>
+                      <AdminTh className="w-8">
+                        <span className="sr-only">선택</span>
+                      </AdminTh>
                       <AdminTh className="w-12" />
                       <AdminTh>제목</AdminTh>
                       {showTypeColumn && <AdminTh className="w-16">유형</AdminTh>}
@@ -421,7 +489,11 @@ export function AdminLinksManagePage({
                                 checked={selectedIds.has(channel.id)}
                                 onChange={() => toggleSelected(channel.id)}
                                 onClick={(e) => e.stopPropagation()}
-                                disabled={channel.collectStatus !== 'invalid'}
+                                disabled={
+                  collectFailedOnly
+                    ? channel.collectStatus !== 'invalid'
+                    : extraFilter === ''
+                }
                               />
                             </AdminTd>
                             <AdminTd>
@@ -464,6 +536,14 @@ export function AdminLinksManagePage({
                           </>
                         ) : (
                           <>
+                            <AdminTd>
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(channel.id)}
+                                onChange={() => toggleSelected(channel.id)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </AdminTd>
                             <AdminTd><ChannelAvatar channel={channel} /></AdminTd>
                             <AdminTd>
                               <p className="max-w-[200px] truncate font-medium text-slate-900">{channel.title}</p>
@@ -489,6 +569,18 @@ export function AdminLinksManagePage({
                               <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClass[channel.status]}`}>
                                 {statusLabel[channel.status]}
                               </span>
+                              <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                                <label className="flex items-center gap-1 text-[11px] text-slate-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={channel.isVisible !== false}
+                                    onChange={() =>
+                                      handleUpdateMeta(channel.id, { isVisible: channel.isVisible === false })
+                                    }
+                                  />
+                                  {channel.isVisible === false ? '비활성' : '활성'}
+                                </label>
+                              </div>
                             </AdminTd>
                             <AdminTd><span className="text-xs tabular-nums">{channel.recommendCount}</span></AdminTd>
                             <AdminTd>
@@ -660,6 +752,26 @@ export function AdminLinksManagePage({
                                     <option key={name} value={name}>{name}</option>
                                   ))}
                                 </select>
+                                {channel.categoryLocked ? (
+                                  <span className="text-[11px] text-slate-500">분류 고정</span>
+                                ) : null}
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500">공개 노출</span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleUpdateMeta(channel.id, { isVisible: channel.isVisible === false })
+                                  }
+                                  className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                                    channel.isVisible === false
+                                      ? 'bg-slate-200 text-slate-700'
+                                      : 'bg-emerald-600 text-white'
+                                  }`}
+                                >
+                                  {channel.isVisible === false ? '비활성' : '활성'}
+                                </button>
                               </div>
 
                               {channel.status === 'active' && (

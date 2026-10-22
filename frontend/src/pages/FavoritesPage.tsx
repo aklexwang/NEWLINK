@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyFavorites } from '../api/channels';
+import { AdultConfirmDialog, hasConfirmedAdult } from '../components/AdultConfirmDialog';
 import { CategorySelect } from '../components/CategorySelect';
 import { ChannelList } from '../components/ChannelList';
 import { useCategories } from '../hooks/useCategories';
@@ -18,6 +19,7 @@ export function FavoritesPage() {
   const { favoriteIds, load: loadFavoriteIds, toggleFavorite } = useMyFavorites();
 
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [adultOpen, setAdultOpen] = useState(false);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -115,7 +117,21 @@ export function FavoritesPage() {
       <CategorySelect
         categories={searchCategories}
         selected={selectedCategory}
-        onSelect={setSelectedCategory}
+        onSelect={(id) => {
+          if (id === '성인' && !hasConfirmedAdult()) {
+            setAdultOpen(true);
+            return;
+          }
+          setSelectedCategory(id);
+        }}
+      />
+      <AdultConfirmDialog
+        open={adultOpen}
+        onCancel={() => setAdultOpen(false)}
+        onConfirm={() => {
+          setAdultOpen(false);
+          setSelectedCategory('성인');
+        }}
       />
 
       <ChannelList

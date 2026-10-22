@@ -41,6 +41,10 @@ export interface Channel {
   username?: string | null;
   language?: 'ko' | 'foreign' | 'unknown';
   languageLocked?: boolean;
+  isVisible?: boolean;
+  categoryLocked?: boolean;
+  categoryConfidence?: number | null;
+  autoRegistered?: boolean;
   collectStatus?:
     | 'ok'
     | 'failed'
