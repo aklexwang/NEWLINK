@@ -1,3 +1,13 @@
+import {
+  clipPostExcerpt,
+  detectChannelLanguage,
+  detectChannelLanguageResult,
+  hangulRatio,
+  LANGUAGE_EXCERPT_MAX,
+  LANGUAGE_MIN_POST_EXCERPTS,
+  type ChannelLanguage,
+} from '../channels/channel-language.logic';
+
 /** 공개 채널·그룹만 MTProto 로 읽을 때 쓰는 규칙. 가입·참여자 조회는 여기서 막습니다. */
 
 export const MTPROTO_MIN_GAP_MS = 1_500;
@@ -137,9 +147,23 @@ export function deletedMessageIds(
   return missing;
 }
 
-export function unixSecondsToDate(value: number | null | undefined): Date | null {
-  if (value == null || !Number.isFinite(value) || value <= 0) return null;
-  return new Date(value * 1000);
+/** 초 단위·밀리초·bigint 시각을 Date 로 바꿉니다. */
+export function unixSecondsToDate(value: unknown): Date | null {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  let n: number;
+  if (typeof value === 'bigint') n = Number(value);
+  else if (typeof value === 'number') n = value;
+  else if (typeof value === 'string' && value.trim()) n = Number(value);
+  else if (typeof value === 'object' && 'valueOf' in value) {
+    n = Number((value as { valueOf: () => unknown }).valueOf());
+  } else n = Number.NaN;
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const ms = n > 1e12 ? n : n * 1000;
+  const date = new Date(ms);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 export const GROUP_ACTIVITY_DAY_MS = 24 * 60 * 60 * 1000;
@@ -154,44 +178,170 @@ export type GroupActivityCounts = {
  * 그룹 GetHistory 항목에서 게시 시각(ms)만 뽑습니다.
  * 본문·보낸 사람·전달 출처·엔티티는 읽지 않습니다.
  */
+export function telegramTlClassName(raw: unknown): string {
+  if (!raw || typeof raw !== 'object') return '';
+  const rec = raw as { className?: unknown; classType?: unknown };
+  const ctor =
+    typeof (raw as { constructor?: { name?: string } }).constructor?.name ===
+    'string'
+      ? (raw as { constructor: { name: string } }).constructor.name
+      : '';
+  const rawName =
+    (typeof rec.className === 'string' && rec.className) ||
+    (typeof rec.classType === 'string' && rec.classType) ||
+    ctor;
+  return rawName.replace(/^Api\./, '').trim();
+}
+
+/** 그룹 활동량·언어에 쓰는 일반 메시지만. 입장/공지 서비스 메시지는 빼습니다. */
+export function isCountableGroupMessage(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  const name = telegramTlClassName(raw).toLowerCase();
+  if (name.includes('service') || name.includes('empty')) return false;
+  if (!name || name === 'message' || name.endsWith('.message')) return true;
+  const rec = raw as { date?: unknown; id?: unknown };
+  return rec.date != null && rec.id != null;
+}
+
 export function groupMessagePostedAtMs(raw: unknown): number | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const msg = raw as { className?: string; date?: number };
-  if (msg.className && msg.className !== 'Message') return null;
+  if (!isCountableGroupMessage(raw)) return null;
+  const msg = raw as { date?: unknown };
   const postedAt = unixSecondsToDate(msg.date);
   return postedAt ? postedAt.getTime() : null;
 }
 
-/** 시각 목록만 세고, 호출 쪽에서 원본 메시지는 버려야 합니다. */
-export function countGroupActivityFromDates(
-  postedAtMs: number[],
-  nowMs = Date.now(),
-): GroupActivityCounts {
-  let activity24h = 0;
-  let activity7d = 0;
-  for (const t of postedAtMs) {
-    if (!Number.isFinite(t)) continue;
-    const age = nowMs - t;
-    if (age < 0) continue;
-    if (age <= GROUP_ACTIVITY_WEEK_MS) activity7d += 1;
-    if (age <= GROUP_ACTIVITY_DAY_MS) activity24h += 1;
-  }
-  return { activity24h, activity7d };
+export function unixSecondsAgo(windowMs: number, nowMs = Date.now()): number {
+  return Math.max(1, Math.floor((nowMs - windowMs) / 1000));
 }
 
-export function countGroupActivityFromHistory(
-  messages: unknown[],
-  nowMs = Date.now(),
-): GroupActivityCounts {
-  const dates: number[] = [];
+export function firstHistoryMessageId(messages: unknown[]): number | null {
   for (const raw of messages) {
-    const t = groupMessagePostedAtMs(raw);
-    if (t != null) dates.push(t);
+    if (!raw || typeof raw !== 'object') continue;
+    const id = Number((raw as { id?: unknown }).id);
+    if (Number.isFinite(id) && id > 0) return id;
   }
-  return countGroupActivityFromDates(dates, nowMs);
+  return null;
+}
+
+export function firstHistoryMessagePostedAtMs(
+  messages: unknown[],
+): number | null {
+  for (const raw of messages) {
+    if (!raw || typeof raw !== 'object') continue;
+    const postedAt = unixSecondsToDate((raw as { date?: unknown }).date);
+    if (postedAt) return postedAt.getTime();
+  }
+  return null;
+}
+
+/** 최신 번호 - 기준 번호. 없거나 음수면 0 */
+export function activityFromMessageIds(
+  latestId: number | null,
+  baselineId: number | null,
+): number {
+  if (latestId == null || !Number.isFinite(latestId) || latestId <= 0) return 0;
+  if (baselineId == null || !Number.isFinite(baselineId) || baselineId <= 0) {
+    return Math.max(0, Math.floor(latestId));
+  }
+  return Math.max(0, Math.floor(latestId) - Math.floor(baselineId));
+}
+
+/**
+ * 창 안에 최신 글이 없으면 0.
+ * 있으면 최신 번호와 창 시작 시점 번호의 차이입니다.
+ */
+export function activityInWindow(input: {
+  latestId: number | null;
+  latestPostedAtMs: number | null;
+  baselineId: number | null;
+  windowMs: number;
+  nowMs?: number;
+}): number {
+  const nowMs = input.nowMs ?? Date.now();
+  if (input.latestId == null || input.latestId <= 0) return 0;
+  if (
+    input.latestPostedAtMs == null ||
+    nowMs - input.latestPostedAtMs > input.windowMs
+  ) {
+    return 0;
+  }
+  return activityFromMessageIds(input.latestId, input.baselineId);
 }
 
 /** 그룹은 channel_posts 에 글을 남기지 않습니다. */
 export function shouldSaveMtprotoPosts(linkType: string): boolean {
   return linkType !== 'group';
+}
+
+export type GroupHistorySummary = {
+  activity: GroupActivityCounts;
+  language: ChannelLanguage;
+  hangulRatio: number | null;
+  latestPostedAt: Date | null;
+  messageCount: number;
+};
+
+/**
+ * 그룹 GetHistory 를 한 번 훑어 활동량·언어만 계산합니다.
+ * 본문·보낸 사람은 반환값에 넣지 않습니다.
+ */
+export function summarizeGroupHistory(
+  messages: unknown[],
+  input: {
+    title?: string | null;
+    description?: string | null;
+    nowMs?: number;
+  } = {},
+): GroupHistorySummary {
+  const nowMs = input.nowMs ?? Date.now();
+  const dates: number[] = [];
+  const excerpts: string[] = [];
+  for (const raw of messages) {
+    const postedMs = groupMessagePostedAtMs(raw);
+    if (postedMs != null) dates.push(postedMs);
+    if (!isCountableGroupMessage(raw)) continue;
+    const text =
+      raw && typeof raw === 'object' && 'message' in raw
+        ? clipPostExcerpt(
+            typeof (raw as { message?: unknown }).message === 'string'
+              ? (raw as { message: string }).message
+              : '',
+            LANGUAGE_EXCERPT_MAX,
+          )
+        : null;
+    if (text) excerpts.push(text);
+  }
+
+  const latestMs = dates.length > 0 ? Math.max(...dates) : null;
+  const latestPostedAt = latestMs != null ? new Date(latestMs) : null;
+
+  let language: ChannelLanguage;
+  let ratio: number | null = null;
+  if (excerpts.length < LANGUAGE_MIN_POST_EXCERPTS) {
+    language = detectChannelLanguage({
+      title: input.title,
+      description: input.description,
+    });
+  } else {
+    const detected = detectChannelLanguageResult({
+      title: input.title,
+      description: input.description,
+      excerpts,
+    });
+    language = detected.language;
+    const combined = [input.title, input.description, ...excerpts]
+      .map((part) => (part ?? '').trim())
+      .filter(Boolean)
+      .join('\n');
+    ratio = Math.round(hangulRatio(combined) * 10_000) / 10_000;
+  }
+  excerpts.length = 0;
+
+  return {
+    activity: { activity24h: 0, activity7d: 0 },
+    language,
+    hangulRatio: ratio,
+    latestPostedAt,
+    messageCount: dates.length,
+  };
 }

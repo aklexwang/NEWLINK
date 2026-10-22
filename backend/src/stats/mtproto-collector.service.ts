@@ -14,10 +14,14 @@ import { ChannelEvent } from './channel-event.entity';
 import { ChannelPost, type ChannelPostMediaType } from './channel-post.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import {
+  activityInWindow,
   assertMtprotoMethodAllowed,
   canSpendMtprotoRequest,
-  countGroupActivityFromHistory,
   deletedMessageIds,
+  firstHistoryMessageId,
+  firstHistoryMessagePostedAtMs,
+  GROUP_ACTIVITY_DAY_MS,
+  GROUP_ACTIVITY_WEEK_MS,
   isMtprotoAuthFatal,
   MTPROTO_DEFAULT_DAILY_LIMIT,
   MTPROTO_EXCERPT_MAX,
@@ -26,8 +30,11 @@ import {
   mtprotoErrorCode,
   retryAfterFloodWait,
   shouldSaveMtprotoPosts,
+  summarizeGroupHistory,
+  unixSecondsAgo,
   unixSecondsToDate,
   type GroupActivityCounts,
+  type GroupHistorySummary,
 } from './mtproto-collect.logic';
 import {
   extractTmeUsernamesFromHtml,
@@ -220,6 +227,8 @@ export class MtprotoCollectorService {
     linkType: LinkType;
     posts: HistoryPost[];
     activity: GroupActivityCounts;
+    groupLanguage?: GroupHistorySummary['language'];
+    hangulRatio?: number | null;
   }> {
     const resolved = await this.resolvePublicChannel(username);
     const history = await this.fetchHistory(resolved);
@@ -289,7 +298,78 @@ export class MtprotoCollectorService {
 
   private async fetchHistory(
     resolved: ResolvedPublicChannel,
-  ): Promise<{ posts: HistoryPost[]; activity: GroupActivityCounts }> {
+  ): Promise<{
+    posts: HistoryPost[];
+    activity: GroupActivityCounts;
+    groupLanguage?: GroupHistorySummary['language'];
+    hangulRatio?: number | null;
+  }> {
+    if (resolved.linkType === LinkType.GROUP) {
+      const nowMs = Date.now();
+      const latest = await this.getHistory(resolved, 1, 0);
+      const latestId = firstHistoryMessageId(latest);
+      const latestPostedAtMs = firstHistoryMessagePostedAtMs(latest);
+      const dayAgo = await this.getHistory(
+        resolved,
+        1,
+        unixSecondsAgo(GROUP_ACTIVITY_DAY_MS, nowMs),
+      );
+      const weekAgo = await this.getHistory(
+        resolved,
+        1,
+        unixSecondsAgo(GROUP_ACTIVITY_WEEK_MS, nowMs),
+      );
+      const recent = await this.getHistory(
+        resolved,
+        MTPROTO_HISTORY_LIMIT,
+        0,
+      );
+      const summary = summarizeGroupHistory(recent, {
+        title: resolved.title,
+        description: resolved.description,
+        nowMs,
+      });
+      return {
+        posts: [],
+        activity: {
+          activity24h: activityInWindow({
+            latestId,
+            latestPostedAtMs,
+            baselineId: firstHistoryMessageId(dayAgo),
+            windowMs: GROUP_ACTIVITY_DAY_MS,
+            nowMs,
+          }),
+          activity7d: activityInWindow({
+            latestId,
+            latestPostedAtMs,
+            baselineId: firstHistoryMessageId(weekAgo),
+            windowMs: GROUP_ACTIVITY_WEEK_MS,
+            nowMs,
+          }),
+        },
+        groupLanguage: summary.language,
+        hangulRatio: summary.hangulRatio,
+      };
+    }
+
+    const messages = await this.getHistory(
+      resolved,
+      MTPROTO_HISTORY_LIMIT,
+      0,
+    );
+    const posts: HistoryPost[] = [];
+    for (const raw of messages) {
+      const parsed = this.parseHistoryMessage(raw, resolved.username);
+      if (parsed) posts.push(parsed);
+    }
+    return { posts, activity: { activity24h: 0, activity7d: 0 } };
+  }
+
+  private async getHistory(
+    resolved: ResolvedPublicChannel,
+    limit: number,
+    offsetDate: number,
+  ): Promise<unknown[]> {
     const Api = await this.api();
     const result = (await this.call(
       'messages.GetHistory',
@@ -299,27 +379,15 @@ export class MtprotoCollectorService {
           accessHash: resolved.inputChannel.accessHash as never,
         }),
         offsetId: 0,
-        offsetDate: 0,
+        offsetDate,
         addOffset: 0,
-        limit: MTPROTO_HISTORY_LIMIT,
+        limit,
         maxId: 0,
         minId: 0,
         hash: 0 as never,
       }),
     )) as { messages?: unknown[] };
-
-    const messages = result.messages ?? [];
-    if (resolved.linkType === LinkType.GROUP) {
-      const activity = countGroupActivityFromHistory(messages);
-      return { posts: [], activity };
-    }
-
-    const posts: HistoryPost[] = [];
-    for (const raw of messages) {
-      const parsed = this.parseHistoryMessage(raw, resolved.username);
-      if (parsed) posts.push(parsed);
-    }
-    return { posts, activity: { activity24h: 0, activity7d: 0 } };
+    return result.messages ?? [];
   }
 
   private parseHistoryMessage(
@@ -398,6 +466,8 @@ export class MtprotoCollectorService {
       linkType: LinkType;
       posts: HistoryPost[];
       activity: GroupActivityCounts;
+      groupLanguage?: GroupHistorySummary['language'];
+      hangulRatio?: number | null;
     },
   ) {
     const now = new Date();
@@ -507,6 +577,11 @@ export class MtprotoCollectorService {
     channel.collectFailCount = 0;
     if (!savePosts) {
       channel.posts7d = data.activity.activity7d;
+      if (!channel.languageLocked) {
+        if (data.groupLanguage) channel.language = data.groupLanguage;
+        channel.languageHangulRatio =
+          data.hangulRatio === undefined ? channel.languageHangulRatio : data.hangulRatio;
+      }
     }
     await this.channelRepository.save(channel);
 

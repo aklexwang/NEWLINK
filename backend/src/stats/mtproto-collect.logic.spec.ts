@@ -1,15 +1,19 @@
 import {
+  activityFromMessageIds,
+  activityInWindow,
   assertMtprotoMethodAllowed,
   canSpendMtprotoRequest,
-  countGroupActivityFromHistory,
   deletedMessageIds,
   floodWaitMs,
+  GROUP_ACTIVITY_WEEK_MS,
   isMtprotoMethodAllowed,
   MTPROTO_ALLOWED_METHODS,
   MTPROTO_DEFAULT_DAILY_LIMIT,
   MTPROTO_FORBIDDEN_METHODS,
   retryAfterFloodWait,
   shouldSaveMtprotoPosts,
+  summarizeGroupHistory,
+  unixSecondsToDate,
 } from './mtproto-collect.logic';
 
 describe('FloodWait 대기', () => {
@@ -62,38 +66,90 @@ describe('그룹 활동량', () => {
     expect(shouldSaveMtprotoPosts('channel')).toBe(true);
   });
 
-  it('GetHistory 에서 날짜만 세고 본문·보낸 사람은 결과에 없습니다', () => {
+  it('최신 번호에서 기준 번호를 뺀 값을 활동량으로 씁니다', () => {
+    expect(activityFromMessageIds(1500, 1000)).toBe(500);
+    expect(activityFromMessageIds(1000, 1000)).toBe(0);
+    expect(activityFromMessageIds(900, 1000)).toBe(0);
+    expect(activityFromMessageIds(null, 1000)).toBe(0);
+  });
+
+  it('7일 안에 메시지가 없으면 활동량은 0입니다', () => {
+    const now = Date.parse('2026-10-22T12:00:00+09:00');
+    expect(
+      activityInWindow({
+        latestId: 8800,
+        latestPostedAtMs: now - 10 * 24 * 60 * 60 * 1000,
+        baselineId: 8000,
+        windowMs: GROUP_ACTIVITY_WEEK_MS,
+        nowMs: now,
+      }),
+    ).toBe(0);
+    expect(
+      activityInWindow({
+        latestId: 8800,
+        latestPostedAtMs: now - 2 * 60 * 60 * 1000,
+        baselineId: 8000,
+        windowMs: GROUP_ACTIVITY_WEEK_MS,
+        nowMs: now,
+      }),
+    ).toBe(800);
+  });
+
+  it('초·밀리초·bigint 시각을 같은 날짜로 읽습니다', () => {
+    const sec = 1_761_000_000;
+    const fromSec = unixSecondsToDate(sec);
+    const fromMs = unixSecondsToDate(sec * 1000);
+    const fromBig = unixSecondsToDate(BigInt(sec));
+    expect(fromSec?.getTime()).toBe(sec * 1000);
+    expect(fromMs?.getTime()).toBe(sec * 1000);
+    expect(fromBig?.getTime()).toBe(sec * 1000);
+  });
+
+  it('그룹 언어는 본문을 저장하지 않고 비율만 남깁니다', () => {
     const now = Date.parse('2026-10-22T12:00:00+09:00');
     const hour = 60 * 60 * 1000;
-    const messages = [
-      {
-        className: 'Message',
-        date: Math.floor((now - 2 * hour) / 1000),
-        message: '개인 대화 본문',
-        fromId: { className: 'PeerUser', userId: 12345 },
-        fwdFrom: { fromName: 'someone' },
-      },
-      {
-        className: 'Message',
-        date: Math.floor((now - 30 * hour) / 1000),
-        message: '일주일 안 메시지',
-      },
-      {
-        className: 'Message',
-        date: Math.floor((now - 10 * 24 * hour) / 1000),
-        message: '너무 오래된 글',
-      },
-      {
-        className: 'MessageService',
-        date: Math.floor((now - hour) / 1000),
-        action: { className: 'MessageActionChatAddUser' },
-      },
+    const english = [
+      'Official support chat for Crypto.com',
+      'Please follow the rules of this group',
+      'Price discussion only in the market channel',
+      'Welcome new members to the community',
+      'Do not share referral links here thanks',
     ];
-    const activity = countGroupActivityFromHistory(messages, now);
-    expect(activity).toEqual({ activity24h: 1, activity7d: 2 });
-    expect(JSON.stringify(activity)).not.toMatch(/개인 대화/);
-    expect(JSON.stringify(activity)).not.toMatch(/12345/);
-    expect(JSON.stringify(activity)).not.toMatch(/someone/);
+    const messages = english.map((message, i) => ({
+      className: 'Message',
+      date: Math.floor((now - i * hour) / 1000),
+      message,
+      fromId: { className: 'PeerUser', userId: 99 },
+    }));
+    const summary = summarizeGroupHistory(messages, {
+      title: 'Crypto.com',
+      description: 'Official group',
+      nowMs: now,
+    });
+    expect(summary.language).toBe('foreign');
+    expect(summary.hangulRatio).not.toBeNull();
+    expect(summary.hangulRatio ?? 1).toBeLessThan(0.03);
+    const dumped = JSON.stringify(summary);
+    expect(dumped).not.toMatch(/Official support/);
+    expect(dumped).not.toMatch(/referral/);
+    expect(dumped).not.toMatch(/PeerUser/);
+    expect(summary).not.toHaveProperty('excerpts');
+    expect(summary).not.toHaveProperty('posts');
+  });
+
+  it('그룹 메시지가 5개 미만이면 unknown 을 유지합니다', () => {
+    const summary = summarizeGroupHistory(
+      [
+        {
+          className: 'Message',
+          date: Math.floor(Date.now() / 1000),
+          message: 'hello',
+        },
+      ],
+      { title: 'Crypto.com', description: 'Official group' },
+    );
+    expect(summary.language).toBe('unknown');
+    expect(summary.hangulRatio).toBeNull();
   });
 });
 
