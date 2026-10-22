@@ -22,6 +22,7 @@ import { AddChannelLanguage1761120000000 } from './migrations/1761120000000-AddC
 import { AddChannelVisibility1761210000000 } from './migrations/1761210000000-AddChannelVisibility';
 import { AddMtprotoCollectColumns1761220000000 } from './migrations/1761220000000-AddMtprotoCollectColumns';
 import { AddSnapshotActivity1761230000000 } from './migrations/1761230000000-AddSnapshotActivity';
+import { AddLanguageHangulRatio1761240000000 } from './migrations/1761240000000-AddLanguageHangulRatio';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -68,6 +69,7 @@ function truthy(value: string | undefined): boolean {
                 AddChannelVisibility1761210000000,
                 AddMtprotoCollectColumns1761220000000,
                 AddSnapshotActivity1761230000000,
+                AddLanguageHangulRatio1761240000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -95,6 +97,7 @@ function truthy(value: string | undefined): boolean {
               AddChannelVisibility1761210000000,
               AddMtprotoCollectColumns1761220000000,
               AddSnapshotActivity1761230000000,
+              AddLanguageHangulRatio1761240000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -118,6 +121,7 @@ function truthy(value: string | undefined): boolean {
             AddChannelVisibility1761210000000,
             AddMtprotoCollectColumns1761220000000,
             AddSnapshotActivity1761230000000,
+            AddLanguageHangulRatio1761240000000,
           ],
         };
       },

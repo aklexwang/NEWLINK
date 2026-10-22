@@ -182,6 +182,10 @@ export class Channel {
   })
   language: ChannelLanguage;
 
+  /** 그룹 언어 판별용 한글 비율. 본문은 저장하지 않음 */
+  @Column({ name: 'language_hangul_ratio', type: 'real', nullable: true })
+  languageHangulRatio: number | null;
+
   /** 관리자가 수동으로 정한 언어. 자동 판별이 덮어쓰지 않음 */
   @Column({ name: 'language_locked', default: false })
   languageLocked: boolean;

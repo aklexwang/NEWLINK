@@ -180,6 +180,32 @@ export function detectChannelLanguage(
   return detectChannelLanguageResult(input).language;
 }
 
+/**
+ * 그룹은 본문을 저장하지 않으므로, 수집 때 계산해 둔 한글 비율만 다시 씁니다.
+ * 비율이 없으면 제목·소개만 봅니다.
+ */
+export function detectGroupLanguageFromStoredRatio(input: {
+  title?: string | null;
+  description?: string | null;
+  hangulRatio?: number | null;
+}): ChannelLanguage {
+  if (input.hangulRatio == null || !Number.isFinite(input.hangulRatio)) {
+    return detectChannelLanguage({
+      title: input.title,
+      description: input.description,
+    });
+  }
+  const header = [input.title, input.description]
+    .map((part) => (part ?? '').trim())
+    .filter(Boolean)
+    .join('\n');
+  if (input.hangulRatio >= LANGUAGE_KO_MIN_RATIO) return 'ko';
+  const script = detectDistinctForeignScript(header);
+  if (script) return 'foreign';
+  if (input.hangulRatio <= LANGUAGE_FOREIGN_MAX_RATIO) return 'foreign';
+  return 'unknown';
+}
+
 export function foreignReasonLabel(reason: LanguageDetectReason): string {
   if (reason === 'cyrillic') return '키릴문자';
   if (reason === 'posts') return '게시글본문';

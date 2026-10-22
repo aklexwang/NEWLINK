@@ -9,6 +9,7 @@ import {
 } from '../channels/channel.entity';
 import {
   detectChannelLanguage,
+  detectGroupLanguageFromStoredRatio,
   LANGUAGE_POST_LIMIT,
 } from '../channels/channel-language.logic';
 import { ChannelPost } from './channel-post.entity';
@@ -53,9 +54,10 @@ export class ChannelLanguageService {
 
   async detectFor(channel: Channel): Promise<ChannelLanguage> {
     if (channel.linkType === LinkType.GROUP) {
-      return detectChannelLanguage({
+      return detectGroupLanguageFromStoredRatio({
         title: channel.title,
         description: channel.description,
+        hangulRatio: channel.languageHangulRatio,
       });
     }
     const posts = await this.postRepository.find({

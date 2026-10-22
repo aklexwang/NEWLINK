@@ -1,6 +1,7 @@
 import {
   detectChannelLanguage,
   detectChannelLanguageResult,
+  detectGroupLanguageFromStoredRatio,
   foreignReasonLabel,
   hangulRatio,
   isDefaultPublicLanguage,
@@ -18,6 +19,23 @@ describe('detectChannelLanguage', () => {
         description: '오늘 경제 소식입니다',
       }),
     ).toBe('ko');
+  });
+
+  it('저장한 한글 비율이 낮으면 그룹을 foreign 으로 본다', () => {
+    expect(
+      detectGroupLanguageFromStoredRatio({
+        title: 'Crypto.com',
+        description: 'Official group',
+        hangulRatio: 0.01,
+      }),
+    ).toBe('foreign');
+    expect(
+      detectGroupLanguageFromStoredRatio({
+        title: 'Crypto.com',
+        description: 'Official group',
+        hangulRatio: null,
+      }),
+    ).toBe('unknown');
   });
 
   it('그룹처럼 게시글 본문을 빼면 제목·소개만으로 판별한다', () => {

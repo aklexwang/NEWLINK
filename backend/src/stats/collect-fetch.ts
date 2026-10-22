@@ -30,10 +30,12 @@ export function isTimeoutError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const name = 'name' in error ? String(error.name) : '';
   const message = error instanceof Error ? error.message : String(error);
+  const code = extractNetworkCode(error);
   return (
     name === 'TimeoutError' ||
     name === 'AbortError' ||
-    /timeout|timed out|aborted/i.test(message)
+    code === 'ETIMEDOUT' ||
+    /ETIMEDOUT|timeout|timed out|aborted/i.test(message)
   );
 }
 

@@ -69,6 +69,39 @@ describe('fetch 오류 문구·상태 분류', () => {
     expect(describeFetchError(err)).toBe('fetch:timeout');
   });
 
+  it('ETIMEDOUT 도 타임아웃으로 보고 같은 날 failed 재시도 대상이다', () => {
+    const err = Object.assign(new Error('connect ETIMEDOUT'), {
+      code: 'ETIMEDOUT',
+    });
+    expect(describeFetchError(err)).toBe('fetch:timeout');
+    expect(shouldRetrySameDayFailed('failed', '2026-10-22', '2026-10-22')).toBe(
+      true,
+    );
+  });
+
+  it('ETIMEDOUT 이 나면 재시도 간격만큼 기다린 뒤 다시 요청한다', async () => {
+    const slept: number[] = [];
+    let calls = 0;
+    const result = await runFetchRetries(
+      async () => {
+        calls += 1;
+        if (calls === 1) {
+          const err = Object.assign(new Error('connect ETIMEDOUT'), {
+            code: 'ETIMEDOUT',
+          });
+          throw err;
+        }
+        return { status: 200, html: 'ok' };
+      },
+      async (ms) => {
+        slept.push(ms);
+      },
+    );
+    expect(calls).toBe(2);
+    expect(slept).toEqual([2_000]);
+    expect(result.status).toBe(200);
+  });
+
   it('merged 만 매일 수집에서 빼고, failed 만 같은 날 재시도한다', () => {
     expect(shouldSkipDailyCollect('invite_only')).toBe(false);
     expect(shouldSkipDailyCollect('merged')).toBe(true);
