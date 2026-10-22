@@ -39,3 +39,6 @@ NEWLINK_save_*/
 
 # 로컬 메모 (주소·키 메모장)
 URL.txt
+
+# 로컬 스크린샷
+frontend/screenshots/

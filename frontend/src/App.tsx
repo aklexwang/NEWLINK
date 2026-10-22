@@ -20,6 +20,7 @@ import { AdminTonPaymentsPage } from './pages/admin/AdminTonPaymentsPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { ChannelDetailPage } from './pages/ChannelDetailPage';
 import { ComparePage } from './pages/ComparePage';
+import { CategoriesPage } from './pages/CategoriesPage';
 import { HomePage } from './pages/HomePage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { MyPage } from './pages/MyPage';
@@ -54,6 +55,7 @@ export default function App() {
                 </Route>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<HomePage />} />
+                  <Route path="/categories" element={<CategoriesPage />} />
                   <Route path="/c/id/:id" element={<ChannelDetailPage />} />
                   <Route path="/c/:username" element={<ChannelDetailPage />} />
                   <Route path="/ranking" element={<RankingPage />} />

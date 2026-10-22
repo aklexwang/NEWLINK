@@ -38,7 +38,7 @@ export function RankingCategoryPicker({
   if (!selectedCategory) return null;
 
   return (
-    <div className="relative z-30 border-b border-black/[0.06] bg-white px-4 py-3">
+    <div className="relative z-30 border-b border-black/[0.06] bg-tg-bg px-4 py-3">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -78,7 +78,7 @@ export function RankingCategoryPicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="카테고리 검색"
-                className="w-full rounded-xl bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-black/10 focus:ring-tg-link/40"
+                className="w-full rounded-xl bg-tg-secondary px-4 py-2.5 text-sm text-tg-text outline-none ring-1 ring-black/10 focus:ring-tg-link/40"
               />
             </div>
 
@@ -97,7 +97,7 @@ export function RankingCategoryPicker({
                         className={`flex flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition active:scale-[0.98] ${
                           active
                             ? 'border-tg-link/30 bg-tg-open-bg'
-                            : 'border-black/[0.06] bg-white'
+                            : 'border-black/[0.06] bg-tg-secondary'
                         }`}
                       >
                         <CategoryIcon emoji={category.emoji} iconUrl={category.iconUrl} size="md" />
