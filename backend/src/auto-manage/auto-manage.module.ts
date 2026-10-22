@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CategoriesModule } from '../categories/categories.module';
 import { ChannelsModule } from '../channels/channels.module';
 import { RankingModule } from '../ranking/ranking.module';
+import { StatsModule } from '../stats/stats.module';
 import { AdminAutoManageController } from './admin-auto-manage.controller';
 import { AutoManageService } from './auto-manage.service';
 import { CategoryAiService } from './category-ai.service';
@@ -16,6 +17,7 @@ import { SerperSearchService } from './serper-search.service';
     ChannelsModule,
     CategoriesModule,
     RankingModule,
+    StatsModule,
   ],
   controllers: [AdminAutoManageController],
   providers: [

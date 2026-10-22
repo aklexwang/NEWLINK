@@ -6,6 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
@@ -27,6 +28,13 @@ import { ChannelRecommendation } from './channel-recommendation.entity';
 import { UsersService } from '../users/users.service';
 import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
+import { AutoExposeService } from '../stats/auto-expose.service';
+import { ChannelEvent } from '../stats/channel-event.entity';
+import {
+  allowAdultInList,
+  ADULT_CATEGORY,
+  PENDING_CATEGORY,
+} from './auto-expose.logic';
 import { expandSearchKeywords } from './search-synonyms';
 import { TelegramPreviewService } from './telegram-preview.service';
 
@@ -57,6 +65,9 @@ export class ChannelsService implements OnModuleInit {
     private readonly telegramPreviewService: TelegramPreviewService,
     private readonly usersService: UsersService,
     private readonly telegramAdminNotifyService: TelegramAdminNotifyService,
+    @InjectRepository(ChannelEvent)
+    private readonly eventRepository: Repository<ChannelEvent>,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   async onModuleInit() {
@@ -131,7 +142,14 @@ export class ChannelsService implements OnModuleInit {
     const saved = await this.channelRepository.save(channel);
     void this.refreshPreview(saved.id).catch(() => undefined);
     void this.notifyAdminsOfSubmission(saved).catch(() => undefined);
-    return saved;
+    try {
+      const autoExpose = this.moduleRef.get(AutoExposeService, {
+        strict: false,
+      });
+      return await autoExpose.tryPromoteSubmission(saved);
+    } catch {
+      return saved;
+    }
   }
 
   private async notifyAdminsOfSubmission(channel: Channel): Promise<void> {
@@ -430,8 +448,13 @@ export class ChannelsService implements OnModuleInit {
         { hiddenCollect: Array.from(HIDDEN_COLLECT_STATUSES) },
       );
 
+    qb.andWhere('channel.is_visible = :visible', { visible: true });
+    qb.andWhere('channel.category <> :pending', { pending: PENDING_CATEGORY });
     if (dto.category)
       qb.andWhere('channel.category = :category', { category: dto.category });
+    if (!dto.category || dto.category !== ADULT_CATEGORY) {
+      qb.andWhere('channel.category <> :adult', { adult: ADULT_CATEGORY });
+    }
 
     if (dto.type)
       qb.andWhere('channel.link_type = :linkType', { linkType: dto.type });
@@ -500,6 +523,8 @@ export class ChannelsService implements OnModuleInit {
       .createQueryBuilder('channel')
       .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
       .andWhere('channel.is_promoted = :promoted', { promoted: true })
+      .andWhere('channel.is_visible = :visible', { visible: true })
+      .andWhere('channel.category <> :adult', { adult: ADULT_CATEGORY })
       .andWhere(
         '(channel.promoted_until IS NULL OR channel.promoted_until > :now)',
         { now },
@@ -888,6 +913,9 @@ export class ChannelsService implements OnModuleInit {
     category?: string;
     linkType?: LinkType;
     collectStatus?: string;
+    visibility?: 'visible' | 'hidden';
+    autoRegistered?: boolean;
+    recentAutoDays?: number;
   }) {
     const qb = this.channelRepository.createQueryBuilder('channel');
     if (filters.status)
@@ -896,6 +924,17 @@ export class ChannelsService implements OnModuleInit {
       qb.andWhere('channel.category = :category', {
         category: filters.category,
       });
+    if (filters.visibility === 'visible') {
+      qb.andWhere('channel.is_visible = :visOn', { visOn: true });
+    } else if (filters.visibility === 'hidden') {
+      qb.andWhere('channel.is_visible = :visOff', { visOff: false });
+    }
+    if (filters.autoRegistered) {
+      qb.andWhere('channel.auto_registered = :autoReg', { autoReg: true });
+      const days = filters.recentAutoDays ?? 7;
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      qb.andWhere('channel.created_at >= :since', { since });
+    }
     if (filters.linkType)
       qb.andWhere('channel.link_type = :linkType', {
         linkType: filters.linkType,
@@ -974,8 +1013,11 @@ export class ChannelsService implements OnModuleInit {
         | 'language'
         | 'languageLocked'
         | 'link'
+        | 'isVisible'
+        | 'categoryLocked'
       >
     >,
+    actorTelegramId?: number,
   ) {
     const channel = await this.findById(id);
     if (data.link !== undefined) {
@@ -1005,7 +1047,22 @@ export class ChannelsService implements OnModuleInit {
       channel.collectFailCount = 0;
     }
     if (data.title !== undefined) channel.title = data.title;
-    if (data.category !== undefined) channel.category = data.category;
+    if (data.category !== undefined) {
+      channel.category = data.category;
+      channel.categoryLocked = true;
+    }
+    if (data.categoryLocked !== undefined) {
+      channel.categoryLocked = data.categoryLocked;
+    }
+    if (data.isVisible !== undefined && data.isVisible !== channel.isVisible) {
+      await this.recordVisibilityChange(
+        channel.id,
+        channel.isVisible,
+        data.isVisible,
+        actorTelegramId,
+      );
+      channel.isVisible = data.isVisible;
+    }
     if (data.linkType !== undefined) channel.linkType = data.linkType;
     if (data.status !== undefined) channel.status = data.status;
     if (data.promotionClientTelegramId !== undefined)
@@ -1042,6 +1099,47 @@ export class ChannelsService implements OnModuleInit {
     return this.channelRepository.save(channel);
   }
 
+  async setVisibilityMany(
+    ids: string[],
+    isVisible: boolean,
+    actorTelegramId?: number,
+  ) {
+    const unique = [...new Set(ids)];
+    let updated = 0;
+    for (const id of unique) {
+      const channel = await this.channelRepository.findOneBy({ id });
+      if (!channel) continue;
+      if (channel.isVisible === isVisible) continue;
+      await this.recordVisibilityChange(
+        channel.id,
+        channel.isVisible,
+        isVisible,
+        actorTelegramId,
+      );
+      channel.isVisible = isVisible;
+      await this.channelRepository.save(channel);
+      updated += 1;
+    }
+    return { ok: true, updated };
+  }
+
+  private async recordVisibilityChange(
+    channelId: string,
+    before: boolean,
+    after: boolean,
+    actorTelegramId?: number,
+  ) {
+    const actor =
+      actorTelegramId != null ? `:${String(actorTelegramId)}` : '';
+    await this.eventRepository.save({
+      channelId,
+      type: 'visibility_changed',
+      before: before ? 'true' : 'false',
+      after: `${after ? 'true' : 'false'}${actor}`,
+      occurredAt: new Date(),
+    });
+  }
+
   async getRanking(category?: string, limit = 50) {
     const normalizedLimit = Math.min(Math.max(limit, 1), 100);
 
@@ -1055,7 +1153,8 @@ export class ChannelsService implements OnModuleInit {
 
     const items = this.dedupeByLink(await qb.getMany())
       .filter(isPublicCollectable)
-      .filter(isVisibleOnPublicLists);
+      .filter(isVisibleOnPublicLists)
+      .filter((c) => allowAdultInList(c.category, category));
     items.sort((a, b) => {
       const memberA = a.memberCount ?? 0;
       const memberB = b.memberCount ?? 0;
@@ -1091,14 +1190,21 @@ export class ChannelsService implements OnModuleInit {
           'collectStatus',
           'language',
           'isPromoted',
+          'isVisible',
         ],
       }),
     )
       .filter(isPublicCollectable)
       .filter(isVisibleOnPublicLists);
 
-    const counts: Record<string, number> = { all: channels.length };
+    const counts: Record<string, number> = {
+      all: channels.filter(
+        (c) =>
+          allowAdultInList(c.category) && c.category !== PENDING_CATEGORY,
+      ).length,
+    };
     for (const channel of channels) {
+      if (channel.category === PENDING_CATEGORY) continue;
       counts[channel.category] = (counts[channel.category] ?? 0) + 1;
     }
     return counts;

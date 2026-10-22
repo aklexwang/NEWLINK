@@ -7,7 +7,9 @@ import {
   ImportCandidateStatus,
 } from '../auto-manage/channel-import-candidate.entity';
 import { isKoreanChannelText } from '../auto-manage/korean-channel.filter';
+import { detectChannelLanguage } from '../channels/channel-language.logic';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
+import { AutoExposeService } from './auto-expose.service';
 import { isPublicCollectable } from './collect-visibility';
 import { TelegramPreviewService } from '../channels/telegram-preview.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
@@ -48,6 +50,7 @@ export class ChannelDiscoveryService {
     private readonly discoveredRepository: Repository<DiscoveredUsername>,
     private readonly previewService: TelegramPreviewService,
     private readonly categoryAi: CategoryAiService,
+    private readonly autoExpose: AutoExposeService,
   ) {}
 
   async discover(): Promise<DiscoveryRunResult> {
@@ -119,13 +122,29 @@ export class ChannelDiscoveryService {
       } else if (members == null || members < DISCOVERY_MIN_MEMBERS) {
         result = 'too_small';
       } else {
-        await this.addCandidate(item, channelById, {
+        const registered = await this.autoExpose.tryRegisterInspected({
           link,
           title: title ?? item.username,
-          description,
-          members,
+          description: description ?? '',
+          memberCount: members,
+          username: item.username,
+          kind: 'channel',
+          language: detectChannelLanguage({
+            title,
+            description,
+          }),
+          linkType: LinkType.CHANNEL,
           avatarUrl: preview.avatarUrl,
         });
+        if (!registered) {
+          await this.addCandidate(item, channelById, {
+            link,
+            title: title ?? item.username,
+            description,
+            members,
+            avatarUrl: preview.avatarUrl,
+          });
+        }
         result = 'added';
       }
     } catch (error) {

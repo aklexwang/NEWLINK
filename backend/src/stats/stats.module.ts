@@ -9,6 +9,8 @@ import { ChannelEvent } from './channel-event.entity';
 import { ChannelPost } from './channel-post.entity';
 import { ChannelScore } from './channel-score.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
+import { AutoExposeService } from './auto-expose.service';
+import { ChannelCategoryService } from './channel-category.service';
 import { ChannelCollectorService } from './channel-collector.service';
 import { ChannelDiscoveryService } from './channel-discovery.service';
 import { ChannelLanguageService } from './channel-language.service';
@@ -47,6 +49,8 @@ import { StatsService } from './stats.service';
     ChannelDiscoveryService,
     ChannelLanguageService,
     CategoryAiService,
+    ChannelCategoryService,
+    AutoExposeService,
     ChannelMetricsService,
     StatsJobService,
     InternalCronGuard,
@@ -58,6 +62,8 @@ import { StatsService } from './stats.service';
     ChannelMetricsService,
     StatsJobService,
     PublicStatsService,
+    AutoExposeService,
+    ChannelCategoryService,
   ],
 })
 export class StatsModule {}

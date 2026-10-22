@@ -24,6 +24,7 @@ import {
 } from './google-cse.service';
 import { SerperSearchService } from './serper-search.service';
 import { isKoreanChannelText } from './korean-channel.filter';
+import { AutoExposeService } from '../stats/auto-expose.service';
 
 interface ExternalItem {
   title: string;
@@ -52,6 +53,7 @@ export class AutoManageService {
     private readonly googleCseService: GoogleCseService,
     private readonly serperSearchService: SerperSearchService,
     private readonly categoryAiService: CategoryAiService,
+    private readonly autoExpose: AutoExposeService,
   ) {}
 
   getStatus() {
@@ -340,11 +342,15 @@ export class AutoManageService {
         }
         await this.candidateRepository.save(existingCandidate);
         updated += 1;
+        if (existingCandidate.status === ImportCandidateStatus.PENDING) {
+          await this.autoExpose.tryRegisterCandidate(existingCandidate);
+        }
       } else {
-        await this.candidateRepository.save(
+        const createdRow = await this.candidateRepository.save(
           this.candidateRepository.create(payload),
         );
         created += 1;
+        await this.autoExpose.tryRegisterCandidate(createdRow);
       }
     }
 
