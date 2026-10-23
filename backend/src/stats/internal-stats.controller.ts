@@ -26,9 +26,9 @@ export class InternalStatsController {
 
   @Post('run')
   @HttpCode(202)
-  runAll() {
-    const { started } = this.statsJobService.startPipeline();
-    return { accepted: true, started };
+  async runAll() {
+    const { started, runId } = await this.statsJobService.startPipeline();
+    return { accepted: true, started, runId };
   }
 
   @Post('run-one/:channelId')
@@ -38,8 +38,8 @@ export class InternalStatsController {
     if (!channel) {
       throw new NotFoundException('채널을 찾을 수 없습니다.');
     }
-    const { started } = this.statsJobService.startOne(channel);
-    return { accepted: true, started, channelId: channel.id };
+    const { started, runId } = await this.statsJobService.startOne(channel);
+    return { accepted: true, started, runId, channelId: channel.id };
   }
 
   @Post('mtproto-test/:username')

@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Channel } from '../channels/channel.entity';
 import { ChannelVerifyService } from '../channels/channel-verify.service';
 import { ChannelCollectorService } from './channel-collector.service';
@@ -18,6 +18,13 @@ import { ChannelLanguageService } from './channel-language.service';
 import { ChannelCategoryService } from './channel-category.service';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelMetricsService } from './channel-metrics.service';
+import { StatsRun } from './stats-run.entity';
+import {
+  interruptOpenStatsRuns,
+  toPublicStatsRun,
+  type StatsRunEndedReason,
+  type StatsRunStatus,
+} from './stats-run.logic';
 
 function envFalsy(value: string | undefined): boolean {
   return ['0', 'false', 'no', 'off'].includes(
@@ -34,6 +41,12 @@ export interface StatsJobStatus {
   failed: number;
   lastDiscovery: DiscoveryRunResult | null;
   lastKeywordSearch: KeywordSearchRunResult | null;
+  lastRun: {
+    id: string;
+    status: StatsRunStatus;
+    processed: number;
+    total: number;
+  } | null;
   mtproto: {
     enabled: boolean;
     requestsToday: number;
@@ -42,9 +55,11 @@ export interface StatsJobStatus {
 }
 
 @Injectable()
-export class StatsJobService {
+export class StatsJobService implements OnModuleInit {
   private readonly logger = new Logger(StatsJobService.name);
-  private status: Omit<StatsJobStatus, 'mtproto'> = {
+  private currentRunId: string | null = null;
+  private lastRunPublic: StatsJobStatus['lastRun'] = null;
+  private status: Omit<StatsJobStatus, 'mtproto' | 'lastRun'> = {
     running: false,
     startedAt: null,
     finishedAt: null,
@@ -67,14 +82,46 @@ export class StatsJobService {
     private readonly mtproto: MtprotoCollectorService,
     @InjectRepository(Channel)
     private readonly channelRepository: Repository<Channel>,
+    @InjectRepository(StatsRun)
+    private readonly runRepository: Repository<StatsRun>,
   ) {}
+
+  async onModuleInit() {
+    try {
+      const open = await this.runRepository.find({
+        where: { finishedAt: IsNull() },
+      });
+      const now = new Date();
+      const interrupted = interruptOpenStatsRuns(open, now);
+      for (const run of interrupted) {
+        await this.runRepository.update(run.id, {
+          finishedAt: run.finishedAt,
+          endedReason: run.endedReason,
+        });
+      }
+      if (interrupted.length > 0) {
+        this.logger.warn(
+          `끝나지 않은 수집 ${interrupted.length}건을 interrupted 로 표시했습니다.`,
+        );
+      }
+      await this.refreshLastRunView();
+    } catch (error) {
+      this.logger.warn(
+        `수집 실행 상태 복구 실패: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
 
   isRunning(): boolean {
     return this.status.running;
   }
 
   getStatus(): StatsJobStatus {
-    return { ...this.status, mtproto: this.mtproto.getPublicStatus() };
+    return {
+      ...this.status,
+      lastRun: this.lastRunPublic,
+      mtproto: this.mtproto.getPublicStatus(),
+    };
   }
 
   /** 매일 KST 03:00. STATS_CRON_ENABLED=false 이면 건너뜁니다. */
@@ -83,7 +130,7 @@ export class StatsJobService {
     if (envFalsy(this.configService.get<string>('STATS_CRON_ENABLED'))) {
       return;
     }
-    const result = this.startPipeline();
+    const result = await this.startPipeline();
     if (!result.started) {
       this.logger.warn('통계 크론을 건너뜁니다. 이미 실행 중입니다.');
     }
@@ -104,22 +151,28 @@ export class StatsJobService {
     }
   }
 
-  startPipeline(): { started: boolean } {
-    if (this.status.running) return { started: false };
-    this.beginRun(0);
+  async startPipeline(): Promise<{ started: boolean; runId: string | null }> {
+    if (this.status.running) {
+      return { started: false, runId: this.currentRunId };
+    }
+    const run = await this.beginRun(0);
     void this.runPipeline().finally(() => {
-      this.finishRun();
+      void this.finishRun('completed');
     });
-    return { started: true };
+    return { started: true, runId: run.id };
   }
 
-  startOne(channel: Channel): { started: boolean } {
-    if (this.status.running) return { started: false };
-    this.beginRun(1);
+  async startOne(
+    channel: Channel,
+  ): Promise<{ started: boolean; runId: string | null }> {
+    if (this.status.running) {
+      return { started: false, runId: this.currentRunId };
+    }
+    const run = await this.beginRun(1);
     void this.runOne(channel).finally(() => {
-      this.finishRun();
+      void this.finishRun('completed');
     });
-    return { started: true };
+    return { started: true, runId: run.id };
   }
 
   async findChannel(channelId: string): Promise<Channel | null> {
@@ -166,10 +219,21 @@ export class StatsJobService {
     }
   }
 
-  private beginRun(total: number) {
+  private async beginRun(total: number): Promise<StatsRun> {
+    const startedAt = new Date();
+    const run = await this.runRepository.save(
+      this.runRepository.create({
+        startedAt,
+        finishedAt: null,
+        processed: 0,
+        total,
+        endedReason: null,
+      }),
+    );
+    this.currentRunId = run.id;
     this.status = {
       running: true,
-      startedAt: new Date().toISOString(),
+      startedAt: startedAt.toISOString(),
       finishedAt: null,
       processed: 0,
       total,
@@ -177,6 +241,8 @@ export class StatsJobService {
       lastDiscovery: this.status.lastDiscovery,
       lastKeywordSearch: this.status.lastKeywordSearch,
     };
+    this.lastRunPublic = toPublicStatsRun(run);
+    return run;
   }
 
   private noteProgress(progress: {
@@ -187,10 +253,42 @@ export class StatsJobService {
     this.status.processed = progress.processed;
     this.status.total = progress.total;
     this.status.failed = progress.failed;
+    if (this.lastRunPublic) {
+      this.lastRunPublic = {
+        ...this.lastRunPublic,
+        processed: progress.processed,
+        total: progress.total,
+      };
+    }
+    if (this.currentRunId) {
+      void this.runRepository.update(this.currentRunId, {
+        processed: progress.processed,
+        total: progress.total,
+      });
+    }
   }
 
-  private finishRun() {
+  private async finishRun(reason: StatsRunEndedReason) {
+    const finishedAt = new Date();
     this.status.running = false;
-    this.status.finishedAt = new Date().toISOString();
+    this.status.finishedAt = finishedAt.toISOString();
+    if (this.currentRunId) {
+      await this.runRepository.update(this.currentRunId, {
+        finishedAt,
+        endedReason: reason,
+        processed: this.status.processed,
+        total: this.status.total,
+      });
+      this.currentRunId = null;
+    }
+    await this.refreshLastRunView();
+  }
+
+  private async refreshLastRunView() {
+    const latest = await this.runRepository.find({
+      order: { startedAt: 'DESC' },
+      take: 1,
+    });
+    this.lastRunPublic = latest[0] ? toPublicStatsRun(latest[0]) : null;
   }
 }

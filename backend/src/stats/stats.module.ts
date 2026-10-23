@@ -24,6 +24,7 @@ import { PublicChannelStatsController } from './public-channel-stats.controller'
 import { PublicStatsController } from './public-stats.controller';
 import { PublicStatsService } from './public-stats.service';
 import { StatsJobService } from './stats-job.service';
+import { StatsRun } from './stats-run.entity';
 import { StatsService } from './stats.service';
 
 @Module({
@@ -38,6 +39,7 @@ import { StatsService } from './stats.service';
       ChannelEvent,
       ChannelImportCandidate,
       DiscoveredUsername,
+      StatsRun,
     ]),
   ],
   controllers: [

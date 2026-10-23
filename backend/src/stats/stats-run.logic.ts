@@ -1,0 +1,51 @@
+export type StatsRunEndedReason = 'completed' | 'interrupted';
+
+export type StatsRunStatus = 'running' | 'completed' | 'interrupted';
+
+export type StatsRunLike = {
+  id: string;
+  processed: number;
+  total: number;
+  finishedAt: Date | string | null;
+  endedReason: string | null;
+};
+
+export function isOpenStatsRun(run: {
+  finishedAt: Date | string | null;
+}): boolean {
+  return run.finishedAt == null;
+}
+
+export function interruptOpenStatsRuns<T extends { finishedAt: Date | string | null }>(
+  runs: T[],
+  now: Date,
+  endedReason: StatsRunEndedReason = 'interrupted',
+): Array<T & { finishedAt: Date; endedReason: StatsRunEndedReason }> {
+  return runs.filter(isOpenStatsRun).map((run) => ({
+    ...run,
+    finishedAt: now,
+    endedReason,
+  }));
+}
+
+export function toPublicStatsRun(run: StatsRunLike): {
+  id: string;
+  status: StatsRunStatus;
+  processed: number;
+  total: number;
+} {
+  let status: StatsRunStatus;
+  if (run.endedReason === 'interrupted') {
+    status = 'interrupted';
+  } else if (run.finishedAt != null || run.endedReason === 'completed') {
+    status = 'completed';
+  } else {
+    status = 'running';
+  }
+  return {
+    id: run.id,
+    status,
+    processed: run.processed,
+    total: run.total,
+  };
+}
