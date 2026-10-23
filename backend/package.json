@@ -26,6 +26,7 @@
     "classify:language": "ts-node --transpile-only --project scripts/tsconfig.json scripts/classify-channel-language.ts --dry-run",
     "preview:invites": "ts-node --transpile-only --project scripts/tsconfig.json scripts/preview-invite-links.ts",
     "preview:auto-expose": "ts-node --transpile-only --project scripts/tsconfig.json scripts/preview-auto-expose.ts",
+    "bulk:candidates": "ts-node --transpile-only --project scripts/tsconfig.json scripts/bulk-candidates.ts",
     "telegram:login": "ts-node --transpile-only --project scripts/tsconfig.json scripts/telegram-login.ts"
   },
   "dependencies": {
