@@ -12,6 +12,10 @@ import {
   isPendingCategory,
 } from '../channels/auto-expose.logic';
 import { isPublicCollectable } from './collect-visibility';
+import {
+  collapseWeeklyRankUps,
+  isWeeklyHeadlineChannel,
+} from './weekly-headlines.logic';
 import { ChannelsService } from '../channels/channels.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import {
@@ -242,7 +246,7 @@ export class PublicStatsService {
     const channelMap = new Map(channels.map((c) => [c.id, c]));
     const visibleEvents = events.filter((event) => {
       const ch = channelMap.get(event.channelId);
-      return ch != null && ch.status === ChannelStatus.ACTIVE && isPublicCollectable(ch);
+      return ch != null && isWeeklyHeadlineChannel(ch);
     });
 
     const mapEvent = (event: ChannelEvent) => {
@@ -268,7 +272,9 @@ export class PublicStatsService {
     const firstSeen = visibleEvents
       .filter((e) => e.type === 'first_seen')
       .map(mapEvent);
-    const rankUp = visibleEvents.filter((e) => e.type === 'rank_up').map(mapEvent);
+    const rankUp = collapseWeeklyRankUps(
+      visibleEvents.filter((e) => e.type === 'rank_up'),
+    ).map(mapEvent);
 
     return {
       week: formatIsoWeek(year, week),
