@@ -18,6 +18,13 @@ import {
   assertMtprotoMethodAllowed,
   canSpendMtprotoRequest,
   deletedMessageIds,
+  FloodWaitTooLongError,
+  isMtprotoTimeoutError,
+  MTPROTO_CONNECT_TIMEOUT_MS,
+  MTPROTO_REQUEST_TIMEOUT_MS,
+  MTPROTO_TIMEOUT_STREAK_DISABLE,
+  nextTimeoutStreak,
+  shouldDisableMtprotoAfterTimeouts,
   firstHistoryMessageId,
   firstHistoryMessagePostedAtMs,
   GROUP_ACTIVITY_DAY_MS,
@@ -30,6 +37,7 @@ import {
   mtprotoErrorCode,
   retryAfterFloodWait,
   shouldSaveMtprotoPosts,
+  withTimeout,
   summarizeGroupHistory,
   unixSecondsAgo,
   unixSecondsToDate,
@@ -102,6 +110,7 @@ export class MtprotoCollectorService {
   private requestDay = '';
   private lastCallAt = 0;
   private connecting: Promise<boolean> | null = null;
+  private timeoutStreak = 0;
 
   constructor(
     private readonly configService: ConfigService,
@@ -140,6 +149,19 @@ export class MtprotoCollectorService {
     return Math.max(0, this.dailyLimit() - this.requestsToday);
   }
 
+  /** full 파이프라인 시작 때 호출. 인증 오류·일일 상한은 유지 */
+  prepareForCollectRun() {
+    this.timeoutStreak = 0;
+    if (
+      this.stopped &&
+      (this.lastError === 'timeout:mtproto_streak' ||
+        (this.lastError ?? '').startsWith('flood_wait:'))
+    ) {
+      this.stopped = false;
+      this.lastError = null;
+    }
+  }
+
   canCollect(channel: Channel): boolean {
     if (!this.isEnabled() || this.stopped) return false;
     if (isInviteOnlyLink(channel.link)) return false;
@@ -162,6 +184,12 @@ export class MtprotoCollectorService {
       await this.persist(channel, data);
       return { ok: true, mode: 'mtproto' };
     } catch (error) {
+      if (error instanceof FloodWaitTooLongError) {
+        return { ok: false, reason: 'disabled' };
+      }
+      if (isMtprotoTimeoutError(error)) {
+        return { ok: false, reason: 'failed' };
+      }
       if (isMtprotoAuthFatal(error)) {
         await this.stopForAuth(error);
         return { ok: false, reason: 'failed' };
@@ -685,9 +713,53 @@ export class MtprotoCollectorService {
     this.lastCallAt = Date.now();
     this.requestsToday += 1;
 
-    return retryAfterFloodWait(
-      async () => client.invoke(request as never),
-      sleep,
+    try {
+      const result = await retryAfterFloodWait(
+        async () =>
+          withTimeout(
+            client.invoke(request as never) as Promise<unknown>,
+            MTPROTO_REQUEST_TIMEOUT_MS,
+            'timeout:mtproto',
+          ),
+        sleep,
+        {
+          onWait: (seconds) => {
+            this.logger.warn(`FloodWait ${seconds}초 대기`);
+          },
+        },
+      );
+      this.timeoutStreak = nextTimeoutStreak(this.timeoutStreak, false);
+      return result;
+    } catch (error) {
+      if (error instanceof FloodWaitTooLongError) {
+        this.disableForRun(`flood_wait:${error.seconds}s`);
+        throw error;
+      }
+      if (isMtprotoTimeoutError(error)) {
+        this.noteRequestTimeout();
+        throw error;
+      }
+      this.timeoutStreak = nextTimeoutStreak(this.timeoutStreak, false);
+      throw error;
+    }
+  }
+
+  private noteRequestTimeout() {
+    this.timeoutStreak = nextTimeoutStreak(this.timeoutStreak, true);
+    this.lastError = 'timeout:mtproto';
+    this.logger.warn(
+      `MTProto 요청 시간 초과 (${this.timeoutStreak}/${MTPROTO_TIMEOUT_STREAK_DISABLE})`,
+    );
+    if (shouldDisableMtprotoAfterTimeouts(this.timeoutStreak)) {
+      this.disableForRun('timeout:mtproto_streak');
+    }
+  }
+
+  private disableForRun(reason: string) {
+    this.stopped = true;
+    this.lastError = reason;
+    this.logger.warn(
+      `이번 run 에서 MTProto를 끄고 t.me 방식으로 계속합니다. 이유=${reason}`,
     );
   }
 
@@ -746,7 +818,11 @@ export class MtprotoCollectorService {
       { connectionRetries: 3 },
     );
     try {
-      await client.connect();
+      await withTimeout(
+        client.connect(),
+        MTPROTO_CONNECT_TIMEOUT_MS,
+        'timeout:connect',
+      );
       this.client = client;
       return true;
     } catch (error) {

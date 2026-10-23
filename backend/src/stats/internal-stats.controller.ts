@@ -2,13 +2,19 @@ import {
   Controller,
   Get,
   HttpCode,
+  HttpException,
+  HttpStatus,
   NotFoundException,
   Param,
   Post,
+  Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { InternalCronGuard } from './internal-cron.guard';
 import { MtprotoCollectorService } from './mtproto-collector.service';
+import { parseStatsCollectMode } from './stats-collect.logic';
 import { StatsJobService } from './stats-job.service';
 
 @Controller('internal/stats')
@@ -25,10 +31,32 @@ export class InternalStatsController {
   }
 
   @Post('run')
-  @HttpCode(202)
-  async runAll() {
-    const { started, runId } = await this.statsJobService.startPipeline();
-    return { accepted: true, started, runId };
+  async runAll(
+    @Query('mode') modeRaw: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const mode = parseStatsCollectMode(modeRaw);
+    const result = await this.statsJobService.startPipeline(mode);
+    if (result.skipped) {
+      throw new HttpException(
+        {
+          accepted: false,
+          skipped: true,
+          started: false,
+          reason: 'busy',
+          runId: result.runId,
+          mode: result.mode,
+        },
+        HttpStatus.CONFLICT,
+      );
+    }
+    res.status(HttpStatus.ACCEPTED);
+    return {
+      accepted: true,
+      started: result.started,
+      runId: result.runId,
+      mode: result.mode,
+    };
   }
 
   @Post('run-one/:channelId')

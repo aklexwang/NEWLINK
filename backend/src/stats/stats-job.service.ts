@@ -18,6 +18,12 @@ import { ChannelLanguageService } from './channel-language.service';
 import { ChannelCategoryService } from './channel-category.service';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelMetricsService } from './channel-metrics.service';
+import { PublicStatsService } from './public-stats.service';
+import {
+  decideCollectOverlap,
+  FULL_WAIT_FOR_LIGHT_MS,
+  type StatsCollectMode,
+} from './stats-collect.logic';
 import { StatsRun } from './stats-run.entity';
 import {
   interruptOpenStatsRuns,
@@ -59,6 +65,7 @@ export interface StatsJobStatus {
 export class StatsJobService implements OnModuleInit {
   private readonly logger = new Logger(StatsJobService.name);
   private currentRunId: string | null = null;
+  private currentRunMode: StatsCollectMode | null = null;
   private lastRunPublic: StatsJobStatus['lastRun'] = null;
   private status: Omit<StatsJobStatus, 'mtproto' | 'lastRun'> = {
     running: false,
@@ -81,6 +88,7 @@ export class StatsJobService implements OnModuleInit {
     private readonly keywordSearch: KeywordSearchService,
     private readonly channelCategory: ChannelCategoryService,
     private readonly mtproto: MtprotoCollectorService,
+    private readonly publicStats: PublicStatsService,
     @InjectRepository(Channel)
     private readonly channelRepository: Repository<Channel>,
     @InjectRepository(StatsRun)
@@ -131,7 +139,7 @@ export class StatsJobService implements OnModuleInit {
     if (envFalsy(this.configService.get<string>('STATS_CRON_ENABLED'))) {
       return;
     }
-    const result = await this.startPipeline();
+    const result = await this.startPipeline('full');
     if (!result.started) {
       this.logger.warn('통계 크론을 건너뜁니다. 이미 실행 중입니다.');
     }
@@ -152,15 +160,53 @@ export class StatsJobService implements OnModuleInit {
     }
   }
 
-  async startPipeline(): Promise<{ started: boolean; runId: string | null }> {
+  async startPipeline(
+    mode: StatsCollectMode = 'full',
+  ): Promise<{
+    started: boolean;
+    skipped: boolean;
+    runId: string | null;
+    mode: StatsCollectMode;
+  }> {
     if (this.status.running) {
-      return { started: false, runId: this.currentRunId };
+      const decision = decideCollectOverlap({
+        requested: mode,
+        running: this.currentRunMode,
+      });
+      if (decision.action === 'skip_conflict') {
+        return {
+          started: false,
+          skipped: true,
+          runId: this.currentRunId,
+          mode,
+        };
+      }
+      if (decision.action === 'wait_for_light') {
+        const idle = await this.waitUntilIdle(FULL_WAIT_FOR_LIGHT_MS);
+        if (!idle || this.status.running) {
+          return {
+            started: false,
+            skipped: false,
+            runId: this.currentRunId,
+            mode,
+          };
+        }
+      } else {
+        return {
+          started: false,
+          skipped: false,
+          runId: this.currentRunId,
+          mode,
+        };
+      }
     }
-    const run = await this.beginRun(0);
-    void this.runPipeline().finally(() => {
+    const run = await this.beginRun(0, mode);
+    const work =
+      mode === 'light' ? this.runLightPipeline() : this.runPipeline();
+    void work.finally(() => {
       void this.finishRun('completed');
     });
-    return { started: true, runId: run.id };
+    return { started: true, skipped: false, runId: run.id, mode };
   }
 
   async startOne(
@@ -169,7 +215,7 @@ export class StatsJobService implements OnModuleInit {
     if (this.status.running) {
       return { started: false, runId: this.currentRunId };
     }
-    const run = await this.beginRun(1);
+    const run = await this.beginRun(1, 'full');
     void this.runOne(channel).finally(() => {
       void this.finishRun('completed');
     });
@@ -184,6 +230,7 @@ export class StatsJobService implements OnModuleInit {
     this.logger.log(
       '통계 파이프라인 시작: 수집 → 언어 → 점수 → 정리 → 인증 재확인 → 눈덩이 발견 → 키워드 검색',
     );
+    this.mtproto.prepareForCollectRun();
     try {
       await this.collector.collectAll((progress) =>
         this.noteProgress(progress),
@@ -206,6 +253,22 @@ export class StatsJobService implements OnModuleInit {
     }
   }
 
+  private async runLightPipeline() {
+    this.logger.log('light 수집 시작: t.me/s 미리보기 → 공개 캐시 비우기');
+    try {
+      await this.collector.collectLightAll((progress) =>
+        this.noteProgress(progress),
+      );
+      this.publicStats.clearPublicCaches();
+      this.logger.log('light 수집이 끝났습니다.');
+    } catch (error) {
+      this.logger.error(
+        `light 수집 실패: ${error instanceof Error ? error.message : error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
   private async runOne(channel: Channel) {
     this.logger.log(`단일 채널 수집 시작: ${channel.id}`);
     try {
@@ -220,12 +283,24 @@ export class StatsJobService implements OnModuleInit {
     }
   }
 
-  private async beginRun(total: number): Promise<StatsRun> {
+  private async waitUntilIdle(maxMs: number): Promise<boolean> {
+    const deadline = Date.now() + maxMs;
+    while (this.status.running && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    return !this.status.running;
+  }
+
+  private async beginRun(
+    total: number,
+    mode: StatsCollectMode,
+  ): Promise<StatsRun> {
     const startedAt = new Date();
     const run = await this.runRepository.save(
-      this.runRepository.create(newStatsRunInsert({ total, startedAt })),
+      this.runRepository.create(newStatsRunInsert({ total, startedAt, mode })),
     );
     this.currentRunId = run.id;
+    this.currentRunMode = mode;
     this.status = {
       running: true,
       startedAt: startedAt.toISOString(),
@@ -275,6 +350,7 @@ export class StatsJobService implements OnModuleInit {
         total: this.status.total,
       });
       this.currentRunId = null;
+      this.currentRunMode = null;
     }
     await this.refreshLastRunView();
   }

@@ -3,17 +3,25 @@ import {
   activityInWindow,
   assertMtprotoMethodAllowed,
   canSpendMtprotoRequest,
+  CHANNEL_COLLECT_TIMEOUT_MS,
   deletedMessageIds,
+  FloodWaitTooLongError,
   floodWaitMs,
   GROUP_ACTIVITY_WEEK_MS,
   isMtprotoMethodAllowed,
+  isMtprotoTimeoutError,
   MTPROTO_ALLOWED_METHODS,
   MTPROTO_DEFAULT_DAILY_LIMIT,
   MTPROTO_FORBIDDEN_METHODS,
+  MTPROTO_TIMEOUT_STREAK_DISABLE,
+  nextTimeoutStreak,
   retryAfterFloodWait,
+  shouldDisableForFloodWait,
+  shouldDisableMtprotoAfterTimeouts,
   shouldSaveMtprotoPosts,
   summarizeGroupHistory,
   unixSecondsToDate,
+  withTimeout,
 } from './mtproto-collect.logic';
 
 describe('FloodWait 대기', () => {
@@ -40,6 +48,50 @@ describe('FloodWait 대기', () => {
     expect(result).toBe('ok');
     expect(calls).toBe(2);
     expect(slept).toEqual([2000]);
+  });
+});
+
+describe('MTProto 시간 제한', () => {
+  it('요청이 시간 안에 안 끝나면 다음 채널로 넘어갈 수 있게 실패한다', async () => {
+    await expect(
+      withTimeout(new Promise(() => undefined), 20, 'timeout:mtproto'),
+    ).rejects.toMatchObject({ message: 'timeout:mtproto' });
+    expect(CHANNEL_COLLECT_TIMEOUT_MS).toBe(120_000);
+  });
+
+  it('연속 3번 시간 초과면 MTProto 를 끈다', () => {
+    let streak = 0;
+    streak = nextTimeoutStreak(streak, true);
+    streak = nextTimeoutStreak(streak, true);
+    expect(shouldDisableMtprotoAfterTimeouts(streak)).toBe(false);
+    streak = nextTimeoutStreak(streak, true);
+    expect(streak).toBe(MTPROTO_TIMEOUT_STREAK_DISABLE);
+    expect(shouldDisableMtprotoAfterTimeouts(streak)).toBe(true);
+    expect(nextTimeoutStreak(streak, false)).toBe(0);
+  });
+
+  it('FloodWait 이 300초를 넘으면 기다리지 않고 끈다', async () => {
+    expect(shouldDisableForFloodWait(300_000)).toBe(false);
+    expect(shouldDisableForFloodWait(300_001)).toBe(true);
+    const slept: number[] = [];
+    await expect(
+      retryAfterFloodWait(
+        async () => {
+          const error = new Error('FLOOD_WAIT_400');
+          (error as Error & { seconds: number }).seconds = 400;
+          throw error;
+        },
+        async (ms) => {
+          slept.push(ms);
+        },
+      ),
+    ).rejects.toBeInstanceOf(FloodWaitTooLongError);
+    expect(slept).toEqual([]);
+  });
+
+  it('시간 초과 오류를 구분한다', () => {
+    expect(isMtprotoTimeoutError(new Error('timeout:channel'))).toBe(true);
+    expect(isMtprotoTimeoutError(new Error('other'))).toBe(false);
   });
 });
 

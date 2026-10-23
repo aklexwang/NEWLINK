@@ -14,6 +14,70 @@ export const MTPROTO_MIN_GAP_MS = 1_500;
 export const MTPROTO_DEFAULT_DAILY_LIMIT = 3_000;
 export const MTPROTO_HISTORY_LIMIT = 50;
 export const MTPROTO_EXCERPT_MAX = 200;
+export const MTPROTO_CONNECT_TIMEOUT_MS = 30_000;
+export const MTPROTO_REQUEST_TIMEOUT_MS = 30_000;
+export const CHANNEL_COLLECT_TIMEOUT_MS = 120_000;
+export const FLOOD_WAIT_MAX_MS = 300_000;
+export const MTPROTO_TIMEOUT_STREAK_DISABLE = 3;
+
+export class MtprotoTimeoutError extends Error {
+  constructor(message = 'timeout:mtproto') {
+    super(message);
+    this.name = 'MtprotoTimeoutError';
+  }
+}
+
+export class FloodWaitTooLongError extends Error {
+  seconds: number;
+  constructor(seconds: number) {
+    super('FLOOD_WAIT_TOO_LONG');
+    this.name = 'FloodWaitTooLongError';
+    this.seconds = seconds;
+  }
+}
+
+export async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label = 'timeout:mtproto',
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new MtprotoTimeoutError(label)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    void promise.catch(() => undefined);
+  }
+}
+
+export function isMtprotoTimeoutError(error: unknown): boolean {
+  return (
+    error instanceof MtprotoTimeoutError ||
+    (error instanceof Error && error.message.startsWith('timeout:'))
+  );
+}
+
+export function nextTimeoutStreak(current: number, timedOut: boolean): number {
+  if (!timedOut) return 0;
+  return current + 1;
+}
+
+export function shouldDisableMtprotoAfterTimeouts(
+  streak: number,
+  limit = MTPROTO_TIMEOUT_STREAK_DISABLE,
+): boolean {
+  return streak >= limit;
+}
+
+export function shouldDisableForFloodWait(
+  waitMs: number,
+  maxMs = FLOOD_WAIT_MAX_MS,
+): boolean {
+  return waitMs > maxMs;
+}
 
 /** 수집기가 호출해도 되는 TL 메서드만 */
 export const MTPROTO_ALLOWED_METHODS = [
@@ -96,12 +160,22 @@ export function floodWaitMs(error: unknown): number | null {
 export async function retryAfterFloodWait<T>(
   run: () => Promise<T>,
   sleepFn: (ms: number) => Promise<void>,
+  options?: {
+    maxWaitMs?: number;
+    onWait?: (seconds: number) => void;
+  },
 ): Promise<T> {
   try {
     return await run();
   } catch (error) {
     const wait = floodWaitMs(error);
     if (wait == null) throw error;
+    const seconds = Math.ceil(wait / 1000);
+    const maxWaitMs = options?.maxWaitMs ?? FLOOD_WAIT_MAX_MS;
+    if (shouldDisableForFloodWait(wait, maxWaitMs)) {
+      throw new FloodWaitTooLongError(seconds);
+    }
+    options?.onWait?.(seconds);
     await sleepFn(wait);
     return run();
   }

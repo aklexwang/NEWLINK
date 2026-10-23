@@ -18,7 +18,13 @@ import {
   shouldSkipDailyCollect,
   shouldSkipInviteExpiredRecheck,
 } from './collect-fetch';
+import {
+  CHANNEL_COLLECT_TIMEOUT_MS,
+  isMtprotoTimeoutError,
+  withTimeout,
+} from './mtproto-collect.logic';
 import { formatKstYmd } from './channel-metrics.math';
+import { isLightCollectTarget } from './stats-collect.logic';
 import { ChannelPost } from './channel-post.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import {
@@ -112,10 +118,67 @@ export class ChannelCollectorService {
     return { ok, fail };
   }
 
-  private async collectOneSafe(channel: Channel): Promise<CollectOneResult> {
+  async collectLightAll(
+    onProgress?: (progress: {
+      processed: number;
+      total: number;
+      failed: number;
+    }) => void,
+  ): Promise<{ ok: number; fail: number }> {
+    const allActive = await this.channelRepository.find({
+      where: { status: ChannelStatus.ACTIVE },
+    });
+    const channels = allActive.filter(isLightCollectTarget);
+    let ok = 0;
+    let fail = 0;
+    const total = channels.length;
+    onProgress?.({ processed: 0, total, failed: 0 });
+    for (let i = 0; i < channels.length; i += 1) {
+      const outcome = await this.collectOneSafe(channels[i], { light: true });
+      if (outcome.ok) ok += 1;
+      else fail += 1;
+      onProgress?.({ processed: i + 1, total, failed: fail });
+      if (i < channels.length - 1) {
+        await sleep(CHANNEL_GAP_MS);
+      }
+    }
+    this.logger.log(
+      `light 수집 완료: 성공 ${ok} / 실패 ${fail} (대상 ${channels.length})`,
+    );
+    return { ok, fail };
+  }
+
+  private async collectOneSafe(
+    channel: Channel,
+    options?: { light?: boolean },
+  ): Promise<CollectOneResult> {
+    const startedAt = Date.now();
+    this.logger.log(`채널 수집 시작 id=${channel.id}`);
     try {
-      return await this.collectOne(channel);
+      const result = await withTimeout(
+        this.collectOne(channel, options),
+        CHANNEL_COLLECT_TIMEOUT_MS,
+        'timeout:channel',
+      );
+      this.logCollectEnd(channel.id, startedAt, result);
+      return result;
     } catch (error) {
+      if (isMtprotoTimeoutError(error)) {
+        this.logger.warn(
+          `채널 수집 끝 id=${channel.id} 방식=timeout ${Date.now() - startedAt}ms 결과=timeout:channel`,
+        );
+        try {
+          const fresh = await this.channelRepository.findOneBy({
+            id: channel.id,
+          });
+          if (fresh) {
+            await this.markFailed(fresh, 'failed', 'timeout:channel');
+          }
+        } catch {
+          /* ignore */
+        }
+        return { ok: false, reason: 'failed' };
+      }
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`채널 수집 실패(${channel.id}): ${message}`);
       try {
@@ -126,8 +189,28 @@ export class ChannelCollectorService {
       } catch {
         /* ignore */
       }
+      this.logger.warn(
+        `채널 수집 끝 id=${channel.id} 방식=error ${Date.now() - startedAt}ms 결과=failed`,
+      );
       return { ok: false, reason: 'failed' };
     }
+  }
+
+  private logCollectEnd(
+    channelId: string,
+    startedAt: number,
+    result: CollectOneResult,
+  ) {
+    const ms = Date.now() - startedAt;
+    const method = result.ok
+      ? result.mode === 'mtproto'
+        ? 'mtproto'
+        : 'tme'
+      : 'fail';
+    const outcome = result.ok ? 'ok' : result.reason;
+    this.logger.log(
+      `채널 수집 끝 id=${channelId} 방식=${method} ${ms}ms 결과=${outcome}`,
+    );
   }
 
   private async retrySameDayFailures(): Promise<{
@@ -162,7 +245,10 @@ export class ChannelCollectorService {
     return { ok, fail, tried: targets.length };
   }
 
-  async collectOne(channelInput: Channel): Promise<CollectOneResult> {
+  async collectOne(
+    channelInput: Channel,
+    options?: { light?: boolean },
+  ): Promise<CollectOneResult> {
     const channel = await this.channelRepository.findOneBy({
       id: channelInput.id,
     });
@@ -171,6 +257,13 @@ export class ChannelCollectorService {
     }
 
     const username = this.resolveUsername(channel);
+
+    if (options?.light) {
+      if (!username || !isLightCollectTarget(channel)) {
+        return { ok: false, reason: 'failed' };
+      }
+      return this.collectPublicPreview(channel, username);
+    }
 
     if (shouldSkipDailyCollect(channel.collectStatus)) {
       return { ok: false, reason: 'failed' };
@@ -242,6 +335,51 @@ export class ChannelCollectorService {
       memberCount: parsed.memberCount,
       username: parsed.usernameFromPosts ?? username,
     });
+    return { ok: true, mode: 'preview' };
+  }
+
+  /** t.me/s 첫 페이지만. MTProto·봇·초대방 없음 */
+  private async collectPublicPreview(
+    channel: Channel,
+    username: string,
+  ): Promise<CollectOneResult> {
+    const first = await this.fetchPreviewPage(username);
+    if (first.error === 'fetch:timeout') {
+      await this.markFailed(channel, 'failed', 'fetch:timeout');
+      return { ok: false, reason: 'failed' };
+    }
+    if (
+      first.status === 404 ||
+      (first.html && isMissingChannelHtml(first.html))
+    ) {
+      return this.markGoneProgress(channel, 'preview:not_found');
+    }
+    if (first.status >= 400 || !first.html) {
+      await this.markFailed(
+        channel,
+        'failed',
+        first.error ?? `preview:http_${first.status || 0}`,
+      );
+      return { ok: false, reason: 'failed' };
+    }
+    if (isPrivateChannelHtml(first.html)) {
+      await this.markFailed(channel, 'private', 'preview:private');
+      return { ok: false, reason: 'private' };
+    }
+
+    const parsed = parseTelegramChannelHtml(first.html);
+    if (!parsed.hasPreview) {
+      await this.markFailed(channel, 'failed', 'preview:no_posts');
+      return { ok: false, reason: 'failed' };
+    }
+
+    await this.upsertPosts(channel.id, parsed.posts);
+    await this.applySuccessfulCollect(channel, {
+      title: parsed.title,
+      memberCount: parsed.memberCount,
+      username: parsed.usernameFromPosts ?? username,
+    });
+    await this.upsertTodayMemberCount(channel.id, parsed.memberCount);
     return { ok: true, mode: 'preview' };
   }
 
@@ -673,6 +811,33 @@ export class ChannelCollectorService {
     channel.collectError = null;
     channel.collectFailCount = 0;
     await this.channelRepository.save(channel);
+  }
+
+  private async upsertTodayMemberCount(
+    channelId: string,
+    memberCount: number | null,
+  ) {
+    if (memberCount == null) return;
+    const capturedOn = formatKstYmd();
+    const existing = await this.snapshotRepository.findOne({
+      where: { channelId, capturedOn },
+    });
+    if (existing) {
+      existing.memberCount = memberCount;
+      await this.snapshotRepository.save(existing);
+      return;
+    }
+    await this.snapshotRepository.insert({
+      id: crypto.randomUUID(),
+      channelId,
+      capturedOn,
+      memberCount,
+      medianViews7d: 0,
+      posts7d: 0,
+      forwardedRatio: 0,
+      activity24h: 0,
+      activity7d: 0,
+    });
   }
 
   private async upsertMemberSnapshot(
