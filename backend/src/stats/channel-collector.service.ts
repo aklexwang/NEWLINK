@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { IsNull, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import {
   extractTelegramUsernameFromLink,
@@ -24,6 +24,7 @@ import {
   withTimeout,
 } from './mtproto-collect.logic';
 import { formatKstYmd } from './channel-metrics.math';
+import { isCollectDueToday, kstWeekdayIndex, resolveCollectTier } from './collect-tier.logic';
 import { isLightCollectTarget } from './stats-collect.logic';
 import { ChannelPost } from './channel-post.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
@@ -88,10 +89,17 @@ export class ChannelCollectorService {
     const allActive = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
+    const weekday = kstWeekdayIndex();
     const channels = allActive.filter(
       (ch) =>
         !shouldSkipDailyCollect(ch.collectStatus) &&
-        !shouldSkipInviteExpiredRecheck(ch.collectStatus, ch.lastCollectedAt),
+        !shouldSkipInviteExpiredRecheck(ch.collectStatus, ch.lastCollectedAt) &&
+        isCollectDueToday({
+          id: ch.id,
+          memberCount: ch.memberCount,
+          posts7d: ch.posts7d,
+          weekday,
+        }),
     );
 
     let ok = 0;
@@ -128,7 +136,17 @@ export class ChannelCollectorService {
     const allActive = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
-    const channels = allActive.filter(isLightCollectTarget);
+    const weekday = kstWeekdayIndex();
+    const channels = allActive.filter(
+      (ch) =>
+        isLightCollectTarget(ch) &&
+        isCollectDueToday({
+          id: ch.id,
+          memberCount: ch.memberCount,
+          posts7d: ch.posts7d,
+          weekday,
+        }),
+    );
     let ok = 0;
     let fail = 0;
     const total = channels.length;
@@ -810,6 +828,19 @@ export class ChannelCollectorService {
     channel.collectStatus = 'ok';
     channel.collectError = null;
     channel.collectFailCount = 0;
+    const weekAgo = new Date(Date.now() - SEVEN_DAYS_MS);
+    const posts7d = await this.postRepository.count({
+      where: {
+        channelId: channel.id,
+        postedAt: MoreThanOrEqual(weekAgo),
+        deletedAt: IsNull(),
+      },
+    });
+    channel.posts7d = posts7d;
+    channel.collectTier = resolveCollectTier({
+      memberCount: channel.memberCount,
+      posts7d,
+    });
     await this.channelRepository.save(channel);
   }
 

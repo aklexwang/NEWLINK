@@ -16,6 +16,7 @@ import {
   LinkType,
   type ChannelLanguage,
 } from '../channels/channel.entity';
+import { resolveCollectTier } from './collect-tier.logic';
 import { detectChannelLanguage } from '../channels/channel-language.logic';
 import { ChannelsService } from '../channels/channels.service';
 import { TelegramPreviewService } from '../channels/telegram-preview.service';
@@ -164,6 +165,10 @@ export class AutoExposeService {
         channel.language = inspected.language;
         channel.memberCount = inspected.memberCount;
         if (inspected.username) channel.username = inspected.username;
+        channel.collectTier = resolveCollectTier({
+          memberCount: inspected.memberCount,
+          posts7d: 0,
+        });
         channel = await this.channelRepository.save(channel);
         await this.afterActivate(channel);
       }
@@ -210,6 +215,10 @@ export class AutoExposeService {
     channel.language = inspected.language;
     channel.memberCount = inspected.memberCount;
     if (inspected.username) channel.username = inspected.username;
+    channel.collectTier = resolveCollectTier({
+      memberCount: inspected.memberCount,
+      posts7d: 0,
+    });
     channel = await this.channelRepository.save(channel);
     await this.afterActivate(channel, options?.skipCollect === true);
     return true;
@@ -241,6 +250,10 @@ export class AutoExposeService {
     if (inspected.description) channel.description = inspected.description;
     channel.autoRegistered = autoRegistered;
     channel.isVisible = channel.isVisible !== false;
+    channel.collectTier = resolveCollectTier({
+      memberCount: inspected.memberCount,
+      posts7d: channel.posts7d,
+    });
     const saved = await this.channelRepository.save(channel);
     await this.afterActivate(saved);
     return saved;

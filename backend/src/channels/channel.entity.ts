@@ -35,6 +35,8 @@ export type ChannelListGrade = 'S' | 'A' | 'B' | 'C' | 'D';
 
 export type ChannelLanguage = 'ko' | 'foreign' | 'unknown';
 
+export type ChannelCollectTier = 'daily' | 'weekly';
+
 @Entity('channels')
 export class Channel {
   @PrimaryGeneratedColumn('uuid')
@@ -242,6 +244,15 @@ export class Channel {
 
   @Column({ name: 'posts_7d', type: 'integer', nullable: true })
   posts7d: number | null;
+
+  /** daily: 매일. weekly: 채널 id 요일 버킷으로 매일 1/7 */
+  @Column({
+    name: 'collect_tier',
+    type: 'varchar',
+    length: 16,
+    default: 'weekly',
+  })
+  collectTier: ChannelCollectTier;
 
   @Column({ name: 'observed_days', type: 'integer', nullable: true })
   observedDays: number | null;

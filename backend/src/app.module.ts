@@ -27,6 +27,7 @@ import { AddStatsRuns1761260000000 } from './migrations/1761260000000-AddStatsRu
 import { AddUuidPkDefaults1761270000000 } from './migrations/1761270000000-AddUuidPkDefaults';
 import { AddStatsRunMode1761280000000 } from './migrations/1761280000000-AddStatsRunMode';
 import { AddAccessHashAndMtprotoState1761290000000 } from './migrations/1761290000000-AddAccessHashAndMtprotoState';
+import { AddChannelCollectTier1761300000000 } from './migrations/1761300000000-AddChannelCollectTier';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -78,6 +79,7 @@ function truthy(value: string | undefined): boolean {
                 AddUuidPkDefaults1761270000000,
                 AddStatsRunMode1761280000000,
                 AddAccessHashAndMtprotoState1761290000000,
+                AddChannelCollectTier1761300000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -110,6 +112,7 @@ function truthy(value: string | undefined): boolean {
               AddUuidPkDefaults1761270000000,
               AddStatsRunMode1761280000000,
               AddAccessHashAndMtprotoState1761290000000,
+              AddChannelCollectTier1761300000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -138,6 +141,7 @@ function truthy(value: string | undefined): boolean {
             AddUuidPkDefaults1761270000000,
             AddStatsRunMode1761280000000,
             AddAccessHashAndMtprotoState1761290000000,
+            AddChannelCollectTier1761300000000,
           ],
         };
       },
