@@ -126,6 +126,16 @@ export class Channel {
   })
   telegramChatId: number | null;
 
+  /** MTProto InputChannel 용. 로그·공개 API에 넣지 않음 */
+  @Column({
+    name: 'telegram_access_hash',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+    select: false,
+  })
+  telegramAccessHash: string | null;
+
   /** 텔레그램 채널·그룹 개설일 (공개 정보) */
   @Column({ name: 'created_on', type: dateTimeColumnType(), nullable: true })
   createdOn: Date | null;

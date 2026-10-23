@@ -51,7 +51,7 @@ export class KeywordSearchService {
 
   async search(): Promise<KeywordSearchRunResult> {
     const empty: KeywordSearchRunResult = { searched: 0, found: 0, queued: 0 };
-    if (!this.mtproto.isEnabled()) return empty;
+    if (!this.mtproto.canUseMtproto()) return empty;
 
     const cap = this.dailyLimit();
     const ymd = formatKstYmd().replace(/-/g, '');
@@ -68,6 +68,7 @@ export class KeywordSearchService {
 
     for (let i = 0; i < keywords.length; i += 1) {
       if (!canRunAnotherKeywordSearch(searched, cap)) break;
+      if (this.mtproto.remainingSearches() < 1) break;
       if (this.mtproto.remainingRequests() < 1) break;
 
       const delay = nextKeywordSearchDelayMs(i);

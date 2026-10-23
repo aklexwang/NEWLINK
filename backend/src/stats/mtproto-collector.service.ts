@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
@@ -33,7 +33,6 @@ import {
   MTPROTO_DEFAULT_DAILY_LIMIT,
   MTPROTO_EXCERPT_MAX,
   MTPROTO_HISTORY_LIMIT,
-  MTPROTO_MIN_GAP_MS,
   mtprotoErrorCode,
   retryAfterFloodWait,
   shouldSaveMtprotoPosts,
@@ -45,9 +44,25 @@ import {
   type GroupHistorySummary,
 } from './mtproto-collect.logic';
 import {
+  canReuseStoredAccess,
+  canSpendResolve,
+  floodWaitUntilFromSeconds,
+  isFloodWaitBlocking,
+  isResolveOrSearchMethod,
+  isStoredAccessInvalid,
+  mtprotoCallGapMs,
+  RESOLVE_DAILY_LIMIT_DEFAULT,
+  serializeAccessHash,
+} from './mtproto-access.logic';
+import {
+  envPositiveInt,
+  KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
+} from './mtproto-budget.logic';
+import {
   publicUsernamesFromContactsSearch,
   type PublicSearchHit,
 } from './mtproto-search.logic';
+import { MtprotoState } from './mtproto-state.entity';
 import {
   extractTmeUsernamesFromHtml,
   joinMentionedUsernames,
@@ -56,6 +71,8 @@ import {
 export type MtprotoPublicStatus = {
   enabled: boolean;
   requestsToday: number;
+  resolvesToday: number;
+  searchesToday: number;
   lastError: string | null;
 };
 
@@ -101,7 +118,7 @@ type HistoryPost = {
 };
 
 @Injectable()
-export class MtprotoCollectorService {
+export class MtprotoCollectorService implements OnModuleInit {
   private readonly logger = new Logger(MtprotoCollectorService.name);
   private client: import('telegram').TelegramClient | null = null;
   private stopped = false;
@@ -111,6 +128,10 @@ export class MtprotoCollectorService {
   private lastCallAt = 0;
   private connecting: Promise<boolean> | null = null;
   private timeoutStreak = 0;
+  private lastResolveOrSearchAt = 0;
+  private resolvesToday = 0;
+  private searchesToday = 0;
+  private floodWaitUntil: Date | null = null;
 
   constructor(
     private readonly configService: ConfigService,
@@ -123,7 +144,17 @@ export class MtprotoCollectorService {
     private readonly snapshotRepository: Repository<ChannelSnapshot>,
     @InjectRepository(ChannelEvent)
     private readonly eventRepository: Repository<ChannelEvent>,
+    @InjectRepository(MtprotoState)
+    private readonly stateRepository: Repository<MtprotoState>,
   ) {}
+
+  async onModuleInit() {
+    await this.refreshFloodWaitFromDb();
+    if (isFloodWaitBlocking(this.floodWaitUntil)) {
+      this.stopped = true;
+      this.lastError = this.lastError ?? 'flood_wait';
+    }
+  }
 
   isEnabled(): boolean {
     const raw = (
@@ -137,25 +168,56 @@ export class MtprotoCollectorService {
   getPublicStatus(): MtprotoPublicStatus {
     this.rollDailyCounter();
     return {
-      enabled: this.isEnabled() && !this.stopped,
+      enabled: this.canUseMtproto(),
       requestsToday: this.requestsToday,
+      resolvesToday: this.resolvesToday,
+      searchesToday: this.searchesToday,
       lastError: this.lastError,
     };
   }
 
+  canUseMtproto(): boolean {
+    return (
+      this.isEnabled() &&
+      !this.stopped &&
+      !isFloodWaitBlocking(this.floodWaitUntil)
+    );
+  }
+
   remainingRequests(): number {
     this.rollDailyCounter();
-    if (this.stopped) return 0;
+    if (!this.canUseMtproto()) return 0;
     return Math.max(0, this.dailyLimit() - this.requestsToday);
   }
 
-  /** full 파이프라인 시작 때 호출. 인증 오류·일일 상한은 유지 */
-  prepareForCollectRun() {
+  remainingResolves(): number {
+    this.rollDailyCounter();
+    if (!this.canUseMtproto()) return 0;
+    return Math.max(0, this.resolveDailyLimit() - this.resolvesToday);
+  }
+
+  remainingSearches(): number {
+    this.rollDailyCounter();
+    if (!this.canUseMtproto()) return 0;
+    return Math.max(0, this.searchDailyLimit() - this.searchesToday);
+  }
+
+  /** full 파이프라인 시작 때 호출. 인증 오류·일일 상한·진행 중 FloodWait 은 유지 */
+  async prepareForCollectRun() {
     this.timeoutStreak = 0;
+    await this.refreshFloodWaitFromDb();
+    if (isFloodWaitBlocking(this.floodWaitUntil)) {
+      this.stopped = true;
+      if (!(this.lastError ?? '').startsWith('flood_wait')) {
+        this.lastError = 'flood_wait';
+      }
+      this.logger.warn('FloodWait가 끝나기 전이라 MTProto를 건너뛰고 t.me 로 수집합니다.');
+      return;
+    }
     if (
       this.stopped &&
       (this.lastError === 'timeout:mtproto_streak' ||
-        (this.lastError ?? '').startsWith('flood_wait:'))
+        (this.lastError ?? '').startsWith('flood_wait'))
     ) {
       this.stopped = false;
       this.lastError = null;
@@ -163,14 +225,14 @@ export class MtprotoCollectorService {
   }
 
   canCollect(channel: Channel): boolean {
-    if (!this.isEnabled() || this.stopped) return false;
+    if (!this.canUseMtproto()) return false;
     if (isInviteOnlyLink(channel.link)) return false;
     if (channel.collectStatus === 'invite_expired') return false;
     return Boolean(this.resolveUsername(channel));
   }
 
   async collectAndSave(channel: Channel): Promise<MtprotoCollectResult> {
-    if (!this.isEnabled() || this.stopped) {
+    if (!this.canUseMtproto()) {
       return { ok: false, reason: 'disabled' };
     }
     if (!this.canCollect(channel)) {
@@ -180,7 +242,8 @@ export class MtprotoCollectorService {
     if (!username) return { ok: false, reason: 'skipped' };
 
     try {
-      const data = await this.readPublicUsername(username);
+      const stored = await this.loadStoredAccess(channel.id);
+      const data = await this.readPublicChannel(username, stored, channel.id);
       await this.persist(channel, data);
       return { ok: true, mode: 'mtproto' };
     } catch (error) {
@@ -195,6 +258,9 @@ export class MtprotoCollectorService {
         return { ok: false, reason: 'failed' };
       }
       const code = mtprotoErrorCode(error);
+      if (code === 'RESOLVE_DAILY_LIMIT') {
+        return { ok: false, reason: 'skipped' };
+      }
       this.lastError = code;
       if (
         code === 'USERNAME_NOT_OCCUPIED' ||
@@ -217,11 +283,12 @@ export class MtprotoCollectorService {
     linkType: LinkType;
     kind: 'channel' | 'group';
   } | null> {
-    if (!this.isEnabled() || this.stopped) return null;
+    if (!this.canUseMtproto()) return null;
+    if (this.remainingResolves() < 1) return null;
     const username = usernameRaw.replace(/^@/, '').trim().toLowerCase();
     if (!username) return null;
     try {
-      const resolved = await this.resolvePublicChannel(username);
+      const resolved = await this.resolvePublicChannel(username, null, null);
       const kind = resolved.linkType === LinkType.GROUP ? 'group' : 'channel';
       return {
         username: resolved.username,
@@ -232,10 +299,12 @@ export class MtprotoCollectorService {
         kind,
       };
     } catch (error) {
+      const code = mtprotoErrorCode(error);
+      if (code === 'RESOLVE_DAILY_LIMIT') return null;
       if (isMtprotoAuthFatal(error)) {
         await this.stopForAuth(error);
       } else {
-        this.lastError = mtprotoErrorCode(error);
+        this.lastError = code;
       }
       return null;
     }
@@ -243,7 +312,8 @@ export class MtprotoCollectorService {
 
   /** contacts.Search. 사용자 계정은 파서에서 버립니다. 가입하지 않습니다. */
   async searchPublicByKeyword(query: string): Promise<PublicSearchHit[]> {
-    if (!this.isEnabled() || this.stopped) return [];
+    if (!this.canUseMtproto()) return [];
+    if (this.remainingSearches() < 1) return [];
     const q = query.trim();
     if (!q) return [];
     try {
@@ -256,23 +326,25 @@ export class MtprotoCollectorService {
         result as { chats?: unknown[]; users?: unknown[] },
       );
     } catch (error) {
+      const code = mtprotoErrorCode(error);
+      if (code === 'SEARCH_DAILY_LIMIT') return [];
       if (isMtprotoAuthFatal(error)) {
         await this.stopForAuth(error);
       } else {
-        this.lastError = mtprotoErrorCode(error);
+        this.lastError = code;
       }
       return [];
     }
   }
 
   async testPublicUsername(usernameRaw: string): Promise<MtprotoTestSummary> {
-    if (!this.isEnabled() || this.stopped) {
+    if (!this.canUseMtproto()) {
       return { ok: false, reason: 'disabled' };
     }
     const username = usernameRaw.replace(/^@/, '').trim().toLowerCase();
     if (!username) return { ok: false, reason: 'invalid' };
     try {
-      const data = await this.readPublicUsername(username);
+      const data = await this.readPublicChannel(username, null, null);
       if (data.linkType === LinkType.GROUP) {
         return {
           ok: true,
@@ -312,28 +384,66 @@ export class MtprotoCollectorService {
     }
   }
 
-  private async readPublicUsername(username: string): Promise<{
+  private async readPublicChannel(
+    username: string,
+    stored: {
+      telegramChatId: number | null;
+      telegramAccessHash: string | null;
+    } | null,
+    channelId: string | null,
+  ): Promise<{
     username: string;
     title: string | null;
     description: string | null;
     memberCount: number | null;
     createdOn: Date | null;
     telegramChatId: number | null;
+    inputChannel: { channelId: unknown; accessHash: unknown };
     linkType: LinkType;
     posts: HistoryPost[];
     activity: GroupActivityCounts;
     groupLanguage?: GroupHistorySummary['language'];
     hangulRatio?: number | null;
   }> {
-    const resolved = await this.resolvePublicChannel(username);
+    const resolved = await this.resolvePublicChannel(
+      username,
+      stored,
+      channelId,
+    );
     const history = await this.fetchHistory(resolved);
     return { ...resolved, ...history };
   }
 
   private async resolvePublicChannel(
     username: string,
+    stored: {
+      telegramChatId: number | null;
+      telegramAccessHash: string | null;
+    } | null,
+    channelId: string | null,
   ): Promise<ResolvedPublicChannel> {
     const Api = await this.api();
+    if (stored && canReuseStoredAccess(stored)) {
+      try {
+        return await this.fetchFullFromInput(
+          Api,
+          username,
+          stored.telegramChatId as number,
+          stored.telegramAccessHash as string,
+        );
+      } catch (error) {
+        const code = mtprotoErrorCode(error);
+        if (!isStoredAccessInvalid(code)) throw error;
+        if (channelId) {
+          await this.channelRepository.update(channelId, {
+            telegramAccessHash: null,
+          });
+        }
+      }
+    }
+    if (!canSpendResolve(this.resolvesToday, this.resolveDailyLimit())) {
+      throw new Error('RESOLVE_DAILY_LIMIT');
+    }
     const result = (await this.call(
       'contacts.ResolveUsername',
       new Api.contacts.ResolveUsername({ username }),
@@ -362,32 +472,61 @@ export class MtprotoCollectorService {
       throw new Error('CHANNEL_INVALID');
     }
 
+    return this.fetchFullFromInput(Api, username, chat.id, chat.accessHash, {
+      title: chat.title,
+      date: chat.date,
+      megagroup: chat.megagroup,
+      broadcast: chat.broadcast,
+    });
+  }
+
+  private async fetchFullFromInput(
+    Api: typeof import('telegram').Api,
+    username: string,
+    channelId: unknown,
+    accessHash: unknown,
+    hints?: {
+      title?: string;
+      date?: number;
+      megagroup?: boolean;
+      broadcast?: boolean;
+    },
+  ): Promise<ResolvedPublicChannel> {
+    const hash = serializeAccessHash(accessHash);
+    if (hash == null) throw new Error('CHANNEL_INVALID');
     const full = (await this.call(
       'channels.GetFullChannel',
       new Api.channels.GetFullChannel({
         channel: new Api.InputChannel({
-          channelId: chat.id as never,
-          accessHash: chat.accessHash as never,
+          channelId: channelId as never,
+          accessHash: BigInt(hash) as never,
         }),
       }),
     )) as {
       fullChat?: { about?: string; participantsCount?: number };
-      chats?: Array<{ date?: number; title?: string }>;
+      chats?: Array<{
+        date?: number;
+        title?: string;
+        megagroup?: boolean;
+        broadcast?: boolean;
+      }>;
     };
-
-    const isGroup = Boolean(chat.megagroup) && !chat.broadcast;
+    const chat = full.chats?.[0];
+    const isGroup = Boolean(
+      hints?.megagroup ?? chat?.megagroup,
+    ) && !(hints?.broadcast ?? chat?.broadcast);
     return {
       username,
-      title: chat.title?.trim() || full.chats?.[0]?.title?.trim() || null,
+      title: hints?.title?.trim() || chat?.title?.trim() || null,
       description: full.fullChat?.about?.trim() || null,
       memberCount:
         typeof full.fullChat?.participantsCount === 'number'
           ? full.fullChat.participantsCount
           : null,
-      createdOn: unixSecondsToDate(chat.date ?? full.chats?.[0]?.date),
-      telegramChatId: Number(chat.id),
+      createdOn: unixSecondsToDate(hints?.date ?? chat?.date),
+      telegramChatId: Number(channelId),
       linkType: isGroup ? LinkType.GROUP : LinkType.CHANNEL,
-      inputChannel: { channelId: chat.id, accessHash: chat.accessHash },
+      inputChannel: { channelId, accessHash: hash },
     };
   }
 
@@ -466,12 +605,14 @@ export class MtprotoCollectorService {
     offsetDate: number,
   ): Promise<unknown[]> {
     const Api = await this.api();
+    const hash = serializeAccessHash(resolved.inputChannel.accessHash);
+    if (hash == null) throw new Error('CHANNEL_INVALID');
     const result = (await this.call(
       'messages.GetHistory',
       new Api.messages.GetHistory({
         peer: new Api.InputPeerChannel({
           channelId: resolved.inputChannel.channelId as never,
-          accessHash: resolved.inputChannel.accessHash as never,
+          accessHash: BigInt(hash) as never,
         }),
         offsetId: 0,
         offsetDate,
@@ -558,6 +699,7 @@ export class MtprotoCollectorService {
       memberCount: number | null;
       createdOn: Date | null;
       telegramChatId: number | null;
+      inputChannel: { channelId: unknown; accessHash: unknown };
       linkType: LinkType;
       posts: HistoryPost[];
       activity: GroupActivityCounts;
@@ -655,6 +797,8 @@ export class MtprotoCollectorService {
     if (data.description) channel.description = data.description;
     if (data.telegramChatId != null)
       channel.telegramChatId = data.telegramChatId;
+    const accessHash = serializeAccessHash(data.inputChannel.accessHash);
+    if (accessHash) channel.telegramAccessHash = accessHash;
     if (data.createdOn) channel.createdOn = data.createdOn;
     if (channel.linkType !== data.linkType) {
       await this.eventRepository.save({
@@ -701,17 +845,41 @@ export class MtprotoCollectorService {
   private async call(method: string, request: object): Promise<unknown> {
     assertMtprotoMethodAllowed(method);
     this.rollDailyCounter();
+    if (isFloodWaitBlocking(this.floodWaitUntil)) {
+      throw new Error('flood_wait');
+    }
     const limit = this.dailyLimit();
     if (!canSpendMtprotoRequest(this.requestsToday, limit)) {
       this.lastError = 'daily_limit';
       this.stopped = true;
       throw new Error('MTPROTO_DAILY_LIMIT');
     }
+    if (
+      method === 'contacts.ResolveUsername' &&
+      !canSpendResolve(this.resolvesToday, this.resolveDailyLimit())
+    ) {
+      throw new Error('RESOLVE_DAILY_LIMIT');
+    }
+    if (
+      method === 'contacts.Search' &&
+      this.searchesToday >= this.searchDailyLimit()
+    ) {
+      throw new Error('SEARCH_DAILY_LIMIT');
+    }
     const client = await this.ensureClient();
-    const wait = MTPROTO_MIN_GAP_MS - (Date.now() - this.lastCallAt);
+    const wait = mtprotoCallGapMs({
+      method,
+      lastCallAt: this.lastCallAt,
+      lastResolveOrSearchAt: this.lastResolveOrSearchAt,
+    });
     if (wait > 0) await sleep(wait);
     this.lastCallAt = Date.now();
     this.requestsToday += 1;
+    if (isResolveOrSearchMethod(method)) {
+      this.lastResolveOrSearchAt = this.lastCallAt;
+      if (method === 'contacts.ResolveUsername') this.resolvesToday += 1;
+      if (method === 'contacts.Search') this.searchesToday += 1;
+    }
 
     try {
       const result = await retryAfterFloodWait(
@@ -732,7 +900,7 @@ export class MtprotoCollectorService {
       return result;
     } catch (error) {
       if (error instanceof FloodWaitTooLongError) {
-        this.disableForRun(`flood_wait:${error.seconds}s`);
+        await this.persistFloodWait(error.seconds);
         throw error;
       }
       if (isMtprotoTimeoutError(error)) {
@@ -763,6 +931,64 @@ export class MtprotoCollectorService {
     );
   }
 
+  private resolveDailyLimit(): number {
+    return envPositiveInt(
+      this.configService.get<string>('RESOLVE_DAILY_LIMIT'),
+      RESOLVE_DAILY_LIMIT_DEFAULT,
+    );
+  }
+
+  private searchDailyLimit(): number {
+    return envPositiveInt(
+      this.configService.get<string>('KEYWORD_SEARCH_DAILY_LIMIT'),
+      KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
+    );
+  }
+
+  private async loadStoredAccess(channelId: string): Promise<{
+    telegramChatId: number | null;
+    telegramAccessHash: string | null;
+  } | null> {
+    const row = await this.channelRepository
+      .createQueryBuilder('c')
+      .addSelect('c.telegramAccessHash')
+      .where('c.id = :id', { id: channelId })
+      .getOne();
+    if (!row) return null;
+    return {
+      telegramChatId: row.telegramChatId ?? null,
+      telegramAccessHash: row.telegramAccessHash ?? null,
+    };
+  }
+
+  private async persistFloodWait(seconds: number) {
+    const startedAt = new Date();
+    const until = floodWaitUntilFromSeconds(startedAt, seconds);
+    this.floodWaitUntil = until;
+    this.disableForRun(`flood_wait:${seconds}s`);
+    await this.stateRepository.save({
+      id: 1,
+      floodWaitStartedAt: startedAt,
+      floodWaitUntil: until,
+    });
+  }
+
+  private async refreshFloodWaitFromDb() {
+    const row = await this.stateRepository.findOne({ where: { id: 1 } });
+    this.floodWaitUntil = row?.floodWaitUntil ?? null;
+    if (
+      this.floodWaitUntil &&
+      !isFloodWaitBlocking(this.floodWaitUntil)
+    ) {
+      this.floodWaitUntil = null;
+      await this.stateRepository.save({
+        id: 1,
+        floodWaitStartedAt: null,
+        floodWaitUntil: null,
+      });
+    }
+  }
+
   private dailyLimit(): number {
     const raw = Number(
       this.configService.get<string>('MTPROTO_DAILY_LIMIT') ??
@@ -776,6 +1002,8 @@ export class MtprotoCollectorService {
     if (this.requestDay !== today) {
       this.requestDay = today;
       this.requestsToday = 0;
+      this.resolvesToday = 0;
+      this.searchesToday = 0;
       if (this.lastError === 'daily_limit') {
         this.stopped = false;
         this.lastError = null;

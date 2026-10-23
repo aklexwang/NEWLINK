@@ -8,15 +8,15 @@ import {
 } from './mtproto-budget.logic';
 
 describe('키워드 검색 상한', () => {
-  it('하루 기본 상한은 30이다', () => {
-    expect(KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT).toBe(30);
-    expect(canRunAnotherKeywordSearch(29, 30)).toBe(true);
-    expect(canRunAnotherKeywordSearch(30, 30)).toBe(false);
+  it('하루 기본 상한은 10이다', () => {
+    expect(KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT).toBe(10);
+    expect(canRunAnotherKeywordSearch(9, 10)).toBe(true);
+    expect(canRunAnotherKeywordSearch(10, 10)).toBe(false);
   });
 
-  it('키워드 사이 간격은 첫 요청 0, 이후 3초이다', () => {
+  it('키워드 사이 간격은 첫 요청 0, 이후 10초이다', () => {
     expect(nextKeywordSearchDelayMs(0)).toBe(0);
-    expect(nextKeywordSearchDelayMs(1)).toBe(3_000);
+    expect(nextKeywordSearchDelayMs(1)).toBe(10_000);
   });
 });
 
@@ -45,14 +45,14 @@ describe('splitRemainingAfterCollect', () => {
     expect(split.keywordSearches).toBe(0);
   });
 
-  it('기본 상한 30이면 수집 이후 남은 예산에서 검색 30을 남긴다', () => {
+  it('기본 상한 10이면 수집 이후 남은 예산에서 검색 10을 남긴다', () => {
     const split = splitRemainingAfterCollect({
       remaining: 320,
       discoveryInspectCap: DISCOVERY_MAX_PER_DAY,
     });
-    expect(split.keywordSearches).toBe(30);
-    expect(split.discoveryInspects).toBe(145);
-    expect(split.discoveryRequests).toBe(290);
+    expect(split.keywordSearches).toBe(10);
+    expect(split.discoveryInspects).toBe(155);
+    expect(split.discoveryRequests).toBe(310);
   });
 
   it('수집이 없으면 눈덩이 200회·키워드 100회로 남긴다', () => {

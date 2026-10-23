@@ -57,6 +57,8 @@ export interface StatsJobStatus {
   mtproto: {
     enabled: boolean;
     requestsToday: number;
+    resolvesToday: number;
+    searchesToday: number;
     lastError: string | null;
   };
 }
@@ -230,7 +232,7 @@ export class StatsJobService implements OnModuleInit {
     this.logger.log(
       '통계 파이프라인 시작: 수집 → 언어 → 점수 → 정리 → 인증 재확인 → 눈덩이 발견 → 키워드 검색',
     );
-    this.mtproto.prepareForCollectRun();
+    await this.mtproto.prepareForCollectRun();
     try {
       await this.collector.collectAll((progress) =>
         this.noteProgress(progress),

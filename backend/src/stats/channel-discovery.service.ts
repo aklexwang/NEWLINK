@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
@@ -27,11 +26,6 @@ import {
   type DiscoveryQueueItem,
   type MentionRow,
 } from './channel-discovery.logic';
-import {
-  envPositiveInt,
-  KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
-  splitRemainingAfterCollect,
-} from './mtproto-budget.logic';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelPost } from './channel-post.entity';
 import {
@@ -62,7 +56,6 @@ export class ChannelDiscoveryService {
     private readonly categoryAi: CategoryAiService,
     private readonly autoExpose: AutoExposeService,
     private readonly mtproto: MtprotoCollectorService,
-    private readonly configService: ConfigService,
   ) {}
 
   async discover(): Promise<DiscoveryRunResult> {
@@ -94,7 +87,7 @@ export class ChannelDiscoveryService {
     const aggregates = aggregateMentionedUsernames(rows);
     const known = await this.knownUsernames(channels);
     const recentlyChecked = await this.recentlyCheckedUsernames();
-    const mtprotoOn = this.mtproto.isEnabled();
+    const mtprotoOn = this.mtproto.canUseMtproto();
     const keywordQueued = mtprotoOn ? await this.keywordQueuedUsernames() : [];
 
     const queue = mergeDiscoveryQueue(
@@ -107,13 +100,22 @@ export class ChannelDiscoveryService {
 
     let checked = 0;
     let added = 0;
-    const limit = this.inspectLimit(queue.length, mtprotoOn);
+    const limit = Math.min(DISCOVERY_MAX_PER_DAY, queue.length);
+    let useMtproto = mtprotoOn;
 
     for (let i = 0; i < limit; i += 1) {
-      if (mtprotoOn && this.mtproto.remainingRequests() < 2) break;
+      if (useMtproto && this.mtproto.remainingResolves() < 1) {
+        this.logger.log(
+          'ResolveUsername 하루 상한. 눈덩이 확인은 다음날로 미루고 t.me 로 이어갑니다.',
+        );
+        useMtproto = false;
+      }
+      if (useMtproto && this.mtproto.remainingRequests() < 2) {
+        useMtproto = false;
+      }
       if (i > 0) await sleep(DISCOVERY_DELAY_MS);
       const item = queue[i];
-      const result = await this.inspectOne(item, channelById, mtprotoOn);
+      const result = await this.inspectOne(item, channelById, useMtproto);
       checked += 1;
       if (result === 'added') added += 1;
     }
@@ -122,20 +124,6 @@ export class ChannelDiscoveryService {
       `눈덩이 발견 끝: 검사 ${checked} / 추가 ${added} (후보 ${queue.length})`,
     );
     return { checked, added };
-  }
-
-  private inspectLimit(queueLength: number, mtprotoOn: boolean): number {
-    if (!mtprotoOn) return Math.min(DISCOVERY_MAX_PER_DAY, queueLength);
-    const keywordCap = envPositiveInt(
-      this.configService.get<string>('KEYWORD_SEARCH_DAILY_LIMIT'),
-      KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
-    );
-    const plan = splitRemainingAfterCollect({
-      remaining: this.mtproto.remainingRequests(),
-      discoveryInspectCap: DISCOVERY_MAX_PER_DAY,
-      keywordSearchCap: keywordCap,
-    });
-    return Math.min(plan.discoveryInspects, queueLength);
   }
 
   private async inspectOne(
