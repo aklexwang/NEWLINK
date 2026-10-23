@@ -21,6 +21,7 @@ import { ChannelMetricsService } from './channel-metrics.service';
 import { StatsRun } from './stats-run.entity';
 import {
   interruptOpenStatsRuns,
+  newStatsRunInsert,
   toPublicStatsRun,
   type StatsRunEndedReason,
   type StatsRunStatus,
@@ -222,13 +223,7 @@ export class StatsJobService implements OnModuleInit {
   private async beginRun(total: number): Promise<StatsRun> {
     const startedAt = new Date();
     const run = await this.runRepository.save(
-      this.runRepository.create({
-        startedAt,
-        finishedAt: null,
-        processed: 0,
-        total,
-        endedReason: null,
-      }),
+      this.runRepository.create(newStatsRunInsert({ total, startedAt })),
     );
     this.currentRunId = run.id;
     this.status = {

@@ -16,6 +16,28 @@ export function isOpenStatsRun(run: {
   return run.finishedAt == null;
 }
 
+/** DB 기본값이 없어도 insert 되도록 id 를 앱에서 만든다 */
+export function newStatsRunInsert(input: {
+  total: number;
+  startedAt?: Date;
+}): {
+  id: string;
+  startedAt: Date;
+  finishedAt: null;
+  processed: number;
+  total: number;
+  endedReason: null;
+} {
+  return {
+    id: crypto.randomUUID(),
+    startedAt: input.startedAt ?? new Date(),
+    finishedAt: null,
+    processed: 0,
+    total: input.total,
+    endedReason: null,
+  };
+}
+
 export function interruptOpenStatsRuns<T extends { finishedAt: Date | string | null }>(
   runs: T[],
   now: Date,
