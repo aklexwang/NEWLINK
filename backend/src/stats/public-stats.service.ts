@@ -12,6 +12,7 @@ import {
   isPendingCategory,
 } from '../channels/auto-expose.logic';
 import { isPublicCollectable } from './collect-visibility';
+import { lastPostAtFromCollectedPosts } from './stats-collect.logic';
 import {
   collapseWeeklyRankUps,
   isWeeklyHeadlineChannel,
@@ -293,6 +294,11 @@ export class PublicStatsService {
     };
   }
 
+  clearPublicCaches() {
+    this.homeCache = null;
+    this.feedCache.clear();
+  }
+
   async getHome() {
     if (this.homeCache && this.homeCache.expiresAt > Date.now()) {
       return this.homeCache.data;
@@ -383,8 +389,10 @@ export class PublicStatsService {
     for (const row of lastPosts) {
       const id = String(row.channelId ?? row.channel_id ?? '');
       const rawAt = row.lastPostAt ?? row.last_post_at;
-      const at = rawAt instanceof Date ? rawAt : new Date(String(rawAt ?? ''));
-      if (id && !Number.isNaN(at.getTime())) lastMap.set(id, at);
+      const last = lastPostAtFromCollectedPosts([
+        { postedAt: rawAt instanceof Date ? rawAt : String(rawAt ?? '') },
+      ]);
+      if (id && last) lastMap.set(id, last);
     }
 
     const rows = channels

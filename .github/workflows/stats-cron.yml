@@ -2,9 +2,25 @@ name: stats-cron
 
 on:
   schedule:
-    # UTC 18:05 = KST 03:05 (Render Free 기동 여유)
-    - cron: '5 18 * * *'
+    # UTC → KST +9
+    - cron: '5 18 * * *' # KST 03:05 full
+    - cron: '5 21 * * *' # KST 06:05 light
+    - cron: '5 0 * * *' # KST 09:05 light
+    - cron: '5 3 * * *' # KST 12:05 light
+    - cron: '5 6 * * *' # KST 15:05 light
+    - cron: '5 9 * * *' # KST 18:05 light
+    - cron: '5 12 * * *' # KST 21:05 light
+    - cron: '5 15 * * *' # KST 00:05 light
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 수집 모드
+        required: true
+        default: light
+        type: choice
+        options:
+          - light
+          - full
 
 jobs:
   trigger:
@@ -15,6 +31,9 @@ jobs:
         env:
           NEWLINK_API_URL: ${{ secrets.NEWLINK_API_URL }}
           INTERNAL_CRON_TOKEN: ${{ secrets.INTERNAL_CRON_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE_CRON: ${{ github.event.schedule }}
+          DISPATCH_MODE: ${{ github.event.inputs.mode }}
         run: |
           set -euo pipefail
           if [ -z "${NEWLINK_API_URL}" ] || [ -z "${INTERNAL_CRON_TOKEN}" ]; then
@@ -24,10 +43,46 @@ jobs:
           BASE="${NEWLINK_API_URL%/}"
           HEADER="X-Internal-Token: ${INTERNAL_CRON_TOKEN}"
 
-          RUN_JSON="$(curl -fsS --retry 3 --retry-delay 10 --max-time 120 -X POST \
+          MODE="$(python3 -c '
+          import os
+          event = os.environ.get("EVENT_NAME") or ""
+          schedule = (os.environ.get("SCHEDULE_CRON") or "").strip()
+          dispatch = (os.environ.get("DISPATCH_MODE") or "").strip()
+          if event == "workflow_dispatch":
+              print("light" if dispatch.lower() != "full" else "full")
+          elif schedule == "5 18 * * *":
+              print("full")
+          else:
+              print("light")
+          ')"
+          echo "mode=${MODE}"
+          if [ "${MODE}" = "light" ]; then
+            MAX_MINUTES=30
+          else
+            MAX_MINUTES=100
+          fi
+
+          HTTP_CODE="$(curl -sS --retry 3 --retry-delay 10 --max-time 120 \
+            -o /tmp/stats-run.json -w "%{http_code}" -X POST \
             -H "${HEADER}" \
-            "${BASE}/api/internal/stats/run")"
-          echo "run=${RUN_JSON}"
+            "${BASE}/api/internal/stats/run?mode=${MODE}")"
+          RUN_JSON="$(cat /tmp/stats-run.json)"
+          echo "http=${HTTP_CODE} run=${RUN_JSON}"
+
+          SKIPPED="$(python3 -c 'import json,sys
+          try:
+            d=json.loads(sys.argv[1])
+          except Exception:
+            d={}
+          print("true" if d.get("skipped") else "false")' "${RUN_JSON}")"
+          if [ "${HTTP_CODE}" = "409" ] || [ "${SKIPPED}" = "true" ]; then
+            echo "light 수집을 건너뛰었습니다 (다른 run 진행 중)."
+            exit 0
+          fi
+          if [ "${HTTP_CODE}" != "202" ] && [ "${HTTP_CODE}" != "200" ]; then
+            echo "POST /run 이 ${HTTP_CODE} 를 반환했습니다."
+            exit 1
+          fi
 
           RUN_ID="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("runId") or "")' "${RUN_JSON}")"
           if [ -z "${RUN_ID}" ]; then
@@ -35,7 +90,6 @@ jobs:
             exit 1
           fi
 
-          MAX_MINUTES=100
           INTERVAL=300
           ELAPSED=0
           STATUS_JSON=""

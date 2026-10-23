@@ -1,3 +1,5 @@
+import type { StatsCollectMode } from './stats-collect.logic';
+
 export type StatsRunEndedReason = 'completed' | 'interrupted';
 
 export type StatsRunStatus = 'running' | 'completed' | 'interrupted';
@@ -20,6 +22,7 @@ export function isOpenStatsRun(run: {
 export function newStatsRunInsert(input: {
   total: number;
   startedAt?: Date;
+  mode?: StatsCollectMode;
 }): {
   id: string;
   startedAt: Date;
@@ -27,6 +30,7 @@ export function newStatsRunInsert(input: {
   processed: number;
   total: number;
   endedReason: null;
+  mode: StatsCollectMode;
 } {
   return {
     id: crypto.randomUUID(),
@@ -35,6 +39,7 @@ export function newStatsRunInsert(input: {
     processed: 0,
     total: input.total,
     endedReason: null,
+    mode: input.mode ?? 'full',
   };
 }
 

@@ -25,6 +25,7 @@ import { AddSnapshotActivity1761230000000 } from './migrations/1761230000000-Add
 import { AddLanguageHangulRatio1761240000000 } from './migrations/1761240000000-AddLanguageHangulRatio';
 import { AddStatsRuns1761260000000 } from './migrations/1761260000000-AddStatsRuns';
 import { AddUuidPkDefaults1761270000000 } from './migrations/1761270000000-AddUuidPkDefaults';
+import { AddStatsRunMode1761280000000 } from './migrations/1761280000000-AddStatsRunMode';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -74,6 +75,7 @@ function truthy(value: string | undefined): boolean {
                 AddLanguageHangulRatio1761240000000,
                 AddStatsRuns1761260000000,
                 AddUuidPkDefaults1761270000000,
+                AddStatsRunMode1761280000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -104,6 +106,7 @@ function truthy(value: string | undefined): boolean {
               AddLanguageHangulRatio1761240000000,
               AddStatsRuns1761260000000,
               AddUuidPkDefaults1761270000000,
+              AddStatsRunMode1761280000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -130,6 +133,7 @@ function truthy(value: string | undefined): boolean {
             AddLanguageHangulRatio1761240000000,
             AddStatsRuns1761260000000,
             AddUuidPkDefaults1761270000000,
+            AddStatsRunMode1761280000000,
           ],
         };
       },

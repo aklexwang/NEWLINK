@@ -1,5 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { dateTimeColumnType } from '../common/db-types';
+import type { StatsCollectMode } from './stats-collect.logic';
 import type { StatsRunEndedReason } from './stats-run.logic';
 
 /** 통계 수집 파이프라인 1회 실행 */
@@ -22,4 +23,7 @@ export class StatsRun {
 
   @Column({ name: 'ended_reason', type: 'varchar', length: 32, nullable: true })
   endedReason: StatsRunEndedReason | null;
+
+  @Column({ type: 'varchar', length: 16, default: 'full' })
+  mode: StatsCollectMode;
 }
