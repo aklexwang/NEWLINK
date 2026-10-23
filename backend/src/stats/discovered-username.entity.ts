@@ -2,6 +2,7 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 import { dateTimeColumnType } from '../common/db-types';
 
 export type DiscoveredUsernameResult =
+  | 'queued'
   | 'added'
   | 'not_korean'
   | 'too_small'

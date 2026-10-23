@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
@@ -21,9 +22,17 @@ import {
   DISCOVERY_MIN_MEMBERS,
   DISCOVERY_RECHECK_DAYS,
   isDiscoverySourceChannel,
-  type MentionAggregate,
+  mergeDiscoveryQueue,
+  passesSnowballDiscovery,
+  type DiscoveryQueueItem,
   type MentionRow,
 } from './channel-discovery.logic';
+import {
+  envPositiveInt,
+  KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
+  splitRemainingAfterCollect,
+} from './mtproto-budget.logic';
+import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelPost } from './channel-post.entity';
 import {
   DiscoveredUsername,
@@ -52,6 +61,8 @@ export class ChannelDiscoveryService {
     private readonly previewService: TelegramPreviewService,
     private readonly categoryAi: CategoryAiService,
     private readonly autoExpose: AutoExposeService,
+    private readonly mtproto: MtprotoCollectorService,
+    private readonly configService: ConfigService,
   ) {}
 
   async discover(): Promise<DiscoveryRunResult> {
@@ -83,19 +94,26 @@ export class ChannelDiscoveryService {
     const aggregates = aggregateMentionedUsernames(rows);
     const known = await this.knownUsernames(channels);
     const recentlyChecked = await this.recentlyCheckedUsernames();
+    const mtprotoOn = this.mtproto.isEnabled();
+    const keywordQueued = mtprotoOn ? await this.keywordQueuedUsernames() : [];
 
-    const queue = aggregates.filter(
-      (item) => !known.has(item.username) && !recentlyChecked.has(item.username),
+    const queue = mergeDiscoveryQueue(
+      aggregates,
+      keywordQueued,
+      known,
+      recentlyChecked,
+      mtprotoOn,
     );
 
     let checked = 0;
     let added = 0;
-    const limit = Math.min(DISCOVERY_MAX_PER_DAY, queue.length);
+    const limit = this.inspectLimit(queue.length, mtprotoOn);
 
     for (let i = 0; i < limit; i += 1) {
+      if (mtprotoOn && this.mtproto.remainingRequests() < 2) break;
       if (i > 0) await sleep(DISCOVERY_DELAY_MS);
       const item = queue[i];
-      const result = await this.inspectOne(item, channelById);
+      const result = await this.inspectOne(item, channelById, mtprotoOn);
       checked += 1;
       if (result === 'added') added += 1;
     }
@@ -106,46 +124,61 @@ export class ChannelDiscoveryService {
     return { checked, added };
   }
 
+  private inspectLimit(queueLength: number, mtprotoOn: boolean): number {
+    if (!mtprotoOn) return Math.min(DISCOVERY_MAX_PER_DAY, queueLength);
+    const keywordCap = envPositiveInt(
+      this.configService.get<string>('KEYWORD_SEARCH_DAILY_LIMIT'),
+      KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
+    );
+    const plan = splitRemainingAfterCollect({
+      remaining: this.mtproto.remainingRequests(),
+      discoveryInspectCap: DISCOVERY_MAX_PER_DAY,
+      keywordSearchCap: keywordCap,
+    });
+    return Math.min(plan.discoveryInspects, queueLength);
+  }
+
   private async inspectOne(
-    item: MentionAggregate,
+    item: DiscoveryQueueItem,
     channelById: Map<string, Channel>,
+    mtprotoOn: boolean,
   ): Promise<DiscoveredUsernameResult> {
     const link = `https://t.me/${item.username}`;
     let result: DiscoveredUsernameResult = 'not_found';
     try {
-      const preview = await this.previewService.fetchPreview(link);
-      const title = preview.title?.trim() || null;
-      const description = preview.description?.trim() || null;
-      const members = parseCount(preview.memberCount);
-
-      if (!title && !description && members == null) {
+      const preview = await this.loadPreview(item.username, mtprotoOn);
+      if (!preview) {
         result = 'not_found';
-      } else if (!isKoreanChannelText(title, description)) {
+      } else if (!isKoreanChannelText(preview.title, preview.description)) {
         result = 'not_korean';
-      } else if (members == null || members < DISCOVERY_MIN_MEMBERS) {
+      } else if (!this.passesInspectMemberRule(item, preview)) {
         result = 'too_small';
       } else {
-        const registered = await this.autoExpose.tryRegisterInspected({
-          link,
-          title: title ?? item.username,
-          description: description ?? '',
-          memberCount: members,
-          username: item.username,
-          kind: 'channel',
-          language: detectChannelLanguage({
-            title,
-            description,
-          }),
-          linkType: LinkType.CHANNEL,
-          avatarUrl: preview.avatarUrl,
-        });
+        const registered = await this.autoExpose.tryRegisterInspected(
+          {
+            link,
+            title: preview.title ?? item.username,
+            description: preview.description ?? '',
+            memberCount: preview.members,
+            username: item.username,
+            kind: preview.kind,
+            language: detectChannelLanguage({
+              title: preview.title,
+              description: preview.description,
+            }),
+            linkType: preview.linkType,
+            avatarUrl: preview.avatarUrl,
+          },
+          { skipCollect: true },
+        );
         if (!registered) {
           await this.addCandidate(item, channelById, {
             link,
-            title: title ?? item.username,
-            description,
-            members,
+            title: preview.title ?? item.username,
+            description: preview.description,
+            members: preview.members ?? DISCOVERY_MIN_MEMBERS,
             avatarUrl: preview.avatarUrl,
+            linkType: preview.linkType,
           });
         }
         result = 'added';
@@ -169,8 +202,71 @@ export class ChannelDiscoveryService {
     return result;
   }
 
+  private passesInspectMemberRule(
+    item: DiscoveryQueueItem,
+    preview: {
+      members: number | null;
+      membersFromMtproto: boolean;
+    },
+  ): boolean {
+    if (item.source === 'keyword') {
+      return (
+        preview.members != null && preview.members >= DISCOVERY_MIN_MEMBERS
+      );
+    }
+    return passesSnowballDiscovery({
+      mentionCount: item.mentionCount,
+      memberCount: preview.members,
+      membersFromMtproto: preview.membersFromMtproto,
+    });
+  }
+
+  private async loadPreview(
+    username: string,
+    mtprotoOn: boolean,
+  ): Promise<{
+    title: string | null;
+    description: string | null;
+    members: number | null;
+    kind: 'channel' | 'group';
+    linkType: LinkType;
+    avatarUrl: string | null;
+    membersFromMtproto: boolean;
+  } | null> {
+    if (mtprotoOn) {
+      const inspected = await this.mtproto.inspectPublicUsername(username);
+      if (!inspected) return null;
+      return {
+        title: inspected.title,
+        description: inspected.description,
+        members: inspected.memberCount,
+        kind: inspected.kind,
+        linkType: inspected.linkType,
+        avatarUrl: null,
+        membersFromMtproto: true,
+      };
+    }
+
+    const preview = await this.previewService.fetchPreview(
+      `https://t.me/${username}`,
+    );
+    const title = preview.title?.trim() || null;
+    const description = preview.description?.trim() || null;
+    const members = parseCount(preview.memberCount);
+    if (!title && !description && members == null) return null;
+    return {
+      title,
+      description,
+      members,
+      kind: 'channel',
+      linkType: LinkType.CHANNEL,
+      avatarUrl: preview.avatarUrl,
+      membersFromMtproto: false,
+    };
+  }
+
   private async addCandidate(
-    item: MentionAggregate,
+    item: DiscoveryQueueItem,
     channelById: Map<string, Channel>,
     info: {
       link: string;
@@ -178,6 +274,7 @@ export class ChannelDiscoveryService {
       description: string | null;
       members: number;
       avatarUrl: string | null;
+      linkType?: LinkType;
     },
   ) {
     const existing = await this.candidateRepository.findOne({
@@ -212,7 +309,7 @@ export class ChannelDiscoveryService {
       categoryReviewed: false,
       categorySource: 'discovery',
       discoverySources: sources.length > 0 ? sources.join(',') : null,
-      linkType: LinkType.CHANNEL,
+      linkType: info.linkType ?? LinkType.CHANNEL,
       participantsCount: info.members,
       avatarUrl: info.avatarUrl?.slice(0, 1024) ?? null,
       source: 'discovery',
@@ -258,7 +355,18 @@ export class ChannelDiscoveryService {
     const rows = await this.discoveredRepository.find({
       where: { checkedAt: MoreThan(cutoff) },
     });
-    return new Set(rows.map((row) => row.username.toLowerCase()));
+    return new Set(
+      rows
+        .filter((row) => row.result !== 'queued')
+        .map((row) => row.username.toLowerCase()),
+    );
+  }
+
+  private async keywordQueuedUsernames(): Promise<string[]> {
+    const rows = await this.discoveredRepository.find({
+      where: { result: 'queued' },
+    });
+    return rows.map((row) => row.username.toLowerCase());
   }
 }
 
