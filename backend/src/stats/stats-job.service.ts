@@ -10,6 +10,10 @@ import {
   ChannelDiscoveryService,
   type DiscoveryRunResult,
 } from './channel-discovery.service';
+import {
+  KeywordSearchService,
+  type KeywordSearchRunResult,
+} from './keyword-search.service';
 import { ChannelLanguageService } from './channel-language.service';
 import { ChannelCategoryService } from './channel-category.service';
 import { MtprotoCollectorService } from './mtproto-collector.service';
@@ -29,6 +33,7 @@ export interface StatsJobStatus {
   total: number;
   failed: number;
   lastDiscovery: DiscoveryRunResult | null;
+  lastKeywordSearch: KeywordSearchRunResult | null;
   mtproto: {
     enabled: boolean;
     requestsToday: number;
@@ -47,6 +52,7 @@ export class StatsJobService {
     total: 0,
     failed: 0,
     lastDiscovery: null,
+    lastKeywordSearch: null,
   };
 
   constructor(
@@ -56,6 +62,7 @@ export class StatsJobService {
     private readonly languages: ChannelLanguageService,
     private readonly channelVerify: ChannelVerifyService,
     private readonly discovery: ChannelDiscoveryService,
+    private readonly keywordSearch: KeywordSearchService,
     private readonly channelCategory: ChannelCategoryService,
     private readonly mtproto: MtprotoCollectorService,
     @InjectRepository(Channel)
@@ -121,7 +128,7 @@ export class StatsJobService {
 
   private async runPipeline() {
     this.logger.log(
-      '통계 파이프라인 시작: 수집 → 언어 → 점수 → 정리 → 인증 재확인 → 눈덩이 발견',
+      '통계 파이프라인 시작: 수집 → 언어 → 점수 → 정리 → 인증 재확인 → 눈덩이 발견 → 키워드 검색',
     );
     try {
       await this.collector.collectAll((progress) =>
@@ -135,6 +142,7 @@ export class StatsJobService {
       }
       await this.channelVerify.recheckVerifiedChannels();
       this.status.lastDiscovery = await this.discovery.discover();
+      this.status.lastKeywordSearch = await this.keywordSearch.search();
       this.logger.log('통계 파이프라인이 끝났습니다.');
     } catch (error) {
       this.logger.error(
@@ -167,6 +175,7 @@ export class StatsJobService {
       total,
       failed: 0,
       lastDiscovery: this.status.lastDiscovery,
+      lastKeywordSearch: this.status.lastKeywordSearch,
     };
   }
 

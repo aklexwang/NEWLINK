@@ -14,6 +14,7 @@ import { ChannelCategoryService } from './channel-category.service';
 import { ChannelCollectorService } from './channel-collector.service';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelDiscoveryService } from './channel-discovery.service';
+import { KeywordSearchService } from './keyword-search.service';
 import { ChannelLanguageService } from './channel-language.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 import { DiscoveredUsername } from './discovered-username.entity';
@@ -49,6 +50,7 @@ import { StatsService } from './stats.service';
     ChannelCollectorService,
     MtprotoCollectorService,
     ChannelDiscoveryService,
+    KeywordSearchService,
     ChannelLanguageService,
     CategoryAiService,
     ChannelCategoryService,

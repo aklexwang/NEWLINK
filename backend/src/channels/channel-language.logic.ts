@@ -111,6 +111,10 @@ function nonemptyExcerpts(
     .filter(Boolean);
 }
 
+export function hasDistinctForeignScript(text: string | null | undefined): boolean {
+  return detectDistinctForeignScript(text ?? '') != null;
+}
+
 function detectDistinctForeignScript(
   text: string,
 ): Extract<LanguageDetectReason, 'cyrillic' | 'arabic' | 'thai' | 'other_script'> | null {
