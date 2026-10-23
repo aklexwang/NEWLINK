@@ -8,7 +8,7 @@ on:
 
 jobs:
   trigger:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 110
     steps:
       - name: POST /api/internal/stats/run 후 완료까지 대기
@@ -24,9 +24,16 @@ jobs:
           BASE="${NEWLINK_API_URL%/}"
           HEADER="X-Internal-Token: ${INTERNAL_CRON_TOKEN}"
 
-          curl -fsS --retry 3 --retry-delay 10 --max-time 120 -X POST \
+          RUN_JSON="$(curl -fsS --retry 3 --retry-delay 10 --max-time 120 -X POST \
             -H "${HEADER}" \
-            "${BASE}/api/internal/stats/run"
+            "${BASE}/api/internal/stats/run")"
+          echo "run=${RUN_JSON}"
+
+          RUN_ID="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("runId") or "")' "${RUN_JSON}")"
+          if [ -z "${RUN_ID}" ]; then
+            echo "POST /run 응답에 runId가 없습니다."
+            exit 1
+          fi
 
           MAX_MINUTES=100
           INTERVAL=300
@@ -41,9 +48,23 @@ jobs:
               "${BASE}/api/internal/stats/status")"
             echo "elapsed=${ELAPSED}m status=${STATUS_JSON}"
 
-            RUNNING="$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1]).get("running")).lower())' "${STATUS_JSON}")"
-            if [ "${RUNNING}" = "false" ]; then
+            RESULT="$(python3 -c '
+          import json, sys
+          s = json.loads(sys.argv[1])
+          run_id = sys.argv[2]
+          last = s.get("lastRun") or {}
+          if last.get("id") != run_id:
+              print("wait")
+          else:
+              print(last.get("status") or "wait")
+          ' "${STATUS_JSON}" "${RUN_ID}")"
+
+            if [ "${RESULT}" = "completed" ]; then
               break
+            fi
+            if [ "${RESULT}" = "interrupted" ]; then
+              echo "수집 run ${RUN_ID} 가 서버 재시작으로 중단되었습니다."
+              exit 1
             fi
             if [ "${ELAPSED}" -ge "${MAX_MINUTES}" ]; then
               echo "수집이 ${MAX_MINUTES}분 안에 끝나지 않았습니다."
@@ -54,5 +75,7 @@ jobs:
           python3 -c '
           import json, sys
           s = json.loads(sys.argv[1])
-          print("processed=%s total=%s failed=%s" % (s.get("processed"), s.get("total"), s.get("failed")))
+          last = s.get("lastRun") or {}
+          print("runId=%s status=%s processed=%s total=%s failed=%s" % (
+            last.get("id"), last.get("status"), last.get("processed"), last.get("total"), s.get("failed")))
           ' "${STATUS_JSON}"
