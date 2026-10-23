@@ -18,6 +18,7 @@ export const MTPROTO_EXCERPT_MAX = 200;
 /** 수집기가 호출해도 되는 TL 메서드만 */
 export const MTPROTO_ALLOWED_METHODS = [
   'contacts.ResolveUsername',
+  'contacts.Search',
   'channels.GetFullChannel',
   'messages.GetHistory',
 ] as const;

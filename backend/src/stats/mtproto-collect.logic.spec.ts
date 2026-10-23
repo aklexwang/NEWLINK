@@ -165,6 +165,7 @@ describe('가입 API 를 호출하지 않는지', () => {
     expect(isMtprotoMethodAllowed('channels.JoinChannel')).toBe(false);
     expect(isMtprotoMethodAllowed('channels.GetParticipants')).toBe(false);
     expect(isMtprotoMethodAllowed('contacts.ResolveUsername')).toBe(true);
+    expect(isMtprotoMethodAllowed('contacts.Search')).toBe(true);
     expect(isMtprotoMethodAllowed('messages.GetHistory')).toBe(true);
   });
 });

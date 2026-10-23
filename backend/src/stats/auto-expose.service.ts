@@ -183,7 +183,10 @@ export class AutoExposeService {
     }
   }
 
-  async tryRegisterInspected(inspected: InspectedAccount): Promise<boolean> {
+  async tryRegisterInspected(
+    inspected: InspectedAccount,
+    options?: { skipCollect?: boolean },
+  ): Promise<boolean> {
     const dup = inspected.username
       ? await this.channelsService.findActiveByUsername(inspected.username)
       : await this.channelsService.findActiveDuplicate(inspected.link);
@@ -208,7 +211,7 @@ export class AutoExposeService {
     channel.memberCount = inspected.memberCount;
     if (inspected.username) channel.username = inspected.username;
     channel = await this.channelRepository.save(channel);
-    await this.afterActivate(channel);
+    await this.afterActivate(channel, options?.skipCollect === true);
     return true;
   }
 
@@ -243,13 +246,15 @@ export class AutoExposeService {
     return saved;
   }
 
-  private async afterActivate(channel: Channel) {
-    try {
-      await this.collector.collectOne(channel);
-    } catch (error) {
-      this.logger.warn(
-        `자동 등록 직후 수집 실패(${channel.id}): ${error instanceof Error ? error.message : error}`,
-      );
+  private async afterActivate(channel: Channel, skipCollect = false) {
+    if (!skipCollect) {
+      try {
+        await this.collector.collectOne(channel);
+      } catch (error) {
+        this.logger.warn(
+          `자동 등록 직후 수집 실패(${channel.id}): ${error instanceof Error ? error.message : error}`,
+        );
+      }
     }
     const fresh = await this.channelRepository.findOneBy({ id: channel.id });
     if (fresh && !fresh.categoryLocked) {

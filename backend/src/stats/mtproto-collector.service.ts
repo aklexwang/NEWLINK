@@ -37,6 +37,10 @@ import {
   type GroupHistorySummary,
 } from './mtproto-collect.logic';
 import {
+  publicUsernamesFromContactsSearch,
+  type PublicSearchHit,
+} from './mtproto-search.logic';
+import {
   extractTmeUsernamesFromHtml,
   joinMentionedUsernames,
 } from './telegram-preview-html';
@@ -130,6 +134,12 @@ export class MtprotoCollectorService {
     };
   }
 
+  remainingRequests(): number {
+    this.rollDailyCounter();
+    if (this.stopped) return 0;
+    return Math.max(0, this.dailyLimit() - this.requestsToday);
+  }
+
   canCollect(channel: Channel): boolean {
     if (!this.isEnabled() || this.stopped) return false;
     if (isInviteOnlyLink(channel.link)) return false;
@@ -167,6 +177,63 @@ export class MtprotoCollectorService {
       }
       this.logger.warn(`MTProto 수집 실패(${username}): ${code}`);
       return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /** ResolveUsername + GetFullChannel 만. 게시글·가입은 하지 않습니다. */
+  async inspectPublicUsername(usernameRaw: string): Promise<{
+    username: string;
+    title: string | null;
+    description: string | null;
+    memberCount: number | null;
+    linkType: LinkType;
+    kind: 'channel' | 'group';
+  } | null> {
+    if (!this.isEnabled() || this.stopped) return null;
+    const username = usernameRaw.replace(/^@/, '').trim().toLowerCase();
+    if (!username) return null;
+    try {
+      const resolved = await this.resolvePublicChannel(username);
+      const kind = resolved.linkType === LinkType.GROUP ? 'group' : 'channel';
+      return {
+        username: resolved.username,
+        title: resolved.title,
+        description: resolved.description,
+        memberCount: resolved.memberCount,
+        linkType: resolved.linkType,
+        kind,
+      };
+    } catch (error) {
+      if (isMtprotoAuthFatal(error)) {
+        await this.stopForAuth(error);
+      } else {
+        this.lastError = mtprotoErrorCode(error);
+      }
+      return null;
+    }
+  }
+
+  /** contacts.Search. 사용자 계정은 파서에서 버립니다. 가입하지 않습니다. */
+  async searchPublicByKeyword(query: string): Promise<PublicSearchHit[]> {
+    if (!this.isEnabled() || this.stopped) return [];
+    const q = query.trim();
+    if (!q) return [];
+    try {
+      const Api = await this.api();
+      const result = await this.call(
+        'contacts.Search',
+        new Api.contacts.Search({ q, limit: 20 }),
+      );
+      return publicUsernamesFromContactsSearch(
+        result as { chats?: unknown[]; users?: unknown[] },
+      );
+    } catch (error) {
+      if (isMtprotoAuthFatal(error)) {
+        await this.stopForAuth(error);
+      } else {
+        this.lastError = mtprotoErrorCode(error);
+      }
+      return [];
     }
   }
 
