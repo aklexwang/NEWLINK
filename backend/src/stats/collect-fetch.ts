@@ -12,16 +12,18 @@ const MAX_RETRY_AFTER_MS = 120_000;
 export function parseRetryAfterMs(
   header: string | null | undefined,
   now = Date.now(),
+  maxMs = MAX_RETRY_AFTER_MS,
 ): number {
+  const cap = Number.isFinite(maxMs) && maxMs > 0 ? maxMs : MAX_RETRY_AFTER_MS;
   if (!header?.trim()) return FETCH_RETRY_DELAYS_MS[0];
   const trimmed = header.trim();
   const seconds = Number(trimmed);
   if (Number.isFinite(seconds) && seconds >= 0) {
-    return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+    return Math.min(seconds * 1000, cap);
   }
   const at = Date.parse(trimmed);
   if (!Number.isNaN(at)) {
-    return Math.max(0, Math.min(at - now, MAX_RETRY_AFTER_MS));
+    return Math.max(0, Math.min(at - now, cap));
   }
   return FETCH_RETRY_DELAYS_MS[0];
 }

@@ -1,5 +1,6 @@
 import {
   aggregateMentionedUsernames,
+  DISCOVERY_DELAY_MS,
   DISCOVERY_MAX_PER_DAY,
   mergeDiscoveryQueue,
   passesSnowballDiscovery,
@@ -40,8 +41,9 @@ describe('usernamesFromPost', () => {
 });
 
 describe('aggregateMentionedUsernames', () => {
-  it('하루 검사 상한은 200이다', () => {
-    expect(DISCOVERY_MAX_PER_DAY).toBe(200);
+  it('하루 검사 상한은 1000이다', () => {
+    expect(DISCOVERY_MAX_PER_DAY).toBe(1000);
+    expect(DISCOVERY_DELAY_MS).toBe(1000);
   });
 
   it('서로 다른 채널 2곳 이상에서만 집계한다', () => {
@@ -102,13 +104,9 @@ describe('aggregateMentionedUsernames', () => {
 });
 
 describe('shouldQueueSnowballCandidate', () => {
-  it('MTProto 가 꺼져 있으면 2곳 이상만 큐에 넣는다', () => {
-    expect(shouldQueueSnowballCandidate(1, false)).toBe(false);
-    expect(shouldQueueSnowballCandidate(2, false)).toBe(true);
-  });
-
-  it('MTProto 가 켜져 있으면 1곳 언급도 큐에 넣는다', () => {
-    expect(shouldQueueSnowballCandidate(1, true)).toBe(true);
+  it('공개 페이지 확인이라 1곳 언급도 큐에 넣는다', () => {
+    expect(shouldQueueSnowballCandidate(1)).toBe(true);
+    expect(shouldQueueSnowballCandidate(2)).toBe(true);
   });
 });
 
@@ -118,34 +116,21 @@ describe('passesSnowballDiscovery', () => {
       passesSnowballDiscovery({
         mentionCount: 2,
         memberCount: 120,
-        membersFromMtproto: false,
       }),
     ).toBe(true);
   });
 
-  it('1곳 언급은 t.me 인원으로는 통과하지 않는다', () => {
+  it('1곳 언급도 공개 페이지 인원 100명이면 통과한다', () => {
     expect(
       passesSnowballDiscovery({
         mentionCount: 1,
-        memberCount: 5000,
-        membersFromMtproto: false,
-      }),
-    ).toBe(false);
-  });
-
-  it('1곳 언급은 MTProto 인원 1,000명 이상이면 통과한다', () => {
-    expect(
-      passesSnowballDiscovery({
-        mentionCount: 1,
-        memberCount: 1000,
-        membersFromMtproto: true,
+        memberCount: 100,
       }),
     ).toBe(true);
     expect(
       passesSnowballDiscovery({
         mentionCount: 1,
-        memberCount: 999,
-        membersFromMtproto: true,
+        memberCount: 99,
       }),
     ).toBe(false);
   });
@@ -164,14 +149,13 @@ describe('mergeDiscoveryQueue', () => {
       ['dup', 'from_search'],
       new Set(),
       new Set(),
-      true,
     );
     expect(queue.map((item) => item.username)).toEqual(['dup', 'from_search']);
     expect(queue[0].source).toBe('mention');
     expect(queue[1].source).toBe('keyword');
   });
 
-  it('MTProto 가 꺼져 있으면 키워드 대기열은 검사하지 않는다', () => {
+  it('키워드 대기열도 공개 페이지로 확인한다', () => {
     const queue = mergeDiscoveryQueue(
       [
         {
@@ -183,8 +167,7 @@ describe('mergeDiscoveryQueue', () => {
       ['from_search'],
       new Set(),
       new Set(),
-      false,
     );
-    expect(queue.map((item) => item.username)).toEqual(['adchan']);
+    expect(queue.map((item) => item.username)).toEqual(['adchan', 'from_search']);
   });
 });

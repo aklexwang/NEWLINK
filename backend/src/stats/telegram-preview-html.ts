@@ -288,12 +288,57 @@ export interface ParsedInvitePreview {
   avatarUrl: string | null;
 }
 
-function parseInviteMemberCount(extra: string | null): number | null {
+export function parseTelegramExtraMemberCount(
+  extra: string | null | undefined,
+): number | null {
   if (!extra) return null;
   const match = extra.match(
     /([\d][\d\s,.]*[KMB]?)\s*(members?|subscribers?)\b/i,
   );
   return parseCount(match?.[1] ?? null);
+}
+
+function parseInviteMemberCount(extra: string | null): number | null {
+  return parseTelegramExtraMemberCount(extra);
+}
+
+export type ParsedPublicUsernamePage = {
+  kind: TelegramAccountKind;
+  reason: string;
+  title: string | null;
+  description: string | null;
+  memberCount: number | null;
+  avatarUrl: string | null;
+};
+
+/** t.me/{username} 공개 페이지. 채널/그룹 구분·제목·소개·인원 */
+export function parsePublicUsernamePage(html: string): ParsedPublicUsernamePage {
+  const classified = classifyTelegramAccountHtml(html);
+  const $ = load(html);
+  const title =
+    classified.title ||
+    textOrNull($('.tgme_page_title').first()) ||
+    $('meta[property="og:title"]').attr('content')?.trim() ||
+    null;
+  const description =
+    textOrNull($('.tgme_page_description').first()) ||
+    $('meta[property="og:description"]').attr('content')?.trim() ||
+    null;
+  const extra = textOrNull($('.tgme_page_extra').first());
+  const memberCount = parseTelegramExtraMemberCount(extra);
+  const rawAvatar =
+    $('meta[property="og:image"]').attr('content')?.trim() ||
+    $('.tgme_page_photo img').first().attr('src')?.trim() ||
+    null;
+  const avatarUrl = isGenericTelegramLogo(rawAvatar) ? null : rawAvatar;
+  return {
+    kind: classified.kind,
+    reason: classified.reason,
+    title,
+    description,
+    memberCount,
+    avatarUrl,
+  };
 }
 
 function isGenericTelegramLogo(url: string | null | undefined): boolean {

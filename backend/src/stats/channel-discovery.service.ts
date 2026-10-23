@@ -6,33 +6,35 @@ import {
   ChannelImportCandidate,
   ImportCandidateStatus,
 } from '../auto-manage/channel-import-candidate.entity';
-import { isKoreanChannelText } from '../auto-manage/korean-channel.filter';
-import { detectChannelLanguage } from '../channels/channel-language.logic';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { AutoExposeService } from './auto-expose.service';
 import { isPublicCollectable } from './collect-visibility';
-import { TelegramPreviewService } from '../channels/telegram-preview.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import {
   aggregateMentionedUsernames,
-  DISCOVERY_DELAY_MS,
   DISCOVERY_LOOKBACK_DAYS,
   DISCOVERY_MAX_PER_DAY,
   DISCOVERY_MIN_MEMBERS,
   DISCOVERY_RECHECK_DAYS,
   isDiscoverySourceChannel,
   mergeDiscoveryQueue,
-  passesSnowballDiscovery,
   type DiscoveryQueueItem,
   type MentionRow,
 } from './channel-discovery.logic';
-import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelPost } from './channel-post.entity';
 import {
   DiscoveredUsername,
   type DiscoveredUsernameResult,
 } from './discovered-username.entity';
-import { parseCount } from './telegram-preview-html';
+import {
+  excerptsFromPreviewPosts,
+  publicInspectDecision,
+} from './public-channel-inspect.logic';
+import { createPublicTelegramFetcher } from './public-telegram-fetch.logic';
+import {
+  parsePublicUsernamePage,
+  parseTelegramChannelHtml,
+} from './telegram-preview-html';
 
 export type DiscoveryRunResult = {
   checked: number;
@@ -52,11 +54,11 @@ export class ChannelDiscoveryService {
     private readonly candidateRepository: Repository<ChannelImportCandidate>,
     @InjectRepository(DiscoveredUsername)
     private readonly discoveredRepository: Repository<DiscoveredUsername>,
-    private readonly previewService: TelegramPreviewService,
     private readonly categoryAi: CategoryAiService,
     private readonly autoExpose: AutoExposeService,
-    private readonly mtproto: MtprotoCollectorService,
   ) {}
+
+  private readonly publicFetch = createPublicTelegramFetcher();
 
   async discover(): Promise<DiscoveryRunResult> {
     const lookback = new Date(
@@ -87,35 +89,22 @@ export class ChannelDiscoveryService {
     const aggregates = aggregateMentionedUsernames(rows);
     const known = await this.knownUsernames(channels);
     const recentlyChecked = await this.recentlyCheckedUsernames();
-    const mtprotoOn = this.mtproto.canUseMtproto();
-    const keywordQueued = mtprotoOn ? await this.keywordQueuedUsernames() : [];
+    const keywordQueued = await this.keywordQueuedUsernames();
 
     const queue = mergeDiscoveryQueue(
       aggregates,
       keywordQueued,
       known,
       recentlyChecked,
-      mtprotoOn,
     );
 
     let checked = 0;
     let added = 0;
     const limit = Math.min(DISCOVERY_MAX_PER_DAY, queue.length);
-    let useMtproto = mtprotoOn;
 
     for (let i = 0; i < limit; i += 1) {
-      if (useMtproto && this.mtproto.remainingResolves() < 1) {
-        this.logger.log(
-          'ResolveUsername 하루 상한. 눈덩이 확인은 다음날로 미루고 t.me 로 이어갑니다.',
-        );
-        useMtproto = false;
-      }
-      if (useMtproto && this.mtproto.remainingRequests() < 2) {
-        useMtproto = false;
-      }
-      if (i > 0) await sleep(DISCOVERY_DELAY_MS);
       const item = queue[i];
-      const result = await this.inspectOne(item, channelById, useMtproto);
+      const result = await this.inspectOne(item, channelById);
       checked += 1;
       if (result === 'added') added += 1;
     }
@@ -129,18 +118,15 @@ export class ChannelDiscoveryService {
   private async inspectOne(
     item: DiscoveryQueueItem,
     channelById: Map<string, Channel>,
-    mtprotoOn: boolean,
   ): Promise<DiscoveredUsernameResult> {
     const link = `https://t.me/${item.username}`;
     let result: DiscoveredUsernameResult = 'not_found';
     try {
-      const preview = await this.loadPreview(item.username, mtprotoOn);
+      const preview = await this.loadPreview(item.username);
       if (!preview) {
         result = 'not_found';
-      } else if (!isKoreanChannelText(preview.title, preview.description)) {
-        result = 'not_korean';
-      } else if (!this.passesInspectMemberRule(item, preview)) {
-        result = 'too_small';
+      } else if (preview.decision.result !== 'ok') {
+        result = preview.decision.result;
       } else {
         const registered = await this.autoExpose.tryRegisterInspected(
           {
@@ -150,11 +136,8 @@ export class ChannelDiscoveryService {
             memberCount: preview.members,
             username: item.username,
             kind: preview.kind,
-            language: detectChannelLanguage({
-              title: preview.title,
-              description: preview.description,
-            }),
-            linkType: preview.linkType,
+            language: preview.decision.language,
+            linkType: preview.decision.linkType,
             avatarUrl: preview.avatarUrl,
           },
           { skipCollect: true },
@@ -166,7 +149,7 @@ export class ChannelDiscoveryService {
             description: preview.description,
             members: preview.members ?? DISCOVERY_MIN_MEMBERS,
             avatarUrl: preview.avatarUrl,
-            linkType: preview.linkType,
+            linkType: preview.decision.linkType,
           });
         }
         result = 'added';
@@ -190,66 +173,44 @@ export class ChannelDiscoveryService {
     return result;
   }
 
-  private passesInspectMemberRule(
-    item: DiscoveryQueueItem,
-    preview: {
-      members: number | null;
-      membersFromMtproto: boolean;
-    },
-  ): boolean {
-    if (item.source === 'keyword') {
-      return (
-        preview.members != null && preview.members >= DISCOVERY_MIN_MEMBERS
-      );
-    }
-    return passesSnowballDiscovery({
-      mentionCount: item.mentionCount,
-      memberCount: preview.members,
-      membersFromMtproto: preview.membersFromMtproto,
-    });
-  }
-
-  private async loadPreview(
-    username: string,
-    mtprotoOn: boolean,
-  ): Promise<{
+  private async loadPreview(username: string): Promise<{
     title: string | null;
     description: string | null;
     members: number | null;
     kind: 'channel' | 'group';
-    linkType: LinkType;
     avatarUrl: string | null;
-    membersFromMtproto: boolean;
+    decision: ReturnType<typeof publicInspectDecision>;
   } | null> {
-    if (mtprotoOn) {
-      const inspected = await this.mtproto.inspectPublicUsername(username);
-      if (!inspected) return null;
-      return {
-        title: inspected.title,
-        description: inspected.description,
-        members: inspected.memberCount,
-        kind: inspected.kind,
-        linkType: inspected.linkType,
-        avatarUrl: null,
-        membersFromMtproto: true,
-      };
+    const page = await this.publicFetch.fetchHtml(`https://t.me/${username}`);
+    if (!page.html || page.status >= 400) return null;
+    const parsed = parsePublicUsernamePage(page.html);
+    if (parsed.kind !== 'channel' && parsed.kind !== 'group') return null;
+    let excerpts: string[] = [];
+    if (parsed.kind === 'channel') {
+      const feed = await this.publicFetch.fetchHtml(
+        `https://t.me/s/${username}`,
+      );
+      if (feed.html) {
+        excerpts = excerptsFromPreviewPosts(
+          parseTelegramChannelHtml(feed.html).posts,
+        );
+      }
     }
-
-    const preview = await this.previewService.fetchPreview(
-      `https://t.me/${username}`,
-    );
-    const title = preview.title?.trim() || null;
-    const description = preview.description?.trim() || null;
-    const members = parseCount(preview.memberCount);
-    if (!title && !description && members == null) return null;
+    const decision = publicInspectDecision({
+      kind: parsed.kind,
+      title: parsed.title,
+      description: parsed.description,
+      memberCount: parsed.memberCount,
+      avatarUrl: parsed.avatarUrl,
+      excerpts,
+    });
     return {
-      title,
-      description,
-      members,
-      kind: 'channel',
-      linkType: LinkType.CHANNEL,
-      avatarUrl: preview.avatarUrl,
-      membersFromMtproto: false,
+      title: parsed.title,
+      description: parsed.description,
+      members: parsed.memberCount,
+      kind: parsed.kind,
+      avatarUrl: parsed.avatarUrl,
+      decision,
     };
   }
 
@@ -356,8 +317,4 @@ export class ChannelDiscoveryService {
     });
     return rows.map((row) => row.username.toLowerCase());
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
