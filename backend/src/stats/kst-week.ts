@@ -23,7 +23,7 @@ export function isoWeekFromYmd(ymd: string): { year: number; week: number } {
   const week1Monday = new Date(jan4);
   week1Monday.setUTCDate(jan4.getUTCDate() - (jan4Dow - 1));
   const week =
-    Math.round((date.getTime() - week1Monday.getTime()) / 86_400_000 / 7) + 1;
+    Math.floor((date.getTime() - week1Monday.getTime()) / 86_400_000 / 7) + 1;
   return { year, week };
 }
 

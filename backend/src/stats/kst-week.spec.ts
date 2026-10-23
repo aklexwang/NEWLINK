@@ -28,4 +28,10 @@ describe('ISO 주차', () => {
     expect(currentIsoWeek('2026-10-22').label).toBe('2026-W43');
     expect(isoWeekRangeKst(2026, 43).startYmd).toBe('2026-10-19');
   });
+
+  it('금요일·일요일도 같은 ISO 주다', () => {
+    expect(isoWeekFromYmd('2026-10-23')).toEqual({ year: 2026, week: 43 });
+    expect(isoWeekFromYmd('2026-10-25')).toEqual({ year: 2026, week: 43 });
+    expect(isoWeekFromYmd('2026-10-26')).toEqual({ year: 2026, week: 44 });
+  });
 });
