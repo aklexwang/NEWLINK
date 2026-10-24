@@ -12,7 +12,11 @@ describe('describeMemberPageVisibility', () => {
         category: '뉴스',
         language: 'ko',
       }),
-    ).toEqual({ visible: false, reason: '승인되지 않음' });
+    ).toEqual({
+      visible: false,
+      reason: '승인되지 않음',
+      reasonKey: '승인되지 않음',
+    });
   });
 
   it('한 번도 수집하지 않았으면 숨긴다', () => {
@@ -27,7 +31,11 @@ describe('describeMemberPageVisibility', () => {
         autoRegistered: false,
         submittedBy: null,
       }),
-    ).toEqual({ visible: false, reason: '아직 수집되지 않음' });
+    ).toEqual({
+      visible: false,
+      reason: '아직 수집되지 않음',
+      reasonKey: '아직 수집되지 않음',
+    });
   });
 
   it('수집 실패 이유가 있으면 같이 적는다', () => {
@@ -55,7 +63,7 @@ describe('describeMemberPageVisibility', () => {
         autoRegistered: false,
         submittedBy: null,
       }),
-    ).toEqual({ visible: true, reason: '' });
+    ).toEqual({ visible: true, reason: '', reasonKey: '' });
   });
 
   it('외국어 자동 등록은 숨긴다', () => {
@@ -70,7 +78,7 @@ describe('describeMemberPageVisibility', () => {
         autoRegistered: true,
         submittedBy: null,
       }),
-    ).toEqual({ visible: false, reason: '외국어' });
+    ).toEqual({ visible: false, reason: '외국어', reasonKey: '외국어' });
   });
 
   it('분류대기는 숨긴다', () => {
@@ -83,6 +91,10 @@ describe('describeMemberPageVisibility', () => {
         category: '분류대기',
         language: 'ko',
       }),
-    ).toEqual({ visible: false, reason: '분류대기' });
+    ).toEqual({
+      visible: false,
+      reason: '분류대기',
+      reasonKey: '분류대기',
+    });
   });
 });

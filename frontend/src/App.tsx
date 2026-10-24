@@ -15,6 +15,8 @@ import { AdminChannelsManagePage } from './pages/admin/AdminChannelsManagePage';
 import { AdminGroupRegisterPage } from './pages/admin/AdminGroupRegisterPage';
 import { AdminGroupsManagePage } from './pages/admin/AdminGroupsManagePage';
 import { AdminManualRegisterPage } from './pages/admin/AdminManualRegisterPage';
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+import { AdminLinksManagePage } from './pages/admin/AdminLinksManagePage';
 import { AdminPendingPage } from './pages/admin/AdminPendingPage';
 import { AdminTonPaymentsPage } from './pages/admin/AdminTonPaymentsPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
@@ -38,7 +40,9 @@ export default function App() {
             <AuthProvider>
               <Routes>
                 <Route path="/admin" element={<AdminLayout />}>
-                  <Route index element={<Navigate to="pending" replace />} />
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<AdminDashboardPage />} />
+                  <Route path="links" element={<AdminLinksManagePage />} />
                   <Route path="pending" element={<AdminPendingPage />} />
                   <Route path="register-link" element={<AdminManualRegisterPage />} />
                   <Route path="auto-manage" element={<AdminAutoManagePage />} />

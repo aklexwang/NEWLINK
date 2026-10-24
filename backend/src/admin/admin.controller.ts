@@ -26,6 +26,7 @@ import { ChannelsService } from '../channels/channels.service';
 import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
 import { TonPaymentService } from '../payments/ton-payment.service';
 import { UsersService } from '../users/users.service';
+import { AdminCollectService } from './admin-collect.service';
 import {
   ApproveChannelDto,
   AdminCreateChannelDto,
@@ -35,6 +36,8 @@ import {
   RecordRewardDto,
   UpdateChannelDto,
   BulkVisibilityDto,
+  BulkCategoryDto,
+  BulkCollectDto,
 } from './dto/admin.dto';
 
 const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
@@ -58,6 +61,7 @@ export class AdminController {
     private readonly channelsService: ChannelsService,
     private readonly usersService: UsersService,
     private readonly tonPaymentService: TonPaymentService,
+    private readonly adminCollect: AdminCollectService,
   ) {}
 
   @Get('pending')
@@ -88,8 +92,17 @@ export class AdminController {
     @Query('collectStatus') collectStatus?: string,
     @Query('visibility') visibility?: 'visible' | 'hidden',
     @Query('autoRegistered') autoRegistered?: string,
+    @Query('language') language?: string,
+    @Query('source') source?: 'auto' | 'admin' | 'report',
+    @Query('memberPage') memberPage?: 'yes' | 'no' | '',
+    @Query('hideReason') hideReason?: string,
+    @Query('createdFrom') createdFrom?: 'today' | '7d',
+    @Query('sort') sort?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('promoted') promoted?: string,
   ) {
-    const channels = await this.channelsService.findAllAdmin({
+    const result = await this.channelsService.findAllAdmin({
       status,
       q,
       category,
@@ -98,23 +111,40 @@ export class AdminController {
       visibility,
       autoRegistered:
         autoRegistered === '1' || autoRegistered === 'true' ? true : undefined,
+      language,
+      source,
+      memberPage,
+      hideReason,
+      createdFrom,
+      sort,
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      promoted: promoted === '1' || promoted === 'true' ? true : undefined,
     });
-    return Promise.all(
-      channels.map(async (channel) => {
+    const items = await Promise.all(
+      result.items.map(async (channel) => {
         const base = channel.isPromoted
           ? await this.withAdClient(channel)
           : channel;
-        const memberPage = describeMemberPageVisibility(channel);
+        const memberPageInfo = describeMemberPageVisibility(channel);
         return {
           ...base,
-          reporter: await this.usersService.getReporterOrNull(
-            channel.submittedBy,
-          ),
-          memberPageVisible: memberPage.visible,
-          memberPageHiddenReason: memberPage.reason,
+          reporter: channel.submittedBy
+            ? await this.usersService.getReporterOrNull(channel.submittedBy)
+            : null,
+          memberPageVisible: memberPageInfo.visible,
+          memberPageHiddenReason: memberPageInfo.reason,
+          memberPageReasonKey: memberPageInfo.reasonKey,
         };
       }),
     );
+    return {
+      items,
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+      categoryCounts: result.categoryCounts,
+    };
   }
 
   @Get('lookup')
@@ -130,6 +160,28 @@ export class AdminController {
   @Post('reject-invalid')
   rejectInvalid(@Body() dto: CandidateIdsDto) {
     return this.channelsService.rejectInvalidSelected(dto.ids);
+  }
+
+  @Post('category')
+  setCategory(@Body() dto: BulkCategoryDto) {
+    return this.channelsService.setCategoryMany(dto.ids, dto.category);
+  }
+
+  @Post('collect')
+  collectMany(@Body() dto: BulkCollectDto) {
+    return this.adminCollect.collectMany(dto.ids);
+  }
+
+  @Post(':id/collect')
+  async collectOne(@Param('id') id: string) {
+    const channel = await this.adminCollect.collectOne(id);
+    const memberPageInfo = describeMemberPageVisibility(channel);
+    return {
+      ...channel,
+      memberPageVisible: memberPageInfo.visible,
+      memberPageHiddenReason: memberPageInfo.reason,
+      memberPageReasonKey: memberPageInfo.reasonKey,
+    };
   }
 
   @Post('visibility')

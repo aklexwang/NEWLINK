@@ -59,8 +59,10 @@ export interface Channel {
   lastCollectedAt?: string | null;
   firstObservedAt?: string | null;
   collectTier?: 'daily' | 'weekly' | null;
+  memberCount?: number | null;
   memberPageVisible?: boolean;
   memberPageHiddenReason?: string;
+  memberPageReasonKey?: string;
 }
 
 export interface ChannelPreview {

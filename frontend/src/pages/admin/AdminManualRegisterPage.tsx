@@ -38,7 +38,7 @@ export function AdminManualRegisterPage() {
           title="링크 등록 · 채널"
           subtitle="텔레그램 채널 링크를 찾아 바로 등록합니다."
           itemLabel="채널"
-          managePath="/admin/channels"
+          managePath="/admin/links?type=channel"
           placeholder="https://t.me/채널명 또는 @username"
         />
       ) : (
@@ -48,7 +48,7 @@ export function AdminManualRegisterPage() {
           title="링크 등록 · 그룹"
           subtitle="텔레그램 그룹 링크를 찾아 바로 등록합니다."
           itemLabel="그룹"
-          managePath="/admin/groups"
+          managePath="/admin/links?type=group"
           placeholder="https://t.me/+초대코드 또는 그룹 링크"
         />
       )}

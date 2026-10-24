@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import {
   getAdminChannels,
-  getPromotedChannels,
+  getAdminPromotedChannelsPaged,
   promoteChannel,
   updateAdminChannel,
   updatePromotionOrder,
@@ -69,7 +69,7 @@ export function AdminAdsManagePage() {
   const loadPromoted = useCallback(async () => {
     setLoading(true);
     try {
-      const items = await getPromotedChannels(query.trim() || undefined);
+      const items = await getAdminPromotedChannelsPaged(query.trim() || undefined);
       setPromoted(items);
       syncPromoteDates(items);
       setMessage('');
@@ -89,9 +89,13 @@ export function AdminAdsManagePage() {
     e.preventDefault();
     setSearchLoading(true);
     try {
-      const items = await getAdminChannels({ status: 'active', q: candidateQuery.trim() || undefined });
-      setCandidates(items);
-      syncPromoteDates(items);
+      const result = await getAdminChannels({
+        status: 'active',
+        q: candidateQuery.trim() || undefined,
+        pageSize: 50,
+      });
+      setCandidates(result.items);
+      syncPromoteDates(result.items);
       setShowAddSection(true);
     } catch {
       setMessage('채널 검색에 실패했습니다.');

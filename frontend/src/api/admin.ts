@@ -63,6 +63,45 @@ export async function getPendingChannelCount(): Promise<number> {
   return data.count;
 }
 
+export interface AdminChannelListResponse {
+  items: PendingChannel[];
+  total: number;
+  page: number;
+  pageSize: number;
+  categoryCounts?: Record<string, number>;
+}
+
+export interface AdminDashboard {
+  channelCount: number;
+  groupCount: number;
+  memberVisible: number;
+  memberHidden: number;
+  hiddenReasons: Record<string, number>;
+  registered: {
+    today: { auto: number; admin: number; report: number; total: number };
+    last7d: { auto: number; admin: number; report: number; total: number };
+  };
+  pendingCount: number;
+  collectStatus: Record<string, number>;
+  language: { ko: number; foreign: number; unknown: number };
+  categories: Array<{ name: string; count: number }>;
+  lastCollectRun: {
+    mode: string;
+    startedAt: string;
+    finishedAt: string | null;
+    processed: number;
+    total: number;
+    status: string;
+  } | null;
+}
+
+export async function getAdminDashboard(): Promise<AdminDashboard> {
+  const { data } = await apiClient.get<AdminDashboard>('/admin/dashboard', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
 export async function getAdminChannels(params?: {
   status?: string;
   q?: string;
@@ -71,12 +110,42 @@ export async function getAdminChannels(params?: {
   collectStatus?: string;
   visibility?: 'visible' | 'hidden';
   autoRegistered?: string;
-}): Promise<PendingChannel[]> {
-  const { data } = await apiClient.get<PendingChannel[]>('/admin/channels/all', {
+  language?: string;
+  source?: string;
+  memberPage?: string;
+  hideReason?: string;
+  createdFrom?: string;
+  sort?: string;
+  page?: number;
+  pageSize?: number;
+  promoted?: string;
+}): Promise<AdminChannelListResponse> {
+  const { data } = await apiClient.get<AdminChannelListResponse>('/admin/channels/all', {
     headers: getAdminAuthHeaders(),
     params,
   });
   return data;
+}
+
+export async function getAdminPromotedChannelsPaged(q?: string): Promise<Channel[]> {
+  const pageSize = 200;
+  const items: Channel[] = [];
+  let page = 1;
+  let total = Number.POSITIVE_INFINITY;
+  while (items.length < total) {
+    const result = await getAdminChannels({
+      promoted: '1',
+      q: q || undefined,
+      sort: 'promo_order',
+      page,
+      pageSize,
+    });
+    total = result.total;
+    items.push(...result.items);
+    if (result.items.length < pageSize) break;
+    page += 1;
+  }
+  return items;
 }
 
 export interface AdminChannelLookup {
@@ -160,6 +229,36 @@ export async function setAdminChannelsVisibility(
     { ids, isVisible },
     { headers: getAdminAuthHeaders() },
   );
+  return data;
+}
+
+export async function setAdminChannelsCategory(
+  ids: string[],
+  category: string,
+): Promise<{ ok: boolean; updated: number }> {
+  const { data } = await apiClient.post<{ ok: boolean; updated: number }>(
+    '/admin/channels/category',
+    { ids, category },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function collectAdminChannel(id: string): Promise<PendingChannel> {
+  const { data } = await apiClient.post<PendingChannel>(
+    `/admin/channels/${id}/collect`,
+    {},
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function collectAdminChannels(
+  ids: string[],
+): Promise<{ results: Array<{ id: string; ok: boolean; message?: string }> }> {
+  const { data } = await apiClient.post<{
+    results: Array<{ id: string; ok: boolean; message?: string }>;
+  }>('/admin/channels/collect', { ids }, { headers: getAdminAuthHeaders() });
   return data;
 }
 

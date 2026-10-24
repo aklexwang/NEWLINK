@@ -37,8 +37,13 @@ Thumbs.db
 # Backups
 NEWLINK_save_*/
 
-# 로컬 메모 (주소·키 메모장)
+# 로컬 메모·캐시
 URL.txt
+중요.txt
+.cursor/
+desktop.ini
+backend/_out.json
+frontend/_backup/
 
 # 로컬 스크린샷
 frontend/screenshots/

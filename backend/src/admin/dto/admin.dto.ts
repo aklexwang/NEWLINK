@@ -195,6 +195,25 @@ export class BulkVisibilityDto {
   isVisible: boolean;
 }
 
+export class BulkCategoryDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  ids: string[];
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  category: string;
+}
+
+export class BulkCollectDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  ids: string[];
+}
+
 export class GoogleSearchCandidatesDto {
   @IsString()
   @IsOptional()

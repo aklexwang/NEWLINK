@@ -166,6 +166,24 @@ describe('관리자 가드', () => {
     expect(adminGuard.canActivate(contextFor(req))).toBe(true);
   });
 
+  it('새 어드민 API 다섯 곳은 로그인 없이 401이다', () => {
+    process.env.NODE_ENV = 'test';
+    const { authGuard } = build({ DEV_ADMIN_BYPASS: 'false' });
+    const paths = [
+      '/api/admin/dashboard',
+      '/api/admin/channels/all',
+      '/api/admin/channels/collect',
+      '/api/admin/channels/some-id/collect',
+      '/api/admin/channels/category',
+    ];
+    for (const url of paths) {
+      const req = requestFor({}, url);
+      expect(() => authGuard.canActivate(contextFor(req))).toThrow(
+        UnauthorizedException,
+      );
+    }
+  });
+
   it('텔레그램 관리자 로그인은 유지되고 일반 회원은 관리자 가드에서 막힌다', () => {
     process.env.NODE_ENV = 'test';
     const { jwtAuth, authGuard, adminGuard } = build({ DEV_ADMIN_BYPASS: 'false' });

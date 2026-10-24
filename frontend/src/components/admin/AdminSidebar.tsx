@@ -132,6 +132,10 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3" onClick={() => onNavigate?.()}>
+        <NavLink to="/admin/dashboard" className={linkClass}>
+          <span className="text-base">🏠</span>
+          <span>대시보드</span>
+        </NavLink>
         <NavLink to="/admin/pending" className={linkClass}>
           <span className="text-base">📋</span>
           <span className="flex-1">승인 대기</span>
@@ -153,17 +157,9 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <span className="text-base">🔄</span>
           <span>자동관리</span>
         </NavLink>
-        <NavLink to="/admin/by-category" className={linkClass}>
-          <span className="text-base">📁</span>
-          <span>카테고리별</span>
-        </NavLink>
-        <NavLink to="/admin/channels" className={linkClass}>
-          <span className="text-base">📢</span>
-          <span>채널 관리</span>
-        </NavLink>
-        <NavLink to="/admin/groups" className={linkClass}>
-          <span className="text-base">👥</span>
-          <span>그룹 관리</span>
+        <NavLink to="/admin/links" className={linkClass}>
+          <span className="text-base">📋</span>
+          <span>채널·그룹 관리</span>
         </NavLink>
         <NavLink to="/admin/ads" className={linkClass}>
           <span className="text-base">⭐</span>

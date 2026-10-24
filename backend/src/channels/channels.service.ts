@@ -38,6 +38,17 @@ import {
   PENDING_CATEGORY,
 } from './auto-expose.logic';
 import { expandSearchKeywords } from './search-synonyms';
+import { kstDayStart, kstRollingStart } from '../admin/admin-dashboard.logic';
+import {
+  clampAdminPage,
+  clampAdminPageSize,
+  matchesMemberPageFilter,
+  paginateItems,
+  parseAdminListSort,
+  sortAdminListItems,
+  type AdminListSort,
+  type AdminRegisterSource,
+} from '../admin/admin-list.logic';
 import { TelegramPreviewService } from './telegram-preview.service';
 
 const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
@@ -953,6 +964,90 @@ export class ChannelsService implements OnModuleInit {
     visibility?: 'visible' | 'hidden';
     autoRegistered?: boolean;
     recentAutoDays?: number;
+    language?: string;
+    source?: AdminRegisterSource;
+    memberPage?: 'yes' | 'no' | '';
+    hideReason?: string;
+    createdFrom?: 'today' | '7d';
+    sort?: AdminListSort | string;
+    page?: number;
+    pageSize?: number;
+    promoted?: boolean;
+  }) {
+    const page = clampAdminPage(filters.page);
+    const pageSize = clampAdminPageSize(filters.pageSize);
+    const sort = parseAdminListSort(
+      filters.sort || (filters.promoted ? 'promo_order' : undefined),
+    );
+    const needsMemory =
+      Boolean(filters.memberPage) || Boolean(filters.hideReason);
+
+    if (needsMemory) {
+      let matched = await this.buildAdminListQuery(filters).getMany();
+      matched = matched.filter((channel) =>
+        matchesMemberPageFilter(channel, {
+          memberPage: filters.memberPage,
+          hideReason: filters.hideReason,
+        }),
+      );
+      matched = sortAdminListItems(matched, sort);
+      const categoryCounts: Record<string, number> = { '': matched.length };
+      for (const item of matched) {
+        categoryCounts[item.category] =
+          (categoryCounts[item.category] ?? 0) + 1;
+      }
+      const paged = paginateItems(matched, page, pageSize);
+      const items = await Promise.all(
+        paged.items.map((item) =>
+          item.isPromoted ? this.ensurePromotionClientInfo(item) : item,
+        ),
+      );
+      return {
+        items,
+        total: paged.total,
+        page: paged.page,
+        pageSize: paged.pageSize,
+        categoryCounts,
+      };
+    }
+
+    const total = await this.buildAdminListQuery(filters).getCount();
+    const catRows = await this.buildAdminListQuery(filters)
+      .select('channel.category', 'category')
+      .addSelect('COUNT(*)', 'cnt')
+      .groupBy('channel.category')
+      .getRawMany<{ category: string; cnt: string }>();
+    const categoryCounts: Record<string, number> = { '': total };
+    for (const row of catRows) {
+      categoryCounts[row.category] = Number(row.cnt);
+    }
+    const listQb = this.buildAdminListQuery(filters);
+    this.applyAdminListSort(listQb, sort);
+    const pageRows = await listQb
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getMany();
+    const items = await Promise.all(
+      pageRows.map((item) =>
+        item.isPromoted ? this.ensurePromotionClientInfo(item) : item,
+      ),
+    );
+    return { items, total, page, pageSize, categoryCounts };
+  }
+
+  private buildAdminListQuery(filters: {
+    status?: ChannelStatus;
+    q?: string;
+    category?: string;
+    linkType?: LinkType;
+    collectStatus?: string;
+    visibility?: 'visible' | 'hidden';
+    autoRegistered?: boolean;
+    recentAutoDays?: number;
+    language?: string;
+    source?: AdminRegisterSource;
+    createdFrom?: 'today' | '7d';
+    promoted?: boolean;
   }) {
     const qb = this.channelRepository.createQueryBuilder('channel');
     if (filters.status)
@@ -972,10 +1067,31 @@ export class ChannelsService implements OnModuleInit {
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
       qb.andWhere('channel.created_at >= :since', { since });
     }
+    if (filters.source === 'auto') {
+      qb.andWhere('channel.auto_registered = :srcAuto', { srcAuto: true });
+    } else if (filters.source === 'admin') {
+      qb.andWhere('channel.auto_registered = :srcAdmin', { srcAdmin: false });
+      qb.andWhere('channel.submitted_by IS NULL');
+    } else if (filters.source === 'report') {
+      qb.andWhere('channel.submitted_by IS NOT NULL');
+    }
+    if (filters.language)
+      qb.andWhere('channel.language = :language', {
+        language: filters.language,
+      });
     if (filters.linkType)
       qb.andWhere('channel.link_type = :linkType', {
         linkType: filters.linkType,
       });
+    if (filters.createdFrom === 'today') {
+      qb.andWhere('channel.created_at >= :createdSince', {
+        createdSince: kstDayStart(),
+      });
+    } else if (filters.createdFrom === '7d') {
+      qb.andWhere('channel.created_at >= :createdSince', {
+        createdSince: kstRollingStart(7),
+      });
+    }
     if (filters.collectStatus === 'failed') {
       qb.andWhere('channel.collect_status IN (:...collectFail)', {
         collectFail: [
@@ -987,10 +1103,15 @@ export class ChannelsService implements OnModuleInit {
           'invite_expired',
         ],
       });
-    } else if (filters.collectStatus === 'invalid') {
-      qb.andWhere('channel.collect_status = :collectInvalid', {
-        collectInvalid: 'invalid',
+    } else if (filters.collectStatus === 'none') {
+      qb.andWhere('channel.collect_status IS NULL');
+    } else if (filters.collectStatus) {
+      qb.andWhere('channel.collect_status = :collectExact', {
+        collectExact: filters.collectStatus,
       });
+    }
+    if (filters.promoted) {
+      qb.andWhere('channel.is_promoted = :promotedOn', { promotedOn: true });
     }
     if (filters.q?.trim()) {
       const keyword = `%${filters.q.trim().toLowerCase()}%`;
@@ -999,13 +1120,39 @@ export class ChannelsService implements OnModuleInit {
         { keyword },
       );
     }
-    qb.orderBy('channel.created_at', 'DESC');
-    const items = await qb.getMany();
-    return Promise.all(
-      items.map((item) =>
-        item.isPromoted ? this.ensurePromotionClientInfo(item) : item,
-      ),
-    );
+    return qb;
+  }
+
+  private applyAdminListSort(
+    qb: ReturnType<ChannelsService['buildAdminListQuery']>,
+    sort: AdminListSort,
+  ) {
+    if (sort === 'members_desc') {
+      qb.orderBy('channel.memberCount', 'DESC').addOrderBy(
+        'channel.createdAt',
+        'DESC',
+      );
+      return;
+    }
+    if (sort === 'collected_desc') {
+      qb.orderBy('channel.lastCollectedAt', 'DESC').addOrderBy(
+        'channel.createdAt',
+        'DESC',
+      );
+      return;
+    }
+    if (sort === 'title_asc') {
+      qb.orderBy('channel.title', 'ASC');
+      return;
+    }
+    if (sort === 'promo_order') {
+      qb.orderBy('channel.promotionSortOrder', 'ASC').addOrderBy(
+        'channel.promotedUntil',
+        'ASC',
+      );
+      return;
+    }
+    qb.orderBy('channel.createdAt', 'DESC');
   }
 
   async findPromotionsAdmin(filters: { q?: string }) {
@@ -1150,6 +1297,23 @@ export class ChannelsService implements OnModuleInit {
         actorTelegramId,
       );
       channel.isVisible = isVisible;
+      await this.channelRepository.save(channel);
+      updated += 1;
+    }
+    return { ok: true, updated };
+  }
+
+  async setCategoryMany(
+    ids: string[],
+    category: string,
+  ): Promise<{ ok: true; updated: number }> {
+    const unique = [...new Set(ids)];
+    let updated = 0;
+    for (const id of unique) {
+      const channel = await this.channelRepository.findOneBy({ id });
+      if (!channel) continue;
+      channel.category = category;
+      channel.categoryLocked = true;
       await this.channelRepository.save(channel);
       updated += 1;
     }
