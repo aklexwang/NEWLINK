@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TelegramPreviewService } from './telegram-preview.service';
+import {
+  isAllowedAvatarDownloadHost,
+  isTelegramBotFileUrl,
+  parseTelegramAvatarPageLink,
+} from './telegram-avatar.logic';
 
 type CachedAvatar = {
   buffer: Buffer;
@@ -9,9 +14,6 @@ type CachedAvatar = {
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 300;
-
-const ALLOWED_HOST_RE =
-  /^(?:[\w.-]+\.)?(?:telegram\.org|telesco\.pe|telegram-cdn\.org|cdn-telegram\.org)$/i;
 
 @Injectable()
 export class TelegramAvatarService {
@@ -26,17 +28,16 @@ export class TelegramAvatarService {
     link?: string;
     username?: string;
   }): Promise<{ buffer: Buffer; contentType: string } | null> {
-    const cacheKey = (params.link || params.username || '')
-      .trim()
-      .toLowerCase();
-    if (!cacheKey) return null;
+    const parsed = parseTelegramAvatarPageLink(params.link, params.username);
+    if (!parsed.ok) return null;
+    const cacheKey = parsed.link.toLowerCase();
 
     const cached = this.cache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
       return { buffer: cached.buffer, contentType: cached.contentType };
     }
 
-    const sourceUrl = await this.resolveSourceUrl(params);
+    const sourceUrl = await this.resolveSourceUrl(parsed.link);
     if (!sourceUrl) return null;
 
     const downloaded = await this.downloadImage(sourceUrl);
@@ -46,21 +47,12 @@ export class TelegramAvatarService {
     return downloaded;
   }
 
-  private async resolveSourceUrl(params: {
-    link?: string;
-    username?: string;
-  }): Promise<string | null> {
-    const link =
-      params.link?.trim() ||
-      (params.username
-        ? `https://t.me/${params.username.replace(/^@/, '')}`
-        : '');
-    if (!link) return null;
-
+  private async resolveSourceUrl(link: string): Promise<string | null> {
     try {
       const preview = await this.telegramPreviewService.fetchPreview(link);
       if (
         preview.avatarUrl &&
+        !isTelegramBotFileUrl(preview.avatarUrl) &&
         !/telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)
       ) {
         return preview.avatarUrl;
@@ -72,8 +64,8 @@ export class TelegramAvatarService {
     }
 
     const username =
-      params.username?.replace(/^@/, '') ||
       link.match(/t\.me\/([a-zA-Z0-9_]{4,})/i)?.[1] ||
+      link.match(/telegram\.me\/([a-zA-Z0-9_]{4,})/i)?.[1] ||
       null;
     if (
       !username ||
@@ -90,11 +82,9 @@ export class TelegramAvatarService {
     sourceUrl: string,
   ): Promise<{ buffer: Buffer; contentType: string } | null> {
     try {
+      if (isTelegramBotFileUrl(sourceUrl)) return null;
       const parsed = new URL(sourceUrl);
-      if (
-        !ALLOWED_HOST_RE.test(parsed.hostname) &&
-        !parsed.hostname.endsWith('t.me')
-      ) {
+      if (!isAllowedAvatarDownloadHost(parsed.hostname)) {
         this.logger.warn(`blocked avatar host: ${parsed.hostname}`);
         return null;
       }

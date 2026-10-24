@@ -450,6 +450,10 @@ export class AutoManageService {
         description = lookup.description ?? '';
         if (lookup.memberCount != null)
           candidate.participantsCount = Number(lookup.memberCount) || 0;
+        if (lookup.linkType === 'group' || lookup.linkType === 'channel') {
+          candidate.linkType =
+            lookup.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
+        }
         if (lookup.avatarUrl) {
           candidate.avatarUrl = await this.resolveCandidateAvatar(
             candidate.link,

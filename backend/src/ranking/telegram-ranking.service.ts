@@ -140,7 +140,9 @@ export class TelegramRankingService {
     const normalizedLink = this.normalizeLink(link);
     const preview =
       await this.telegramPreviewService.fetchPreview(normalizedLink);
-    const participantsCount = this.parseMemberCount(preview.memberCount);
+    const participantsCount = this.parseMemberCount(
+      preview.memberCount != null ? String(preview.memberCount) : null,
+    );
 
     if (!preview.title && participantsCount === 0) return null;
 

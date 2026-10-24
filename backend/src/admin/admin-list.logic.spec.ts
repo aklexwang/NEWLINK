@@ -6,6 +6,7 @@ import {
   matchesMemberPageFilter,
   paginateItems,
   parseAdminListSort,
+  nullsLastCaseSql,
   sortAdminListItems,
 } from './admin-list.logic';
 
@@ -51,10 +52,12 @@ describe('admin-list.logic', () => {
       [
         { title: '가', createdAt: '2026-01-01', memberCount: 1 },
         { title: '나', createdAt: '2026-02-01', memberCount: 9 },
+        { title: '없', createdAt: '2026-03-01', memberCount: null },
       ],
       'members_desc',
     );
-    expect(sorted[0].title).toBe('나');
+    expect(sorted.map((row) => row.title)).toEqual(['나', '가', '없']);
+    expect(nullsLastCaseSql('channel', 'member_count')).toContain('IS NULL');
 
     const page = paginateItems([1, 2, 3, 4, 5], 2, 2);
     expect(page).toEqual({ items: [3, 4], total: 5, page: 2, pageSize: 2 });

@@ -13,7 +13,10 @@ export function resolveAdClient(channel: Channel): AdClient {
 }
 
 export function adClientDisplayName(client: AdClient): string {
-  return client.name ?? (client.username ? `@${client.username}` : '광고 의뢰자');
+  return (
+    client.name ??
+    (client.username ? `@${client.username}` : '의뢰자 정보 없음')
+  );
 }
 
 interface AdClientCellsProps {
@@ -22,8 +25,8 @@ interface AdClientCellsProps {
 
 export function AdClientCells({ channel }: AdClientCellsProps) {
   const client = resolveAdClient(channel);
-  if (!client.telegramId && client.tonAmount == null) {
-    return <span className="text-xs text-slate-400">-</span>;
+  if (!client.telegramId && !client.name && client.tonAmount == null) {
+    return <span className="text-xs text-muted-foreground">의뢰자 정보 없음</span>;
   }
 
   return (
@@ -41,7 +44,11 @@ interface AdClientDetailProps {
 
 export function AdClientDetail({ channel }: AdClientDetailProps) {
   const client = resolveAdClient(channel);
-  if (!client.telegramId && client.tonAmount == null) return null;
+  if (!client.telegramId && !client.name && client.tonAmount == null) {
+    return (
+      <p className="text-xs text-muted-foreground">의뢰자 정보 없음</p>
+    );
+  }
 
   return (
     <div className="grid gap-2 rounded-lg bg-purple-50/50 p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">

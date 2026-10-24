@@ -92,7 +92,7 @@ export class ChannelsController {
   @Post(':id/favorite')
   @UseGuards(TelegramAuthGuard)
   async addFavorite(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @TelegramUserParam() user: TelegramUser,
   ) {
     await this.usersService.assertActiveByTelegramId(user.id);
@@ -102,7 +102,7 @@ export class ChannelsController {
   @Delete(':id/favorite')
   @UseGuards(TelegramAuthGuard)
   async removeFavorite(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @TelegramUserParam() user: TelegramUser,
   ) {
     await this.usersService.assertActiveByTelegramId(user.id);
@@ -122,7 +122,7 @@ export class ChannelsController {
   @Post(':id/recommend')
   @UseGuards(TelegramAuthGuard)
   async recommend(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @TelegramUserParam() user: TelegramUser,
   ) {
     await this.usersService.assertActiveByTelegramId(user.id);

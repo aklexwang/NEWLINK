@@ -7,6 +7,7 @@ import {
   Query,
   StreamableFile,
 } from '@nestjs/common';
+import { parseTelegramAvatarPageLink } from './telegram-avatar.logic';
 import { TelegramAvatarService } from './telegram-avatar.service';
 
 @Controller('media')
@@ -20,14 +21,13 @@ export class TelegramAvatarController {
     @Query('link') link?: string,
     @Query('username') username?: string,
   ): Promise<StreamableFile> {
-    const key = (link ?? '').trim() || (username ?? '').trim();
-    if (!key) {
-      throw new BadRequestException('link 또는 username 이 필요합니다.');
+    const parsed = parseTelegramAvatarPageLink(link, username);
+    if (!parsed.ok) {
+      throw new BadRequestException(parsed.message);
     }
 
     const image = await this.telegramAvatarService.fetchAvatarImage({
-      link: link?.trim(),
-      username: username?.trim(),
+      link: parsed.link,
     });
 
     if (!image) {

@@ -1,4 +1,6 @@
+import { BadRequestException } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
+import { isUuid } from '../../common/uuid.logic';
 import {
   IsIn,
   IsInt,
@@ -132,7 +134,7 @@ export class HomeFeedQueryDto {
 }
 
 export function parseCompareIds(raw: string): string[] {
-  return [
+  const ids = [
     ...new Set(
       raw
         .split(',')
@@ -140,4 +142,8 @@ export function parseCompareIds(raw: string): string[] {
         .filter(Boolean),
     ),
   ];
+  if (ids.some((id) => !isUuid(id))) {
+    throw new BadRequestException('ids는 uuid 형식이어야 합니다.');
+  }
+  return ids;
 }

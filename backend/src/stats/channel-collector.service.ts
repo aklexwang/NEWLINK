@@ -497,6 +497,7 @@ export class ChannelCollectorService {
       username,
       description: parsed.description,
       avatarUrl: parsed.avatarUrl,
+      kind: parsed.kind === 'channel' || parsed.kind === 'group' ? parsed.kind : null,
     });
     await this.upsertTodayMemberCount(channel.id, parsed.memberCount);
     return { ok: true, mode: 'preview' };
@@ -818,6 +819,7 @@ export class ChannelCollectorService {
       keepUsername: true,
       description: parsed.description,
       avatarUrl: parsed.avatarUrl,
+      kind: parsed.kind,
     });
     await this.upsertMemberSnapshot(channel.id, parsed.memberCount);
     return { ok: true, mode: 'preview' };
@@ -909,6 +911,7 @@ export class ChannelCollectorService {
       description?: string | null;
       avatarUrl?: string | null;
       telegramChatId?: number | null;
+      kind?: 'channel' | 'group' | null;
     },
   ) {
     const now = new Date();
@@ -964,9 +967,22 @@ export class ChannelCollectorService {
     if (info.description != null && info.description.trim()) {
       channel.description = info.description.trim();
     }
-    if (info.avatarUrl && !channel.avatarApproved) {
+    if (
+      info.avatarUrl &&
+      !/api\.telegram\.org\/file\/bot/i.test(info.avatarUrl) &&
+      !channel.avatarApproved
+    ) {
       channel.avatarUrl = info.avatarUrl;
       channel.avatarApproved = true;
+    }
+    if (info.kind === 'channel' || info.kind === 'group') {
+      const nextType =
+        info.kind === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
+      if (channel.linkType !== nextType) {
+        channel.linkType = nextType;
+      }
+      channel.classifiedKind = info.kind;
+      channel.classifiedAt = now;
     }
     if (info.telegramChatId != null)
       channel.telegramChatId = info.telegramChatId;

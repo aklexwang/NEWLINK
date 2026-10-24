@@ -90,7 +90,7 @@ export function classifyAdminInspectPage(input: {
     const invite = parseInviteLinkHtml(input.html, input.finalUrl);
     if (invite.expired) return emptyInspect('invite_or_private');
     const decided = publicInspectDecision({
-      kind: 'group',
+      kind: invite.kind === 'channel' ? 'channel' : 'group',
       title: invite.title,
       description: invite.description,
       memberCount: invite.memberCount,

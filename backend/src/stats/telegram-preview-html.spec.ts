@@ -8,9 +8,19 @@ import {
   isPrivateChannelHtml,
   isTelegramOrgUrl,
   parseCount,
+  kindFromTelegramPageExtra,
   parseInviteLinkHtml,
   parseTelegramChannelHtml,
 } from './telegram-preview-html';
+
+describe('kindFromTelegramPageExtra', () => {
+  it('subscribers 는 채널, members 는 그룹이다', () => {
+    expect(kindFromTelegramPageExtra('1 200 subscribers')).toBe('channel');
+    expect(kindFromTelegramPageExtra('558 members')).toBe('group');
+    expect(kindFromTelegramPageExtra('12 online')).toBe('group');
+    expect(kindFromTelegramPageExtra('')).toBeNull();
+  });
+});
 
 describe('parseCount', () => {
   it('K·M 접미사를 정수로 변환한다', () => {
@@ -246,6 +256,7 @@ describe('parseInviteLinkHtml', () => {
     const parsed = parseInviteLinkHtml(INVITE_HTML, 'https://t.me/+abc');
     expect(parsed.expired).toBe(false);
     expect(parsed.title).toBe('초대방 이름');
+    expect(parsed.kind).toBe('group');
     expect(parsed.memberCount).toBe(1234);
     expect(parsed.description).toBe('공개된 소개글');
     expect(parsed.avatarUrl).toContain('telegram-cdn.org');

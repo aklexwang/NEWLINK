@@ -43,7 +43,7 @@ export class AdminPromotionsController {
           user?.firstName ??
           (user?.username ? `@${user.username}` : null) ??
           channel.promotionClientName ??
-          '광고 의뢰자',
+          null,
         username: user?.username ?? null,
         tonWalletAddress: user?.tonWalletAddress ?? null,
         tonAmount: channel.promotionTonAmount,

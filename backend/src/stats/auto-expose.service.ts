@@ -20,20 +20,9 @@ import { resolveCollectTier } from './collect-tier.logic';
 import { detectChannelLanguage } from '../channels/channel-language.logic';
 import { ChannelsService } from '../channels/channels.service';
 import { TelegramPreviewService } from '../channels/telegram-preview.service';
-import {
-  extractTelegramUsernameFromLink,
-  isInviteOnlyLink,
-} from '../channels/telegram-username';
+import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import { ChannelCategoryService } from './channel-category.service';
 import { ChannelCollectorService } from './channel-collector.service';
-import {
-  classifyTelegramAccountHtml,
-  parseCount,
-  parseInviteLinkHtml,
-  TELEGRAM_FETCH_HEADERS,
-} from './telegram-preview-html';
-
-const FETCH_TIMEOUT_MS = 12_000;
 
 export type InspectedAccount = {
   link: string;
@@ -67,34 +56,17 @@ export class AutoExposeService {
     const normalized = this.channelsService.normalizeTelegramLink(link);
     const preview = await this.previewService.fetchPreview(normalized);
     const username = extractTelegramUsernameFromLink(normalized);
-    let kind: AutoExposeKind = 'unknown';
-    let memberCount = parseCount(preview.memberCount);
-    let title = preview.title?.trim() || username || normalized;
-    let description = preview.description?.trim() || '';
-    let linkType = LinkType.CHANNEL;
-
-    if (isInviteOnlyLink(normalized)) {
-      const page = await this.fetchPage(normalized);
-      if (page.html) {
-        const parsed = parseInviteLinkHtml(page.html, page.finalUrl);
-        kind = parsed.expired ? 'invalid' : 'group';
-        if (parsed.title) title = parsed.title;
-        if (parsed.description) description = parsed.description;
-        if (parsed.memberCount != null) memberCount = parsed.memberCount;
-      } else {
-        kind = 'unknown';
-      }
-      linkType = LinkType.GROUP;
-    } else if (username) {
-      const page = await this.fetchPage(`https://t.me/${username}`);
-      if (page.html) {
-        const classified = classifyTelegramAccountHtml(page.html);
-        kind = classified.kind;
-        if (classified.title) title = classified.title;
-        if (classified.kind === 'group') linkType = LinkType.GROUP;
-        if (classified.kind === 'channel') linkType = LinkType.CHANNEL;
-      }
-    }
+    const memberCount = preview.memberCount;
+    const title = preview.title?.trim() || username || normalized;
+    const description = preview.description?.trim() || '';
+    const kind: AutoExposeKind =
+      preview.kind === 'channel' || preview.kind === 'group'
+        ? preview.kind
+        : preview.title
+          ? 'unknown'
+          : 'invalid';
+    const linkType =
+      preview.kind === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
 
     const language = detectChannelLanguage({
       title,
@@ -288,19 +260,4 @@ export class AutoExposeService {
     }
   }
 
-  private async fetchPage(
-    url: string,
-  ): Promise<{ html: string | null; finalUrl: string | null }> {
-    try {
-      const res = await fetch(url, {
-        headers: TELEGRAM_FETCH_HEADERS,
-        redirect: 'follow',
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
-      const html = await res.text();
-      return { html, finalUrl: res.url };
-    } catch {
-      return { html: null, finalUrl: null };
-    }
-  }
 }

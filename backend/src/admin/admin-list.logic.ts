@@ -26,6 +26,11 @@ export function clampAdminPageSize(
   return Math.min(Math.floor(n), ADMIN_LIST_MAX_PAGE_SIZE);
 }
 
+/** SQLite·Postgres 모두 NULL을 뒤로 보내는 ORDER BY 조각 */
+export function nullsLastCaseSql(alias: string, column: string): string {
+  return `CASE WHEN ${alias}.${column} IS NULL THEN 1 ELSE 0 END`;
+}
+
 export function parseAdminListSort(
   raw: string | null | undefined,
 ): AdminListSort {
@@ -75,9 +80,15 @@ export function sortAdminListItems<
       return a.title.localeCompare(b.title, 'ko');
     }
     if (sort === 'members_desc') {
-      return (b.memberCount ?? -1) - (a.memberCount ?? -1);
+      const aNull = a.memberCount == null ? 1 : 0;
+      const bNull = b.memberCount == null ? 1 : 0;
+      if (aNull !== bNull) return aNull - bNull;
+      return (b.memberCount ?? 0) - (a.memberCount ?? 0);
     }
     if (sort === 'collected_desc') {
+      const aNull = a.lastCollectedAt == null ? 1 : 0;
+      const bNull = b.lastCollectedAt == null ? 1 : 0;
+      if (aNull !== bNull) return aNull - bNull;
       return time(b.lastCollectedAt) - time(a.lastCollectedAt);
     }
     return time(b.createdAt) - time(a.createdAt);

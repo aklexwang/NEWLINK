@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -175,7 +176,7 @@ export class AdminController {
   }
 
   @Post(':id/collect')
-  async collectOne(@Param('id') id: string) {
+  async collectOne(@Param('id', ParseUUIDPipe) id: string) {
     const channel = await this.adminCollect.collectOne(id);
     const memberPageInfo = describeMemberPageVisibility(channel);
     return {
@@ -251,7 +252,7 @@ export class AdminController {
           user?.firstName ??
           (user?.username ? `@${user.username}` : null) ??
           channel.promotionClientName ??
-          '광고 의뢰자',
+          null,
         username: user?.username ?? null,
         tonWalletAddress: user?.tonWalletAddress ?? null,
         tonAmount: channel.promotionTonAmount,
@@ -260,27 +261,27 @@ export class AdminController {
   }
 
   @Post(':id/import-avatar')
-  importAvatar(@Param('id') id: string) {
+  importAvatar(@Param('id', ParseUUIDPipe) id: string) {
     return this.channelsService.importAvatarFromTelegram(id);
   }
 
   @Get(':id/preview')
-  getPreview(@Param('id') id: string) {
+  getPreview(@Param('id', ParseUUIDPipe) id: string) {
     return this.channelsService.getPreview(id);
   }
 
   @Patch(':id/approve')
-  approve(@Param('id') id: string, @Body() dto: ApproveChannelDto) {
+  approve(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ApproveChannelDto) {
     return this.channelsService.approve(id, dto.isPromoted ?? false);
   }
 
   @Patch(':id/reject')
-  reject(@Param('id') id: string) {
+  reject(@Param('id', ParseUUIDPipe) id: string) {
     return this.channelsService.reject(id);
   }
 
   @Patch(':id/promote')
-  promote(@Param('id') id: string, @Body() dto: PromoteChannelDto) {
+  promote(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PromoteChannelDto) {
     return this.channelsService.promote(id, {
       durationDays: dto.durationDays,
       promotedUntil: dto.promotedUntil
@@ -293,7 +294,7 @@ export class AdminController {
   }
 
   @Post(':id/reward')
-  async recordReward(@Param('id') id: string, @Body() dto: RecordRewardDto) {
+  async recordReward(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordRewardDto) {
     const result = await this.rewardPayout.recordChannelPayout(id, {
       amountTon: dto.amountTon,
       amount: dto.amount,
@@ -316,7 +317,7 @@ export class AdminController {
 
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateChannelDto,
     @TelegramUserParam() user: TelegramUser,
   ) {
@@ -350,7 +351,7 @@ export class AdminController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.channelsService.remove(id);
   }
 }

@@ -44,6 +44,7 @@ import {
   clampAdminPage,
   clampAdminPageSize,
   matchesMemberPageFilter,
+  nullsLastCaseSql,
   paginateItems,
   parseAdminListSort,
   sortAdminListItems,
@@ -51,6 +52,10 @@ import {
   type AdminRegisterSource,
 } from '../admin/admin-list.logic';
 import { TelegramPreviewService } from './telegram-preview.service';
+import {
+  isTelegramBotFileUrl,
+  stripUnsafeAvatarUrl,
+} from './telegram-avatar.logic';
 
 const CHANNEL_UPLOAD_DIR = join(process.cwd(), 'uploads', 'channels');
 
@@ -269,8 +274,9 @@ export class ChannelsService implements OnModuleInit {
       link,
       title: preview.title ?? '',
       description: preview.description ?? '',
-      avatarUrl: preview.avatarUrl,
+      avatarUrl: stripUnsafeAvatarUrl(preview.avatarUrl),
       memberCount: preview.memberCount,
+      linkType: preview.kind,
       alreadyRegistered: Boolean(duplicate ?? existing),
       existingChannelId: shown?.id ?? null,
       existingStatus: shown?.status ?? null,
@@ -354,17 +360,15 @@ export class ChannelsService implements OnModuleInit {
     const preview = await this.telegramPreviewService.fetchPreview(
       channel.link,
     );
-    if (preview.avatarUrl) channel.avatarUrl = preview.avatarUrl;
+    if (preview.avatarUrl && !isTelegramBotFileUrl(preview.avatarUrl)) {
+      channel.avatarUrl = preview.avatarUrl;
+    }
     if (preview.title && channel.status === ChannelStatus.PENDING)
       channel.title = preview.title;
     if (preview.description && channel.status === ChannelStatus.PENDING)
       channel.description = preview.description;
-    if (preview.memberCount) {
-      const parsed = Number.parseInt(
-        preview.memberCount.replace(/\D/g, ''),
-        10,
-      );
-      if (Number.isFinite(parsed) && parsed > 0) channel.memberCount = parsed;
+    if (preview.memberCount != null && preview.memberCount > 0) {
+      channel.memberCount = preview.memberCount;
     }
     this.applyUsernameFromLink(channel);
     return this.channelRepository.save(channel);
@@ -383,8 +387,11 @@ export class ChannelsService implements OnModuleInit {
       id: channel.id,
       title: preview.title ?? channel.title,
       description: preview.description ?? channel.description,
-      avatarUrl: channel.avatarUrl ?? preview.avatarUrl,
-      memberCount: preview.memberCount,
+      avatarUrl: stripUnsafeAvatarUrl(channel.avatarUrl ?? preview.avatarUrl),
+      memberCount:
+        preview.memberCount != null
+          ? String(preview.memberCount)
+          : null,
       link: channel.link,
       avatarApproved: channel.avatarApproved,
     };
@@ -396,7 +403,7 @@ export class ChannelsService implements OnModuleInit {
       channel.link,
     );
 
-    if (!preview.avatarUrl) {
+    if (!preview.avatarUrl || isTelegramBotFileUrl(preview.avatarUrl)) {
       throw new BadRequestException(
         '텔레그램에서 아이콘을 가져오지 못했습니다. 공개 @username 링크인지 확인해 주세요.',
       );
@@ -630,6 +637,7 @@ export class ChannelsService implements OnModuleInit {
     }
     if (avatarUrl.includes('telesco.pe')) return true;
     if (/telegram\.org\/img\/t_logo/i.test(avatarUrl)) return true;
+    if (isTelegramBotFileUrl(avatarUrl)) return true;
     return false;
   }
 
@@ -643,6 +651,7 @@ export class ChannelsService implements OnModuleInit {
       const preview = await this.telegramPreviewService.fetchPreview(link);
       if (
         !preview.avatarUrl ||
+        isTelegramBotFileUrl(preview.avatarUrl) ||
         /telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)
       ) {
         return null;
@@ -671,6 +680,7 @@ export class ChannelsService implements OnModuleInit {
       );
       if (
         !preview.avatarUrl ||
+        isTelegramBotFileUrl(preview.avatarUrl) ||
         /telegram\.org\/img\/t_logo/i.test(preview.avatarUrl)
       ) {
         return channel;
@@ -877,7 +887,15 @@ export class ChannelsService implements OnModuleInit {
     if (!wasPromoted) {
       channel.promotionSortOrder = await this.getNextPromotionSortOrder();
     }
-    this.applyPromotionClient(channel, options);
+    if (options.clientTelegramId != null) {
+      channel.promotionClientTelegramId = options.clientTelegramId;
+    }
+    if (options.clientName != null) {
+      channel.promotionClientName = options.clientName;
+    }
+    if (options.tonAmount != null) {
+      channel.promotionTonAmount = options.tonAmount;
+    }
     return this.channelRepository.save(channel);
   }
 
@@ -899,46 +917,6 @@ export class ChannelsService implements OnModuleInit {
         ),
       ),
     );
-  }
-
-  private mockTonAmount(channel: Channel): number {
-    const seed = parseInt(channel.id.replace(/-/g, '').slice(0, 8), 16);
-    return Math.round((3 + (seed % 80) / 10) * 10) / 10;
-  }
-
-  private applyPromotionClient(
-    channel: Channel,
-    options: {
-      clientTelegramId?: number;
-      clientName?: string;
-      tonAmount?: number;
-    },
-  ) {
-    channel.promotionClientTelegramId =
-      options.clientTelegramId ??
-      channel.promotionClientTelegramId ??
-      channel.submittedBy ??
-      847291036;
-    channel.promotionClientName =
-      options.clientName ??
-      channel.promotionClientName ??
-      `광고의뢰_${channel.promotionClientTelegramId}`;
-    channel.promotionTonAmount =
-      options.tonAmount ??
-      channel.promotionTonAmount ??
-      this.mockTonAmount(channel);
-  }
-
-  async ensurePromotionClientInfo(channel: Channel): Promise<Channel> {
-    if (
-      channel.promotionClientTelegramId &&
-      channel.promotionClientName &&
-      channel.promotionTonAmount != null
-    ) {
-      return channel;
-    }
-    this.applyPromotionClient(channel, {});
-    return this.channelRepository.save(channel);
   }
 
   async getSubmissionCountsByUser(): Promise<Record<number, number>> {
@@ -1005,11 +983,7 @@ export class ChannelsService implements OnModuleInit {
           (categoryCounts[item.category] ?? 0) + 1;
       }
       const paged = paginateItems(matched, page, pageSize);
-      const items = await Promise.all(
-        paged.items.map((item) =>
-          item.isPromoted ? this.ensurePromotionClientInfo(item) : item,
-        ),
-      );
+      const items = paged.items.map((item) => this.sanitizeChannelForResponse(item));
       return {
         items,
         total: paged.total,
@@ -1035,11 +1009,7 @@ export class ChannelsService implements OnModuleInit {
       .skip((page - 1) * pageSize)
       .take(pageSize)
       .getMany();
-    const items = await Promise.all(
-      pageRows.map((item) =>
-        item.isPromoted ? this.ensurePromotionClientInfo(item) : item,
-      ),
-    );
+    const items = pageRows.map((item) => this.sanitizeChannelForResponse(item));
     return { items, total, page, pageSize, categoryCounts };
   }
 
@@ -1136,17 +1106,21 @@ export class ChannelsService implements OnModuleInit {
     sort: AdminListSort,
   ) {
     if (sort === 'members_desc') {
-      qb.orderBy('channel.memberCount', 'DESC').addOrderBy(
-        'channel.createdAt',
-        'DESC',
-      );
+      qb.orderBy(
+        nullsLastCaseSql('channel', 'member_count'),
+        'ASC',
+      )
+        .addOrderBy('channel.memberCount', 'DESC')
+        .addOrderBy('channel.createdAt', 'DESC');
       return;
     }
     if (sort === 'collected_desc') {
-      qb.orderBy('channel.lastCollectedAt', 'DESC').addOrderBy(
-        'channel.createdAt',
-        'DESC',
-      );
+      qb.orderBy(
+        nullsLastCaseSql('channel', 'last_collected_at'),
+        'ASC',
+      )
+        .addOrderBy('channel.lastCollectedAt', 'DESC')
+        .addOrderBy('channel.createdAt', 'DESC');
       return;
     }
     if (sort === 'title_asc') {
@@ -1181,9 +1155,12 @@ export class ChannelsService implements OnModuleInit {
       'ASC',
     );
     const items = await qb.getMany();
-    return Promise.all(
-      items.map((item) => this.ensurePromotionClientInfo(item)),
-    );
+    return items.map((item) => this.sanitizeChannelForResponse(item));
+  }
+
+  private sanitizeChannelForResponse(channel: Channel): Channel {
+    channel.avatarUrl = stripUnsafeAvatarUrl(channel.avatarUrl);
+    return channel;
   }
 
   async updateAdmin(

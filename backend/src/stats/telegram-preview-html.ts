@@ -65,6 +65,16 @@ export function isPrivateChannelHtml(html: string): boolean {
 
 export type TelegramAccountKind = 'channel' | 'group' | 'invalid';
 
+/** tgme_page_extra 의 subscribers → 채널, members → 그룹 */
+export function kindFromTelegramPageExtra(
+  extra: string | null | undefined,
+): 'channel' | 'group' | null {
+  const text = (extra ?? '').replace(/\s+/g, ' ').toLowerCase();
+  if (/\bsubscribers?\b/.test(text)) return 'channel';
+  if (/\bmembers?\b/.test(text) || /\bonline\b/.test(text)) return 'group';
+  return null;
+}
+
 export interface ClassifiedTelegramAccount {
   kind: TelegramAccountKind;
   reason: string;
@@ -107,16 +117,17 @@ export function classifyTelegramAccountHtml(
 
   const $ = load(html);
   const title = textOrNull($('.tgme_page_title').first());
-  const extra = (textOrNull($('.tgme_page_extra').first()) ?? '').toLowerCase();
+  const extra = textOrNull($('.tgme_page_extra').first());
   const action = ($('.tgme_action_button').first().text() || '')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
 
-  if (/\bsubscribers?\b/.test(extra)) {
+  const fromExtra = kindFromTelegramPageExtra(extra);
+  if (fromExtra === 'channel') {
     return { kind: 'channel', reason: 'page:subscribers', title };
   }
-  if (/\bmembers?\b/.test(extra) || /\bonline\b/.test(extra)) {
+  if (fromExtra === 'group') {
     return { kind: 'group', reason: 'page:members', title };
   }
   if (action.includes('start')) {
@@ -286,6 +297,7 @@ export interface ParsedInvitePreview {
   memberCount: number | null;
   description: string | null;
   avatarUrl: string | null;
+  kind: 'channel' | 'group' | null;
 }
 
 export function parseTelegramExtraMemberCount(
@@ -380,6 +392,7 @@ export function parseInviteLinkHtml(
       memberCount: null,
       description: null,
       avatarUrl: null,
+      kind: null,
     };
   }
 
@@ -400,6 +413,7 @@ export function parseInviteLinkHtml(
   const avatarUrl = isGenericTelegramLogo(rawAvatar) ? null : rawAvatar;
   const memberCount = parseInviteMemberCount(extra);
   const expired = isInvitePreviewExpired({ html, title, extra, memberCount });
+  const kind = kindFromTelegramPageExtra(extra);
 
   return {
     expired,
@@ -407,6 +421,7 @@ export function parseInviteLinkHtml(
     memberCount: expired ? null : memberCount,
     description: expired ? null : description,
     avatarUrl: expired ? null : avatarUrl,
+    kind: expired ? null : kind,
   };
 }
 

@@ -224,7 +224,8 @@ export function AdminLinksManagePage() {
     }
   };
 
-  const selectedList = selectedIds.size > 0 ? [...selectedIds] : channels.map((item) => item.id);
+  const selectedList = [...selectedIds];
+  const bulkDisabled = selectedList.length === 0;
 
   const handleBulkCollect = async () => {
     const ids = selectedList.slice(0, 20);
@@ -423,19 +424,19 @@ export function AdminLinksManagePage() {
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => void setAdminChannelsVisibility(selectedList, true).then(() => load())} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white">노출 켜기</button>
-          <button type="button" onClick={() => void setAdminChannelsVisibility(selectedList, false).then(() => load())} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-medium text-white">노출 끄기</button>
+          <button type="button" disabled={bulkDisabled} onClick={() => void setAdminChannelsVisibility(selectedList, true).then(() => load())} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">노출 켜기</button>
+          <button type="button" disabled={bulkDisabled} onClick={() => void setAdminChannelsVisibility(selectedList, false).then(() => load())} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">노출 끄기</button>
           <select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)} className="rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-black/10">
             <option value="">카테고리 일괄</option>
             {categoryOptions.map((name) => (
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
-          <button type="button" onClick={() => void handleBulkCategory()} className="rounded-xl bg-white px-4 py-2 text-sm ring-1 ring-black/10">카테고리 변경</button>
-          <button type="button" onClick={() => void handleBulkCollect()} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white">지금 수집 (최대 20)</button>
-          <button type="button" onClick={() => void handleBulkDelete()} className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">삭제</button>
+          <button type="button" disabled={bulkDisabled} onClick={() => void handleBulkCategory()} className="rounded-xl bg-white px-4 py-2 text-sm ring-1 ring-black/10 disabled:opacity-50">카테고리 변경</button>
+          <button type="button" disabled={bulkDisabled} onClick={() => void handleBulkCollect()} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">지금 수집 (최대 20)</button>
+          <button type="button" disabled={bulkDisabled} onClick={() => void handleBulkDelete()} className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600 disabled:opacity-50">삭제</button>
           {collectFailedOnly && (
-            <button type="button" onClick={() => void rejectInvalidChannels(selectedList).then((r) => { setMessage(`${r.rejected}개를 숨김 처리했습니다.`); void load(); })} className="rounded-xl bg-slate-800 px-4 py-2 text-sm text-white">
+            <button type="button" disabled={bulkDisabled} onClick={() => void rejectInvalidChannels(selectedList).then((r) => { setMessage(`${r.rejected}개를 숨김 처리했습니다.`); void load(); })} className="rounded-xl bg-slate-800 px-4 py-2 text-sm text-white disabled:opacity-50">
               선택한 invalid 숨김
             </button>
           )}

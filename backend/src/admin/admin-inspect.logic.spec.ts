@@ -79,6 +79,19 @@ describe('어드민 링크 미리보기 분류', () => {
     expect(ok.description).toBe('국내 뉴스 속보를 모읍니다');
   });
 
+  it('초대 링크 extra 가 subscribers 이면 채널로 본다', () => {
+    const invite = classifyAdminInspectPage({
+      html: `<div class="tgme_page_title">한국뉴스채널</div>
+        <div class="tgme_page_extra">2 000 subscribers</div>
+        <div class="tgme_page_description">국내 뉴스</div>`,
+      status: 200,
+      isInvite: true,
+      finalUrl: 'https://t.me/+ChannelInvite',
+    });
+    expect(invite.linkType).toBe('channel');
+    expect(invite.result).toBe('ok');
+  });
+
   it('초대 링크는 그룹으로 보고 제목·소개·인원·사진을 읽는다', () => {
     const invite = classifyAdminInspectPage({
       html: `<div class="tgme_page">
