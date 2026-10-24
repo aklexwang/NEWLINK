@@ -228,10 +228,16 @@ export interface AdminChannelLookup {
   title: string;
   description: string;
   avatarUrl: string | null;
-  memberCount: string | null;
+  memberCount: number | null;
+  linkType: 'channel' | 'group' | null;
+  language: string | null;
+  result: AdminInspectItemResult;
+  resultCaption: string;
   alreadyRegistered: boolean;
   existingChannelId: string | null;
   existingStatus: string | null;
+  memberPageVisible: boolean | null;
+  memberPageReason: string | null;
 }
 
 export async function lookupAdminChannel(link: string): Promise<AdminChannelLookup> {
@@ -245,7 +251,7 @@ export async function lookupAdminChannel(link: string): Promise<AdminChannelLook
 export async function registerAdminChannel(payload: {
   title: string;
   link: string;
-  linkType: 'channel' | 'group';
+  linkType?: 'channel' | 'group';
   category: string;
   description?: string;
   isPromoted?: boolean;

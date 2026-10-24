@@ -64,18 +64,22 @@ export function parseOneInspectLine(raw: string): ParsedInspectLine {
   };
 }
 
+export type AdminInspectPageClassified = {
+  result: AdminInspectItemResult;
+  title: string | null;
+  description: string | null;
+  avatarUrl: string | null;
+  memberCount: number | null;
+  linkType: 'channel' | 'group' | null;
+  language: string | null;
+};
+
 export function classifyAdminInspectPage(input: {
   html: string | null;
   status: number;
   isInvite: boolean;
   finalUrl?: string | null;
-}): {
-  result: AdminInspectItemResult;
-  title: string | null;
-  memberCount: number | null;
-  linkType: 'channel' | 'group' | null;
-  language: string | null;
-} {
+}): AdminInspectPageClassified {
   if (!input.html || input.status >= 400) {
     return emptyInspect('not_found');
   }
@@ -90,9 +94,15 @@ export function classifyAdminInspectPage(input: {
       title: invite.title,
       description: invite.description,
       memberCount: invite.memberCount,
-      avatarUrl: null,
+      avatarUrl: invite.avatarUrl,
     });
-    return fromPublicDecision(decided, invite.title, invite.memberCount);
+    return fromPublicDecision(
+      decided,
+      invite.title,
+      invite.memberCount,
+      invite.description,
+      invite.avatarUrl,
+    );
   }
   if (isMissingChannelHtml(input.html)) {
     return emptyInspect('not_found');
@@ -111,8 +121,35 @@ export function classifyAdminInspectPage(input: {
     memberCount: parsed.memberCount,
     avatarUrl: parsed.avatarUrl ?? null,
   });
-  return fromPublicDecision(decided, parsed.title, parsed.memberCount);
+  return fromPublicDecision(
+    decided,
+    parsed.title,
+    parsed.memberCount,
+    parsed.description,
+    parsed.avatarUrl,
+  );
 }
+
+/** 제목이 없으면 방을 못 찾은 것으로 본다. */
+export function applyMissingTitleResult(
+  classified: AdminInspectPageClassified,
+): AdminInspectPageClassified {
+  if (classified.title?.trim()) return classified;
+  if (
+    classified.result === 'invite_or_private' ||
+    classified.result === 'invalid_format'
+  ) {
+    return classified;
+  }
+  return { ...classified, result: 'not_found' };
+}
+
+export const ADMIN_INSPECT_REGISTER_BLOCKED = new Set<AdminInspectItemResult>([
+  'not_found',
+  'invite_or_private',
+  'invalid_format',
+  'already_registered',
+]);
 
 export function interruptRunningInspectJobs<
   T extends { status: string; finishedAt?: Date | string | null },
@@ -171,13 +208,9 @@ function fromPublicDecision(
   decided: ReturnType<typeof publicInspectDecision>,
   title: string | null,
   memberCount: number | null,
-): {
-  result: AdminInspectItemResult;
-  title: string | null;
-  memberCount: number | null;
-  linkType: 'channel' | 'group' | null;
-  language: string | null;
-} {
+  description: string | null,
+  avatarUrl: string | null,
+): AdminInspectPageClassified {
   let result: AdminInspectItemResult = 'not_found';
   if (decided.result === 'ok') result = 'ok';
   else if (decided.result === 'not_korean') result = 'not_korean';
@@ -185,16 +218,20 @@ function fromPublicDecision(
   return {
     result,
     title,
+    description,
+    avatarUrl,
     memberCount,
     linkType: decided.linkType,
     language: decided.language,
   };
 }
 
-function emptyInspect(result: AdminInspectItemResult) {
+function emptyInspect(result: AdminInspectItemResult): AdminInspectPageClassified {
   return {
     result,
     title: null,
+    description: null,
+    avatarUrl: null,
     memberCount: null,
     linkType: null,
     language: null,

@@ -23,16 +23,22 @@ import {
   AdminInspectJob,
   type AdminInspectJobStatus,
 } from './admin-inspect-job.entity';
-import { AdminInspectItem } from './admin-inspect-item.entity';
+import {
+  AdminInspectItem,
+  type AdminInspectItemResult,
+} from './admin-inspect-item.entity';
 import {
   ADMIN_INSPECT_BUSY_COLLECT,
   ADMIN_INSPECT_BUSY_JOB,
+  ADMIN_INSPECT_REGISTER_BLOCKED,
+  applyMissingTitleResult,
   assertRegisterManySize,
   classifyAdminInspectPage,
   interruptRunningInspectJobs,
   inspectItemResultCaption,
   inspectJobTtlCutoff,
   parseAdminInspectLines,
+  parseOneInspectLine,
 } from './admin-inspect.logic';
 
 @Injectable()
@@ -157,6 +163,139 @@ export class AdminInspectService implements OnModuleInit {
     });
     if (!job[0]) return null;
     return this.getJob(job[0].id);
+  }
+
+  /** 단건. job 없이 대량과 같은 공개 페이지 검사를 바로 돌려준다. */
+  async inspectOne(raw: string) {
+    const parsed = parseOneInspectLine(raw);
+    if (parsed.result === 'invalid_format' || !parsed.link) {
+      return this.toInspectOneView({
+        link: parsed.link,
+        result: 'invalid_format',
+        title: null,
+        description: null,
+        avatarUrl: null,
+        memberCount: null,
+        linkType: null,
+        language: null,
+        existing: null,
+      });
+    }
+    const existing = await this.findExisting(parsed.link, parsed.username);
+    if (existing) {
+      return this.toInspectOneView({
+        link: parsed.link,
+        result: 'already_registered',
+        title: existing.title,
+        description: existing.description,
+        avatarUrl: existing.avatarUrl,
+        memberCount: existing.memberCount,
+        linkType:
+          existing.linkType === LinkType.GROUP ? 'group' : 'channel',
+        language: existing.language ?? null,
+        existing,
+      });
+    }
+    const page = await this.publicFetch.fetchHtml(parsed.link);
+    const classified = applyMissingTitleResult(
+      classifyAdminInspectPage({
+        html: page.html,
+        status: page.status,
+        isInvite: isInviteOnlyLink(parsed.link),
+        finalUrl: page.finalUrl,
+      }),
+    );
+    return this.toInspectOneView({
+      link: parsed.link,
+      result: classified.result,
+      title: classified.title,
+      description: classified.description,
+      avatarUrl: classified.avatarUrl,
+      memberCount: classified.memberCount,
+      linkType: classified.linkType,
+      language: classified.language,
+      existing: null,
+    });
+  }
+
+  async registerInspected(data: {
+    title: string;
+    link: string;
+    linkType?: LinkType;
+    category: string;
+    description?: string;
+    isPromoted?: boolean;
+  }) {
+    const viewed = await this.inspectOne(data.link);
+    if (viewed.alreadyRegistered) {
+      throw new ConflictException('이미 등록된 채널입니다.');
+    }
+    if (
+      !viewed.link ||
+      !viewed.title?.trim() ||
+      ADMIN_INSPECT_REGISTER_BLOCKED.has(viewed.result)
+    ) {
+      throw new BadRequestException(
+        '이 링크로 방을 찾지 못했습니다. 링크(대소문자 포함)를 다시 확인하세요',
+      );
+    }
+    const linkType =
+      viewed.linkType === 'group'
+        ? LinkType.GROUP
+        : viewed.linkType === 'channel'
+          ? LinkType.CHANNEL
+          : data.linkType;
+    if (linkType !== LinkType.CHANNEL && linkType !== LinkType.GROUP) {
+      throw new BadRequestException('채널/그룹을 선택해 주세요.');
+    }
+    return this.channelsService.createByAdmin({
+      title: (data.title.trim() || viewed.title).slice(0, 255),
+      link: viewed.link,
+      linkType,
+      category: data.category,
+      description: data.description?.trim() || viewed.description || viewed.title,
+      isPromoted: data.isPromoted,
+    });
+  }
+
+  private toInspectOneView(input: {
+    link: string | null;
+    result: AdminInspectItemResult;
+    title: string | null;
+    description: string | null;
+    avatarUrl: string | null;
+    memberCount: number | null;
+    linkType: 'channel' | 'group' | null;
+    language: string | null;
+    existing: Channel | null;
+  }) {
+    const visibility = input.existing
+      ? describeMemberPageVisibility(input.existing)
+      : null;
+    const alreadyRegistered = input.result === 'already_registered';
+    return {
+      link: input.link ?? '',
+      title: input.title ?? '',
+      description: input.description ?? '',
+      avatarUrl: input.avatarUrl,
+      memberCount: input.memberCount,
+      linkType: input.linkType,
+      language: input.language,
+      result: input.result,
+      resultCaption: inspectItemResultCaption({
+        result: input.result,
+        registeredThisJob: false,
+        memberVisible: visibility?.visible ?? null,
+        memberReason:
+          visibility && !visibility.visible ? visibility.reason : null,
+      }),
+      alreadyRegistered,
+      existingChannelId: input.existing?.id ?? null,
+      existingStatus: input.existing?.status ?? null,
+      memberPageVisible: visibility?.visible ?? null,
+      memberPageReason:
+        visibility && !visibility.visible ? visibility.reason : null,
+    };
   }
 
   async registerMany(ids: string[], category?: string) {

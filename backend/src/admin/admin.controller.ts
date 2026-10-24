@@ -27,6 +27,7 @@ import { describeMemberPageVisibility } from '../stats/public-list-visibility.lo
 import { RewardPayoutService } from '../payments/reward-payout.service';
 import { UsersService } from '../users/users.service';
 import { AdminCollectService } from './admin-collect.service';
+import { AdminInspectService } from './admin-inspect.service';
 import {
   ApproveChannelDto,
   AdminCreateChannelDto,
@@ -62,6 +63,7 @@ export class AdminController {
     private readonly usersService: UsersService,
     private readonly rewardPayout: RewardPayoutService,
     private readonly adminCollect: AdminCollectService,
+    private readonly inspect: AdminInspectService,
   ) {}
 
   @Get('pending')
@@ -149,12 +151,12 @@ export class AdminController {
 
   @Get('lookup')
   lookup(@Query() query: LookupChannelQueryDto) {
-    return this.channelsService.lookupTelegramLink(query.link);
+    return this.inspect.inspectOne(query.link);
   }
 
   @Post('register')
   register(@Body() dto: AdminCreateChannelDto) {
-    return this.channelsService.createByAdmin(dto);
+    return this.inspect.registerInspected(dto);
   }
 
   @Post('reject-invalid')

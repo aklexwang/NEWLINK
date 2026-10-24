@@ -174,6 +174,8 @@ describe('관리자 가드', () => {
       '/api/admin/links/inspect/latest',
       '/api/admin/links/inspect/job-id/resume',
       '/api/admin/links/register-many',
+      '/api/admin/channels/lookup',
+      '/api/admin/channels/register',
     ];
     for (const url of paths) {
       const req = requestFor({}, url);

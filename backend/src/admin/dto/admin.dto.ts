@@ -44,8 +44,9 @@ export class AdminCreateChannelDto {
   @MaxLength(512)
   link: string;
 
+  @IsOptional()
   @IsIn([LinkType.CHANNEL, LinkType.GROUP])
-  linkType: LinkType;
+  linkType?: LinkType;
 
   @IsString()
   @IsNotEmpty()

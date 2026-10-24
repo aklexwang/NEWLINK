@@ -1,4 +1,5 @@
 import {
+  applyMissingTitleResult,
   assertRegisterManySize,
   classifyAdminInspectPage,
   inspectItemResultCaption,
@@ -74,6 +75,56 @@ describe('어드민 링크 미리보기 분류', () => {
     });
     expect(ok.result).toBe('ok');
     expect(ok.memberCount).toBe(1200);
+    expect(ok.linkType).toBe('channel');
+    expect(ok.description).toBe('국내 뉴스 속보를 모읍니다');
+  });
+
+  it('초대 링크는 그룹으로 보고 제목·소개·인원·사진을 읽는다', () => {
+    const invite = classifyAdminInspectPage({
+      html: `<div class="tgme_page">
+        <div class="tgme_page_photo"><img src="https://cdn4.telegram-cdn.org/file/abc.jpg"></div>
+        <div class="tgme_page_title">테더천국 장외거래 소통방</div>
+        <div class="tgme_page_extra">558 members</div>
+        <div class="tgme_page_description">장외 소통</div>
+      </div>
+      <meta property="og:image" content="https://cdn4.telegram-cdn.org/file/abc.jpg">`,
+      status: 200,
+      isInvite: true,
+      finalUrl: 'https://t.me/+uI8tNLAF57MzMThk',
+    });
+    expect(invite.result).toBe('ok');
+    expect(invite.linkType).toBe('group');
+    expect(invite.title).toBe('테더천국 장외거래 소통방');
+    expect(invite.memberCount).toBe(558);
+    expect(invite.description).toBe('장외 소통');
+    expect(invite.avatarUrl).toContain('telegram-cdn.org');
+  });
+
+  it('공개 그룹은 members 로 그룹을 판별한다', () => {
+    const group = classifyAdminInspectPage({
+      html: `<div class="tgme_page_title">한국뉴스속보그룹</div>
+        <div class="tgme_page_extra">1 200 members</div>
+        <div class="tgme_page_description">국내 뉴스 속보를 모읍니다</div>`,
+      status: 200,
+      isInvite: false,
+    });
+    expect(group.result).toBe('ok');
+    expect(group.linkType).toBe('group');
+    expect(group.title).toBe('한국뉴스속보그룹');
+  });
+
+  it('제목이 없으면 없는 방으로 본다', () => {
+    expect(
+      applyMissingTitleResult({
+        result: 'not_korean',
+        title: null,
+        description: null,
+        avatarUrl: null,
+        memberCount: null,
+        linkType: 'group',
+        language: 'en',
+      }).result,
+    ).toBe('not_found');
   });
 
   it('실행 중 job 은 interrupted 로 바꾼다', () => {
