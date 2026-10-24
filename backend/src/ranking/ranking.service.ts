@@ -151,9 +151,11 @@ export class RankingService {
       Boolean(query.type) ||
       Boolean(query.hideLowData) ||
       Boolean(query.verifiedOnly) ||
-      Boolean(query.includeForeign);
+      Boolean(query.includeForeign) ||
+      (query.offset ?? 0) > 0;
 
-    const cacheKey = `ranking:channels:${category ?? 'all'}:${limit}:${sort}:${query.type ?? ''}:${query.hideLowData ? '1' : '0'}:${query.verifiedOnly ? '1' : '0'}:${query.includeForeign ? '1' : '0'}:${useDatabase ? 'db' : 'tg'}`;
+    const offset = query.offset ?? 0;
+    const cacheKey = `ranking:channels:${category ?? 'all'}:${limit}:${offset}:${sort}:${query.type ?? ''}:${query.hideLowData ? '1' : '0'}:${query.verifiedOnly ? '1' : '0'}:${query.includeForeign ? '1' : '0'}:${useDatabase ? 'db' : 'tg'}`;
     const cached = this.getCached<unknown[]>(cacheKey);
     if (cached) return cached;
 

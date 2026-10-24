@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getRankingCategories, getRankingChannels, getRankingStatus } from '../api/ranking';
+import { getRankingCategories, getRankingStatus } from '../api/ranking';
+import { useRankingInfiniteList } from '../hooks/useRankingInfiniteList';
 import { RankingCategoryPicker } from '../components/RankingCategoryPicker';
 import { RankingChannelCard } from '../components/RankingChannelCard';
-import type { RankingCategoryItem, RankingChannel } from '../types/ranking';
+import type { RankingCategoryItem } from '../types/ranking';
 import type { RankingSort } from '../types/stats';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import { AdultConfirmDialog, hasConfirmedAdult } from '../components/AdultConfirmDialog';
@@ -47,12 +48,9 @@ export function RankingPage() {
     searchParams.get('includeForeign') === 'true';
 
   const [categories, setCategories] = useState<RankingCategoryItem[]>([]);
-  const [channels, setChannels] = useState<RankingChannel[]>([]);
   const [sourceLabel, setSourceLabel] = useState('텔레그램 인기 채널 · 구독자 순');
   const [sourceHint, setSourceHint] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
   const [adultOpen, setAdultOpen] = useState(
     () => (searchParams.get('category') || '') === '성인' && !hasConfirmedAdult(),
   );
@@ -113,46 +111,15 @@ export function RankingPage() {
       .finally(() => setCategoriesLoading(false));
   }, []);
 
-  const fetchRanking = useCallback(async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const listCategory =
-        category === '성인' && !hasConfirmedAdult() ? 'all' : category;
-      const items = await getRankingChannels(listCategory, 50, {
-        sort,
-        type,
-        hideLowData,
-        verifiedOnly,
-        includeForeign,
-      });
-      setChannels(items);
-      if (items.length === 0) {
-        setError('이 조건에 맞는 채널·그룹이 없습니다.');
-      }
-    } catch (err: unknown) {
-      setChannels([]);
-      const message =
-        err &&
-        typeof err === 'object' &&
-        'response' in err &&
-        err.response &&
-        typeof err.response === 'object' &&
-        'data' in err.response &&
-        err.response.data &&
-        typeof err.response.data === 'object' &&
-        'message' in err.response.data
-          ? String(err.response.data.message)
-          : '랭킹을 불러오지 못했습니다. 백엔드(localhost:3000)가 실행 중인지 확인해 주세요.';
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [category, sort, type, hideLowData, verifiedOnly, includeForeign]);
-
-  useEffect(() => {
-    void fetchRanking();
-  }, [fetchRanking]);
+  const listCategory = category === '성인' && !hasConfirmedAdult() ? 'all' : category;
+  const { channels, isLoading, loadingMore, error, sentinelRef } = useRankingInfiniteList({
+    category: listCategory,
+    sort,
+    type,
+    hideLowData,
+    verifiedOnly,
+    includeForeign,
+  });
 
   const selectedLabel = useMemo(
     () => categories.find((item) => item.id === category)?.name ?? '전체',
@@ -317,6 +284,10 @@ export function RankingPage() {
                 onOpen={() => undefined}
               />
             ))}
+            {loadingMore && (
+              <p className="px-4 py-3 text-center text-xs text-tg-hint">더 불러오는 중...</p>
+            )}
+            <div ref={sentinelRef} className="h-4" />
           </div>
         )}
       </div>

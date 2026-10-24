@@ -161,6 +161,7 @@ export class AdminDashboardService {
             finishedAt: run.finishedAt,
             processed: run.processed,
             total: run.total,
+            remaining: Math.max(0, (run.total ?? 0) - (run.processed ?? 0)),
             status: run.finishedAt ? (run.endedReason ?? 'completed') : 'running',
           }
         : null,

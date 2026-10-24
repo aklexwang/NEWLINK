@@ -105,6 +105,13 @@ export class RankingQueryDto {
   @Max(100)
   @IsOptional()
   limit?: number = 50;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(20_000)
+  @IsOptional()
+  offset?: number = 0;
 }
 
 export class HomeFeedQueryDto {

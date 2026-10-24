@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getRankingCategories, getRankingChannels } from '../api/ranking';
+import { getRankingCategories } from '../api/ranking';
+import { useRankingInfiniteList } from '../hooks/useRankingInfiniteList';
 import { AdultConfirmDialog, hasConfirmedAdult } from '../components/AdultConfirmDialog';
 import { RankingCategoryPicker } from '../components/RankingCategoryPicker';
 import { RankingChannelCard } from '../components/RankingChannelCard';
-import type { RankingCategoryItem, RankingChannel } from '../types/ranking';
+import type { RankingCategoryItem } from '../types/ranking';
 import type { RankingSort } from '../types/stats';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 
@@ -39,10 +40,7 @@ export function CategoriesPage() {
   const category = searchParams.get('category') || 'all';
 
   const [categories, setCategories] = useState<RankingCategoryItem[]>([]);
-  const [channels, setChannels] = useState<RankingChannel[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
   const [adultOpen, setAdultOpen] = useState(
     () => (searchParams.get('category') || '') === '성인' && !hasConfirmedAdult(),
   );
@@ -72,27 +70,12 @@ export function CategoriesPage() {
       .finally(() => setCategoriesLoading(false));
   }, []);
 
-  const fetchList = useCallback(async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const listCategory = category === '성인' && !hasConfirmedAdult() ? 'all' : category;
-      const items = await getRankingChannels(listCategory, 50, { sort, type });
-      setChannels(items);
-      if (items.length === 0) {
-        setError('이 조건에 맞는 채널·그룹이 없습니다.');
-      }
-    } catch {
-      setChannels([]);
-      setError('목록을 불러오지 못했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [category, sort, type]);
-
-  useEffect(() => {
-    void fetchList();
-  }, [fetchList]);
+  const listCategory = category === '성인' && !hasConfirmedAdult() ? 'all' : category;
+  const { channels, isLoading, loadingMore, error, sentinelRef } = useRankingInfiniteList({
+    category: listCategory,
+    sort,
+    type,
+  });
 
   return (
     <div className="flex min-h-[calc(100dvh-68px)] flex-col">
@@ -195,6 +178,10 @@ export function CategoriesPage() {
                 onOpen={() => undefined}
               />
             ))}
+            {loadingMore && (
+              <p className="px-4 py-3 text-center text-xs text-tg-hint">더 불러오는 중...</p>
+            )}
+            <div ref={sentinelRef} className="h-4" />
           </div>
         )}
       </div>

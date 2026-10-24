@@ -12,6 +12,7 @@ import {
   isPendingCategory,
 } from '../channels/auto-expose.logic';
 import { isPublicCollectable } from './collect-visibility';
+import { sliceRankingPage } from './collect-budget.logic';
 import { lastPostAtFromCollectedPosts } from './stats-collect.logic';
 import {
   collapseWeeklyRankUps,
@@ -567,7 +568,7 @@ export class PublicStatsService {
     }
 
     channels.sort((a, b) => this.compareRanking(a, b, sort));
-    const slice = channels.slice(0, limit);
+    const slice = sliceRankingPage(channels, query.offset, limit);
 
     const latestScores = await this.latestScoresByChannel(
       slice.map((c) => c.id),

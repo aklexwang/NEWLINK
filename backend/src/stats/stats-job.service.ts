@@ -19,6 +19,7 @@ import { ChannelCategoryService } from './channel-category.service';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 import { PublicStatsService } from './public-stats.service';
+import { collectBudgetMs } from './collect-budget.logic';
 import {
   decideCollectOverlap,
   FULL_WAIT_FOR_LIGHT_MS,
@@ -234,8 +235,9 @@ export class StatsJobService implements OnModuleInit {
     );
     await this.mtproto.prepareForCollectRun();
     try {
-      await this.collector.collectAll((progress) =>
-        this.noteProgress(progress),
+      await this.collector.collectAll(
+        (progress) => this.noteProgress(progress),
+        { deadlineMs: this.collectDeadline('full') },
       );
       await this.languages.classifyAll();
       await this.metrics.computeToday();
@@ -258,8 +260,9 @@ export class StatsJobService implements OnModuleInit {
   private async runLightPipeline() {
     this.logger.log('light 수집 시작: t.me/s 미리보기 → 공개 캐시 비우기');
     try {
-      await this.collector.collectLightAll((progress) =>
-        this.noteProgress(progress),
+      await this.collector.collectLightAll(
+        (progress) => this.noteProgress(progress),
+        { deadlineMs: this.collectDeadline('light') },
       );
       this.publicStats.clearPublicCaches();
       this.logger.log('light 수집이 끝났습니다.');
@@ -355,6 +358,20 @@ export class StatsJobService implements OnModuleInit {
       this.currentRunMode = null;
     }
     await this.refreshLastRunView();
+  }
+
+  private collectDeadline(mode: StatsCollectMode): number {
+    return (
+      Date.now() +
+      collectBudgetMs(mode, {
+        COLLECT_LIGHT_BUDGET_MIN: this.configService.get<string>(
+          'COLLECT_LIGHT_BUDGET_MIN',
+        ),
+        COLLECT_FULL_BUDGET_MIN: this.configService.get<string>(
+          'COLLECT_FULL_BUDGET_MIN',
+        ),
+      })
+    );
   }
 
   private async refreshLastRunView() {

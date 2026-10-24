@@ -99,8 +99,8 @@ describe('스케줄 → 모드', () => {
         statsCronModeFromSchedule({ eventName: 'schedule', schedule: cron }),
       ).toBe('light');
     }
-    expect(statsCronWaitMinutes('full')).toBe(100);
-    expect(statsCronWaitMinutes('light')).toBe(30);
+    expect(statsCronWaitMinutes('full')).toBe(105);
+    expect(statsCronWaitMinutes('light')).toBe(35);
   });
 
   it('수동 실행은 고른 모드를 쓰고 기본은 light 다', () => {

@@ -5,6 +5,7 @@ import type { RankingSort } from '../types/stats';
 export interface RankingChannelsQuery {
   category?: string;
   limit?: number;
+  offset?: number;
   sort?: RankingSort;
   type?: 'channel' | 'group';
   hideLowData?: boolean;
@@ -36,6 +37,7 @@ export async function getRankingChannels(
     params: {
       category: category === 'all' ? undefined : category,
       limit,
+      offset: extra?.offset ?? 0,
       sort: extra?.sort,
       type: extra?.type,
       hideLowData: extra?.hideLowData,

@@ -93,6 +93,9 @@ export function AdminLinksManagePage() {
   const [saveHint, setSaveHint] = useState<Record<string, string>>({});
   const [bulkCategory, setBulkCategory] = useState('');
   const [linkDrafts, setLinkDrafts] = useState<Record<string, string>>({});
+  const [collectingId, setCollectingId] = useState<string | null>(null);
+  const [collectCooldownUntil, setCollectCooldownUntil] = useState<Record<string, number>>({});
+  const [collectNow, setCollectNow] = useState(Date.now());
 
   const type = param(params, 'type');
   const page = Number(param(params, 'page') || '1');
@@ -191,13 +194,34 @@ export function AdminLinksManagePage() {
     }
   };
 
+  useEffect(() => {
+    const pending = Object.values(collectCooldownUntil).some((until) => until > Date.now());
+    if (!pending) return;
+    const timer = window.setInterval(() => setCollectNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [collectCooldownUntil]);
+
+  const collectButtonLabel = (id: string) => {
+    if (collectingId === id) return '수집 중…';
+    const left = Math.ceil(((collectCooldownUntil[id] ?? 0) - collectNow) / 1000);
+    if (left > 0) return `다시 수집 (${left}초)`;
+    return '지금 수집';
+  };
+
   const handleCollect = async (id: string) => {
+    if (collectingId === id) return;
+    const left = (collectCooldownUntil[id] ?? 0) - Date.now();
+    if (left > 0) return;
+    setCollectingId(id);
+    setCollectCooldownUntil((prev) => ({ ...prev, [id]: Date.now() + 60_000 }));
     try {
       const updated = await collectAdminChannel(id);
       setChannels((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated } : item)));
       setMessage('수집이 끝났습니다.');
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '수집에 실패했습니다.'));
+    } finally {
+      setCollectingId(null);
     }
   };
 
@@ -609,7 +633,7 @@ export function AdminLinksManagePage() {
                               )}
                               <div className="flex flex-wrap items-center gap-2">
                                 <button type="button" onClick={() => void handleSaveDraft(channel)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white">저장</button>
-                                <button type="button" onClick={() => void handleCollect(channel.id)} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white">지금 수집</button>
+                                <button type="button" disabled={collectingId === channel.id || (collectCooldownUntil[channel.id] ?? 0) > collectNow} onClick={() => void handleCollect(channel.id)} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{collectButtonLabel(channel.id)}</button>
                                 {saveHint[channel.id] && <span className="text-xs text-slate-600">{saveHint[channel.id]}</span>}
                                 {channel.status === 'pending' && (
                                   <>

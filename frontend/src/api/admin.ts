@@ -91,6 +91,7 @@ export interface AdminDashboard {
     finishedAt: string | null;
     processed: number;
     total: number;
+    remaining?: number;
     status: string;
   } | null;
 }

@@ -12,6 +12,7 @@ import { StatsRun } from '../stats/stats-run.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { AutoExposeService } from '../stats/auto-expose.service';
 import { ChannelLanguageService } from '../stats/channel-language.service';
+import { ChannelMetricsService } from '../stats/channel-metrics.service';
 import { PublicStatsService } from '../stats/public-stats.service';
 import { ChannelStatus } from '../channels/channel.entity';
 import {
@@ -32,6 +33,7 @@ export class AdminCollectService {
     private readonly statsJob: StatsJobService,
     private readonly autoExpose: AutoExposeService,
     private readonly languages: ChannelLanguageService,
+    private readonly metrics: ChannelMetricsService,
     private readonly publicStats: PublicStatsService,
     @InjectRepository(StatsRun)
     private readonly runRepository: Repository<StatsRun>,
@@ -45,6 +47,7 @@ export class AdminCollectService {
       await this.collector.collectPublicPageNow(channel);
       const collected = await this.channelsService.findById(channel.id);
       await this.languages.classifyOne(collected);
+      await this.metrics.computeOne(collected.id);
       this.publicStats.clearPublicCaches();
       if (collected.status === ChannelStatus.PENDING) {
         await this.autoExpose.tryPromoteSubmission(collected);

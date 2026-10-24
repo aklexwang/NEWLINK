@@ -116,6 +116,31 @@ export class ChannelMetricsService {
   ) {}
 
   async computeToday(now: Date = new Date()): Promise<void> {
+    const built = await this.buildScored(now);
+    if (!built) return;
+    await this.persistSnapshots(built.rows, built.today);
+    await this.persistScores(built.scored, built.today);
+    this.logger.log(
+      `오늘(${built.today}) 스냅샷·점수 ${built.scored.length}건을 저장했습니다. (관측 ${THRESHOLDS.dataShortDays}일 미만은 데이터 부족)`,
+    );
+  }
+
+  /** 한 채널의 score/grade 만 저장. 카테고리 순위는 새벽 전체 계산에서 맞춘다 */
+  async computeOne(channelId: string, now: Date = new Date()): Promise<void> {
+    const built = await this.buildScored(now);
+    if (!built) return;
+    const row = built.rows.find((item) => item.channel.id === channelId);
+    const scored = built.scored.find((item) => item.channel.id === channelId);
+    if (!row || !scored) return;
+    await this.persistSnapshots([row], built.today);
+    await this.persistScores([scored], built.today);
+  }
+
+  private async buildScored(now: Date): Promise<{
+    today: string;
+    rows: ChannelMetricsRow[];
+    scored: ScoredRow[];
+  } | null> {
     const today = formatKstYmd(now);
     const channels = (
       await this.channelRepository.find({
@@ -124,7 +149,7 @@ export class ChannelMetricsService {
     ).filter(isScoreCollectable);
     if (channels.length === 0) {
       this.logger.log('점수 계산 대상 채널이 없습니다.');
-      return;
+      return null;
     }
 
     const ids = channels.map((c) => c.id);
@@ -148,7 +173,11 @@ export class ChannelMetricsService {
         today,
       ),
     );
+    return { today, rows, scored: this.scoreRows(rows) };
+  }
 
+  private async persistSnapshots(rows: ChannelMetricsRow[], today: string) {
+    if (rows.length === 0) return;
     await this.snapshotRepository.upsert(
       rows.map((row) => ({
         channelId: row.channel.id,
@@ -162,12 +191,6 @@ export class ChannelMetricsService {
         activity7d: row.activity7d,
       })),
       ['channelId', 'capturedOn'],
-    );
-
-    const scored = this.scoreRows(rows);
-    await this.persistScores(scored, today);
-    this.logger.log(
-      `오늘(${today}) 스냅샷·점수 ${scored.length}건을 저장했습니다. (관측 ${THRESHOLDS.dataShortDays}일 미만은 데이터 부족)`,
     );
   }
 

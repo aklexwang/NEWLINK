@@ -35,7 +35,7 @@ export function AdminDashboardPage() {
 
   const run = data?.lastCollectRun;
   const runLabel = run
-    ? `${run.mode} · ${run.status} · 처리 ${run.processed}/${run.total}`
+    ? `${run.mode} · ${run.status} · 처리 ${run.processed}/${run.total}, 남은 ${run.remaining ?? Math.max(0, run.total - run.processed)}`
     : '기록 없음';
 
   return (

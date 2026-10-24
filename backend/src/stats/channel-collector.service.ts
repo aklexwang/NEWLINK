@@ -27,6 +27,10 @@ import {
 import { formatKstYmd } from './channel-metrics.math';
 import { isCollectDueToday, kstWeekdayIndex, resolveCollectTier } from './collect-tier.logic';
 import { isLightCollectTarget } from './stats-collect.logic';
+import {
+  isCollectBudgetOver,
+  orderChannelsForCollect,
+} from './collect-budget.logic';
 import { ChannelPost } from './channel-post.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import {
@@ -87,47 +91,46 @@ export class ChannelCollectorService {
       total: number;
       failed: number;
     }) => void,
-  ): Promise<{ ok: number; fail: number }> {
+    options?: { deadlineMs?: number },
+  ): Promise<{ ok: number; fail: number; remaining: number }> {
     await this.fillMissingUsernamesFromLinks();
     const allActive = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
     const weekday = kstWeekdayIndex();
-    const channels = allActive.filter(
-      (ch) =>
-        !shouldSkipDailyCollect(ch.collectStatus) &&
-        !shouldSkipInviteExpiredRecheck(ch.collectStatus, ch.lastCollectedAt) &&
-        isCollectDueToday({
-          id: ch.id,
-          memberCount: ch.memberCount,
-          posts7d: ch.posts7d,
-          createdAt: ch.createdAt,
-          weekday,
-        }),
+    const channels = orderChannelsForCollect(
+      allActive.filter(
+        (ch) =>
+          !shouldSkipDailyCollect(ch.collectStatus) &&
+          !shouldSkipInviteExpiredRecheck(ch.collectStatus, ch.lastCollectedAt) &&
+          isCollectDueToday({
+            id: ch.id,
+            memberCount: ch.memberCount,
+            posts7d: ch.posts7d,
+            createdAt: ch.createdAt,
+            weekday,
+          }),
+      ),
     );
 
-    let ok = 0;
-    let fail = 0;
-    const total = channels.length;
-    onProgress?.({ processed: 0, total, failed: 0 });
-    for (let i = 0; i < channels.length; i += 1) {
-      const outcome = await this.collectOneSafe(channels[i]);
-      if (outcome.ok) ok += 1;
-      else fail += 1;
-      onProgress?.({ processed: i + 1, total, failed: fail });
-      if (i < channels.length - 1) {
-        await sleep(CHANNEL_GAP_MS);
-      }
+    const result = await this.collectQueued(
+      channels,
+      onProgress,
+      options?.deadlineMs,
+    );
+    if (!isCollectBudgetOver(options?.deadlineMs)) {
+      const retried = await this.retrySameDayFailures();
+      result.ok += retried.ok;
+      result.fail = Math.max(0, result.fail - retried.ok);
+      this.logger.log(
+        `채널 수집 완료: 성공 ${result.ok} / 실패 ${result.fail} (대상 ${channels.length}, 남은 ${result.remaining}, 같은 날 재시도 ${retried.tried})`,
+      );
+    } else {
+      this.logger.log(
+        `채널 수집 시간 예산 종료: 성공 ${result.ok} / 실패 ${result.fail} (대상 ${channels.length}, 남은 ${result.remaining})`,
+      );
     }
-
-    const retried = await this.retrySameDayFailures();
-    ok += retried.ok;
-    fail = Math.max(0, fail - retried.ok);
-
-    this.logger.log(
-      `채널 수집 완료: 성공 ${ok} / 실패 ${fail} (대상 ${channels.length}, 같은 날 재시도 ${retried.tried})`,
-    );
-    return { ok, fail };
+    return result;
   }
 
   async collectLightAll(
@@ -136,39 +139,69 @@ export class ChannelCollectorService {
       total: number;
       failed: number;
     }) => void,
-  ): Promise<{ ok: number; fail: number }> {
+    options?: { deadlineMs?: number },
+  ): Promise<{ ok: number; fail: number; remaining: number }> {
     const allActive = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
     const weekday = kstWeekdayIndex();
-    const channels = allActive.filter(
-      (ch) =>
-        isLightCollectTarget(ch) &&
-        isCollectDueToday({
-          id: ch.id,
-          memberCount: ch.memberCount,
-          posts7d: ch.posts7d,
-          createdAt: ch.createdAt,
-          weekday,
-        }),
+    const channels = orderChannelsForCollect(
+      allActive.filter(
+        (ch) =>
+          isLightCollectTarget(ch) &&
+          isCollectDueToday({
+            id: ch.id,
+            memberCount: ch.memberCount,
+            posts7d: ch.posts7d,
+            createdAt: ch.createdAt,
+            weekday,
+          }),
+      ),
     );
+    const result = await this.collectQueued(
+      channels,
+      onProgress,
+      options?.deadlineMs,
+      { light: true },
+    );
+    this.logger.log(
+      `light 수집 완료: 성공 ${result.ok} / 실패 ${result.fail} (대상 ${channels.length}, 남은 ${result.remaining})`,
+    );
+    return result;
+  }
+
+  private async collectQueued(
+    channels: Channel[],
+    onProgress?: (progress: {
+      processed: number;
+      total: number;
+      failed: number;
+    }) => void,
+    deadlineMs?: number,
+    options?: { light?: boolean },
+  ): Promise<{ ok: number; fail: number; remaining: number }> {
     let ok = 0;
     let fail = 0;
     const total = channels.length;
     onProgress?.({ processed: 0, total, failed: 0 });
+    let processed = 0;
     for (let i = 0; i < channels.length; i += 1) {
-      const outcome = await this.collectOneSafe(channels[i], { light: true });
+      if (i > 0 && isCollectBudgetOver(deadlineMs)) {
+        this.logger.log(
+          `수집 시간 예산이 끝나 다음 채널부터 남깁니다. 남은 ${total - processed}건`,
+        );
+        break;
+      }
+      const outcome = await this.collectOneSafe(channels[i], options);
       if (outcome.ok) ok += 1;
       else fail += 1;
-      onProgress?.({ processed: i + 1, total, failed: fail });
-      if (i < channels.length - 1) {
+      processed = i + 1;
+      onProgress?.({ processed, total, failed: fail });
+      if (i < channels.length - 1 && !isCollectBudgetOver(deadlineMs)) {
         await sleep(CHANNEL_GAP_MS);
       }
     }
-    this.logger.log(
-      `light 수집 완료: 성공 ${ok} / 실패 ${fail} (대상 ${channels.length})`,
-    );
-    return { ok, fail };
+    return { ok, fail, remaining: Math.max(0, total - processed) };
   }
 
   private async collectOneSafe(
