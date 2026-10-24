@@ -1,5 +1,8 @@
 import { isInviteOnlyLink } from './telegram-username';
-import { isTelegramBotFileUrl } from './telegram-avatar.logic';
+import {
+  isAllowedTelegramPageHost,
+  isTelegramBotFileUrl,
+} from './telegram-avatar.logic';
 import {
   parseInviteLinkHtml,
   parsePublicUsernamePage,
@@ -12,6 +15,33 @@ export type TelegramPreview = {
   memberCount: number | null;
   kind: 'channel' | 'group' | null;
 };
+
+/** fetchPreview 입력은 t.me / telegram.me 만. 아니면 null. */
+export function resolvePreviewRequestUrl(link: string): string | null {
+  const trimmed = link.trim();
+  if (!trimmed) return null;
+  let normalized: string;
+  if (/^https?:\/\//i.test(trimmed)) {
+    normalized = trimmed;
+  } else if (
+    trimmed.startsWith('t.me/') ||
+    trimmed.startsWith('telegram.me/')
+  ) {
+    normalized = `https://${trimmed}`;
+  } else if (trimmed.startsWith('@')) {
+    normalized = `https://t.me/${trimmed.slice(1)}`;
+  } else {
+    normalized = `https://t.me/${trimmed}`;
+  }
+  try {
+    const parsed = new URL(normalized);
+    if (!/^https?:$/i.test(parsed.protocol)) return null;
+    if (!isAllowedTelegramPageHost(parsed.hostname)) return null;
+    return normalized;
+  } catch {
+    return null;
+  }
+}
 
 export function emptyTelegramPreview(): TelegramPreview {
   return {

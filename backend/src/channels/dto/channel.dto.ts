@@ -5,11 +5,27 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
   MaxLength,
   Min,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from 'class-validator';
+import { isTelegramSubmitLink } from '../telegram-avatar.logic';
 import { LinkType } from '../channel.entity';
+
+@ValidatorConstraint({ name: 'telegramSubmitLink', async: false })
+export class TelegramSubmitLinkConstraint
+  implements ValidatorConstraintInterface
+{
+  validate(value: unknown): boolean {
+    return typeof value === 'string' && isTelegramSubmitLink(value);
+  }
+
+  defaultMessage(): string {
+    return 't.me 또는 telegram.me 링크만 제보할 수 있습니다.';
+  }
+}
 
 export class CreateChannelDto {
   @IsString()
@@ -17,7 +33,7 @@ export class CreateChannelDto {
   @MaxLength(255)
   title: string;
 
-  @IsUrl()
+  @Validate(TelegramSubmitLinkConstraint)
   @MaxLength(512)
   link: string;
 

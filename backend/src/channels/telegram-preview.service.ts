@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createPublicTelegramFetcher } from '../stats/public-telegram-fetch.logic';
+import { createPreviewTelegramFetcher } from '../stats/public-telegram-fetch.logic';
 import {
   emptyTelegramPreview,
+  resolvePreviewRequestUrl,
   telegramPreviewFromHtml,
   type TelegramPreview,
 } from './telegram-preview.logic';
@@ -11,12 +12,13 @@ export type { TelegramPreview };
 @Injectable()
 export class TelegramPreviewService {
   private readonly logger = new Logger(TelegramPreviewService.name);
-  private readonly publicFetch = createPublicTelegramFetcher();
+  private readonly previewFetch = createPreviewTelegramFetcher();
 
   async fetchPreview(link: string): Promise<TelegramPreview> {
-    const normalized = this.normalizeLink(link);
+    const normalized = resolvePreviewRequestUrl(link);
+    if (!normalized) return emptyTelegramPreview();
     try {
-      const page = await this.publicFetch.fetchHtml(normalized);
+      const page = await this.previewFetch.fetchHtml(normalized);
       return telegramPreviewFromHtml({
         html: page.html,
         status: page.status,
@@ -27,13 +29,5 @@ export class TelegramPreviewService {
       this.logger.warn(`Failed to scrape ${normalized}: ${error}`);
       return emptyTelegramPreview();
     }
-  }
-
-  private normalizeLink(link: string): string {
-    const trimmed = link.trim();
-    if (trimmed.startsWith('http')) return trimmed;
-    if (trimmed.startsWith('t.me/')) return `https://${trimmed}`;
-    if (trimmed.startsWith('@')) return `https://t.me/${trimmed.slice(1)}`;
-    return `https://t.me/${trimmed}`;
   }
 }

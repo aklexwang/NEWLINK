@@ -6,3 +6,6 @@ process.env.MTPROTO_ENABLED = 'false';
 process.env.STATS_CRON_ENABLED = 'false';
 process.env.TELEGRAM_SESSION = '';
 process.env.TYPEORM_SYNC = 'true';
+process.env.JWT_SECRET ||= 'boot-test-jwt-secret';
+process.env.TELEGRAM_BOT_TOKEN ||= '0:boot-test-placeholder';
+process.env.TELEGRAM_PAYMENT_PROVIDER_TOKEN ||= 'boot-test-provider';

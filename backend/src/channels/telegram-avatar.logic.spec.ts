@@ -1,6 +1,7 @@
 import {
   isAllowedAvatarDownloadHost,
   isTelegramBotFileUrl,
+  isTelegramSubmitLink,
   parseTelegramAvatarPageLink,
   stripUnsafeAvatarUrl,
 } from './telegram-avatar.logic';
@@ -38,4 +39,12 @@ describe('telegram-avatar.logic', () => {
     expect(isAllowedAvatarDownloadHost('evilt.me')).toBe(false);
     expect(isAllowedAvatarDownloadHost('api.telegram.org')).toBe(false);
   });
+
+  it('제보 링크는 t.me / telegram.me 만 받는다', () => {
+    expect(isTelegramSubmitLink('https://t.me/NewsKorea')).toBe(true);
+    expect(isTelegramSubmitLink('https://www.telegram.me/NewsKorea')).toBe(true);
+    expect(isTelegramSubmitLink('https://evilt.me/x')).toBe(false);
+    expect(isTelegramSubmitLink('https://example.com/foo')).toBe(false);
+  });
 });
+

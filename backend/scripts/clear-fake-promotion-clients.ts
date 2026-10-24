@@ -27,7 +27,7 @@ async function main() {
   const counted = await client.query(
     `SELECT COUNT(*)::int AS n FROM channels
      WHERE promotion_client_telegram_id = $1
-        OR promotion_client_name LIKE '광고의뢰_%'`,
+        OR promotion_client_name LIKE '광고의뢰\_%' ESCAPE '\'`,
     [FAKE_ID],
   );
   const n = counted.rows[0].n as number;
@@ -43,7 +43,7 @@ async function main() {
          promotion_client_name = NULL,
          promotion_ton_amount = NULL
      WHERE promotion_client_telegram_id = $1
-        OR promotion_client_name LIKE '광고의뢰_%'`,
+        OR promotion_client_name LIKE '광고의뢰\_%' ESCAPE '\'`,
     [FAKE_ID],
   );
   console.log('updated', updated.rowCount ?? 0);

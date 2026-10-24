@@ -1,4 +1,7 @@
-import { telegramPreviewFromHtml } from './telegram-preview.logic';
+import {
+  resolvePreviewRequestUrl,
+  telegramPreviewFromHtml,
+} from './telegram-preview.logic';
 
 describe('telegramPreviewFromHtml', () => {
   it('초대 페이지는 og:title 없이 .tgme_page_title 을 읽고 공백을 지워지 않는다', () => {
@@ -37,3 +40,18 @@ describe('telegramPreviewFromHtml', () => {
     expect(preview.avatarUrl).toBeNull();
   });
 });
+
+describe('resolvePreviewRequestUrl', () => {
+  it('t.me / telegram.me 만 받고 다른 호스트는 빈다', () => {
+    expect(resolvePreviewRequestUrl('https://t.me/NewsKorea')).toBe(
+      'https://t.me/NewsKorea',
+    );
+    expect(resolvePreviewRequestUrl('https://telegram.me/NewsKorea')).toBe(
+      'https://telegram.me/NewsKorea',
+    );
+    expect(resolvePreviewRequestUrl('@NewsKorea')).toBe('https://t.me/NewsKorea');
+    expect(resolvePreviewRequestUrl('https://evilt.me/x')).toBeNull();
+    expect(resolvePreviewRequestUrl('https://example.com/t.me/x')).toBeNull();
+  });
+});
+

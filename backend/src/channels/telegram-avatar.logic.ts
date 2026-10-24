@@ -38,6 +38,19 @@ export function isAllowedTelegramPageHost(hostname: string): boolean {
   return host === 't.me' || host === 'telegram.me';
 }
 
+/** 회원 제보 링크. 스킴 있는 t.me / telegram.me 만. */
+export function isTelegramSubmitLink(raw: string): boolean {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    if (!/^https?:$/i.test(parsed.protocol)) return false;
+    return isAllowedTelegramPageHost(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function isAllowedAvatarDownloadHost(hostname: string): boolean {
   const host = normalizeHostname(hostname);
   if (DOWNLOAD_EXACT.has(host)) return true;
