@@ -58,7 +58,7 @@ https://newlink-api.onrender.com/api/health
 VITE_API_BASE_URL=https://newlink-api.onrender.com/api
 VITE_SITE_URL=https://global-spay.com
 VITE_TELEGRAM_BOT_USERNAME=telllink_bot
-VITE_TELEGRAM_BOT_ID=8863933040
+VITE_TELEGRAM_BOT_ID=8969094328
 ```
 
 그다음 프론트를 다시 빌드·배포합니다 (Cloudflare Pages).
