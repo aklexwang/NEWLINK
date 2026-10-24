@@ -1,4 +1,3 @@
-import { Navigate } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import {
   createAdminPayoutMethod,
@@ -22,10 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/admin/ui/table';
-
-export function AdminRewardsPage() {
-  return <Navigate to="/admin/pending?tab=settings" replace />;
-}
 
 export function AdminRewardSettingsPanel() {
   const [enabled, setEnabled] = useState(true);

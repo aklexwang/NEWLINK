@@ -2,9 +2,13 @@ import {
   aggregateMentionedUsernames,
   DISCOVERY_DELAY_MS,
   DISCOVERY_MAX_PER_DAY,
+  DISCOVERY_QUEUED_MAX_PER_DAY_DEFAULT,
   mergeDiscoveryQueue,
+  parseQueuedDailyMax,
   passesSnowballDiscovery,
+  persistDiscoverySource,
   shouldQueueSnowballCandidate,
+  splitDiscoveryDeadlines,
   isDiscoverySourceChannel,
   usernamesFromPost,
 } from './channel-discovery.logic';
@@ -146,7 +150,10 @@ describe('mergeDiscoveryQueue', () => {
           mentionCount: 2,
         },
       ],
-      ['dup', 'from_search'],
+      [
+        { username: 'dup', source: 'keyword' },
+        { username: 'from_search', source: 'keyword' },
+      ],
       new Set(),
       new Set(),
     );
@@ -164,10 +171,39 @@ describe('mergeDiscoveryQueue', () => {
           mentionCount: 2,
         },
       ],
-      ['from_search'],
+      [{ username: 'from_search', source: 'keyword' }],
       new Set(),
       new Set(),
     );
     expect(queue.map((item) => item.username)).toEqual(['adchan', 'from_search']);
+  });
+
+  it('source 가 비어 있는 queued 는 other 로 둔다', () => {
+    const queue = mergeDiscoveryQueue(
+      [],
+      [{ username: 'bulk_chan', source: null }],
+      new Set(),
+      new Set(),
+    );
+    expect(queue[0].source).toBe('other');
+    expect(persistDiscoverySource(queue[0].source)).toBe('other');
+    expect(persistDiscoverySource('keyword')).toBe('keyword');
+    expect(persistDiscoverySource('mention')).toBe('snowball');
+  });
+});
+
+describe('대기열 검사 한도·예산', () => {
+  it('queued 하루 한도 기본은 300이다', () => {
+    expect(DISCOVERY_QUEUED_MAX_PER_DAY_DEFAULT).toBe(300);
+    expect(parseQueuedDailyMax(undefined)).toBe(300);
+    expect(parseQueuedDailyMax('120')).toBe(120);
+  });
+
+  it('15분 중 queued 에 최소 5분을 남긴다', () => {
+    const now = 1_000_000;
+    const deadline = now + 15 * 60 * 1000;
+    const split = splitDiscoveryDeadlines(deadline, now);
+    expect(split.queuedDeadlineMs).toBe(deadline);
+    expect(split.mentionDeadlineMs).toBe(deadline - 5 * 60 * 1000);
   });
 });

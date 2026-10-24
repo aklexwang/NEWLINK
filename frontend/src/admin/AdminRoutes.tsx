@@ -3,16 +3,11 @@ import { AdminLayout } from '../components/admin/AdminLayout';
 import { AdminDiscoveryPage } from '../pages/admin/AdminDiscoveryPage';
 import { AdminAdsManagePage } from '../pages/admin/AdminAdsManagePage';
 import { AdminCategoriesPage } from '../pages/admin/AdminCategoriesPage';
-import { AdminCategoryLinksPage } from '../pages/admin/AdminCategoryLinksPage';
-import { AdminChannelsManagePage } from '../pages/admin/AdminChannelsManagePage';
-import { AdminGroupsManagePage } from '../pages/admin/AdminGroupsManagePage';
 import { AdminManualRegisterPage } from '../pages/admin/AdminManualRegisterPage';
 import { AdminCollectOpsPage } from '../pages/admin/AdminCollectOpsPage';
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
 import { AdminLinksManagePage } from '../pages/admin/AdminLinksManagePage';
 import { AdminPendingPage } from '../pages/admin/AdminPendingPage';
-import { AdminTonPaymentsPage } from '../pages/admin/AdminTonPaymentsPage';
-import { AdminRewardsPage } from '../pages/admin/AdminRewardsPage';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage';
 
 export default function AdminRoutes() {
@@ -26,17 +21,8 @@ export default function AdminRoutes() {
         <Route path="pending" element={<AdminPendingPage />} />
         <Route path="register-link" element={<AdminManualRegisterPage />} />
         <Route path="discovery" element={<AdminDiscoveryPage />} />
-        <Route path="auto-manage" element={<AdminDiscoveryPage />} />
-        <Route path="by-category" element={<AdminCategoryLinksPage />} />
-        <Route path="register" element={<Navigate to="/admin/register-link" replace />} />
-        <Route path="channels/register" element={<Navigate to="/admin/register-link" replace />} />
-        <Route path="channels" element={<AdminChannelsManagePage />} />
-        <Route path="groups/register" element={<Navigate to="/admin/register-link" replace />} />
-        <Route path="groups" element={<AdminGroupsManagePage />} />
         <Route path="ads" element={<AdminAdsManagePage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
-        <Route path="ton-payments" element={<AdminTonPaymentsPage />} />
-        <Route path="rewards" element={<AdminRewardsPage />} />
         <Route path="users" element={<AdminUsersPage />} />
       </Route>
     </Routes>

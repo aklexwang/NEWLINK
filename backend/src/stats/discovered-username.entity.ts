@@ -8,7 +8,8 @@ export type DiscoveredUsernameResult =
   | 'too_small'
   | 'not_found'
   | 'invite_or_private'
-  | 'discarded';
+  | 'discarded'
+  | 'already_registered';
 
 /** 눈덩이 발견에서 이미 검사한 아이디 (30일 후 재검사) */
 @Entity('discovered_usernames')

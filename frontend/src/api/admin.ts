@@ -2,7 +2,6 @@ import { apiClient } from './client';
 import type { CategoryItem } from '../types/categoryItem';
 import type { ChannelPreview, PendingChannel } from '../types/channel';
 import type { Channel } from '../types/channel';
-import type { TonPaymentRecord } from '../types/tonPayment';
 import type { AdminUser } from '../types/user';
 import { getAdminAuthHeaders } from '../utils/adminAccess';
 
@@ -635,20 +634,6 @@ export async function failAdminPayoutRecord(id: string, reason?: string) {
   return data;
 }
 
-export async function getTonPaymentHistory(q?: string): Promise<TonPaymentRecord[]> {
-  const { data } = await apiClient.get<TonPaymentRecord[]>('/admin/ton-payments', {
-    headers: getAdminAuthHeaders(),
-    params: q ? { q } : undefined,
-  });
-  return data;
-}
-
-export async function deleteTonPaymentRecord(id: string): Promise<void> {
-  await apiClient.delete(`/admin/ton-payments/${id}`, {
-    headers: getAdminAuthHeaders(),
-  });
-}
-
 export async function promoteChannel(id: string, promotedUntil?: string) {
   const body = promotedUntil ? { promotedUntil } : { durationDays: 7 };
   const { data } = await apiClient.patch(`/admin/channels/${id}/promote`, body, {
@@ -720,54 +705,6 @@ export async function deleteCategory(id: string) {
   return data;
 }
 
-export interface AutoManageStatus {
-  sources: string[];
-  tgstatConfigured: boolean;
-  googleConfigured?: boolean;
-  serperConfigured?: boolean;
-  searchConfigured?: boolean;
-  searchProvider?: 'serper' | 'google' | null;
-  aiConfigured?: boolean;
-  label: string;
-  hint: string;
-}
-
-export interface ImportCandidate {
-  id: string;
-  link: string;
-  title: string;
-  category: string;
-  categoryAiSuggested?: string | null;
-  categoryConfidence?: number | null;
-  categoryReviewed?: boolean;
-  categorySource?: string;
-  linkType: 'channel' | 'group';
-  participantsCount: number;
-  avatarUrl: string | null;
-  source: string;
-  discoverySources?: string[];
-  status: 'pending' | 'published' | 'skipped';
-  publishedChannelId: string | null;
-  fetchedAt: string;
-  publishedAt: string | null;
-  alreadyOnMemberPage: boolean;
-}
-
-export interface AutoManageCategory {
-  id: string;
-  name: string;
-  emoji: string;
-  count: number;
-}
-
-export type GoogleSearchPreset =
-  | 'site'
-  | 'groups'
-  | 'intitle'
-  | 'invite'
-  | 'directory'
-  | 'custom';
-
 export type DiscoveryQueueFilter =
   | 'queued'
   | 'added'
@@ -775,6 +712,7 @@ export type DiscoveryQueueFilter =
   | 'too_small'
   | 'not_found'
   | 'invite_or_private'
+  | 'already_registered'
   | 'all';
 
 export interface DiscoveryQueueItem {
@@ -800,6 +738,7 @@ export interface DiscoveryUsage {
   snowball: { today: number; dailyMax: number };
   keywordSearch: { today: number; dailyMax: number };
   resolve: { today: number; dailyMax: number };
+  queuedInspect: { today: number; dailyMax: number };
 }
 
 export interface DiscoveryKeywordRow {
@@ -897,135 +836,3 @@ export async function reorderDiscoveryKeywords(ids: string[]) {
   return data;
 }
 
-export async function getAutoManageStatus(): Promise<AutoManageStatus> {
-  const { data } = await apiClient.get<AutoManageStatus>('/admin/auto-manage/status', {
-    headers: getAdminAuthHeaders(),
-  });
-  return data;
-}
-
-export async function getAutoManageCategories(): Promise<AutoManageCategory[]> {
-  const { data } = await apiClient.get<AutoManageCategory[]>('/admin/auto-manage/categories', {
-    headers: getAdminAuthHeaders(),
-  });
-  return data;
-}
-
-export async function syncAutoManageCandidates(category?: string) {
-  const { data } = await apiClient.post<{
-    created: number;
-    updated: number;
-    total: number;
-    skippedNonKorean?: number;
-    cleanedNonKorean?: number;
-    categoriesSynced?: string[];
-  }>(
-    '/admin/auto-manage/sync',
-    {},
-    {
-      headers: getAdminAuthHeaders(),
-      params: category ? { category } : undefined,
-      timeout: 300000,
-    },
-  );
-  return data;
-}
-
-export async function searchGoogleAutoManageCandidates(body: {
-  topic?: string;
-  preset: GoogleSearchPreset;
-  customQuery?: string;
-  category?: string;
-  pages?: number;
-  strictTopic?: boolean;
-}) {
-  const { data } = await apiClient.post<{
-    query: string;
-    created: number;
-    updated: number;
-    skippedExisting: number;
-    total: number;
-    rawResultCount: number;
-    filteredOut?: number;
-    inviteCount: number;
-    publicCount: number;
-    aiClassified?: number;
-    aiConfigured?: boolean;
-  }>('/admin/auto-manage/google-search', body, {
-    headers: getAdminAuthHeaders(),
-    timeout: 180000,
-  });
-  return data;
-}
-
-export async function classifyAutoManageCandidates(ids: string[]) {
-  const { data } = await apiClient.post<{
-    updated: number;
-    total: number;
-    aiConfigured: boolean;
-  }>(
-    '/admin/auto-manage/classify',
-    { ids },
-    { headers: getAdminAuthHeaders(), timeout: 300000 },
-  );
-  return data;
-}
-
-export async function classifyPendingAutoManageCandidates() {
-  const { data } = await apiClient.post<{
-    updated: number;
-    total: number;
-    aiConfigured: boolean;
-  }>('/admin/auto-manage/classify-pending', {}, {
-    headers: getAdminAuthHeaders(),
-    timeout: 300000,
-  });
-  return data;
-}
-
-export async function updateAutoManageCandidate(
-  id: string,
-  payload: {
-    category?: string;
-    categoryReviewed?: boolean;
-    linkType?: 'channel' | 'group';
-    title?: string;
-  },
-) {
-  const { data } = await apiClient.patch<ImportCandidate>(
-    `/admin/auto-manage/candidates/${id}`,
-    payload,
-    { headers: getAdminAuthHeaders() },
-  );
-  return data;
-}
-
-export async function getAutoManageCandidates(params?: {
-  status?: string;
-  category?: string;
-  source?: string;
-}): Promise<ImportCandidate[]> {
-  const { data } = await apiClient.get<ImportCandidate[]>('/admin/auto-manage/candidates', {
-    headers: getAdminAuthHeaders(),
-    params,
-  });
-  return data;
-}
-
-export async function publishAutoManageCandidates(ids: string[]) {
-  const { data } = await apiClient.post<{ id: string; ok: boolean; message?: string }[]>(
-    '/admin/auto-manage/publish',
-    { ids },
-    { headers: getAdminAuthHeaders() },
-  );
-  return data;
-}
-
-export async function skipAutoManageCandidates(ids: string[]) {
-  const { data } = await apiClient.post<{ ok: boolean; count: number }>(
-    '/admin/auto-manage/skip',
-    { ids },
-    { headers: getAdminAuthHeaders() },
-  );
-  return data;
-}

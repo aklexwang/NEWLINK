@@ -16,6 +16,7 @@ describe('발견 대기열 필터', () => {
     expect(discoveryResultLabel('queued')).toBe('대기');
     expect(discoveryResultLabel('invite_or_private')).toBe('초대·비공개');
     expect(discoveryResultLabel('discarded')).toBe('버림');
+    expect(discoveryResultLabel('already_registered')).toBe('이미 등록');
   });
 
   it('페이지는 50개씩이다', () => {

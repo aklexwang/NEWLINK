@@ -40,6 +40,7 @@ const FILTERS: { value: DiscoveryQueueFilter; label: string }[] = [
   { value: 'too_small', label: '100명 미만' },
   { value: 'not_found', label: '없는 채널' },
   { value: 'invite_or_private', label: '초대·비공개' },
+  { value: 'already_registered', label: '이미 등록' },
   { value: 'all', label: '전체' },
 ];
 
@@ -185,7 +186,7 @@ export function AdminDiscoveryPage() {
       {message && <p className="mt-3 text-sm text-destructive">{message}</p>}
 
       {usage ? (
-        <section className="mt-6 grid gap-3 sm:grid-cols-3">
+        <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="py-4">
             <CardHeader className="px-4">
               <CardDescription>발견 오늘</CardDescription>
@@ -207,6 +208,14 @@ export function AdminDiscoveryPage() {
               <CardDescription>resolve</CardDescription>
               <CardTitle>
                 {usage.resolve.today}/{usage.resolve.dailyMax}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>기타·키워드 대기 검사</CardDescription>
+              <CardTitle>
+                {usage.queuedInspect?.today ?? 0}/{usage.queuedInspect?.dailyMax ?? 300}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -433,7 +442,6 @@ export function AdminDiscoveryPage() {
         </Card>
       </section>
 
-      {/* 예전 Google·TGStat·시드 동기화 UI는 AdminAutoManagePage 에 그대로 둠. 라우트만 발견 화면으로 바꿈. */}
     </div>
   );
 }

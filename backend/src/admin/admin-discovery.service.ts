@@ -58,7 +58,9 @@ export class AdminDiscoveryService {
     if (input.source === 'snowball' || input.source === 'keyword') {
       qb.andWhere('row.source = :source', { source: input.source });
     } else if (input.source === 'other') {
-      qb.andWhere('row.source IS NULL');
+      qb.andWhere('(row.source IS NULL OR row.source = :other)', {
+        other: 'other',
+      });
     }
     const total = await qb.clone().getCount();
     const rows = await qb.skip(skip).take(take).getMany();
@@ -98,6 +100,10 @@ export class AdminDiscoveryService {
       resolve: {
         today: mtproto.resolvesToday,
         dailyMax: RESOLVE_DAILY_LIMIT_DEFAULT,
+      },
+      queuedInspect: {
+        today: await this.discovery.countQueuedInspectToday(),
+        dailyMax: this.discovery.queuedDailyMax(),
       },
     };
   }

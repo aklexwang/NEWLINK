@@ -9,6 +9,11 @@ import {
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { CategoryIconPicker } from '../../components/CategoryIconPicker';
 import type { CategoryItem } from '../../types/categoryItem';
+import { Badge } from '@/components/admin/ui/badge';
+import { Button } from '@/components/admin/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Input } from '@/components/admin/ui/input';
+import { Skeleton } from '@/components/admin/ui/skeleton';
 
 type EditDraft = {
   name: string;
@@ -21,7 +26,11 @@ export function AdminCategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-  const [newCategory, setNewCategory] = useState({ name: '', emoji: '📁', iconUrl: null as string | null });
+  const [newCategory, setNewCategory] = useState({
+    name: '',
+    emoji: '📁',
+    iconUrl: null as string | null,
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft>({
     name: '',
@@ -43,7 +52,7 @@ export function AdminCategoriesPage() {
   }, []);
 
   useEffect(() => {
-    loadCategories();
+    void loadCategories();
   }, [loadCategories]);
 
   const handleCreateCategory = async (e: React.FormEvent) => {
@@ -79,7 +88,6 @@ export function AdminCategoriesPage() {
       setMessage('카테고리 이름을 입력해 주세요.');
       return;
     }
-
     setSaving(true);
     try {
       await updateCategory(id, {
@@ -114,33 +122,46 @@ export function AdminCategoriesPage() {
     await loadCategories();
   };
 
+  const handleMove = async (index: number, dir: -1 | 1) => {
+    const next = index + dir;
+    if (next < 0 || next >= categories.length) return;
+    const current = categories[index];
+    const neighbor = categories[next];
+    setSaving(true);
+    try {
+      await updateCategory(current.id, { sortOrder: neighbor.sortOrder });
+      await updateCategory(neighbor.id, { sortOrder: current.sortOrder });
+      await loadCategories();
+    } catch {
+      setMessage('순서를 바꾸지 못했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <>
-      <header className="border-b border-black/5 bg-white px-6 py-5">
-        <h2 className="text-xl font-bold text-slate-900">카테고리</h2>
-        <p className="mt-1 text-sm text-slate-500">카테고리 이름과 아이콘을 관리합니다.</p>
-      </header>
+    <div className="flex-1 overflow-y-auto p-6">
+      <h2 className="text-xl font-bold">카테고리 설정</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        이름·아이콘·순서를 관리합니다. 회원 화면 카테고리 목록도 이 순서를 따릅니다.
+      </p>
+      {message && <p className="mt-3 text-sm text-foreground">{message}</p>}
 
-      <div className="flex-1 overflow-y-auto p-6">
-        {message && (
-          <div className="mb-4 rounded-xl bg-white px-4 py-3 text-sm text-slate-800 shadow-sm ring-1 ring-black/5">
-            {message}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="h-32 animate-pulse rounded-2xl bg-white shadow-sm" />
-        ) : (
-          <div className="flex max-w-3xl flex-col gap-4">
-            <form onSubmit={handleCreateCategory} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">새 카테고리 추가</h3>
-              <div className="flex flex-col gap-3">
-                <input
+      {loading ? (
+        <Skeleton className="mt-6 h-32 w-full max-w-3xl" />
+      ) : (
+        <div className="mt-6 flex max-w-3xl flex-col gap-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">새 카테고리 추가</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateCategory} className="flex flex-col gap-3">
+                <Input
                   required
                   value={newCategory.name}
                   onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                   placeholder="카테고리 이름 (예: 게임)"
-                  className="rounded-xl bg-slate-50 px-4 py-3 text-sm outline-none ring-1 ring-black/5"
                 />
                 <CategoryIconPicker
                   emoji={newCategory.emoji}
@@ -148,94 +169,101 @@ export function AdminCategoriesPage() {
                   onEmojiChange={(emoji) => setNewCategory({ ...newCategory, emoji })}
                   onIconUrlChange={(iconUrl) => setNewCategory({ ...newCategory, iconUrl })}
                 />
-                <button type="submit" className="rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700">
-                  카테고리 추가
-                </button>
-              </div>
-            </form>
+                <Button type="submit">카테고리 추가</Button>
+              </form>
+            </CardContent>
+          </Card>
 
-            <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-semibold text-slate-900">등록된 카테고리 ({categories.length})</h3>
-              {categories.length === 0 ? (
-                <p className="text-sm text-slate-500">등록된 카테고리가 없습니다.</p>
-              ) : (
-                categories.map((item) => (
-                  <div key={item.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-                    <div className="flex items-center gap-3">
-                      <CategoryIcon emoji={item.emoji} iconUrl={item.iconUrl} size="md" />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-900">{item.name}</p>
-                        <p className="text-xs text-slate-500">
-                          순서 {item.sortOrder} · {item.isActive ? '활성' : '비활성'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => startEdit(item)}
-                        className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs ring-1 ring-black/5"
-                      >
-                        수정
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(item)}
-                        className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs ring-1 ring-black/5"
-                      >
-                        {item.isActive ? '끄기' : '켜기'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCategory(item.id)}
-                        className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600"
-                      >
-                        삭제
-                      </button>
-                    </div>
-
-                    {editingId === item.id && (
-                      <div className="mt-3 space-y-3 border-t border-black/5 pt-3">
-                        <label className="block">
-                          <span className="mb-1 block text-xs font-medium text-slate-600">이름</span>
-                          <input
-                            value={editDraft.name}
-                            onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
-                            placeholder="카테고리 이름"
-                            className="w-full rounded-xl bg-slate-50 px-4 py-2.5 text-sm outline-none ring-1 ring-black/5 focus:ring-blue-300"
-                          />
-                        </label>
-                        <CategoryIconPicker
-                          emoji={editDraft.emoji}
-                          iconUrl={editDraft.iconUrl}
-                          onEmojiChange={(emoji) => setEditDraft({ ...editDraft, emoji })}
-                          onIconUrlChange={(iconUrl) => setEditDraft({ ...editDraft, iconUrl })}
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void handleSaveEdit(item.id)}
-                            disabled={saving}
-                            className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50"
-                          >
-                            {saving ? '저장 중...' : '저장'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            disabled={saving}
-                            className="rounded-xl bg-white px-4 py-2 text-sm ring-1 ring-black/5 disabled:opacity-50"
-                          >
-                            취소
-                          </button>
-                        </div>
-                      </div>
-                    )}
+          <h3 className="mt-4 text-sm font-semibold">등록된 카테고리 ({categories.length})</h3>
+          {categories.length === 0 ? (
+            <p className="text-sm text-muted-foreground">등록된 카테고리가 없습니다.</p>
+          ) : (
+            categories.map((item, index) => (
+              <Card key={item.id}>
+                <CardContent className="flex flex-wrap items-center gap-3 pt-6">
+                  <CategoryIcon emoji={item.emoji} iconUrl={item.iconUrl} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      순서 {item.sortOrder} · {item.isActive ? '활성' : '비활성'}
+                    </p>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </>
+                  <div className="flex flex-wrap gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={saving || index === 0}
+                      onClick={() => void handleMove(index, -1)}
+                    >
+                      위
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={saving || index === categories.length - 1}
+                      onClick={() => void handleMove(index, 1)}
+                    >
+                      아래
+                    </Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => startEdit(item)}>
+                      수정
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => void handleToggleActive(item)}>
+                      {item.isActive ? '끄기' : '켜기'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => void handleDeleteCategory(item.id)}
+                    >
+                      삭제
+                    </Button>
+                  </div>
+                  {!item.isActive && <Badge variant="secondary">비활성</Badge>}
+                </CardContent>
+                {editingId === item.id && (
+                  <CardContent className="space-y-3 border-t border-border pt-4">
+                    <label className="block text-xs font-medium">
+                      이름
+                      <Input
+                        className="mt-1"
+                        value={editDraft.name}
+                        onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
+                      />
+                    </label>
+                    <CategoryIconPicker
+                      emoji={editDraft.emoji}
+                      iconUrl={editDraft.iconUrl}
+                      onEmojiChange={(emoji) => setEditDraft({ ...editDraft, emoji })}
+                      onIconUrlChange={(iconUrl) => setEditDraft({ ...editDraft, iconUrl })}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => void handleSaveEdit(item.id)}
+                      >
+                        {saving ? '저장 중...' : '저장'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={saving}
+                        onClick={() => setEditingId(null)}
+                      >
+                        취소
+                      </Button>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   );
 }

@@ -10,6 +10,7 @@ export type DiscoveryQueueFilter =
   | 'too_small'
   | 'not_found'
   | 'invite_or_private'
+  | 'already_registered'
   | 'all';
 
 export const DISCOVERY_QUEUE_FILTERS: DiscoveryQueueFilter[] = [
@@ -19,6 +20,7 @@ export const DISCOVERY_QUEUE_FILTERS: DiscoveryQueueFilter[] = [
   'too_small',
   'not_found',
   'invite_or_private',
+  'already_registered',
   'all',
 ];
 
@@ -41,6 +43,7 @@ export function discoveryResultLabel(
   if (result === 'not_found') return '없는 채널';
   if (result === 'invite_or_private') return '초대·비공개';
   if (result === 'discarded') return '버림';
+  if (result === 'already_registered') return '이미 등록';
   return result ?? '-';
 }
 

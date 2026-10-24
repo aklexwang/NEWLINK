@@ -8,15 +8,7 @@ import {
 } from '../../api/admin';
 import { AdClientCells, AdClientDetail } from '../../components/admin/AdClientInfo';
 import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor';
-import {
-  AdminEmptyState,
-  AdminMessage,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
-  ChannelAvatar,
-} from '../../components/admin/AdminTable';
+import { ChannelAvatar } from '../../components/admin/AdminTable';
 import type { Channel, LinkType } from '../../types/channel';
 import { LinkTypeToggle } from '../../components/admin/LinkTypeToggle';
 import {
@@ -28,6 +20,19 @@ import {
 import { refreshAdminBadges } from '../../utils/adminBadges';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { formatPercent } from '../../utils/formatCount';
+import { Badge } from '@/components/admin/ui/badge';
+import { Button } from '@/components/admin/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Input } from '@/components/admin/ui/input';
+import { Skeleton } from '@/components/admin/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/admin/ui/table';
 
 export function AdminAdsManagePage() {
   const [promoted, setPromoted] = useState<Channel[]>([]);
@@ -82,7 +87,7 @@ export function AdminAdsManagePage() {
   }, [query]);
 
   useEffect(() => {
-    loadPromoted();
+    void loadPromoted();
   }, [loadPromoted]);
 
   const searchCandidates = async (e: React.FormEvent) => {
@@ -124,7 +129,13 @@ export function AdminAdsManagePage() {
   };
 
   const handleStop = async (channel: Channel) => {
-    if (!window.confirm(`「${channel.title}」광고 노출을 중지할까요?\n(광고 목록에는 만료 상태로 남습니다)`)) return;
+    if (
+      !window.confirm(
+        `「${channel.title}」광고 노출을 중지할까요?\n(광고 목록에는 만료 상태로 남습니다)`,
+      )
+    ) {
+      return;
+    }
     try {
       await updateAdminChannel(channel.id, {
         isPromoted: true,
@@ -137,9 +148,14 @@ export function AdminAdsManagePage() {
     }
   };
 
-  /** 광고 관리 목록에서만 제거 (채널/그룹 자체는 유지) */
   const handleDeleteFromAds = async (channel: Channel) => {
-    if (!window.confirm(`「${channel.title}」을(를) 광고 관리에서 삭제할까요?\n(채널/그룹 등록은 유지됩니다)`)) return;
+    if (
+      !window.confirm(
+        `「${channel.title}」을(를) 광고 관리에서 삭제할까요?\n(채널/그룹 등록은 유지됩니다)`,
+      )
+    ) {
+      return;
+    }
     try {
       await updateAdminChannel(channel.id, { isPromoted: false, promotedUntil: null });
       setMessage('광고 관리에서 삭제했습니다.');
@@ -161,7 +177,10 @@ export function AdminAdsManagePage() {
     }
   };
 
-  const handleUpdateAvatar = (id: string, patch: { avatarUrl: string | null; avatarApproved: boolean }) => {
+  const handleUpdateAvatar = (
+    id: string,
+    patch: { avatarUrl: string | null; avatarApproved: boolean },
+  ) => {
     setPromoted((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
     setCandidates((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
     setMessage('아이콘이 저장되었습니다.');
@@ -172,11 +191,9 @@ export function AdminAdsManagePage() {
     const fromIdx = promoted.findIndex((item) => item.id === fromId);
     const toIdx = promoted.findIndex((item) => item.id === toId);
     if (fromIdx < 0 || toIdx < 0) return;
-
     const next = [...promoted];
     const [moved] = next.splice(fromIdx, 1);
     next.splice(toIdx, 0, moved);
-
     setPromoted(next);
     setOrderSaving(true);
     try {
@@ -190,336 +207,317 @@ export function AdminAdsManagePage() {
     }
   };
 
-  const activeCount = promoted.filter((item) => isPromotionActive(item.isPromoted, item.promotedUntil)).length;
+  const activeCount = promoted.filter((item) =>
+    isPromotionActive(item.isPromoted, item.promotedUntil),
+  ).length;
   const colCount = canReorder ? 12 : 11;
 
   return (
-    <>
-      <header className="border-b border-black/5 bg-white px-6 py-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">광고 관리</h2>
-            <p className="mt-1 text-sm text-slate-500">노출 중 {activeCount}건 · 전체 {promoted.length}건</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowAddSection((v) => !v)}
-            className="rounded-xl bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
-          >
-            {showAddSection ? '추가 패널 닫기' : '+ 광고 추가'}
-          </button>
+    <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold">광고 관리</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            노출 중 {activeCount}건 · 전체 {promoted.length}건
+          </p>
         </div>
-      </header>
+        <Button type="button" onClick={() => setShowAddSection((value) => !value)}>
+          {showAddSection ? '추가 패널 닫기' : '+ 광고 추가'}
+        </Button>
+      </div>
+      {message && <p className="mt-3 text-sm text-foreground">{message}</p>}
 
-      <div className="flex-1 overflow-y-auto p-6">
-        {message && <AdminMessage message={message} />}
-
-        {showAddSection && (
-          <section className="mb-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <h3 className="mb-2 text-sm font-semibold text-slate-900">광고 추가</h3>
+      {showAddSection && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-base">광고 추가</CardTitle>
+          </CardHeader>
+          <CardContent>
             <form onSubmit={searchCandidates} className="flex gap-2">
-              <input
+              <Input
                 value={candidateQuery}
                 onChange={(e) => setCandidateQuery(e.target.value)}
                 placeholder="승인된 채널/그룹 검색"
-                className="min-w-0 flex-1 rounded-lg px-3 py-2 text-sm ring-1 ring-black/10 outline-none focus:ring-purple-300"
               />
-              <button type="submit" disabled={searchLoading} className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+              <Button type="submit" disabled={searchLoading}>
                 {searchLoading ? '...' : '검색'}
-              </button>
+              </Button>
             </form>
             {candidates.length > 0 && (
-              <AdminTableShell>
-                <AdminTable>
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <AdminTh className="w-12" />
-                      <AdminTh>제목</AdminTh>
-                      <AdminTh className="w-16">인증</AdminTh>
-                      <AdminTh className="w-14">점수</AdminTh>
-                      <AdminTh className="w-16">조회율</AdminTh>
-                      <AdminTh className="w-16">유형</AdminTh>
-                      <AdminTh className="w-28">종료일</AdminTh>
-                      <AdminTh className="w-20" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {candidates.map((channel) => (
-                      <tr key={channel.id}>
-                        <AdminTd><ChannelAvatar channel={channel} /></AdminTd>
-                        <AdminTd>
-                          <p className="max-w-[180px] truncate font-medium text-slate-900">{channel.title}</p>
-                          {channel.isPromoted && <span className="text-[10px] text-purple-600">등록됨</span>}
-                        </AdminTd>
-                        <AdminTd>
-                          {channel.isVerified ? <VerifiedBadge size="sm" /> : <span className="text-[11px] text-slate-400">미인증</span>}
-                        </AdminTd>
-                        <AdminTd>
-                          <span className="text-xs font-semibold text-slate-800">{channel.score ?? '—'}</span>
-                        </AdminTd>
-                        <AdminTd>
-                          <span className="text-xs text-slate-700">{formatPercent(channel.viewRate)}</span>
-                        </AdminTd>
-                        <AdminTd>
-                          <LinkTypeToggle
-                            value={channel.linkType ?? 'channel'}
-                            onChange={(type) => handleUpdateLinkType(channel.id, type)}
-                          />
-                        </AdminTd>
-                        <AdminTd>
-                          <input
-                            type="date"
-                            value={promoteDates[channel.id] ?? defaultPromoteDateInput()}
-                            onChange={(e) => setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))}
-                            className="w-full rounded bg-white px-2 py-1 text-xs ring-1 ring-black/10"
-                          />
-                        </AdminTd>
-                        <AdminTd>
-                          <button type="button" onClick={() => handleApply(channel.id)} className="rounded-lg bg-purple-600 px-2.5 py-1 text-xs font-medium text-white">
-                            {channel.isPromoted ? '변경' : '등록'}
-                          </button>
-                        </AdminTd>
-                      </tr>
-                    ))}
-                  </tbody>
-                </AdminTable>
-              </AdminTableShell>
-            )}
-          </section>
-        )}
-
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          {canReorder ? (
-            <p className="text-xs text-slate-500">
-              ⋮⋮ 핸들을 드래그해 노출 순서를 변경할 수 있습니다.{orderSaving ? ' 저장 중…' : ''}
-            </p>
-          ) : (
-            <p className="text-xs text-amber-700">검색 중에는 순서 변경이 비활성화됩니다.</p>
-          )}
-          <form onSubmit={(e) => { e.preventDefault(); loadPromoted(); }} className="flex gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="광고 검색"
-              className="w-48 rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-black/10 outline-none focus:ring-purple-300"
-            />
-            <button type="submit" className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-white">검색</button>
-          </form>
-        </div>
-
-        {loading ? (
-          <div className="h-24 animate-pulse rounded-2xl bg-white shadow-sm" />
-        ) : promoted.length === 0 ? (
-          <AdminEmptyState message="등록된 광고가 없습니다." />
-        ) : (
-          <AdminTableShell>
-            <AdminTable>
-              <thead className="bg-slate-50">
-                <tr>
-                  {canReorder && <AdminTh className="w-10">순서</AdminTh>}
-                  <AdminTh className="w-12" />
-                  <AdminTh>제목</AdminTh>
-                  <AdminTh className="w-16">인증</AdminTh>
-                  <AdminTh className="w-14">점수</AdminTh>
-                  <AdminTh className="w-16">조회율</AdminTh>
-                  <AdminTh className="w-16">유형</AdminTh>
-                  <AdminTh className="w-20">노출</AdminTh>
-                  <AdminTh className="w-40">종료일</AdminTh>
-                  <AdminTh className="min-w-[100px]">의뢰 · TON</AdminTh>
-                  <AdminTh className="w-[120px]">관리</AdminTh>
-                  <AdminTh className="w-10" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {promoted.map((channel, index) => {
-                  const active = isPromotionActive(channel.isPromoted, channel.promotedUntil);
-                  const expanded = expandedId === channel.id;
-                  const isDragging = dragId === channel.id;
-                  const isDropTarget = dropTargetId === channel.id && dragId !== channel.id;
-                  return (
-                    <Fragment key={channel.id}>
-                      <tr
-                        onClick={() => setExpandedId(expanded ? null : channel.id)}
-                        onDragOver={(e) => {
-                          if (!canReorder || !dragId || dragId === channel.id) return;
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = 'move';
-                          setDropTargetId(channel.id);
-                        }}
-                        onDragLeave={() => {
-                          if (dropTargetId === channel.id) setDropTargetId(null);
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (dragId) void handleReorder(dragId, channel.id);
-                          setDragId(null);
-                          setDropTargetId(null);
-                        }}
-                        className={`cursor-pointer transition hover:bg-slate-50/80 ${expanded ? 'bg-purple-50/40' : ''} ${isDragging ? 'opacity-40' : ''} ${isDropTarget ? 'bg-purple-100/60 ring-2 ring-inset ring-purple-300' : ''}`}
-                      >
-                        {canReorder && (
-                          <AdminTd>
-                            <button
-                              type="button"
-                              draggable
-                              aria-label={`${index + 1}번째 광고 순서 변경`}
-                              onClick={(e) => e.stopPropagation()}
-                              onDragStart={(e) => {
-                                e.stopPropagation();
-                                setDragId(channel.id);
-                                e.dataTransfer.effectAllowed = 'move';
-                                e.dataTransfer.setData('text/plain', channel.id);
-                              }}
-                              onDragEnd={() => {
-                                setDragId(null);
-                                setDropTargetId(null);
-                              }}
-                              className="flex h-8 w-8 cursor-grab items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
-                            >
-                              ⋮⋮
-                            </button>
-                          </AdminTd>
+              <Table className="mt-4">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12" />
+                    <TableHead>제목</TableHead>
+                    <TableHead>인증</TableHead>
+                    <TableHead>점수</TableHead>
+                    <TableHead>조회율</TableHead>
+                    <TableHead>유형</TableHead>
+                    <TableHead>종료일</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {candidates.map((channel) => (
+                    <TableRow key={channel.id}>
+                      <TableCell>
+                        <ChannelAvatar channel={channel} />
+                      </TableCell>
+                      <TableCell>
+                        <p className="max-w-[180px] truncate font-medium">{channel.title}</p>
+                        {channel.isPromoted && (
+                          <span className="text-[10px] text-muted-foreground">등록됨</span>
                         )}
-                        <AdminTd><ChannelAvatar channel={channel} /></AdminTd>
-                        <AdminTd>
-                          <p className="max-w-[180px] truncate font-medium text-slate-900">{channel.title}</p>
-                          <p className="truncate text-[11px] text-slate-500">{channel.category}</p>
-                        </AdminTd>
-                        <AdminTd>
-                          {channel.isVerified ? <VerifiedBadge size="sm" /> : <span className="text-[11px] text-slate-400">미인증</span>}
-                        </AdminTd>
-                        <AdminTd>
-                          <span className="text-xs font-semibold text-slate-800">{channel.score ?? '—'}</span>
-                        </AdminTd>
-                        <AdminTd>
-                          <span className="text-xs text-slate-700">{formatPercent(channel.viewRate)}</span>
-                        </AdminTd>
-                        <AdminTd>
-                          <LinkTypeToggle
-                            value={channel.linkType ?? 'channel'}
-                            onChange={(type) => handleUpdateLinkType(channel.id, type)}
-                          />
-                        </AdminTd>
-                        <AdminTd>
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${active ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500'}`}>
-                            {active ? '노출' : '만료'}
-                          </span>
-                        </AdminTd>
-                        <AdminTd>
-                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="date"
-                              value={promoteDates[channel.id] ?? toDateInputValue(channel.promotedUntil) ?? defaultPromoteDateInput()}
-                              onChange={(e) => setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))}
-                              className="min-w-0 flex-1 rounded bg-white px-1.5 py-1 text-[11px] ring-1 ring-black/10"
-                            />
-                            <button
-                              type="button"
-                              disabled={applyingId === channel.id || !isPromoteDateChanged(channel)}
-                              onClick={() => void handleApply(channel.id)}
-                              className="shrink-0 rounded-md bg-purple-600 px-2 py-1 text-[11px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              {applyingId === channel.id ? '…' : '확인'}
-                            </button>
-                          </div>
-                        </AdminTd>
-                        <AdminTd><AdClientCells channel={channel} /></AdminTd>
-                        <AdminTd>
-                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              disabled={!active}
-                              onClick={() => void handleStop(channel)}
-                              className="rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              중지
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDeleteFromAds(channel)}
-                              className="rounded-md bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700 ring-1 ring-red-200 hover:bg-red-100"
-                            >
-                              삭제
-                            </button>
-                          </div>
-                        </AdminTd>
-                        <AdminTd><span className={`text-slate-400 transition ${expanded ? 'rotate-180' : ''}`}>▼</span></AdminTd>
-                      </tr>
-                      {expanded && (
-                        <tr className="bg-slate-50/60">
-                          <AdminTd colSpan={colCount}>
-                            <div className="space-y-3 py-1" onClick={(e) => e.stopPropagation()}>
-                              <a href={channel.link} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-blue-600 hover:underline">
-                                {channel.link}
-                              </a>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                                {channel.isVerified ? <VerifiedBadge size="sm" /> : <span>미인증</span>}
-                                <span>점수 {channel.score ?? '—'}</span>
-                                <span>조회율 {formatPercent(channel.viewRate)}</span>
-                              </div>
-                              <AdClientDetail channel={channel} />
-                              <ChannelAvatarEditor
-                                key={`${channel.id}-${channel.avatarUrl ?? 'none'}`}
-                                channelId={channel.id}
-                                link={channel.link}
-                                avatarUrl={channel.avatarUrl}
-                                avatarApproved={channel.avatarApproved}
-                                linkType={channel.linkType}
-                                onUpdated={(patch) => handleUpdateAvatar(channel.id, patch)}
-                              />
-                              <div className="flex flex-wrap items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-500">유형</span>
-                                  <LinkTypeToggle
-                                    value={channel.linkType ?? 'channel'}
-                                    onChange={(type) => handleUpdateLinkType(channel.id, type)}
-                                  />
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <input
-                                  type="date"
-                                  value={promoteDates[channel.id] ?? ''}
-                                  onChange={(e) => setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))}
-                                  className="rounded-lg bg-white px-3 py-1.5 text-xs ring-1 ring-black/10"
-                                />
-                                <button
-                                  type="button"
-                                  disabled={applyingId === channel.id || !isPromoteDateChanged(channel)}
-                                  onClick={() => void handleApply(channel.id)}
-                                  className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  {applyingId === channel.id ? '적용 중…' : '확인'}
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={!active}
-                                  onClick={() => void handleStop(channel)}
-                                  className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200 disabled:opacity-40"
-                                >
-                                  중지
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void handleDeleteFromAds(channel)}
-                                  className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 ring-1 ring-red-200"
-                                >
-                                  삭제
-                                </button>
-                              </div>
-                            </div>
-                          </AdminTd>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </AdminTable>
-          </AdminTableShell>
-        )}
+                      </TableCell>
+                      <TableCell>
+                        {channel.isVerified ? (
+                          <VerifiedBadge size="sm" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">미인증</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{channel.score ?? '—'}</TableCell>
+                      <TableCell>{formatPercent(channel.viewRate)}</TableCell>
+                      <TableCell>
+                        <LinkTypeToggle
+                          value={channel.linkType ?? 'channel'}
+                          onChange={(type) => handleUpdateLinkType(channel.id, type)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          value={promoteDates[channel.id] ?? defaultPromoteDateInput()}
+                          onChange={(e) =>
+                            setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button type="button" size="sm" onClick={() => void handleApply(channel.id)}>
+                          {channel.isPromoted ? '변경' : '등록'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          {canReorder
+            ? `⋮⋮ 핸들을 드래그해 노출 순서를 변경할 수 있습니다.${orderSaving ? ' 저장 중…' : ''}`
+            : '검색 중에는 순서 변경이 비활성화됩니다.'}
+        </p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void loadPromoted();
+          }}
+          className="flex gap-2"
+        >
+          <Input
+            className="w-48"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="광고 검색"
+          />
+          <Button type="submit" variant="secondary">
+            검색
+          </Button>
+        </form>
       </div>
-    </>
+
+      {loading ? (
+        <Skeleton className="h-24 w-full" />
+      ) : promoted.length === 0 ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">등록된 광고가 없습니다.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {canReorder && <TableHead className="w-10">순서</TableHead>}
+              <TableHead className="w-12" />
+              <TableHead>제목</TableHead>
+              <TableHead>인증</TableHead>
+              <TableHead>점수</TableHead>
+              <TableHead>조회율</TableHead>
+              <TableHead>유형</TableHead>
+              <TableHead>노출</TableHead>
+              <TableHead>종료일</TableHead>
+              <TableHead>의뢰 · TON</TableHead>
+              <TableHead>관리</TableHead>
+              <TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {promoted.map((channel, index) => {
+              const active = isPromotionActive(channel.isPromoted, channel.promotedUntil);
+              const expanded = expandedId === channel.id;
+              const isDragging = dragId === channel.id;
+              const isDropTarget = dropTargetId === channel.id && dragId !== channel.id;
+              return (
+                <Fragment key={channel.id}>
+                  <TableRow
+                    onClick={() => setExpandedId(expanded ? null : channel.id)}
+                    onDragOver={(e) => {
+                      if (!canReorder || !dragId || dragId === channel.id) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      setDropTargetId(channel.id);
+                    }}
+                    onDragLeave={() => {
+                      if (dropTargetId === channel.id) setDropTargetId(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (dragId) void handleReorder(dragId, channel.id);
+                      setDragId(null);
+                      setDropTargetId(null);
+                    }}
+                    className={`cursor-pointer ${isDragging ? 'opacity-40' : ''} ${isDropTarget ? 'bg-accent' : ''}`}
+                  >
+                    {canReorder && (
+                      <TableCell>
+                        <button
+                          type="button"
+                          draggable
+                          aria-label={`${index + 1}번째 광고 순서 변경`}
+                          onClick={(e) => e.stopPropagation()}
+                          onDragStart={(e) => {
+                            e.stopPropagation();
+                            setDragId(channel.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', channel.id);
+                          }}
+                          onDragEnd={() => {
+                            setDragId(null);
+                            setDropTargetId(null);
+                          }}
+                          className="flex h-8 w-8 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent active:cursor-grabbing"
+                        >
+                          ⋮⋮
+                        </button>
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <ChannelAvatar channel={channel} />
+                    </TableCell>
+                    <TableCell>
+                      <p className="max-w-[180px] truncate font-medium">{channel.title}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{channel.category}</p>
+                    </TableCell>
+                    <TableCell>
+                      {channel.isVerified ? (
+                        <VerifiedBadge size="sm" />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">미인증</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{channel.score ?? '—'}</TableCell>
+                    <TableCell>{formatPercent(channel.viewRate)}</TableCell>
+                    <TableCell>
+                      <LinkTypeToggle
+                        value={channel.linkType ?? 'channel'}
+                        onChange={(type) => handleUpdateLinkType(channel.id, type)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={active ? 'default' : 'secondary'}>
+                        {active ? '노출' : '만료'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          type="date"
+                          className="h-8 w-36"
+                          value={
+                            promoteDates[channel.id] ??
+                            toDateInputValue(channel.promotedUntil) ??
+                            defaultPromoteDateInput()
+                          }
+                          onChange={(e) =>
+                            setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))
+                          }
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={applyingId === channel.id || !isPromoteDateChanged(channel)}
+                          onClick={() => void handleApply(channel.id)}
+                        >
+                          {applyingId === channel.id ? '…' : '확인'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <AdClientCells channel={channel} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={!active}
+                          onClick={() => void handleStop(channel)}
+                        >
+                          중지
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => void handleDeleteFromAds(channel)}
+                        >
+                          삭제
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`text-muted-foreground ${expanded ? 'inline-block rotate-180' : ''}`}>
+                        ▼
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                  {expanded && (
+                    <TableRow>
+                      <TableCell colSpan={colCount}>
+                        <div className="space-y-3 py-1" onClick={(e) => e.stopPropagation()}>
+                          <a
+                            href={channel.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block truncate text-xs text-primary underline"
+                          >
+                            {channel.link}
+                          </a>
+                          <AdClientDetail channel={channel} />
+                          <ChannelAvatarEditor
+                            key={`${channel.id}-${channel.avatarUrl ?? 'none'}`}
+                            channelId={channel.id}
+                            link={channel.link}
+                            avatarUrl={channel.avatarUrl}
+                            avatarApproved={channel.avatarApproved}
+                            linkType={channel.linkType}
+                            onUpdated={(patch) => handleUpdateAvatar(channel.id, patch)}
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
+    </div>
   );
 }

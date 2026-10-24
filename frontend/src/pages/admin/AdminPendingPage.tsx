@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/admin/ui/tabs';
-import { AdminRewardSettingsPanel } from './AdminRewardsPage';
+import { AdminRewardSettingsPanel } from './AdminRewardSettingsPanel';
 import { PendingApproveTab } from './pending/PendingApproveTab';
 import { PendingLedgerTab } from './pending/PendingLedgerTab';
 import { PendingPayoutTab } from './pending/PendingPayoutTab';

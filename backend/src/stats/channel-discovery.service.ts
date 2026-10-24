@@ -18,11 +18,16 @@ import {
   DISCOVERY_MIN_MEMBERS,
   DISCOVERY_RECHECK_DAYS,
   DISCOVERY_SOURCE_KEYWORD,
+  DISCOVERY_SOURCE_OTHER,
   DISCOVERY_SOURCE_SNOWBALL,
   isDiscoverySourceChannel,
   mergeDiscoveryQueue,
+  parseQueuedDailyMax,
+  persistDiscoverySource,
+  splitDiscoveryDeadlines,
   type DiscoveryQueueItem,
   type MentionRow,
+  type QueuedDiscoveryRow,
 } from './channel-discovery.logic';
 import { formatKstYmd } from './channel-metrics.math';
 import { isCollectBudgetOver } from './collect-budget.logic';
@@ -95,39 +100,67 @@ export class ChannelDiscoveryService {
     const aggregates = aggregateMentionedUsernames(rows);
     const known = await this.knownUsernames(channels);
     const recentlyChecked = await this.recentlyCheckedUsernames();
-    const keywordQueued = await this.keywordQueuedUsernames();
+    const queuedRows = await this.takeQueuedForInspect(
+      this.registeredUsernames(channels),
+    );
 
     const queue = mergeDiscoveryQueue(
       aggregates,
-      keywordQueued,
+      queuedRows,
       known,
       recentlyChecked,
+    );
+    const mentions = queue.filter((item) => item.source === 'mention');
+    const queued = queue.filter((item) => item.source !== 'mention');
+    const { mentionDeadlineMs, queuedDeadlineMs } = splitDiscoveryDeadlines(
+      options?.deadlineMs,
     );
 
     let checked = 0;
     let added = 0;
-    const usedToday = await this.countSnowballToday();
-    const remain = Math.max(0, DISCOVERY_MAX_PER_DAY - usedToday);
-    const limit = Math.min(remain, queue.length);
+    const snowballRemain = Math.max(
+      0,
+      DISCOVERY_MAX_PER_DAY - (await this.countSnowballToday()),
+    );
+    const queuedRemain = Math.max(
+      0,
+      parseQueuedDailyMax(process.env.DISCOVERY_QUEUED_MAX_PER_DAY) -
+        (await this.countQueuedInspectToday()),
+    );
 
-    for (let i = 0; i < limit; i += 1) {
-      if (i > 0 && isCollectBudgetOver(options?.deadlineMs)) {
-        this.logger.log(
-          `눈덩이 발견 시간 예산이 끝나 다음부터 남깁니다. 남은 ${limit - checked}건 (후보 ${queue.length})`,
-        );
-        break;
+    const inspectBatch = async (
+      items: DiscoveryQueueItem[],
+      remain: number,
+      deadlineMs: number | undefined,
+      label: string,
+    ) => {
+      const limit = Math.min(remain, items.length);
+      for (let i = 0; i < limit; i += 1) {
+        if (i > 0 && isCollectBudgetOver(deadlineMs)) {
+          this.logger.log(
+            `${label} 시간 예산이 끝나 다음부터 남깁니다. 남은 ${limit - i}건`,
+          );
+          break;
+        }
+        const result = await this.inspectOne(items[i], channelById);
+        checked += 1;
+        if (result === 'added') added += 1;
+        if (i < limit - 1 && !isCollectBudgetOver(deadlineMs)) {
+          await sleep(DISCOVERY_DELAY_MS);
+        }
       }
-      const item = queue[i];
-      const result = await this.inspectOne(item, channelById);
-      checked += 1;
-      if (result === 'added') added += 1;
-      if (i < limit - 1 && !isCollectBudgetOver(options?.deadlineMs)) {
-        await sleep(DISCOVERY_DELAY_MS);
-      }
-    }
+    };
+
+    await inspectBatch(mentions, snowballRemain, mentionDeadlineMs, '눈덩이 발견');
+    await inspectBatch(
+      queued,
+      queuedRemain,
+      queuedDeadlineMs,
+      '대기열 검사',
+    );
 
     this.logger.log(
-      `눈덩이 발견 끝: 검사 ${checked} / 추가 ${added} (후보 ${queue.length}, 한도 ${limit})`,
+      `발견 끝: 검사 ${checked} / 추가 ${added} (언급 ${mentions.length}, 대기 ${queued.length})`,
     );
     return { checked, added };
   }
@@ -186,10 +219,7 @@ export class ChannelDiscoveryService {
         result,
         checkedAt: new Date(),
         mentionCount: item.mentionCount,
-        source:
-          item.source === 'keyword'
-            ? DISCOVERY_SOURCE_KEYWORD
-            : DISCOVERY_SOURCE_SNOWBALL,
+        source: persistDiscoverySource(item.source),
       },
       ['username'],
     );
@@ -345,6 +375,22 @@ export class ChannelDiscoveryService {
       .getCount();
   }
 
+  async countQueuedInspectToday(now = new Date()): Promise<number> {
+    const start = new Date(`${formatKstYmd(now)}T00:00:00+09:00`);
+    return this.discoveredRepository
+      .createQueryBuilder('row')
+      .where('row.checked_at >= :start', { start })
+      .andWhere('row.source IN (:...sources)', {
+        sources: [DISCOVERY_SOURCE_KEYWORD, DISCOVERY_SOURCE_OTHER],
+      })
+      .andWhere("row.result <> 'queued'")
+      .getCount();
+  }
+
+  queuedDailyMax() {
+    return parseQueuedDailyMax(process.env.DISCOVERY_QUEUED_MAX_PER_DAY);
+  }
+
   private async recentlyCheckedUsernames(): Promise<Set<string>> {
     const cutoff = new Date(
       Date.now() - DISCOVERY_RECHECK_DAYS * 24 * 60 * 60 * 1000,
@@ -364,11 +410,36 @@ export class ChannelDiscoveryService {
     ]);
   }
 
-  private async keywordQueuedUsernames(): Promise<string[]> {
+  private registeredUsernames(channels: Channel[]): Set<string> {
+    const known = new Set<string>();
+    for (const ch of channels) {
+      if (ch.status !== ChannelStatus.ACTIVE) continue;
+      const fromCol = ch.username?.replace(/^@/, '').trim().toLowerCase();
+      if (fromCol) known.add(fromCol);
+      const fromLink = extractTelegramUsernameFromLink(ch.link);
+      if (fromLink) known.add(fromLink);
+    }
+    return known;
+  }
+
+  private async takeQueuedForInspect(
+    registered: Set<string>,
+  ): Promise<QueuedDiscoveryRow[]> {
     const rows = await this.discoveredRepository.find({
       where: { result: 'queued' },
     });
-    return rows.map((row) => row.username.toLowerCase());
+    const inspectable: QueuedDiscoveryRow[] = [];
+    for (const row of rows) {
+      const username = row.username.replace(/^@/, '').trim().toLowerCase();
+      if (registered.has(username)) {
+        row.result = 'already_registered';
+        row.checkedAt = new Date();
+        await this.discoveredRepository.save(row);
+        continue;
+      }
+      inspectable.push({ username, source: row.source });
+    }
+    return inspectable;
   }
 }
 

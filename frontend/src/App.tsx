@@ -27,6 +27,15 @@ export default function App() {
             <ThemeProvider>
             <AuthProvider>
               <Routes>
+                <Route path="/admin/channels/register" element={<Navigate to="/admin/register-link" replace />} />
+                <Route path="/admin/groups/register" element={<Navigate to="/admin/register-link" replace />} />
+                <Route path="/admin/register" element={<Navigate to="/admin/register-link" replace />} />
+                <Route path="/admin/channels" element={<Navigate to="/admin/links?type=channel" replace />} />
+                <Route path="/admin/groups" element={<Navigate to="/admin/links?type=group" replace />} />
+                <Route path="/admin/by-category" element={<Navigate to="/admin/links" replace />} />
+                <Route path="/admin/auto-manage" element={<Navigate to="/admin/discovery" replace />} />
+                <Route path="/admin/rewards" element={<Navigate to="/admin/pending?tab=settings" replace />} />
+                <Route path="/admin/ton-payments" element={<Navigate to="/admin/pending?tab=ledger" replace />} />
                 <Route
                   path="/admin/*"
                   element={
