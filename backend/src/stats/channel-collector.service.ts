@@ -27,10 +27,8 @@ import {
 import { formatKstYmd } from './channel-metrics.math';
 import { isCollectDueToday, kstWeekdayIndex, resolveCollectTier } from './collect-tier.logic';
 import { isLightCollectTarget } from './stats-collect.logic';
-import { ChannelLanguageService } from './channel-language.service';
 import { ChannelPost } from './channel-post.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
-import { PublicStatsService } from './public-stats.service';
 import {
   classifyTelegramAccountHtml,
   clipCollectError,
@@ -81,8 +79,6 @@ export class ChannelCollectorService {
     private readonly snapshotRepository: Repository<ChannelSnapshot>,
     private readonly configService: ConfigService,
     private readonly mtproto: MtprotoCollectorService,
-    private readonly languages: ChannelLanguageService,
-    private readonly publicStats: PublicStatsService,
   ) {}
 
   async collectAll(
@@ -375,38 +371,19 @@ export class ChannelCollectorService {
     if (!channel) {
       return { ok: false, reason: 'failed' };
     }
-    try {
-      if (isInviteOnlyLink(channel.link)) {
-        return await this.collectInvitePreview(channel);
-      }
-      const username = this.resolveUsername(channel);
-      if (!username) {
-        await this.markFailed(channel, 'failed', 'collect:no_username');
-        return { ok: false, reason: 'failed' };
-      }
-      if (!channel.username) {
-        channel.username = username;
-        await this.channelRepository.save(channel);
-      }
-      return await this.collectPublicUsernameProfile(channel, username);
-    } finally {
-      await this.followPublicPageCollect(channel.id);
+    if (isInviteOnlyLink(channel.link)) {
+      return this.collectInvitePreview(channel);
     }
-  }
-
-  /** light 수집 후와 같이 언어·공개 캐시를 맞춘다 */
-  private async followPublicPageCollect(channelId: string) {
-    const fresh = await this.channelRepository.findOneBy({ id: channelId });
-    if (fresh) {
-      try {
-        await this.languages.classifyOne(fresh);
-      } catch (error) {
-        this.logger.warn(
-          `공개 수집 후 언어 판별 실패(${channelId}): ${error instanceof Error ? error.message : error}`,
-        );
-      }
+    const username = this.resolveUsername(channel);
+    if (!username) {
+      await this.markFailed(channel, 'failed', 'collect:no_username');
+      return { ok: false, reason: 'failed' };
     }
-    this.publicStats.clearPublicCaches();
+    if (!channel.username) {
+      channel.username = username;
+      await this.channelRepository.save(channel);
+    }
+    return this.collectPublicUsernameProfile(channel, username);
   }
 
   /** username 이 비어 있고 공개 주소면 link 에서 채운다. full 수집 시작 전에 호출 */
