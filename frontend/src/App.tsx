@@ -1,24 +1,11 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { AdminLayout } from './components/admin/AdminLayout';
 import { AppLayout } from './components/AppLayout';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { AuthProvider } from './providers/AuthProvider';
 import { ThemeProvider } from './providers/ThemeProvider';
 import { AppToastProvider } from './providers/AppToastProvider';
 import { TonConnectProvider } from './providers/TonConnectProvider';
-import { AdminAutoManagePage } from './pages/admin/AdminAutoManagePage';
-import { AdminAdsManagePage } from './pages/admin/AdminAdsManagePage';
-import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
-import { AdminCategoryLinksPage } from './pages/admin/AdminCategoryLinksPage';
-import { AdminChannelsManagePage } from './pages/admin/AdminChannelsManagePage';
-import { AdminGroupsManagePage } from './pages/admin/AdminGroupsManagePage';
-import { AdminManualRegisterPage } from './pages/admin/AdminManualRegisterPage';
-import { AdminCollectOpsPage } from './pages/admin/AdminCollectOpsPage';
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
-import { AdminLinksManagePage } from './pages/admin/AdminLinksManagePage';
-import { AdminPendingPage } from './pages/admin/AdminPendingPage';
-import { AdminTonPaymentsPage } from './pages/admin/AdminTonPaymentsPage';
-import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { ChannelDetailPage } from './pages/ChannelDetailPage';
 import { ComparePage } from './pages/ComparePage';
 import { CategoriesPage } from './pages/CategoriesPage';
@@ -29,6 +16,8 @@ import { RankingPage } from './pages/RankingPage';
 import { SubmitPage } from './pages/SubmitPage';
 import { WeeklyPage } from './pages/WeeklyPage';
 
+const AdminRoutes = lazy(() => import('./admin/AdminRoutes'));
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -38,25 +27,14 @@ export default function App() {
             <ThemeProvider>
             <AuthProvider>
               <Routes>
-                <Route path="/admin" element={<AdminLayout />}>
-                  <Route index element={<Navigate to="dashboard" replace />} />
-                  <Route path="dashboard" element={<AdminDashboardPage />} />
-                  <Route path="collect" element={<AdminCollectOpsPage />} />
-                  <Route path="links" element={<AdminLinksManagePage />} />
-                  <Route path="pending" element={<AdminPendingPage />} />
-                  <Route path="register-link" element={<AdminManualRegisterPage />} />
-                  <Route path="auto-manage" element={<AdminAutoManagePage />} />
-                  <Route path="by-category" element={<AdminCategoryLinksPage />} />
-                  <Route path="register" element={<Navigate to="/admin/register-link" replace />} />
-                  <Route path="channels/register" element={<Navigate to="/admin/register-link" replace />} />
-                  <Route path="channels" element={<AdminChannelsManagePage />} />
-                  <Route path="groups/register" element={<Navigate to="/admin/register-link" replace />} />
-                  <Route path="groups" element={<AdminGroupsManagePage />} />
-                  <Route path="ads" element={<AdminAdsManagePage />} />
-                  <Route path="categories" element={<AdminCategoriesPage />} />
-                  <Route path="ton-payments" element={<AdminTonPaymentsPage />} />
-                  <Route path="users" element={<AdminUsersPage />} />
-                </Route>
+                <Route
+                  path="/admin/*"
+                  element={
+                    <Suspense fallback={<div className="min-h-screen bg-[#f1f5f9]" />}>
+                      <AdminRoutes />
+                    </Suspense>
+                  }
+                />
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/categories" element={<CategoriesPage />} />

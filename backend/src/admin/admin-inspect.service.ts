@@ -7,7 +7,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, LessThan, Repository } from 'typeorm';
+import { In, IsNull, LessThan, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
 import { Channel, LinkType } from '../channels/channel.entity';
@@ -16,6 +16,7 @@ import { isInviteOnlyLink } from '../channels/telegram-username';
 import { PUBLIC_INSPECT_GAP_MS } from '../stats/public-channel-inspect.logic';
 import { createPublicTelegramFetcher } from '../stats/public-telegram-fetch.logic';
 import { StatsJobService } from '../stats/stats-job.service';
+import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
 import { StatsRun } from '../stats/stats-run.entity';
 import { shouldBlockAdminCollect } from './admin-collect.logic';
 import {
@@ -29,6 +30,7 @@ import {
   assertRegisterManySize,
   classifyAdminInspectPage,
   interruptRunningInspectJobs,
+  inspectItemResultCaption,
   inspectJobTtlCutoff,
   parseAdminInspectLines,
 } from './admin-inspect.logic';
@@ -347,7 +349,19 @@ export class AdminInspectService implements OnModuleInit {
     });
   }
 
-  private toJobView(job: AdminInspectJob, items: AdminInspectItem[]) {
+  private async toJobView(job: AdminInspectJob, items: AdminInspectItem[]) {
+    const ids = [
+      ...new Set(
+        items
+          .map((item) => item.registeredChannelId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const channels =
+      ids.length > 0
+        ? await this.channelRepository.find({ where: { id: In(ids) } })
+        : [];
+    const byId = new Map(channels.map((channel) => [channel.id, channel]));
     return {
       id: job.id,
       status: job.status,
@@ -358,19 +372,40 @@ export class AdminInspectService implements OnModuleInit {
       createdAt: job.createdAt,
       startedAt: job.startedAt,
       finishedAt: job.finishedAt,
-      items: items.map((item) => ({
-        id: item.id,
-        lineNo: item.lineNo,
-        rawInput: item.rawInput,
-        link: item.link,
-        username: item.username,
-        result: item.result,
-        title: item.title,
-        memberCount: item.memberCount,
-        linkType: item.linkType,
-        language: item.language,
-        registeredChannelId: item.registeredChannelId,
-      })),
+      items: items.map((item) => {
+        const channel = item.registeredChannelId
+          ? byId.get(item.registeredChannelId)
+          : undefined;
+        const visibility = channel
+          ? describeMemberPageVisibility(channel)
+          : null;
+        const registeredThisJob =
+          Boolean(item.registeredChannelId) && item.result === 'ok';
+        return {
+          id: item.id,
+          lineNo: item.lineNo,
+          rawInput: item.rawInput,
+          link: item.link,
+          username: item.username,
+          result: item.result,
+          title: item.title,
+          memberCount: item.memberCount,
+          linkType: item.linkType,
+          language: item.language,
+          registeredChannelId: item.registeredChannelId,
+          registeredThisJob,
+          memberPageVisible: visibility?.visible ?? null,
+          memberPageReason:
+            visibility && !visibility.visible ? visibility.reason : null,
+          resultCaption: inspectItemResultCaption({
+            result: item.result,
+            registeredThisJob,
+            memberVisible: visibility?.visible ?? null,
+            memberReason:
+              visibility && !visibility.visible ? visibility.reason : null,
+          }),
+        };
+      }),
     };
   }
 }

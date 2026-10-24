@@ -131,6 +131,31 @@ export function inspectJobTtlCutoff(now = new Date()): Date {
   return new Date(now.getTime() - ADMIN_INSPECT_JOB_TTL_MS);
 }
 
+export function inspectItemResultCaption(input: {
+  result: AdminInspectItemResult | null;
+  registeredThisJob: boolean;
+  memberVisible: boolean | null;
+  memberReason: string | null;
+}): string {
+  if (!input.result) return '확인 중';
+  if (input.result === 'already_registered') {
+    if (input.memberVisible === true) return '이미 등록됨 · 노출 중';
+    if (input.memberVisible === false) {
+      const reason = input.memberReason?.trim();
+      return reason ? `이미 등록됨 · 숨김(${reason})` : '이미 등록됨 · 숨김';
+    }
+    return '이미 등록됨';
+  }
+  if (input.registeredThisJob) return '이번에 등록함';
+  if (input.result === 'ok') return '정상';
+  if (input.result === 'not_korean') return '외국어';
+  if (input.result === 'too_small') return '100명 미만';
+  if (input.result === 'not_found') return '없는 채널';
+  if (input.result === 'invite_or_private') return '초대 만료·비공개';
+  if (input.result === 'invalid_format') return '형식 오류';
+  return input.result;
+}
+
 export function assertRegisterManySize(ids: string[]): string[] {
   const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
   if (unique.length === 0) {

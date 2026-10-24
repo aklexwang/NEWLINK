@@ -9,6 +9,18 @@ import {
 } from '../../api/admin';
 import { AdminMessage } from '../../components/admin/AdminTable';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
+import { Badge } from '@/components/admin/ui/badge';
+import { Button } from '@/components/admin/ui/button';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Skeleton } from '@/components/admin/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/admin/ui/table';
 
 function formatKst(value: string | null | undefined): string {
   if (!value) return '-';
@@ -17,11 +29,11 @@ function formatKst(value: string | null | undefined): string {
   return at.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 }
 
-function kindClass(kind: AdminStatsRunKind): string {
-  if (kind === 'completed') return 'bg-emerald-100 text-emerald-800';
-  if (kind === 'budget') return 'bg-sky-100 text-sky-800';
-  if (kind === 'interrupted') return 'bg-red-100 text-red-800';
-  return 'bg-amber-100 text-amber-900';
+function kindVariant(kind: AdminStatsRunKind): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (kind === 'completed') return 'default';
+  if (kind === 'budget') return 'secondary';
+  if (kind === 'interrupted') return 'destructive';
+  return 'outline';
 }
 
 function kindLabel(kind: AdminStatsRunKind): string {
@@ -72,9 +84,7 @@ export function AdminCollectOpsPage() {
   }, [hasRunning, load]);
 
   const handleLight = async () => {
-    if (
-      !window.confirm('light 수집을 지금 시작할까요? 약 25분 걸립니다')
-    ) {
+    if (!window.confirm('light 수집을 지금 시작할까요? 약 25분 걸립니다')) {
       return;
     }
     setStarting(true);
@@ -99,116 +109,121 @@ export function AdminCollectOpsPage() {
     <div className="flex-1 overflow-y-auto p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">수집 운영</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <h2 className="text-xl font-bold">수집 운영</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             최근 실행 기록과 MTProto 상태입니다. full 수동 실행은 없습니다.
           </p>
         </div>
-        <button
-          type="button"
-          disabled={starting || hasRunning}
-          onClick={() => void handleLight()}
-          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
+        <Button type="button" disabled={starting || hasRunning} onClick={() => void handleLight()}>
           {starting || hasRunning ? '수집 중…' : 'light 수집 지금 실행'}
-        </button>
+        </Button>
       </div>
       {message && <AdminMessage message={message} />}
 
       {loading || !ops ? (
-        <div className="mt-6 h-32 animate-pulse rounded-2xl bg-white" />
+        <Skeleton className="mt-6 h-32 w-full" />
       ) : (
         <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <p className="text-xs text-slate-500">MTProto</p>
-            <p className="mt-1 text-lg font-bold text-slate-900">
-              {ops.mtproto.enabled ? '켜짐' : '꺼짐'}
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <p className="text-xs text-slate-500">오늘 요청</p>
-            <p className="mt-1 text-lg font-bold text-slate-900">{ops.mtproto.requestsToday}</p>
-            <p className="mt-1 text-[11px] text-slate-400">서버 재시작 후 0부터</p>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <p className="text-xs text-slate-500">resolve</p>
-            <p className="mt-1 text-lg font-bold text-slate-900">
-              {ops.mtproto.resolvesToday}/{ops.mtproto.resolveDailyLimit}
-            </p>
-            <p className="mt-1 text-[11px] text-slate-400">서버 재시작 후 0부터</p>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <p className="text-xs text-slate-500">키워드 검색</p>
-            <p className="mt-1 text-lg font-bold text-slate-900">
-              {ops.mtproto.searchesToday}/{ops.mtproto.searchDailyLimit}
-            </p>
-            <p className="mt-1 text-[11px] text-slate-400">서버 재시작 후 0부터</p>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <p className="text-xs text-slate-500">FLOOD_WAIT</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{floodLabel}</p>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <p className="text-xs text-slate-500">시간 예산</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">
-              light {ops.budgets.lightMin} / full {ops.budgets.fullMin} / 발견 {ops.budgets.discoveryMin} / 인증 재확인 {ops.budgets.verifyRecheckMin}
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <p className="text-xs text-slate-500">발견 오늘</p>
-            <p className="mt-1 text-lg font-bold text-slate-900">
-              {ops.discovery.today}/{ops.discovery.dailyMax}
-            </p>
-          </div>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>MTProto</CardDescription>
+              <CardTitle>{ops.mtproto.enabled ? '켜짐' : '꺼짐'}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>오늘 요청</CardDescription>
+              <CardTitle>{ops.mtproto.requestsToday}</CardTitle>
+              <p className="text-[11px] text-muted-foreground">서버 재시작 후 0부터</p>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>resolve</CardDescription>
+              <CardTitle>
+                {ops.mtproto.resolvesToday}/{ops.mtproto.resolveDailyLimit}
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground">서버 재시작 후 0부터</p>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>키워드 검색</CardDescription>
+              <CardTitle>
+                {ops.mtproto.searchesToday}/{ops.mtproto.searchDailyLimit}
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground">서버 재시작 후 0부터</p>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>FLOOD_WAIT</CardDescription>
+              <CardTitle className="text-sm">{floodLabel}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>시간 예산</CardDescription>
+              <CardTitle className="text-sm">
+                light {ops.budgets.lightMin} / full {ops.budgets.fullMin} / 발견 {ops.budgets.discoveryMin} / 인증 재확인 {ops.budgets.verifyRecheckMin}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>발견 오늘</CardDescription>
+              <CardTitle>
+                {ops.discovery.today}/{ops.discovery.dailyMax}
+              </CardTitle>
+            </CardHeader>
+          </Card>
         </section>
       )}
 
-      <section className="mt-8 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 text-xs text-slate-500">
-              <th className="px-4 py-3 font-medium">모드</th>
-              <th className="px-4 py-3 font-medium">상태</th>
-              <th className="px-4 py-3 font-medium">처리</th>
-              <th className="px-4 py-3 font-medium">시작 (KST)</th>
-              <th className="px-4 py-3 font-medium">끝 (KST)</th>
-              <th className="px-4 py-3 font-medium">걸린 시간</th>
-              <th className="px-4 py-3 font-medium">ended_reason</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card className="mt-8 py-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>모드</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>처리</TableHead>
+              <TableHead>시작 (KST)</TableHead>
+              <TableHead>끝 (KST)</TableHead>
+              <TableHead>걸린 시간</TableHead>
+              <TableHead>ended_reason</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {runs.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+              <TableRow>
+                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                   실행 기록이 없습니다.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               runs.map((run) => (
-                <tr key={run.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium">{run.mode}</td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${kindClass(run.kind)}`}>
-                      {kindLabel(run.kind)}
-                    </span>
+                <TableRow key={run.id}>
+                  <TableCell className="font-medium">{run.mode}</TableCell>
+                  <TableCell>
+                    <Badge variant={kindVariant(run.kind)}>{kindLabel(run.kind)}</Badge>
                     {run.budgetNote && (
-                      <p className="mt-1 text-[11px] text-sky-700">{run.budgetNote}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">{run.budgetNote}</p>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell>
                     {run.processed}/{run.total}
-                    <span className="text-slate-400"> · 남은 {run.remaining}</span>
-                  </td>
-                  <td className="px-4 py-3 text-xs">{formatKst(run.startedAt)}</td>
-                  <td className="px-4 py-3 text-xs">{formatKst(run.finishedAt)}</td>
-                  <td className="px-4 py-3">{run.durationLabel}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500">{run.endedReason ?? '-'}</td>
-                </tr>
+                    <span className="text-muted-foreground"> · 남은 {run.remaining}</span>
+                  </TableCell>
+                  <TableCell className="text-xs">{formatKst(run.startedAt)}</TableCell>
+                  <TableCell className="text-xs">{formatKst(run.finishedAt)}</TableCell>
+                  <TableCell>{run.durationLabel}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{run.endedReason ?? '-'}</TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
-      </section>
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }

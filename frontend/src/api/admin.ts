@@ -280,6 +280,10 @@ export interface AdminInspectItemView {
   linkType: string | null;
   language: string | null;
   registeredChannelId: string | null;
+  registeredThisJob?: boolean;
+  memberPageVisible?: boolean | null;
+  memberPageReason?: string | null;
+  resultCaption?: string;
 }
 
 export interface AdminInspectJobView {

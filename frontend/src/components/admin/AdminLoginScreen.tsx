@@ -2,6 +2,9 @@ import { useState, type FormEvent } from 'react';
 import axios from 'axios';
 import { loginAdmin } from '../../api/auth';
 import { saveAdminToken } from '../../utils/adminAccess';
+import { Button } from '@/components/admin/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Input } from '@/components/admin/ui/input';
 
 export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [username, setUsername] = useState('');
@@ -31,53 +34,50 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f1f5f9] px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl ring-1 ring-slate-200"
-      >
-        <h1 className="text-lg font-bold text-slate-900">관리자 로그인</h1>
-        <p className="mt-1 text-sm text-slate-500">아이디와 비밀번호를 입력해 주세요</p>
-
-        <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="admin-username">
-          아이디
-        </label>
-        <input
-          id="admin-username"
-          name="username"
-          type="text"
-          autoComplete="username"
-          autoFocus
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          required
-          className="mt-1 w-full rounded-xl bg-slate-50 px-3 py-3 text-sm outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-slate-400"
-        />
-
-        <label className="mt-4 block text-sm font-medium text-slate-700" htmlFor="admin-password">
-          비밀번호
-        </label>
-        <input
-          id="admin-password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-          className="mt-1 w-full rounded-xl bg-slate-50 px-3 py-3 text-sm outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-slate-400"
-        />
-
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-5 w-full rounded-xl bg-slate-900 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-        >
-          {loading ? '로그인 중...' : '로그인'}
-        </button>
-      </form>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle>관리자 로그인</CardTitle>
+          <CardDescription>아이디와 비밀번호를 입력해 주세요</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="admin-username">
+                아이디
+              </label>
+              <Input
+                id="admin-username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                autoFocus
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="admin-password">
+                비밀번호
+              </label>
+              <Input
+                id="admin-password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? '로그인 중...' : '로그인'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

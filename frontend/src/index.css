@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+@source not "./components/admin";
+@source not "./pages/admin";
+@source not "./admin";
+@source not "./styles/admin.css";
 
 :root,
 html.light {

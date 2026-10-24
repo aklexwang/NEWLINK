@@ -2,8 +2,17 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAdminDashboard, type AdminDashboard } from '../../api/admin';
 import { AdminMessage } from '../../components/admin/AdminTable';
+import { Badge } from '@/components/admin/ui/badge';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Skeleton } from '@/components/admin/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+} from '@/components/admin/ui/table';
 
-function Card({
+function StatCard({
   to,
   label,
   value,
@@ -13,12 +22,13 @@ function Card({
   value: number | string;
 }) {
   return (
-    <Link
-      to={to}
-      className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 transition hover:ring-blue-200"
-    >
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+    <Link to={to} className="block">
+      <Card className="h-full py-4 transition-colors hover:bg-accent/40">
+        <CardHeader className="px-4">
+          <CardDescription>{label}</CardDescription>
+          <CardTitle className="text-2xl">{value}</CardTitle>
+        </CardHeader>
+      </Card>
     </Link>
   );
 }
@@ -40,102 +50,116 @@ export function AdminDashboardPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <h2 className="text-xl font-bold text-slate-900">대시보드</h2>
-      <p className="mt-1 text-sm text-slate-500">숫자를 누르면 해당 조건의 목록으로 갑니다.</p>
+      <h2 className="text-xl font-bold">대시보드</h2>
+      <p className="mt-1 text-sm text-muted-foreground">숫자를 누르면 해당 조건의 목록으로 갑니다.</p>
       {message && <AdminMessage message={message} />}
       {!data ? (
-        <div className="mt-6 h-32 animate-pulse rounded-2xl bg-white" />
+        <Skeleton className="mt-6 h-32 w-full" />
       ) : (
         <>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Card to="/admin/links?type=channel" label="채널" value={data.channelCount} />
-            <Card to="/admin/links?type=group" label="그룹" value={data.groupCount} />
-            <Card to="/admin/links?memberPage=yes" label="회원 페이지 노출" value={data.memberVisible} />
-            <Card to="/admin/links?memberPage=no" label="회원 페이지 숨김" value={data.memberHidden} />
-            <Card to="/admin/links?status=pending" label="승인 대기" value={data.pendingCount} />
-            <Card to="/admin/links?createdFrom=today" label="오늘 등록" value={data.registered.today.total} />
-            <Card to="/admin/links?createdFrom=7d" label="최근 7일 등록" value={data.registered.last7d.total} />
-            <Card to="/admin/collect" label="마지막 수집" value={runLabel} />
+            <StatCard to="/admin/links?type=channel" label="채널" value={data.channelCount} />
+            <StatCard to="/admin/links?type=group" label="그룹" value={data.groupCount} />
+            <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" value={data.memberVisible} />
+            <StatCard to="/admin/links?memberPage=no" label="회원 페이지 숨김" value={data.memberHidden} />
+            <StatCard to="/admin/links?status=pending" label="승인 대기" value={data.pendingCount} />
+            <StatCard to="/admin/links?createdFrom=today" label="오늘 등록" value={data.registered.today.total} />
+            <StatCard to="/admin/links?createdFrom=7d" label="최근 7일 등록" value={data.registered.last7d.total} />
+            <StatCard to="/admin/collect" label="마지막 수집" value={runLabel} />
           </div>
 
           <section className="mt-8">
-            <h3 className="text-sm font-semibold text-slate-800">오늘 / 7일 등록 경로</h3>
+            <h3 className="text-sm font-semibold">오늘 / 7일 등록 경로</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <Card to="/admin/links?createdFrom=today&source=auto" label="오늘 자동" value={data.registered.today.auto} />
-              <Card to="/admin/links?createdFrom=today&source=admin" label="오늘 어드민" value={data.registered.today.admin} />
-              <Card to="/admin/links?createdFrom=today&source=report" label="오늘 제보" value={data.registered.today.report} />
-              <Card to="/admin/links?createdFrom=7d&source=auto" label="7일 자동" value={data.registered.last7d.auto} />
-              <Card to="/admin/links?createdFrom=7d&source=admin" label="7일 어드민" value={data.registered.last7d.admin} />
-              <Card to="/admin/links?createdFrom=7d&source=report" label="7일 제보" value={data.registered.last7d.report} />
+              <StatCard to="/admin/links?createdFrom=today&source=auto" label="오늘 자동" value={data.registered.today.auto} />
+              <StatCard to="/admin/links?createdFrom=today&source=admin" label="오늘 어드민" value={data.registered.today.admin} />
+              <StatCard to="/admin/links?createdFrom=today&source=report" label="오늘 제보" value={data.registered.today.report} />
+              <StatCard to="/admin/links?createdFrom=7d&source=auto" label="7일 자동" value={data.registered.last7d.auto} />
+              <StatCard to="/admin/links?createdFrom=7d&source=admin" label="7일 어드민" value={data.registered.last7d.admin} />
+              <StatCard to="/admin/links?createdFrom=7d&source=report" label="7일 제보" value={data.registered.last7d.report} />
             </div>
           </section>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-              <h3 className="text-sm font-semibold text-slate-800">숨김 이유</h3>
-              <table className="mt-3 w-full text-sm">
-                <tbody>
+            <Card className="py-4">
+              <CardHeader className="px-4">
+                <CardTitle className="text-sm">숨김 이유</CardTitle>
+              </CardHeader>
+              <Table>
+                <TableBody>
                   {Object.entries(data.hiddenReasons).map(([reason, count]) => (
-                    <tr key={reason} className="border-t border-slate-100">
-                      <td className="py-2">
-                        <Link className="text-blue-700 hover:underline" to={`/admin/links?memberPage=no&hideReason=${encodeURIComponent(reason)}`}>
+                    <TableRow key={reason}>
+                      <TableCell>
+                        <Link className="text-primary hover:underline" to={`/admin/links?memberPage=no&hideReason=${encodeURIComponent(reason)}`}>
                           {reason || '(없음)'}
                         </Link>
-                      </td>
-                      <td className="py-2 text-right font-medium">{count}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{count}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </section>
-            <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-              <h3 className="text-sm font-semibold text-slate-800">수집 상태</h3>
-              <table className="mt-3 w-full text-sm">
-                <tbody>
+                </TableBody>
+              </Table>
+            </Card>
+            <Card className="py-4">
+              <CardHeader className="px-4">
+                <CardTitle className="text-sm">수집 상태</CardTitle>
+              </CardHeader>
+              <Table>
+                <TableBody>
                   {Object.entries(data.collectStatus).map(([status, count]) => (
-                    <tr key={status} className="border-t border-slate-100">
-                      <td className="py-2">
+                    <TableRow key={status}>
+                      <TableCell>
                         <Link
-                          className="text-blue-700 hover:underline"
+                          className="text-primary hover:underline"
                           to={`/admin/links?collectStatus=${encodeURIComponent(status === '(없음)' ? 'none' : status)}`}
                         >
                           {status}
                         </Link>
-                      </td>
-                      <td className="py-2 text-right font-medium">{count}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{count}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </section>
-            <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-              <h3 className="text-sm font-semibold text-slate-800">언어</h3>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link className="rounded-full bg-slate-100 px-3 py-1 text-sm" to="/admin/links?language=ko">한국어 {data.language.ko}</Link>
-                <Link className="rounded-full bg-slate-100 px-3 py-1 text-sm" to="/admin/links?language=foreign">외국어 {data.language.foreign}</Link>
-                <Link className="rounded-full bg-slate-100 px-3 py-1 text-sm" to="/admin/links?language=unknown">미확인 {data.language.unknown}</Link>
+                </TableBody>
+              </Table>
+            </Card>
+            <Card className="py-4">
+              <CardHeader className="px-4">
+                <CardTitle className="text-sm">언어</CardTitle>
+              </CardHeader>
+              <div className="flex flex-wrap gap-2 px-4 pb-4">
+                <Badge variant="secondary" asChild>
+                  <Link to="/admin/links?language=ko">한국어 {data.language.ko}</Link>
+                </Badge>
+                <Badge variant="secondary" asChild>
+                  <Link to="/admin/links?language=foreign">외국어 {data.language.foreign}</Link>
+                </Badge>
+                <Badge variant="secondary" asChild>
+                  <Link to="/admin/links?language=unknown">미확인 {data.language.unknown}</Link>
+                </Badge>
               </div>
-            </section>
-            <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-              <h3 className="text-sm font-semibold text-slate-800">카테고리 상위 10</h3>
-              <table className="mt-3 w-full text-sm">
-                <tbody>
+            </Card>
+            <Card className="py-4">
+              <CardHeader className="px-4">
+                <CardTitle className="text-sm">카테고리 상위 10</CardTitle>
+              </CardHeader>
+              <Table>
+                <TableBody>
                   {data.categories.map((row) => (
-                    <tr key={row.name} className="border-t border-slate-100">
-                      <td className="py-2">
-                        <Link className="text-blue-700 hover:underline" to={`/admin/links?category=${encodeURIComponent(row.name)}`}>
+                    <TableRow key={row.name}>
+                      <TableCell>
+                        <Link className="text-primary hover:underline" to={`/admin/links?category=${encodeURIComponent(row.name)}`}>
                           {row.name}
                         </Link>
-                      </td>
-                      <td className="py-2 text-right font-medium">{row.count}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{row.count}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </section>
+                </TableBody>
+              </Table>
+            </Card>
           </div>
           {run && (
-            <p className="mt-6 text-xs text-slate-500">
+            <p className="mt-6 text-xs text-muted-foreground">
               마지막 수집 시작 {new Date(run.startedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
               {run.finishedAt
                 ? ` · 종료 ${new Date(run.finishedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`

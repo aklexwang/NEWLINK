@@ -36,7 +36,18 @@ function apiErrorMessage(error: unknown, fallback: string) {
 }
 
 function resultLabel(item: AdminInspectItemView) {
-  if (item.registeredChannelId) return '등록됨';
+  if (item.resultCaption) return item.resultCaption;
+  if (item.result === 'already_registered') {
+    if (item.memberPageVisible === true) return '이미 등록됨 · 노출 중';
+    if (item.memberPageVisible === false) {
+      const reason = item.memberPageReason?.trim();
+      return reason ? `이미 등록됨 · 숨김(${reason})` : '이미 등록됨 · 숨김';
+    }
+    return '이미 등록됨';
+  }
+  if (item.registeredThisJob || (item.registeredChannelId && item.result === 'ok')) {
+    return '이번에 등록함';
+  }
   if (!item.result) return '확인 중';
   return RESULT_LABEL[item.result];
 }

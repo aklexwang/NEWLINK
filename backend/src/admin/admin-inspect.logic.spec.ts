@@ -1,6 +1,7 @@
 import {
   assertRegisterManySize,
   classifyAdminInspectPage,
+  inspectItemResultCaption,
   interruptRunningInspectJobs,
   parseAdminInspectLines,
   parseOneInspectLine,
@@ -92,6 +93,33 @@ describe('어드민 링크 미리보기 분류', () => {
         finishedAt: now,
       },
     ]);
+  });
+
+  it('등록됨을 이미 등록됨과 이번에 등록함으로 나눈다', () => {
+    expect(
+      inspectItemResultCaption({
+        result: 'already_registered',
+        registeredThisJob: false,
+        memberVisible: true,
+        memberReason: '',
+      }),
+    ).toBe('이미 등록됨 · 노출 중');
+    expect(
+      inspectItemResultCaption({
+        result: 'already_registered',
+        registeredThisJob: false,
+        memberVisible: false,
+        memberReason: '외국어',
+      }),
+    ).toBe('이미 등록됨 · 숨김(외국어)');
+    expect(
+      inspectItemResultCaption({
+        result: 'ok',
+        registeredThisJob: true,
+        memberVisible: true,
+        memberReason: '',
+      }),
+    ).toBe('이번에 등록함');
   });
 
   it('선택 등록은 최대 100개다', () => {
