@@ -25,7 +25,7 @@ on:
 jobs:
   trigger:
     runs-on: ubuntu-24.04
-    timeout-minutes: 115
+    timeout-minutes: 120
     steps:
       - name: POST /api/internal/stats/run 후 완료까지 대기
         env:
@@ -59,7 +59,7 @@ jobs:
           if [ "${MODE}" = "light" ]; then
             MAX_MINUTES=35
           else
-            MAX_MINUTES=105
+            MAX_MINUTES=110
           fi
 
           HTTP_CODE="$(curl -sS --retry 3 --retry-delay 10 --max-time 120 \

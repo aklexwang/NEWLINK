@@ -11,6 +11,9 @@ export interface TelegramChatAdministrator {
 
 const ADMIN_STATUSES = new Set(['creator', 'administrator']);
 
+/** getChatAdministrators 재확인 사이 간격 */
+export const VERIFY_RECHECK_GAP_MS = 1_000;
+
 export function parseBotUserIdFromToken(token: string): number | null {
   const match = token.trim().match(/^(\d+):/);
   if (!match) return null;

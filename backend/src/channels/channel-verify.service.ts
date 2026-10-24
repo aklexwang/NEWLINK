@@ -17,14 +17,14 @@ import {
   isRequesterChannelAdmin,
   normalizeBotUsername,
   parseBotUserIdFromToken,
+  VERIFY_RECHECK_GAP_MS,
   type RecheckFetchResult,
   type TelegramChatAdministrator,
 } from './channel-verify.logic';
 import { extractTelegramUsernameFromLink } from './telegram-username';
+import { isCollectBudgetOver } from '../stats/collect-budget.logic';
 
 const DEFAULT_BOT_USERNAME = 'newlinkcom_bot';
-
-const RECHECK_GAP_MS = 1000;
 
 @Injectable()
 export class ChannelVerifyService {
@@ -102,7 +102,7 @@ export class ChannelVerifyService {
   }
 
   /** 수집 작업 후 인증 채널을 다시 확인합니다. */
-  async recheckVerifiedChannels(): Promise<{
+  async recheckVerifiedChannels(options?: { deadlineMs?: number }): Promise<{
     checked: number;
     unverified: number;
     retried: number;
@@ -123,7 +123,14 @@ export class ChannelVerifyService {
 
     let unverified = 0;
     let retried = 0;
+    let checked = 0;
     for (let i = 0; i < channels.length; i += 1) {
+      if (i > 0 && isCollectBudgetOver(options?.deadlineMs)) {
+        this.logger.log(
+          `인증 재확인 시간 예산이 끝나 다음부터 남깁니다. 남은 ${channels.length - checked}건`,
+        );
+        break;
+      }
       const channel = channels[i];
       const decision = await this.recheckOne(
         channel,
@@ -131,17 +138,18 @@ export class ChannelVerifyService {
         botId,
         botUsername,
       );
+      checked += 1;
       if (decision === 'unverify') unverified += 1;
       if (decision === 'retry') retried += 1;
-      if (i < channels.length - 1) {
-        await sleep(RECHECK_GAP_MS);
+      if (i < channels.length - 1 && !isCollectBudgetOver(options?.deadlineMs)) {
+        await sleep(VERIFY_RECHECK_GAP_MS);
       }
     }
 
     this.logger.log(
-      `인증 재확인 ${channels.length}건 · 해제 ${unverified}건 · 다음날 재시도 ${retried}건`,
+      `인증 재확인 ${checked}/${channels.length}건 · 해제 ${unverified}건 · 다음날 재시도 ${retried}건`,
     );
-    return { checked: channels.length, unverified, retried };
+    return { checked, unverified, retried };
   }
 
   private async recheckOne(

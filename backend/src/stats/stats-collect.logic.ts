@@ -56,7 +56,7 @@ export function statsCronModeFromSchedule(input: {
 }
 
 export function statsCronWaitMinutes(mode: StatsCollectMode): number {
-  return mode === 'light' ? 35 : 105;
+  return mode === 'light' ? 35 : 110;
 }
 
 export type CollectOverlapDecision =

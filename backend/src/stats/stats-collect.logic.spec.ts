@@ -99,7 +99,7 @@ describe('스케줄 → 모드', () => {
         statsCronModeFromSchedule({ eventName: 'schedule', schedule: cron }),
       ).toBe('light');
     }
-    expect(statsCronWaitMinutes('full')).toBe(105);
+    expect(statsCronWaitMinutes('full')).toBe(110);
     expect(statsCronWaitMinutes('light')).toBe(35);
   });
 

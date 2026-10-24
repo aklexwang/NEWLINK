@@ -12,6 +12,7 @@ import { isPublicCollectable } from './collect-visibility';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import {
   aggregateMentionedUsernames,
+  DISCOVERY_DELAY_MS,
   DISCOVERY_LOOKBACK_DAYS,
   DISCOVERY_MAX_PER_DAY,
   DISCOVERY_MIN_MEMBERS,
@@ -21,6 +22,7 @@ import {
   type DiscoveryQueueItem,
   type MentionRow,
 } from './channel-discovery.logic';
+import { isCollectBudgetOver } from './collect-budget.logic';
 import { ChannelPost } from './channel-post.entity';
 import {
   DiscoveredUsername,
@@ -60,7 +62,7 @@ export class ChannelDiscoveryService {
 
   private readonly publicFetch = createPublicTelegramFetcher();
 
-  async discover(): Promise<DiscoveryRunResult> {
+  async discover(options?: { deadlineMs?: number }): Promise<DiscoveryRunResult> {
     const lookback = new Date(
       Date.now() - DISCOVERY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
     );
@@ -103,14 +105,23 @@ export class ChannelDiscoveryService {
     const limit = Math.min(DISCOVERY_MAX_PER_DAY, queue.length);
 
     for (let i = 0; i < limit; i += 1) {
+      if (i > 0 && isCollectBudgetOver(options?.deadlineMs)) {
+        this.logger.log(
+          `눈덩이 발견 시간 예산이 끝나 다음부터 남깁니다. 남은 ${limit - checked}건 (후보 ${queue.length})`,
+        );
+        break;
+      }
       const item = queue[i];
       const result = await this.inspectOne(item, channelById);
       checked += 1;
       if (result === 'added') added += 1;
+      if (i < limit - 1 && !isCollectBudgetOver(options?.deadlineMs)) {
+        await sleep(DISCOVERY_DELAY_MS);
+      }
     }
 
     this.logger.log(
-      `눈덩이 발견 끝: 검사 ${checked} / 추가 ${added} (후보 ${queue.length})`,
+      `눈덩이 발견 끝: 검사 ${checked} / 추가 ${added} (후보 ${queue.length}, 한도 ${limit})`,
     );
     return { checked, added };
   }
@@ -319,4 +330,8 @@ export class ChannelDiscoveryService {
     });
     return rows.map((row) => row.username.toLowerCase());
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

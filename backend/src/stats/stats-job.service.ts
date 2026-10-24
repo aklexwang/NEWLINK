@@ -19,7 +19,12 @@ import { ChannelCategoryService } from './channel-category.service';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 import { PublicStatsService } from './public-stats.service';
-import { collectBudgetMs } from './collect-budget.logic';
+import {
+  collectBudgetMs,
+  DISCOVERY_BUDGET_MIN_DEFAULT,
+  phaseBudgetMs,
+  VERIFY_RECHECK_BUDGET_MIN_DEFAULT,
+} from './collect-budget.logic';
 import {
   decideCollectOverlap,
   FULL_WAIT_FOR_LIGHT_MS,
@@ -245,8 +250,18 @@ export class StatsJobService implements OnModuleInit {
       if (pruned > 0) {
         this.logger.log(`90일 지난 게시글 ${pruned}건을 삭제했습니다.`);
       }
-      await this.channelVerify.recheckVerifiedChannels();
-      this.status.lastDiscovery = await this.discovery.discover();
+      await this.channelVerify.recheckVerifiedChannels({
+        deadlineMs: this.phaseDeadline(
+          'VERIFY_RECHECK_BUDGET_MIN',
+          VERIFY_RECHECK_BUDGET_MIN_DEFAULT,
+        ),
+      });
+      this.status.lastDiscovery = await this.discovery.discover({
+        deadlineMs: this.phaseDeadline(
+          'DISCOVERY_BUDGET_MIN',
+          DISCOVERY_BUDGET_MIN_DEFAULT,
+        ),
+      });
       this.status.lastKeywordSearch = await this.keywordSearch.search();
       this.logger.log('통계 파이프라인이 끝났습니다.');
     } catch (error) {
@@ -371,6 +386,13 @@ export class StatsJobService implements OnModuleInit {
           'COLLECT_FULL_BUDGET_MIN',
         ),
       })
+    );
+  }
+
+  private phaseDeadline(envKey: string, fallbackMin: number): number {
+    return (
+      Date.now() +
+      phaseBudgetMs(this.configService.get<string>(envKey), fallbackMin)
     );
   }
 

@@ -1,19 +1,26 @@
 import {
   collectBudgetMinutes,
   collectBudgetMs,
+  DISCOVERY_BUDGET_MIN_DEFAULT,
   isCollectBudgetOver,
   orderChannelsForCollect,
+  phaseBudgetMinutes,
   sliceRankingPage,
+  VERIFY_RECHECK_BUDGET_MIN_DEFAULT,
 } from './collect-budget.logic';
 
 describe('수집 시간 예산', () => {
-  it('기본은 light 25분, full 95분이다', () => {
+  it('기본은 light 25분, full 70분이다', () => {
     expect(collectBudgetMinutes('light')).toBe(25);
-    expect(collectBudgetMinutes('full')).toBe(95);
+    expect(collectBudgetMinutes('full')).toBe(70);
     expect(collectBudgetMs('light')).toBe(25 * 60_000);
     expect(collectBudgetMinutes('light', { COLLECT_LIGHT_BUDGET_MIN: '10' })).toBe(
       10,
     );
+    expect(DISCOVERY_BUDGET_MIN_DEFAULT).toBe(15);
+    expect(VERIFY_RECHECK_BUDGET_MIN_DEFAULT).toBe(5);
+    expect(phaseBudgetMinutes('8', 15)).toBe(8);
+    expect(phaseBudgetMinutes(undefined, 15)).toBe(15);
   });
 
   it('마감 시각이 지나면 예산을 다 쓴 것으로 본다', () => {

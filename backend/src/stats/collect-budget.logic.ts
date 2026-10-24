@@ -1,5 +1,7 @@
 export const COLLECT_LIGHT_BUDGET_MIN_DEFAULT = 25;
-export const COLLECT_FULL_BUDGET_MIN_DEFAULT = 95;
+export const COLLECT_FULL_BUDGET_MIN_DEFAULT = 70;
+export const DISCOVERY_BUDGET_MIN_DEFAULT = 15;
+export const VERIFY_RECHECK_BUDGET_MIN_DEFAULT = 5;
 
 export function collectBudgetMinutes(
   mode: 'light' | 'full',
@@ -27,6 +29,22 @@ export function collectBudgetMs(
   },
 ): number {
   return collectBudgetMinutes(mode, env) * 60_000;
+}
+
+export function phaseBudgetMinutes(
+  raw: string | undefined,
+  fallback: number,
+): number {
+  const n = Number(raw);
+  if (Number.isFinite(n) && n > 0) return Math.floor(n);
+  return fallback;
+}
+
+export function phaseBudgetMs(
+  raw: string | undefined,
+  fallback: number,
+): number {
+  return phaseBudgetMinutes(raw, fallback) * 60_000;
 }
 
 export function isCollectBudgetOver(
