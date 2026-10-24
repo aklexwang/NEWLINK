@@ -56,7 +56,7 @@ const EVENT_LABEL: Record<ChannelEventType, string> = {
 
 const VERIFY_BOT =
   (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.replace(/^@/, '').trim() ||
-  'newlinkcom_bot';
+  'telllink_bot';
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (

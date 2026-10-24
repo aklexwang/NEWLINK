@@ -14,7 +14,7 @@ import { hasSeenRewardNotice, markRewardNoticeSeen } from '../utils/seenRewardNo
 
 const TELEGRAM_BOT_USERNAME =
   (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ||
-  'newlinkcom_bot';
+  'telllink_bot';
 
 const AD_INQUIRY_URL = 'https://t.me/Kplaytwo';
 

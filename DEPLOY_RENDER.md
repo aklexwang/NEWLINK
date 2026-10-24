@@ -57,7 +57,7 @@ https://newlink-api.onrender.com/api/health
 ```env
 VITE_API_BASE_URL=https://newlink-api.onrender.com/api
 VITE_SITE_URL=https://global-spay.com
-VITE_TELEGRAM_BOT_USERNAME=newlinkcom_bot
+VITE_TELEGRAM_BOT_USERNAME=telllink_bot
 VITE_TELEGRAM_BOT_ID=8863933040
 ```
 

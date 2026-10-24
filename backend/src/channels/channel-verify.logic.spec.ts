@@ -11,7 +11,7 @@ const admins = [
   { status: 'creator', user: { id: 111, is_bot: false, username: 'owner' } },
   {
     status: 'administrator',
-    user: { id: 8863933040, is_bot: true, username: 'newlinkcom_bot' },
+    user: { id: 8863933040, is_bot: true, username: 'telllink_bot' },
   },
   {
     status: 'administrator',
@@ -27,7 +27,7 @@ describe('channel-verify.logic', () => {
   });
 
   it('우리 봇이 관리자인지 본다', () => {
-    expect(isOurBotAdministrator(admins, 8863933040, 'newlinkcom_bot')).toBe(
+    expect(isOurBotAdministrator(admins, 8863933040, 'telllink_bot')).toBe(
       true,
     );
     expect(isOurBotAdministrator(admins, 1, 'other_bot')).toBe(false);
@@ -44,7 +44,7 @@ describe('channel-verify.logic', () => {
 describe('decideVerifiedRecheck', () => {
   const ctx: RecheckContext = {
     botId: 8863933040,
-    botUsername: 'newlinkcom_bot',
+    botUsername: 'telllink_bot',
     ownerTelegramId: 111,
   };
 

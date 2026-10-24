@@ -3,7 +3,7 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 const BOT_USERNAME =
   (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.replace(/^@/, '') ||
-  'newlinkcom_bot';
+  'telllink_bot';
 
 /** Always use production HTTPS manifest — Mini App origin quirks can break relative URLs. */
 const MANIFEST_URL = 'https://global-spay.com/tonconnect-manifest.json';

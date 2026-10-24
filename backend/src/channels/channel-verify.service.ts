@@ -24,7 +24,7 @@ import {
 import { extractTelegramUsernameFromLink } from './telegram-username';
 import { isCollectBudgetOver } from '../stats/collect-budget.logic';
 
-const DEFAULT_BOT_USERNAME = 'newlinkcom_bot';
+const DEFAULT_BOT_USERNAME = 'telllink_bot';
 
 @Injectable()
 export class ChannelVerifyService {
@@ -210,7 +210,7 @@ export class ChannelVerifyService {
         description.includes('kicked')
       ) {
         throw new BadRequestException(
-          '봇이 채널 관리자가 아니거나 권한이 부족합니다. @newlinkcom_bot 을 관리자로 추가해 주세요.',
+          '봇이 채널 관리자가 아니거나 권한이 부족합니다. @telllink_bot 을 관리자로 추가해 주세요.',
         );
       }
       throw new BadRequestException(

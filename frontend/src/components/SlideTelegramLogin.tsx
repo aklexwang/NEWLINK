@@ -8,7 +8,7 @@ interface SlideTelegramLoginProps {
   onError?: (message: string) => void;
 }
 
-/** BotFather Domain이 걸린 @newlinkcom_bot 숫자 ID (공개 값) */
+/** BotFather Domain이 걸린 @telllink_bot 숫자 ID (공개 값) */
 const TELEGRAM_BOT_ID = Number(
   (import.meta.env.VITE_TELEGRAM_BOT_ID as string | undefined)?.trim() || '8863933040',
 );
