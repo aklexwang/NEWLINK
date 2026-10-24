@@ -82,6 +82,34 @@ export function extractTelegramUsernameFromLink(
   return candidate.toLowerCase();
 }
 
+/** 이미 username 이 있으면 그대로 두고, 비었으면 link 에서 뽑는다. 초대 링크는 null */
+export function usernameToFillFromLink(
+  username: string | null | undefined,
+  link: string | null | undefined,
+): string | null {
+  const current = (username ?? '').replace(/^@/, '').trim();
+  if (current) return null;
+  return extractTelegramUsernameFromLink(link);
+}
+
+export function usernamesToFillFromLinks(
+  rows: Array<{ id: string; username?: string | null; link: string }>,
+): Array<{ id: string; username: string }> {
+  const out: Array<{ id: string; username: string }> = [];
+  for (const row of rows) {
+    const next = usernameToFillFromLink(row.username, row.link);
+    if (next) out.push({ id: row.id, username: next });
+  }
+  return out;
+}
+
+/** 저장할 때 link 기준 username. 초대·비공개는 null */
+export function usernameFromChannelLink(
+  link: string | null | undefined,
+): string | null {
+  return extractTelegramUsernameFromLink(link);
+}
+
 /** 봇 username (…bot / …_bot) */
 export function isTelegramBotUsername(username: string): boolean {
   return /bot$/i.test(username.replace(/^@/, '').trim());

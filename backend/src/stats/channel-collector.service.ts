@@ -6,6 +6,7 @@ import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import {
   extractTelegramUsernameFromLink,
   isInviteOnlyLink,
+  usernamesToFillFromLinks,
 } from '../channels/telegram-username';
 import { ChannelEvent, ChannelEventType } from './channel-event.entity';
 import { MtprotoCollectorService } from './mtproto-collector.service';
@@ -37,6 +38,7 @@ import {
   isPrivateChannelHtml,
   joinMentionedUsernames,
   parseInviteLinkHtml,
+  parsePublicUsernamePage,
   parseTelegramChannelHtml,
   TELEGRAM_FETCH_HEADERS,
   type ParsedPreviewPost,
@@ -86,6 +88,7 @@ export class ChannelCollectorService {
       failed: number;
     }) => void,
   ): Promise<{ ok: number; fail: number }> {
+    await this.fillMissingUsernamesFromLinks();
     const allActive = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
@@ -98,6 +101,7 @@ export class ChannelCollectorService {
           id: ch.id,
           memberCount: ch.memberCount,
           posts7d: ch.posts7d,
+          createdAt: ch.createdAt,
           weekday,
         }),
     );
@@ -144,6 +148,7 @@ export class ChannelCollectorService {
           id: ch.id,
           memberCount: ch.memberCount,
           posts7d: ch.posts7d,
+          createdAt: ch.createdAt,
           weekday,
         }),
     );
@@ -353,6 +358,114 @@ export class ChannelCollectorService {
       memberCount: parsed.memberCount,
       username: parsed.usernameFromPosts ?? username,
     });
+    return { ok: true, mode: 'preview' };
+  }
+
+  /** 등록 직후: t.me 공개 페이지만 보고 first_observed_at 을 채운다 */
+  async collectPublicPageNow(
+    channelInput: Channel,
+  ): Promise<CollectOneResult> {
+    const channel = await this.channelRepository.findOneBy({
+      id: channelInput.id,
+    });
+    if (!channel) {
+      return { ok: false, reason: 'failed' };
+    }
+    if (isInviteOnlyLink(channel.link)) {
+      return this.collectInvitePreview(channel);
+    }
+    const username = this.resolveUsername(channel);
+    if (!username) {
+      await this.markFailed(channel, 'failed', 'collect:no_username');
+      return { ok: false, reason: 'failed' };
+    }
+    if (!channel.username) {
+      channel.username = username;
+      await this.channelRepository.save(channel);
+    }
+    return this.collectPublicUsernameProfile(channel, username);
+  }
+
+  /** username 이 비어 있고 공개 주소면 link 에서 채운다. full 수집 시작 전에 호출 */
+  async fillMissingUsernamesFromLinks(): Promise<number> {
+    const rows = await this.channelRepository.find({
+      select: ['id', 'link', 'username'],
+    });
+    const updates = usernamesToFillFromLinks(rows);
+    for (const item of updates) {
+      await this.channelRepository.update(
+        { id: item.id },
+        { username: item.username },
+      );
+    }
+    if (updates.length > 0) {
+      this.logger.log(
+        `비어 있던 username ${updates.length}건을 link 에서 채웠습니다.`,
+      );
+    }
+    return updates.length;
+  }
+
+  private async collectPublicUsernameProfile(
+    channel: Channel,
+    username: string,
+  ): Promise<CollectOneResult> {
+    const page = await this.fetchHtml(`https://t.me/${username}`);
+    if (page.error === 'fetch:timeout') {
+      await this.markFailed(channel, 'failed', 'fetch:timeout');
+      return { ok: false, reason: 'failed' };
+    }
+    if (
+      page.status === 404 ||
+      (page.html && isMissingChannelHtml(page.html))
+    ) {
+      return this.markGoneProgress(channel, 'page:not_found');
+    }
+    if (page.status >= 400 || !page.html) {
+      await this.markFailed(
+        channel,
+        'failed',
+        page.error ?? `page:http_${page.status || 0}`,
+      );
+      return { ok: false, reason: 'failed' };
+    }
+    if (isPrivateChannelHtml(page.html)) {
+      await this.markFailed(channel, 'private', 'page:private');
+      return { ok: false, reason: 'private' };
+    }
+
+    const parsed = parsePublicUsernamePage(page.html);
+    if (parsed.reason === 'page:not_found') {
+      return this.markGoneProgress(channel, parsed.reason);
+    }
+    if (parsed.kind !== 'channel' && parsed.kind !== 'group') {
+      await this.markInvalid(channel, parsed.reason || 'not_channel');
+      return { ok: false, reason: 'invalid' };
+    }
+
+    if (parsed.kind === 'channel') {
+      const feed = await this.fetchPreviewPage(username);
+      if (
+        feed.html &&
+        feed.status < 400 &&
+        !isMissingChannelHtml(feed.html) &&
+        !isPrivateChannelHtml(feed.html)
+      ) {
+        const preview = parseTelegramChannelHtml(feed.html);
+        if (preview.hasPreview) {
+          await this.upsertPosts(channel.id, preview.posts);
+        }
+      }
+    }
+
+    await this.applySuccessfulCollect(channel, {
+      title: parsed.title,
+      memberCount: parsed.memberCount,
+      username,
+      description: parsed.description,
+      avatarUrl: parsed.avatarUrl,
+    });
+    await this.upsertTodayMemberCount(channel.id, parsed.memberCount);
     return { ok: true, mode: 'preview' };
   }
 
@@ -840,6 +953,7 @@ export class ChannelCollectorService {
     channel.collectTier = resolveCollectTier({
       memberCount: channel.memberCount,
       posts7d,
+      createdAt: channel.createdAt,
     });
     await this.channelRepository.save(channel);
   }

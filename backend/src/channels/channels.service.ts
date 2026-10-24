@@ -21,6 +21,7 @@ import { isVisibleOnPublicLists } from './channel-language.logic';
 import {
   extractTelegramUsernameFromLink,
   isInviteOnlyLink,
+  usernameFromChannelLink,
 } from './telegram-username';
 import { ALREADY_REGISTERED_CHANNEL } from './merge-duplicate-channels.logic';
 import { ChannelFavorite } from './channel-favorite.entity';
@@ -29,6 +30,7 @@ import { UsersService } from '../users/users.service';
 import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
 import { AutoExposeService } from '../stats/auto-expose.service';
+import { ChannelCollectorService } from '../stats/channel-collector.service';
 import { ChannelEvent } from '../stats/channel-event.entity';
 import {
   allowAdultInList,
@@ -138,6 +140,10 @@ export class ChannelsService implements OnModuleInit {
       submittedBy,
       status: ChannelStatus.PENDING,
       avatarApproved: false,
+      collectTier: 'daily',
+      username: usernameFromChannelLink(
+        this.normalizeTelegramLink(dto.link),
+      ),
     });
     const saved = await this.channelRepository.save(channel);
     void this.refreshPreview(saved.id).catch(() => undefined);
@@ -257,14 +263,17 @@ export class ChannelsService implements OnModuleInit {
     };
   }
 
-  async createByAdmin(data: {
-    title: string;
-    link: string;
-    linkType: LinkType;
-    category: string;
-    description?: string;
-    isPromoted?: boolean;
-  }): Promise<Channel> {
+  async createByAdmin(
+    data: {
+      title: string;
+      link: string;
+      linkType: LinkType;
+      category: string;
+      description?: string;
+      isPromoted?: boolean;
+    },
+    options?: { skipPublicCollect?: boolean },
+  ): Promise<Channel> {
     const link = this.normalizeTelegramLink(data.link);
     const duplicate = await this.findActiveDuplicate(link);
     if (duplicate) {
@@ -287,6 +296,8 @@ export class ChannelsService implements OnModuleInit {
       status: ChannelStatus.ACTIVE,
       avatarApproved: false,
       submittedBy: null,
+      username: usernameFromChannelLink(link),
+      collectTier: 'daily',
     });
 
     let saved = await this.channelRepository.save(channel);
@@ -301,7 +312,25 @@ export class ChannelsService implements OnModuleInit {
       saved = await this.promote(saved.id, { durationDays: 7 });
     }
 
+    if (!options?.skipPublicCollect) {
+      saved = await this.collectPublicPageAfterRegister(saved);
+    }
+
     return saved;
+  }
+
+  private async collectPublicPageAfterRegister(
+    channel: Channel,
+  ): Promise<Channel> {
+    try {
+      const collector = this.moduleRef.get(ChannelCollectorService, {
+        strict: false,
+      });
+      await collector.collectPublicPageNow(channel);
+    } catch {
+      /* 실패 이유는 collect_error 에 남긴다 */
+    }
+    return this.findById(channel.id);
   }
 
   async refreshPreview(id: string) {
@@ -321,7 +350,12 @@ export class ChannelsService implements OnModuleInit {
       );
       if (Number.isFinite(parsed) && parsed > 0) channel.memberCount = parsed;
     }
+    this.applyUsernameFromLink(channel);
     return this.channelRepository.save(channel);
+  }
+
+  private applyUsernameFromLink(channel: Channel): void {
+    channel.username = usernameFromChannelLink(channel.link);
   }
 
   async getPreview(id: string) {
@@ -769,7 +803,10 @@ export class ChannelsService implements OnModuleInit {
     channel.status = ChannelStatus.ACTIVE;
     channel.avatarApproved = Boolean(channel.avatarUrl);
     if (isPromoted) channel.isPromoted = true;
-    return this.channelRepository.save(channel);
+    this.applyUsernameFromLink(channel);
+    channel.collectTier = 'daily';
+    const saved = await this.channelRepository.save(channel);
+    return this.collectPublicPageAfterRegister(saved);
   }
 
   async reject(id: string): Promise<Channel> {
@@ -1034,12 +1071,7 @@ export class ChannelsService implements OnModuleInit {
         throw new ConflictException('이미 등록된 채널/그룹 링크입니다.');
       }
       channel.link = normalized;
-      const username = extractTelegramUsernameFromLink(normalized);
-      if (username) {
-        channel.username = username;
-      } else if (isInviteOnlyLink(normalized)) {
-        channel.username = null;
-      }
+      this.applyUsernameFromLink(channel);
       channel.collectStatus = isInviteOnlyLink(normalized)
         ? 'invite_only'
         : null;
@@ -1096,6 +1128,7 @@ export class ChannelsService implements OnModuleInit {
     }
     if (data.status === ChannelStatus.ACTIVE && channel.avatarUrl)
       channel.avatarApproved = true;
+    this.applyUsernameFromLink(channel);
     return this.channelRepository.save(channel);
   }
 
