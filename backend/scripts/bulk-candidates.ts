@@ -20,10 +20,12 @@ import {
   resolveCategoryWithConfidence,
 } from '../src/channels/auto-expose.logic';
 import { resolveCollectTier } from '../src/stats/collect-tier.logic';
-import { usernamesFromPost } from '../src/stats/channel-discovery.logic';
 import {
+  bulkDeadlineMs,
   excerptsFromPreviewPosts,
+  isBulkDeadlinePassed,
   isBulkProgressTick,
+  mentionsFromTelegramHtml,
   parseBulkCandidatesArgs,
   parseUsernameListText,
   publicInspectDecision,
@@ -32,7 +34,6 @@ import {
 } from '../src/stats/public-channel-inspect.logic';
 import { createPublicTelegramFetcher } from '../src/stats/public-telegram-fetch.logic';
 import {
-  joinMentionedUsernames,
   parsePublicUsernamePage,
   parseTelegramChannelHtml,
 } from '../src/stats/telegram-preview-html';
@@ -46,13 +47,23 @@ const PROGRESS_PATH = path.join(
   'bulk-candidates-progress.json',
 );
 
+type RoundStat = {
+  round: number;
+  queued: number;
+  checked: number;
+  passed: number;
+};
+
 type Progress = {
   verified: string[];
   expanded: string[];
   round: number;
+  phase: 'expand' | 'verify' | 'idle';
   failReasons: Record<string, number>;
   checked: number;
   passed: number;
+  rounds: RoundStat[];
+  lastQueued: number;
 };
 
 function loadEnvFile(filePath: string, override = false): void {
@@ -87,9 +98,12 @@ function loadProgress(): Progress {
       verified: [],
       expanded: [],
       round: 0,
+      phase: 'idle',
       failReasons: {},
       checked: 0,
       passed: 0,
+      rounds: [],
+      lastQueued: 0,
     };
   }
   const raw = JSON.parse(fs.readFileSync(PROGRESS_PATH, 'utf8')) as Partial<Progress>;
@@ -97,9 +111,12 @@ function loadProgress(): Progress {
     verified: raw.verified ?? [],
     expanded: raw.expanded ?? [],
     round: raw.round ?? 0,
+    phase: raw.phase === 'expand' || raw.phase === 'verify' ? raw.phase : 'idle',
     failReasons: raw.failReasons ?? {},
     checked: raw.checked ?? 0,
     passed: raw.passed ?? 0,
+    rounds: raw.rounds ?? [],
+    lastQueued: raw.lastQueued ?? 0,
   };
 }
 
@@ -111,13 +128,63 @@ function saveProgress(progress: Progress) {
 async function countPublicChannels(client: Client): Promise<number> {
   const row = await client.query<{ n: string }>(
     `SELECT COUNT(*)::text AS n FROM channels
-     WHERE status = 'active' AND COALESCE(is_visible, true) = true`,
+     WHERE status = 'active'
+       AND COALESCE(is_visible, true) = true
+       AND first_observed_at IS NOT NULL
+       AND (collect_status IS NULL OR collect_status NOT IN ('invalid', 'gone', 'merged', 'invite_expired'))
+       AND (COALESCE(is_promoted, false) = true OR COALESCE(language, 'unknown') <> 'foreign')`,
   );
   return Number(row.rows[0]?.n ?? 0);
 }
 
+async function categoryCounts(client: Client): Promise<{ category: string; n: number }[]> {
+  const rows = await client.query<{ category: string; n: string }>(
+    `SELECT COALESCE(category, '(없음)') AS category, COUNT(*)::text AS n
+     FROM channels
+     WHERE status = 'active' AND COALESCE(is_visible, true) = true
+     GROUP BY 1
+     ORDER BY COUNT(*) DESC, category`,
+  );
+  return rows.rows.map((row) => ({ category: row.category, n: Number(row.n) }));
+}
+
+function failReasonLabel(key: string): string {
+  if (key === 'not_korean' || key === 'language') return '한국어 아님';
+  if (key === 'too_small' || key === 'members') return '인원 100명 미만';
+  if (key === 'not_channel' || key === 'invalid') return '채널 아님';
+  if (key === 'gone' || key === 'not_found') return '없어진 아이디';
+  return '기타';
+}
+
+function summarizeFailReasons(raw: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {
+    '한국어 아님': 0,
+    '인원 100명 미만': 0,
+    '채널 아님': 0,
+    '없어진 아이디': 0,
+    기타: 0,
+  };
+  for (const [key, count] of Object.entries(raw)) {
+    out[failReasonLabel(key)] += count;
+  }
+  return out;
+}
+
 function bump(map: Record<string, number>, key: string) {
   map[key] = (map[key] ?? 0) + 1;
+}
+
+async function columnExists(
+  client: Client,
+  table: string,
+  column: string,
+): Promise<boolean> {
+  const row = await client.query<{ n: string }>(
+    `SELECT COUNT(*)::text AS n FROM information_schema.columns
+     WHERE table_name = $1 AND column_name = $2`,
+    [table, column],
+  );
+  return Number(row.rows[0]?.n ?? 0) > 0;
 }
 
 async function main() {
@@ -132,29 +199,78 @@ async function main() {
     ssl: { rejectUnauthorized: false },
   });
   await client.connect();
+  if (args.dryRun) {
+    await client.query('BEGIN READ ONLY');
+  }
   const fetcher = createPublicTelegramFetcher();
   const ai = new CategoryAiService(new ConfigService(process.env));
   const allowed = ai.defaultCategoryNames();
+  if (!ai.isConfigured()) {
+    console.log('OPENAI_API_KEY 없음. 카테고리는 키워드 폴백으로 분류합니다.');
+  }
+  console.log(`진행 파일: data/bulk-candidates-progress.json (중단 후 이어서 가능)`);
   const progress = loadProgress();
   const verifiedSet = new Set(progress.verified);
   const startedAtMs = Date.now();
+  const deadlineMs = bulkDeadlineMs(startedAtMs, args.maxHours);
+  const hasCollectTier = await columnExists(client, 'channels', 'collect_tier');
 
   const logTick = async (label: string) => {
     const total = await countPublicChannels(client);
     console.log(
-      `${label} 확인 ${progress.checked} / 통과 ${progress.passed} / 공개 채널 ${total} / 탈락 ${JSON.stringify(progress.failReasons)}`,
+      `${label} 확인 ${progress.checked} / 통과 ${progress.passed} / 공개 채널 ${total} / 탈락 ${JSON.stringify(summarizeFailReasons(progress.failReasons))}`,
     );
+  };
+
+  const printSummary = async () => {
+    console.log('--- 결과 ---');
+    if (progress.rounds.length === 0) {
+      console.log('완료된 바퀴 없음');
+    }
+    for (const round of progress.rounds) {
+      console.log(
+        `바퀴 ${round.round}: 새 후보 ${round.queued} / 확인 ${round.checked} / 등록 ${round.passed}`,
+      );
+    }
+    console.log('탈락 사유');
+    for (const [label, count] of Object.entries(
+      summarizeFailReasons(progress.failReasons),
+    )) {
+      console.log(`- ${label}: ${count}`);
+    }
+    console.log('등록된 채널 카테고리');
+    for (const row of await categoryCounts(client)) {
+      console.log(`- ${row.category}: ${row.n}`);
+    }
+    console.log(`공개 노출 채널 총수: ${await countPublicChannels(client)}`);
   };
 
   try {
     if (args.mode === 'expand') {
-      await runExpand(client, fetcher, progress, args.limit, args.dryRun);
-      saveProgress(progress);
-      await logTick('expand');
+      await runExpand(
+        client,
+        fetcher,
+        progress,
+        args.limit,
+        args.dryRun,
+        deadlineMs,
+      );
+      if (!args.dryRun) saveProgress(progress);
+      if (!args.dryRun) await logTick('expand');
       return;
     }
     if (args.mode === 'verify') {
-      await runVerify(client, fetcher, ai, allowed, progress, verifiedSet, args);
+      await runVerify(
+        client,
+        fetcher,
+        ai,
+        allowed,
+        progress,
+        verifiedSet,
+        args,
+        deadlineMs,
+        hasCollectTier,
+      );
       saveProgress(progress);
       await logTick('verify');
       return;
@@ -162,31 +278,82 @@ async function main() {
 
     let stop = false;
     while (!stop) {
-      progress.round += 1;
-      progress.expanded = [];
-      const queued = await runExpand(
-        client,
-        fetcher,
-        progress,
-        args.limit,
-        args.dryRun,
-      );
-      saveProgress(progress);
-      await runVerify(client, fetcher, ai, allowed, progress, verifiedSet, args);
-      saveProgress(progress);
-      await logTick(`auto ${progress.round}바퀴`);
-      stop = shouldStopBulkAuto({
-        newCandidatesThisRound: queued,
-        startedAtMs,
-        maxHours: args.maxHours,
-      });
+      if (isBulkDeadlinePassed(deadlineMs)) {
+        console.log('제한 시간에 닿아 중단합니다.');
+        break;
+      }
+      if (progress.phase !== 'expand' && progress.phase !== 'verify') {
+        progress.round += 1;
+        progress.expanded = [];
+        progress.phase = 'expand';
+        saveProgress(progress);
+      }
+      let queued = progress.lastQueued ?? 0;
+      const checkedBefore = progress.checked;
+      const passedBefore = progress.passed;
+      if (progress.phase === 'expand') {
+        queued = await runExpand(
+          client,
+          fetcher,
+          progress,
+          args.limit,
+          args.dryRun,
+          deadlineMs,
+        );
+        progress.lastQueued = queued;
+        progress.phase = 'verify';
+        saveProgress(progress);
+      }
+      if (progress.phase === 'verify') {
+        await runVerify(
+          client,
+          fetcher,
+          ai,
+          allowed,
+          progress,
+          verifiedSet,
+          args,
+          deadlineMs,
+          hasCollectTier,
+        );
+        progress.rounds.push({
+          round: progress.round,
+          queued: progress.lastQueued,
+          checked: progress.checked - checkedBefore,
+          passed: progress.passed - passedBefore,
+        });
+        progress.phase = 'idle';
+        saveProgress(progress);
+        await logTick(`auto ${progress.round}바퀴`);
+        stop = shouldStopBulkAuto({
+          newCandidatesThisRound: queued,
+          startedAtMs,
+          maxHours: args.maxHours,
+        });
+      }
     }
+    await printSummary();
+  } catch (error) {
+    console.error(redact(error instanceof Error ? error.message : String(error)));
+    try {
+      await printSummary();
+    } catch {
+      /* ignore */
+    }
+    throw error;
   } finally {
+    if (args.dryRun) {
+      try {
+        await client.query('COMMIT');
+      } catch {
+        /* ignore */
+      }
+    }
     await client.end();
   }
 }
 
-async function knownUsernames(client: Client): Promise<Set<string>> {
+async function registeredUsernames(client: Client): Promise<Set<string>> {
   const known = new Set<string>();
   const channels = await client.query<{ username: string | null; link: string }>(
     `SELECT username, link FROM channels WHERE status = 'active'`,
@@ -199,6 +366,11 @@ async function knownUsernames(client: Client): Promise<Set<string>> {
       known.add(fromLink.toLowerCase());
     }
   }
+  return known;
+}
+
+async function knownUsernames(client: Client): Promise<Set<string>> {
+  const known = await registeredUsernames(client);
   const discovered = await client.query<{ username: string }>(
     `SELECT username FROM discovered_usernames`,
   );
@@ -212,9 +384,11 @@ async function runExpand(
   progress: Progress,
   limit: number | null,
   dryRun: boolean,
+  deadlineMs: number | null,
 ): Promise<number> {
-  const expandedSet = new Set(progress.expanded);
-  const known = await knownUsernames(client);
+  const expandedSet = dryRun ? new Set<string>() : new Set(progress.expanded);
+  const registered = await registeredUsernames(client);
+  const known = dryRun ? registered : await knownUsernames(client);
   const sources = await client.query<{
     id: string;
     username: string | null;
@@ -228,7 +402,10 @@ async function runExpand(
   );
   let queued = 0;
   let visited = 0;
+  const overlap = new Set<string>();
+  const invalidFormat = new Set<string>();
   for (const row of sources.rows) {
+    if (isBulkDeadlinePassed(deadlineMs)) break;
     if (limit != null && visited >= limit) break;
     if (expandedSet.has(row.id)) continue;
     const username = (
@@ -244,7 +421,12 @@ async function runExpand(
     }
     visited += 1;
     const found = await collectFeedUsernames(fetcher, username);
-    for (const name of found) {
+    for (const path of found.invalidFormat) invalidFormat.add(path);
+    for (const name of found.usernames) {
+      if (registered.has(name)) {
+        overlap.add(name);
+        continue;
+      }
       if (known.has(name)) continue;
       known.add(name);
       queued += 1;
@@ -258,18 +440,28 @@ async function runExpand(
       }
     }
     expandedSet.add(row.id);
-    progress.expanded = [...expandedSet];
-    saveProgress(progress);
+    if (!dryRun) {
+      progress.expanded = [...expandedSet];
+      saveProgress(progress);
+    }
+    if (dryRun && visited % 20 === 0) {
+      console.log(
+        `expand 미리보기 진행: 소스 ${visited}/${sources.rows.length} 새 후보 ${queued} 등록 겹침 ${overlap.size} 형식 오류 ${invalidFormat.size}`,
+      );
+    }
   }
-  console.log(`expand: 소스 ${visited} / 새 후보 ${queued}${dryRun ? ' (dry-run)' : ''}`);
+  console.log(
+    `expand: 소스 ${visited} / 새 후보 ${queued} / 등록된 것과 겹침 ${overlap.size} / 아이디 형식 오류 ${invalidFormat.size}${dryRun ? ' (dry-run, 등록 없음)' : ''}`,
+  );
   return queued;
 }
 
 async function collectFeedUsernames(
   fetcher: ReturnType<typeof createPublicTelegramFetcher>,
   username: string,
-): Promise<string[]> {
+): Promise<{ usernames: string[]; invalidFormat: string[] }> {
   const names = new Set<string>();
+  const invalidFormat = new Set<string>();
   let before: number | undefined;
   for (let page = 0; page <= PUBLIC_EXPAND_MAX_PAGES; page += 1) {
     const url =
@@ -278,24 +470,19 @@ async function collectFeedUsernames(
         : `https://t.me/s/${username}`;
     const res = await fetcher.fetchHtml(url);
     if (!res.html || res.status >= 400) break;
+    const mentions = mentionsFromTelegramHtml(res.html, username);
+    for (const name of mentions.usernames) names.add(name);
+    for (const path of mentions.invalidFormat) invalidFormat.add(path);
     const parsed = parseTelegramChannelHtml(res.html);
     if (parsed.posts.length === 0) break;
     let minId: number | null = null;
     for (const post of parsed.posts) {
       minId = minId == null ? post.messageId : Math.min(minId, post.messageId);
-      for (const name of usernamesFromPost({
-        sourceChannelId: username,
-        sourceUsername: username,
-        forwardedFrom: post.forwardedFrom,
-        mentionedUsernames: joinMentionedUsernames(post.mentionedUsernames),
-      })) {
-        names.add(name);
-      }
     }
     if (minId == null || minId === before) break;
     before = minId;
   }
-  return [...names];
+  return { usernames: [...names], invalidFormat: [...invalidFormat] };
 }
 
 async function runVerify(
@@ -306,6 +493,8 @@ async function runVerify(
   progress: Progress,
   verifiedSet: Set<string>,
   args: ReturnType<typeof parseBulkCandidatesArgs>,
+  deadlineMs: number | null,
+  hasCollectTier: boolean,
 ) {
   const fromFile = args.file
     ? parseUsernameListText(fs.readFileSync(path.resolve(args.file), 'utf8'))
@@ -332,6 +521,7 @@ async function runVerify(
 
   let checkedThis = 0;
   for (const username of names) {
+    if (isBulkDeadlinePassed(deadlineMs)) break;
     if (args.limit != null && checkedThis >= args.limit) break;
     if (verifiedSet.has(username)) continue;
     checkedThis += 1;
@@ -343,6 +533,7 @@ async function runVerify(
       allowed,
       username,
       args.dryRun,
+      hasCollectTier,
     );
     verifiedSet.add(username);
     progress.verified = [...verifiedSet];
@@ -365,13 +556,22 @@ async function inspectAndMaybeRegister(
   allowed: string[],
   username: string,
   dryRun: boolean,
+  hasCollectTier: boolean,
 ): Promise<string> {
   const page = await fetcher.fetchHtml(`https://t.me/${username}`);
   if (!page.html || page.status >= 400) {
-    await markDiscovered(client, username, 'not_found', dryRun);
-    return 'not_found';
+    await markDiscovered(client, username, 'gone', dryRun);
+    return 'gone';
   }
   const parsed = parsePublicUsernamePage(page.html);
+  if (parsed.reason === 'page:not_found') {
+    await markDiscovered(client, username, 'gone', dryRun);
+    return 'gone';
+  }
+  if (parsed.kind !== 'channel' && parsed.kind !== 'group') {
+    await markDiscovered(client, username, 'not_channel', dryRun);
+    return 'not_channel';
+  }
   let excerpts: string[] = [];
   if (parsed.kind === 'channel') {
     const feed = await fetcher.fetchHtml(`https://t.me/s/${username}`);
@@ -415,7 +615,7 @@ async function inspectAndMaybeRegister(
             ? 'not_korean'
             : 'not_found';
     await markDiscovered(client, username, mapped, dryRun);
-    return check.reason;
+    return mapped === 'not_found' ? 'duplicate' : mapped;
   }
 
   if (dryRun) return 'ok';
@@ -436,33 +636,64 @@ async function inspectAndMaybeRegister(
     memberCount: parsed.memberCount,
     posts7d: 0,
   });
+  const columns = [
+    'id',
+    'title',
+    'link',
+    'link_type',
+    'category',
+    'description',
+    'recommend_count',
+    'status',
+    'is_promoted',
+    'promotion_sort_order',
+    'avatar_approved',
+    'language',
+    'language_locked',
+    'is_visible',
+    'category_locked',
+    'auto_registered',
+    'collect_fail_count',
+    'is_verified',
+    'member_count',
+    'username',
+    'first_observed_at',
+    'created_at',
+    'updated_at',
+  ];
+  const values: unknown[] = [
+    id,
+    (parsed.title ?? username).slice(0, 255),
+    `https://t.me/${username}`,
+    decision.linkType,
+    resolved.pending ? PENDING_CATEGORY : resolved.category,
+    (parsed.description || parsed.title || username).slice(0, 2000),
+    0,
+    'active',
+    false,
+    0,
+    false,
+    decision.language,
+    false,
+    true,
+    false,
+    true,
+    0,
+    false,
+    parsed.memberCount,
+    username,
+    now,
+    now,
+    now,
+  ];
+  if (hasCollectTier) {
+    columns.splice(columns.indexOf('first_observed_at'), 0, 'collect_tier');
+    values.splice(values.indexOf(now), 0, collectTier);
+  }
+  const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
   await client.query(
-    `INSERT INTO channels (
-       id, title, link, link_type, category, description,
-       recommend_count, status, is_promoted, promotion_sort_order,
-       avatar_approved, language, language_locked, is_visible,
-       category_locked, auto_registered, collect_fail_count, is_verified,
-       member_count, username, collect_tier, created_at, updated_at
-     ) VALUES (
-       $1, $2, $3, $4, $5, $6,
-       0, 'active', false, 0,
-       false, $7, false, true,
-       false, true, 0, false,
-       $8, $9, $10, $11, $11
-     )`,
-    [
-      id,
-      (parsed.title ?? username).slice(0, 255),
-      `https://t.me/${username}`,
-      decision.linkType,
-      resolved.pending ? PENDING_CATEGORY : resolved.category,
-      (parsed.description || parsed.title || username).slice(0, 2000),
-      decision.language,
-      parsed.memberCount,
-      username,
-      collectTier,
-      now,
-    ],
+    `INSERT INTO channels (${columns.join(', ')}) VALUES (${placeholders})`,
+    values,
   );
   await markDiscovered(client, username, 'added', false);
   return 'ok';
