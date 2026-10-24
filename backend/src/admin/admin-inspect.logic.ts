@@ -1,0 +1,189 @@
+import { AUTO_EXPOSE_MIN_MEMBERS } from '../channels/auto-expose.logic';
+import {
+  extractTelegramUsernameFromLink,
+  isInviteOnlyLink,
+} from '../channels/telegram-username';
+import { publicInspectDecision } from '../stats/public-channel-inspect.logic';
+import {
+  isMissingChannelHtml,
+  isPrivateChannelHtml,
+  parseInviteLinkHtml,
+  parsePublicUsernamePage,
+} from '../stats/telegram-preview-html';
+import type { AdminInspectItemResult } from './admin-inspect-item.entity';
+
+export const ADMIN_INSPECT_MAX_LINES = 500;
+export const ADMIN_REGISTER_MANY_MAX = 100;
+export const ADMIN_INSPECT_JOB_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const ADMIN_INSPECT_BUSY_COLLECT = '이미 수집이 돌고 있습니다';
+export const ADMIN_INSPECT_BUSY_JOB = '이미 확인 작업이 진행 중입니다';
+
+export type ParsedInspectLine = {
+  rawInput: string;
+  link: string | null;
+  username: string | null;
+  result: AdminInspectItemResult | null;
+};
+
+export function parseAdminInspectLines(raw: string): ParsedInspectLine[] {
+  const out: ParsedInspectLine[] = [];
+  const seen = new Set<string>();
+  for (const line of raw.split(/\r?\n/)) {
+    if (out.length >= ADMIN_INSPECT_MAX_LINES) break;
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parsed = parseOneInspectLine(trimmed);
+    const key = (parsed.link ?? parsed.rawInput).toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(parsed);
+  }
+  return out;
+}
+
+export function parseOneInspectLine(raw: string): ParsedInspectLine {
+  const trimmed = raw.trim().slice(0, 512);
+  if (isInviteOnlyLink(trimmed)) {
+    const link = normalizeInviteLink(trimmed);
+    return { rawInput: trimmed, link, username: null, result: null };
+  }
+  const username = extractTelegramUsernameFromLink(trimmed);
+  if (username) {
+    return {
+      rawInput: trimmed,
+      link: `https://t.me/${username}`,
+      username,
+      result: null,
+    };
+  }
+  return {
+    rawInput: trimmed,
+    link: null,
+    username: null,
+    result: 'invalid_format',
+  };
+}
+
+export function classifyAdminInspectPage(input: {
+  html: string | null;
+  status: number;
+  isInvite: boolean;
+  finalUrl?: string | null;
+}): {
+  result: AdminInspectItemResult;
+  title: string | null;
+  memberCount: number | null;
+  linkType: 'channel' | 'group' | null;
+  language: string | null;
+} {
+  if (!input.html || input.status >= 400) {
+    return emptyInspect('not_found');
+  }
+  if (isPrivateChannelHtml(input.html)) {
+    return emptyInspect('invite_or_private');
+  }
+  if (input.isInvite) {
+    const invite = parseInviteLinkHtml(input.html, input.finalUrl);
+    if (invite.expired) return emptyInspect('invite_or_private');
+    const decided = publicInspectDecision({
+      kind: 'group',
+      title: invite.title,
+      description: invite.description,
+      memberCount: invite.memberCount,
+      avatarUrl: null,
+    });
+    return fromPublicDecision(decided, invite.title, invite.memberCount);
+  }
+  if (isMissingChannelHtml(input.html)) {
+    return emptyInspect('not_found');
+  }
+  const parsed = parsePublicUsernamePage(input.html);
+  if (parsed.kind !== 'channel' && parsed.kind !== 'group') {
+    if (parsed.reason === 'page:bot' || parsed.reason === 'page:user') {
+      return emptyInspect('invalid_format');
+    }
+    return emptyInspect('not_found');
+  }
+  const decided = publicInspectDecision({
+    kind: parsed.kind,
+    title: parsed.title,
+    description: parsed.description,
+    memberCount: parsed.memberCount,
+    avatarUrl: parsed.avatarUrl ?? null,
+  });
+  return fromPublicDecision(decided, parsed.title, parsed.memberCount);
+}
+
+export function interruptRunningInspectJobs<
+  T extends { status: string; finishedAt?: Date | string | null },
+>(jobs: T[], now: Date): Array<T & { status: 'interrupted'; endedReason: 'interrupted'; finishedAt: Date }> {
+  return jobs
+    .filter((job) => job.status === 'running')
+    .map((job) => ({
+      ...job,
+      status: 'interrupted' as const,
+      endedReason: 'interrupted' as const,
+      finishedAt: now,
+    }));
+}
+
+export function inspectJobTtlCutoff(now = new Date()): Date {
+  return new Date(now.getTime() - ADMIN_INSPECT_JOB_TTL_MS);
+}
+
+export function assertRegisterManySize(ids: string[]): string[] {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) {
+    throw new Error('등록할 항목을 선택해 주세요.');
+  }
+  if (unique.length > ADMIN_REGISTER_MANY_MAX) {
+    throw new Error(`한 번에 최대 ${ADMIN_REGISTER_MANY_MAX}개만 등록할 수 있습니다.`);
+  }
+  return unique;
+}
+
+function fromPublicDecision(
+  decided: ReturnType<typeof publicInspectDecision>,
+  title: string | null,
+  memberCount: number | null,
+): {
+  result: AdminInspectItemResult;
+  title: string | null;
+  memberCount: number | null;
+  linkType: 'channel' | 'group' | null;
+  language: string | null;
+} {
+  let result: AdminInspectItemResult = 'not_found';
+  if (decided.result === 'ok') result = 'ok';
+  else if (decided.result === 'not_korean') result = 'not_korean';
+  else if (decided.result === 'too_small') result = 'too_small';
+  return {
+    result,
+    title,
+    memberCount,
+    linkType: decided.linkType,
+    language: decided.language,
+  };
+}
+
+function emptyInspect(result: AdminInspectItemResult) {
+  return {
+    result,
+    title: null,
+    memberCount: null,
+    linkType: null,
+    language: null,
+  };
+}
+
+function normalizeInviteLink(raw: string): string {
+  const trimmed = raw.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/\/$/, '');
+  if (/^(?:t\.me|telegram\.me)\//i.test(trimmed)) {
+    return `https://${trimmed.replace(/\/$/, '')}`;
+  }
+  if (trimmed.startsWith('+')) return `https://t.me/${trimmed}`;
+  return trimmed;
+}
+
+export { AUTO_EXPOSE_MIN_MEMBERS };

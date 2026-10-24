@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
@@ -245,6 +246,31 @@ export class GoogleSearchCandidatesDto {
   @IsBoolean()
   @IsOptional()
   strictTopic?: boolean;
+}
+
+export class AdminInspectTextDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300_000)
+  text: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  category?: string;
+}
+
+export class AdminRegisterManyDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(100)
+  @IsUUID('4', { each: true })
+  ids: string[];
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  category?: string;
 }
 
 export class UpdateImportCandidateDto {

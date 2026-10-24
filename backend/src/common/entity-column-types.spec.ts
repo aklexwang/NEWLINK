@@ -11,6 +11,8 @@ const ENTITY_IMPORTS = [
   '../stats/channel-score.entity',
   '../stats/channel-snapshot.entity',
   '../stats/discovered-username.entity',
+  '../admin/admin-inspect-job.entity',
+  '../admin/admin-inspect-item.entity',
 ];
 
 function loadEntitiesForEnv(kind: 'postgres' | 'sqlite') {

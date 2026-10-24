@@ -17,11 +17,13 @@ import {
   DISCOVERY_MAX_PER_DAY,
   DISCOVERY_MIN_MEMBERS,
   DISCOVERY_RECHECK_DAYS,
+  DISCOVERY_SOURCE_SNOWBALL,
   isDiscoverySourceChannel,
   mergeDiscoveryQueue,
   type DiscoveryQueueItem,
   type MentionRow,
 } from './channel-discovery.logic';
+import { formatKstYmd } from './channel-metrics.math';
 import { isCollectBudgetOver } from './collect-budget.logic';
 import { ChannelPost } from './channel-post.entity';
 import {
@@ -102,7 +104,9 @@ export class ChannelDiscoveryService {
 
     let checked = 0;
     let added = 0;
-    const limit = Math.min(DISCOVERY_MAX_PER_DAY, queue.length);
+    const usedToday = await this.countSnowballToday();
+    const remain = Math.max(0, DISCOVERY_MAX_PER_DAY - usedToday);
+    const limit = Math.min(remain, queue.length);
 
     for (let i = 0; i < limit; i += 1) {
       if (i > 0 && isCollectBudgetOver(options?.deadlineMs)) {
@@ -180,6 +184,7 @@ export class ChannelDiscoveryService {
         result,
         checkedAt: new Date(),
         mentionCount: item.mentionCount,
+        source: DISCOVERY_SOURCE_SNOWBALL,
       },
       ['username'],
     );
@@ -308,6 +313,16 @@ export class ChannelDiscoveryService {
       if (u) known.add(u);
     }
     return known;
+  }
+
+  async countSnowballToday(now = new Date()): Promise<number> {
+    const start = new Date(`${formatKstYmd(now)}T00:00:00+09:00`);
+    return this.discoveredRepository
+      .createQueryBuilder('row')
+      .where('row.checked_at >= :start', { start })
+      .andWhere('row.source = :source', { source: DISCOVERY_SOURCE_SNOWBALL })
+      .andWhere("row.result <> 'queued'")
+      .getCount();
   }
 
   private async recentlyCheckedUsernames(): Promise<Set<string>> {

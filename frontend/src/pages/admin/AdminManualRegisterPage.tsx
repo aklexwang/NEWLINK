@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import type { LinkType } from '../../types/channel';
+import { AdminLinkInspectBulk } from './AdminLinkInspectBulk';
 import { AdminLinkRegisterPage } from './AdminLinkRegisterPage';
+
+type RegisterTab = 'single' | 'bulk';
 
 /** 관리자가 텔레그램 링크를 직접 찾아 등록하는 통합 메뉴 */
 export function AdminManualRegisterPage() {
+  const [tab, setTab] = useState<RegisterTab>('single');
   const [linkType, setLinkType] = useState<LinkType>('channel');
 
   return (
@@ -12,26 +16,50 @@ export function AdminManualRegisterPage() {
         <div className="mb-4 inline-flex rounded-xl bg-slate-100 p-1">
           <button
             type="button"
-            onClick={() => setLinkType('channel')}
+            onClick={() => setTab('single')}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-              linkType === 'channel' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              tab === 'single' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            채널
+            단건
           </button>
           <button
             type="button"
-            onClick={() => setLinkType('group')}
+            onClick={() => setTab('bulk')}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-              linkType === 'group' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              tab === 'bulk' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            그룹
+            대량
           </button>
         </div>
+        {tab === 'single' && (
+          <div className="mb-4 inline-flex rounded-xl bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setLinkType('channel')}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                linkType === 'channel' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              채널
+            </button>
+            <button
+              type="button"
+              onClick={() => setLinkType('group')}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                linkType === 'group' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              그룹
+            </button>
+          </div>
+        )}
       </div>
 
-      {linkType === 'channel' ? (
+      {tab === 'bulk' ? (
+        <AdminLinkInspectBulk />
+      ) : linkType === 'channel' ? (
         <AdminLinkRegisterPage
           key="channel"
           linkType="channel"

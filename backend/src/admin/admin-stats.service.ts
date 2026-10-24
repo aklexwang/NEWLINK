@@ -1,7 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, MoreThanOrEqual, Not, Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { DISCOVERY_MAX_PER_DAY } from '../stats/channel-discovery.logic';
 import {
   COLLECT_FULL_BUDGET_MIN_DEFAULT,
@@ -11,13 +11,12 @@ import {
   phaseBudgetMinutes,
   VERIFY_RECHECK_BUDGET_MIN_DEFAULT,
 } from '../stats/collect-budget.logic';
-import { DiscoveredUsername } from '../stats/discovered-username.entity';
+import { ChannelDiscoveryService } from '../stats/channel-discovery.service';
 import { KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT } from '../stats/mtproto-budget.logic';
 import { RESOLVE_DAILY_LIMIT_DEFAULT } from '../stats/mtproto-access.logic';
 import { MtprotoState } from '../stats/mtproto-state.entity';
 import { StatsJobService } from '../stats/stats-job.service';
 import { StatsRun } from '../stats/stats-run.entity';
-import { kstDayStart } from './admin-dashboard.logic';
 import {
   ADMIN_LIGHT_RUN_BUSY_MESSAGE,
   ADMIN_LIGHT_RUN_ONLY_MESSAGE,
@@ -33,11 +32,10 @@ import { shouldBlockAdminCollect } from './admin-collect.logic';
 export class AdminStatsService {
   constructor(
     private readonly statsJob: StatsJobService,
+    private readonly discovery: ChannelDiscoveryService,
     private readonly configService: ConfigService,
     @InjectRepository(StatsRun)
     private readonly runRepository: Repository<StatsRun>,
-    @InjectRepository(DiscoveredUsername)
-    private readonly discoveredRepository: Repository<DiscoveredUsername>,
     @InjectRepository(MtprotoState)
     private readonly mtprotoStateRepository: Repository<MtprotoState>,
   ) {}
@@ -81,12 +79,7 @@ export class AdminStatsService {
     const flood = await this.mtprotoStateRepository.findOne({
       where: { id: 1 },
     });
-    const discoveryToday = await this.discoveredRepository.count({
-      where: {
-        checkedAt: MoreThanOrEqual(kstDayStart()),
-        result: Not('queued'),
-      },
-    });
+    const discoveryToday = await this.discovery.countSnowballToday();
     return {
       mtproto: {
         enabled: mtproto.enabled,

@@ -73,6 +73,8 @@ import { StatsService } from './stats.service';
     AutoExposeService,
     ChannelCategoryService,
     ChannelLanguageService,
+    CategoryAiService,
+    ChannelDiscoveryService,
   ],
 })
 export class StatsModule {}

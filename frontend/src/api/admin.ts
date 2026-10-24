@@ -257,6 +257,89 @@ export async function registerAdminChannel(payload: {
   return data;
 }
 
+export type AdminInspectItemResult =
+  | 'ok'
+  | 'already_registered'
+  | 'not_korean'
+  | 'too_small'
+  | 'not_found'
+  | 'invite_or_private'
+  | 'invalid_format';
+
+export type AdminInspectJobStatus = 'queued' | 'running' | 'completed' | 'interrupted';
+
+export interface AdminInspectItemView {
+  id: string;
+  lineNo: number;
+  rawInput: string;
+  link: string | null;
+  username: string | null;
+  result: AdminInspectItemResult | null;
+  title: string | null;
+  memberCount: number | null;
+  linkType: string | null;
+  language: string | null;
+  registeredChannelId: string | null;
+}
+
+export interface AdminInspectJobView {
+  id: string;
+  status: AdminInspectJobStatus;
+  processed: number;
+  total: number;
+  endedReason: string | null;
+  category: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  items: AdminInspectItemView[];
+}
+
+export async function startAdminLinkInspect(payload: {
+  text: string;
+  category?: string;
+}): Promise<{ jobId: string }> {
+  const { data } = await apiClient.post<{ jobId: string }>('/admin/links/inspect', payload, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function getAdminLinkInspectJob(jobId: string): Promise<AdminInspectJobView> {
+  const { data } = await apiClient.get<AdminInspectJobView>(`/admin/links/inspect/${jobId}`, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function getLatestAdminLinkInspect(): Promise<AdminInspectJobView | null> {
+  const { data } = await apiClient.get<AdminInspectJobView | null>('/admin/links/inspect/latest', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function resumeAdminLinkInspect(jobId: string): Promise<{ jobId: string }> {
+  const { data } = await apiClient.post<{ jobId: string }>(
+    `/admin/links/inspect/${jobId}/resume`,
+    {},
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function registerAdminInspectMany(payload: {
+  ids: string[];
+  category?: string;
+}): Promise<{ results: Array<{ id: string; ok: boolean; message?: string }> }> {
+  const { data } = await apiClient.post<{
+    results: Array<{ id: string; ok: boolean; message?: string }>;
+  }>('/admin/links/register-many', payload, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
 export async function getPromotedChannels(q?: string): Promise<Channel[]> {
   const { data } = await apiClient.get<Channel[]>('/admin/promotions', {
     headers: getAdminAuthHeaders(),

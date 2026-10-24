@@ -9,6 +9,8 @@ export const DISCOVERY_MIN_MEMBERS = 100;
 /** MTProto 로 확인한 인원이 이 이상이면 1개 채널 언급으로도 통과 */
 export const DISCOVERY_SINGLE_MENTION_MIN_MEMBERS = 1_000;
 export const DISCOVERY_MAX_PER_DAY = 1000;
+/** 서버 눈덩이(키워드 대기열 검사 포함). PC 대량 도구는 source 를 안 넣음 */
+export const DISCOVERY_SOURCE_SNOWBALL = 'snowball';
 export const DISCOVERY_DELAY_MS = 1000;
 export const DISCOVERY_LOOKBACK_DAYS = 7;
 export const DISCOVERY_RECHECK_DAYS = 30;

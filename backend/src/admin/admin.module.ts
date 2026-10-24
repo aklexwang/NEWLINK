@@ -15,6 +15,10 @@ import { AdminController } from './admin.controller';
 import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminPromotionsController } from './admin-promotions.controller';
+import { AdminInspectController } from './admin-inspect.controller';
+import { AdminInspectItem } from './admin-inspect-item.entity';
+import { AdminInspectJob } from './admin-inspect-job.entity';
+import { AdminInspectService } from './admin-inspect.service';
 import { AdminStatsController } from './admin-stats.controller';
 import { AdminStatsService } from './admin-stats.service';
 import { AdminUsersController } from './admin-users.controller';
@@ -31,16 +35,24 @@ import { AdminUsersController } from './admin-users.controller';
       StatsRun,
       DiscoveredUsername,
       MtprotoState,
+      AdminInspectJob,
+      AdminInspectItem,
     ]),
   ],
   controllers: [
     AdminDashboardController,
     AdminStatsController,
+    AdminInspectController,
     AdminController,
     AdminPromotionsController,
     AdminCategoriesController,
     AdminUsersController,
   ],
-  providers: [AdminDashboardService, AdminCollectService, AdminStatsService],
+  providers: [
+    AdminDashboardService,
+    AdminCollectService,
+    AdminStatsService,
+    AdminInspectService,
+  ],
 })
 export class AdminModule {}

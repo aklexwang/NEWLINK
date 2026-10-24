@@ -166,6 +166,23 @@ describe('관리자 가드', () => {
     expect(adminGuard.canActivate(contextFor(req))).toBe(true);
   });
 
+  it('링크 미리보기 API 는 로그인 없이 401이다', () => {
+    process.env.NODE_ENV = 'test';
+    const { authGuard } = build({ DEV_ADMIN_BYPASS: 'false' });
+    const paths = [
+      '/api/admin/links/inspect',
+      '/api/admin/links/inspect/latest',
+      '/api/admin/links/inspect/job-id/resume',
+      '/api/admin/links/register-many',
+    ];
+    for (const url of paths) {
+      const req = requestFor({}, url);
+      expect(() => authGuard.canActivate(contextFor(req))).toThrow(
+        UnauthorizedException,
+      );
+    }
+  });
+
   it('수집 운영 API 세 곳은 로그인 없이 401이다', () => {
     process.env.NODE_ENV = 'test';
     const { authGuard } = build({ DEV_ADMIN_BYPASS: 'false' });

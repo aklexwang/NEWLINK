@@ -9,10 +9,8 @@ import { TonConnectProvider } from './providers/TonConnectProvider';
 import { AdminAutoManagePage } from './pages/admin/AdminAutoManagePage';
 import { AdminAdsManagePage } from './pages/admin/AdminAdsManagePage';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
-import { AdminChannelRegisterPage } from './pages/admin/AdminChannelRegisterPage';
 import { AdminCategoryLinksPage } from './pages/admin/AdminCategoryLinksPage';
 import { AdminChannelsManagePage } from './pages/admin/AdminChannelsManagePage';
-import { AdminGroupRegisterPage } from './pages/admin/AdminGroupRegisterPage';
 import { AdminGroupsManagePage } from './pages/admin/AdminGroupsManagePage';
 import { AdminManualRegisterPage } from './pages/admin/AdminManualRegisterPage';
 import { AdminCollectOpsPage } from './pages/admin/AdminCollectOpsPage';
@@ -49,10 +47,10 @@ export default function App() {
                   <Route path="register-link" element={<AdminManualRegisterPage />} />
                   <Route path="auto-manage" element={<AdminAutoManagePage />} />
                   <Route path="by-category" element={<AdminCategoryLinksPage />} />
-                  <Route path="register" element={<Navigate to="channels/register" replace />} />
-                  <Route path="channels/register" element={<AdminChannelRegisterPage />} />
+                  <Route path="register" element={<Navigate to="/admin/register-link" replace />} />
+                  <Route path="channels/register" element={<Navigate to="/admin/register-link" replace />} />
                   <Route path="channels" element={<AdminChannelsManagePage />} />
-                  <Route path="groups/register" element={<AdminGroupRegisterPage />} />
+                  <Route path="groups/register" element={<Navigate to="/admin/register-link" replace />} />
                   <Route path="groups" element={<AdminGroupsManagePage />} />
                   <Route path="ads" element={<AdminAdsManagePage />} />
                   <Route path="categories" element={<AdminCategoriesPage />} />

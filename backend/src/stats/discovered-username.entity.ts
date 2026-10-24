@@ -22,4 +22,8 @@ export class DiscoveredUsername {
 
   @Column({ name: 'mention_count', type: 'integer', default: 0 })
   mentionCount: number;
+
+  /** snowball = 서버 자동 발견. 없으면 PC 대량 도구 등 */
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  source: string | null;
 }

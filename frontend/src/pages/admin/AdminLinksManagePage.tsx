@@ -341,11 +341,8 @@ export function AdminLinksManagePage() {
             <p className="mt-1 text-sm text-slate-500">목록은 서버에서 나눠 가져옵니다. 필터는 주소에 남습니다.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link to="/admin/channels/register" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-              채널 등록
-            </Link>
-            <Link to="/admin/groups/register" className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-black/10 hover:bg-slate-50">
-              그룹 등록
+            <Link to="/admin/register-link" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              링크 등록
             </Link>
           </div>
         </div>
