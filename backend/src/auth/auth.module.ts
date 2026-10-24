@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users/users.module';
+import { AdminLoginService } from './admin-login.service';
 import { AuthController } from './auth.controller';
 import { JwtAuthService } from './jwt-auth.service';
 import { TelegramAdminGuard } from './telegram-admin.guard';
@@ -27,6 +28,7 @@ import { TelegramAuthService } from './telegram-auth.service';
   providers: [
     TelegramAuthService,
     JwtAuthService,
+    AdminLoginService,
     TelegramAuthGuard,
     TelegramAdminGuard,
   ],

@@ -162,10 +162,8 @@ export function AdminAutoManagePage() {
       );
       await load();
     } catch (error) {
-      if (!isAdminAuthenticated()) {
-        setMessage('관리자 인증이 필요합니다. /admin?access=관리자키 로 먼저 접속해 주세요.');
-      } else if (isAxiosError(error) && error.response?.status === 401) {
-        setMessage('관리자 인증이 만료되었습니다. /admin?access=관리자키 로 다시 접속해 주세요.');
+      if (!isAdminAuthenticated() || (isAxiosError(error) && error.response?.status === 401)) {
+        setMessage('관리자 로그인이 필요합니다.');
       } else if (isAxiosError(error) && !error.response) {
         setMessage('백엔드에 연결되지 않았습니다. PC 백엔드와 Cloudflare 터널이 켜져 있는지 확인해 주세요.');
       } else {
@@ -214,8 +212,8 @@ export function AdminAutoManagePage() {
             ? error.response.data.message
             : 'Google CSE가 설정되지 않았거나 호출에 실패했습니다.',
         );
-      } else if (!isAdminAuthenticated()) {
-        setMessage('관리자 인증이 필요합니다. /admin?access=관리자키 로 먼저 접속해 주세요.');
+      } else if (!isAdminAuthenticated() || (isAxiosError(error) && error.response?.status === 401)) {
+        setMessage('관리자 로그인이 필요합니다.');
       } else {
         setMessage('Google 검색 수집에 실패했습니다.');
       }

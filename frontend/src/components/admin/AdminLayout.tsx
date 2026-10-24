@@ -1,18 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { AdminAuthNotice } from './AdminAuthNotice';
 import { AdminPendingAlertBanner } from './AdminPendingAlertBanner';
-import { captureAdminAccessFromUrl } from '../../utils/adminAccess';
+import { AdminLoginScreen } from './AdminLoginScreen';
 import { AdminSidebar } from './AdminSidebar';
-
-captureAdminAccessFromUrl();
+import {
+  ADMIN_AUTH_EXPIRED_EVENT,
+  clearAdminSession,
+  discardLegacyAdminAccess,
+  isAdminAuthenticated,
+} from '../../utils/adminAccess';
 
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authed, setAuthed] = useState(isAdminAuthenticated);
+
+  useEffect(() => {
+    discardLegacyAdminAccess();
+    const onExpired = () => setAuthed(false);
+    window.addEventListener(ADMIN_AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(ADMIN_AUTH_EXPIRED_EVENT, onExpired);
+  }, []);
+
+  if (!authed) {
+    return <AdminLoginScreen onLoggedIn={() => setAuthed(true)} />;
+  }
+
+  const logout = () => {
+    clearAdminSession();
+    setSidebarOpen(false);
+    setAuthed(false);
+  };
 
   return (
     <div className="flex min-h-screen w-full bg-[#f1f5f9]">
-      {/* 모바일 오버레이 */}
       {sidebarOpen && (
         <button
           type="button"
@@ -31,17 +51,23 @@ export function AdminLayout() {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
-        <div className="flex items-center gap-3 border-b border-black/5 bg-white px-4 py-3 lg:hidden">
+        <div className="flex items-center gap-3 border-b border-black/5 bg-white px-4 py-3">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white"
+            className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white lg:hidden"
           >
             메뉴
           </button>
-          <p className="text-sm font-semibold text-slate-900">New Link 관리자</p>
+          <p className="text-sm font-semibold text-slate-900 lg:hidden">New Link 관리자</p>
+          <button
+            type="button"
+            onClick={logout}
+            className="ml-auto rounded-lg px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+          >
+            로그아웃
+          </button>
         </div>
-        <AdminAuthNotice />
         <AdminPendingAlertBanner />
         <div className="min-w-0 flex-1 overflow-x-auto">
           <Outlet />

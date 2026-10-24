@@ -33,7 +33,8 @@
 | `TELEGRAM_ADMIN_IDS` | 관리자 텔레그램 숫자 ID |
 | `TELEGRAM_BOT_USERNAME` | 봇 공개 username (인증 안내) |
 | `TELEGRAM_CLIENT_ID` | 텔레그램 웹 로그인 Client ID (선택) |
-| `ADMIN_ACCESS_KEY` | 브라우저 `/admin?access=` 게이트 |
+| `ADMIN_USERNAME` | 브라우저 `/admin` 로그인 아이디 |
+| `ADMIN_PASSWORD_HASH` | 관리자 비밀번호 bcrypt 해시 (`npm run admin:hash-password`, 평문 저장 금지) |
 | `DEV_ADMIN_BYPASS` | 로컬 관리자 우회 (운영 false) |
 | `STATS_CRON_ENABLED` | 프로세스 내부 매일 03:00 KST 크론 |
 | `INTERNAL_CRON_TOKEN` | `X-Internal-Token` (수집 run/status) |
@@ -90,4 +91,4 @@ npm run dev
 - 앱: http://localhost:5173/
 - 랭킹: http://localhost:5173/ranking
 - 채널 상세: http://localhost:5173/c/{username}
-- 어드민: http://localhost:5173/admin (`ADMIN_ACCESS_KEY`는 `.env` 참고)
+- 어드민: http://localhost:5173/admin (아이디·비밀번호. 해시는 `npm run admin:hash-password`)

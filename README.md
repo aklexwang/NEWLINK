@@ -34,9 +34,20 @@ macOS/Linux는 `copy` 대신 `cp .env.example .env`.
 - 채널 상세: http://localhost:5173/c/{username}
 - 주간 변화: http://localhost:5173/weekly
 - 비교: http://localhost:5173/compare
-- 어드민: http://localhost:5173/admin — `ADMIN_ACCESS_KEY`는 `.env`만 사용
+- 어드민: http://localhost:5173/admin — 아이디·비밀번호 로그인 (`ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`)
 
 `STATS_CRON_ENABLED`는 로컬에서 `false`로 둔다. 수집은 GitHub Actions 또는 `POST /api/internal/stats/run`으로 돌린다.
+
+## 관리자 로그인
+
+브라우저 `/admin`은 아이디·비밀번호로 들어간다. 텔레그램 미니앱 관리자(`TELEGRAM_ADMIN_IDS`) 로그인은 그대로다.
+
+```bash
+cd backend
+npm run admin:hash-password
+```
+
+비밀번호를 가려서 두 번 입력하면 bcrypt 해시만 출력된다. 그 값을 `.env`의 `ADMIN_PASSWORD_HASH`에 넣고 `ADMIN_USERNAME`을 정한다. 평문 비밀번호는 저장하지 않는다.
 
 ## 환경 변수
 
@@ -45,7 +56,7 @@ macOS/Linux는 `copy` 대신 `cp .env.example .env`.
 **백엔드 (요약)**
 
 - DB: `DATABASE_TYPE`, `DATABASE_PATH` (로컬), `DATABASE_URL` (운영 Postgres), `TYPEORM_SYNC`
-- 인증: `JWT_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_IDS`, `ADMIN_ACCESS_KEY`
+- 인증: `JWT_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_IDS`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`
 - 사이트: `PUBLIC_SITE_URL`
 - 수집: `STATS_CRON_ENABLED`, `INTERNAL_CRON_TOKEN`
 - 자동관리(선택): `SERPER_API_KEY`, `GOOGLE_CSE_API_KEY`, `GOOGLE_CSE_CX`, `OPENAI_API_KEY`, `TGSTAT_API_TOKEN`

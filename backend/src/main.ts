@@ -16,6 +16,8 @@ async function bootstrap() {
   ensureUploadDirs();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Render 등 프록시 한 단계 뒤의 클라이언트 IP (관리자 로그인 잠금)
+  app.set('trust proxy', 1);
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/api/uploads/',
   });

@@ -14,6 +14,10 @@ export class TelegramAdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
+    if (request.adminSession) {
+      return true;
+    }
+
     if (!request.telegramInitData) {
       throw new ForbiddenException('인증이 필요합니다.');
     }

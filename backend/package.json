@@ -27,7 +27,8 @@
     "preview:invites": "ts-node --transpile-only --project scripts/tsconfig.json scripts/preview-invite-links.ts",
     "preview:auto-expose": "ts-node --transpile-only --project scripts/tsconfig.json scripts/preview-auto-expose.ts",
     "bulk:candidates": "ts-node --transpile-only --project scripts/tsconfig.json scripts/bulk-candidates.ts",
-    "telegram:login": "ts-node --transpile-only --project scripts/tsconfig.json scripts/telegram-login.ts"
+    "telegram:login": "ts-node --transpile-only --project scripts/tsconfig.json scripts/telegram-login.ts",
+    "admin:hash-password": "ts-node --transpile-only --project scripts/tsconfig.json scripts/hash-admin-password.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -41,6 +42,7 @@
     "@types/express": "^5.0.0",
     "@types/multer": "^2.1.0",
     "@types/node": "^24.0.0",
+    "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.10.0",
     "cheerio": "^1.2.0",
     "class-transformer": "^0.5.1",
@@ -60,6 +62,7 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@types/bcrypt": "^6.0.0",
     "@types/jest": "^30.0.0",
     "@types/supertest": "^7.0.0",
     "eslint": "^9.18.0",

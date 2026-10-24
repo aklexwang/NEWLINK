@@ -42,7 +42,9 @@ services:
         value: 30d
       - key: DEV_ADMIN_BYPASS
         value: "false"
-      - key: ADMIN_ACCESS_KEY
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD_HASH
         sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false

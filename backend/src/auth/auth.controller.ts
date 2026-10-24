@@ -1,5 +1,8 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { UsersService } from '../users/users.service';
+import { AdminLoginService } from './admin-login.service';
+import { AdminLoginDto } from './dto/admin-login.dto';
 import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { TelegramLoginWidgetDto } from './dto/telegram-login-widget.dto';
 import { TelegramOidcLoginDto } from './dto/telegram-oidc-login.dto';
@@ -16,7 +19,14 @@ export class AuthController {
     private readonly telegramAuthService: TelegramAuthService,
     private readonly usersService: UsersService,
     private readonly jwtAuthService: JwtAuthService,
+    private readonly adminLoginService: AdminLoginService,
   ) {}
+
+  @Post('admin-login')
+  @HttpCode(HttpStatus.OK)
+  adminLogin(@Body() dto: AdminLoginDto, @Req() req: Request) {
+    return this.adminLoginService.login(dto.username, dto.password, clientIp(req));
+  }
 
   @Get('telegram-login-config')
   getTelegramLoginConfig() {
@@ -81,4 +91,11 @@ export class AuthController {
     }
     return { user: this.usersService.toPublicUser(user) };
   }
+}
+
+function clientIp(req: Request): string {
+  const ip = typeof req.ip === 'string' ? req.ip.trim() : '';
+  if (ip) return ip;
+  const remote = req.socket?.remoteAddress?.trim();
+  return remote || 'unknown';
 }

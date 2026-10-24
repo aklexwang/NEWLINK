@@ -10,10 +10,6 @@ export function getMemberUrl(): string {
   return `${getSiteOrigin()}/`;
 }
 
-export function getAdminUrl(withAccessKey = false): string {
-  const base = `${getSiteOrigin()}/admin`;
-  if (!withAccessKey || typeof window === 'undefined') return base;
-
-  const key = sessionStorage.getItem('newlink_admin_access_key');
-  return key ? `${base}?access=${encodeURIComponent(key)}` : base;
+export function getAdminUrl(): string {
+  return `${getSiteOrigin()}/admin`;
 }
