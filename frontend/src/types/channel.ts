@@ -45,6 +45,8 @@ export interface Channel {
   isVisible?: boolean;
   categoryLocked?: boolean;
   categoryConfidence?: number | null;
+  payoutStatus?: 'not_eligible' | 'pending' | 'paid' | 'skipped';
+  payoutSkipReason?: string | null;
   autoRegistered?: boolean;
   collectStatus?:
     | 'ok'
@@ -82,6 +84,7 @@ export interface PendingChannel extends Channel {
     username: string | null;
     firstName: string | null;
     tonWalletAddress: string | null;
+    walletKind?: string | null;
     isRegistered: boolean;
   } | null;
 }

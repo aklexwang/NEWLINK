@@ -3,7 +3,6 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   ClipboardList,
   FolderCog,
-  Gem,
   LayoutDashboard,
   Link2,
   List,
@@ -11,7 +10,6 @@ import {
   Star,
   Timer,
   Users,
-  Wallet,
 } from 'lucide-react';
 import { getPendingChannelCount, getPromotedChannels } from '../../api/admin';
 import { getMemberUrl } from '../../config/site';
@@ -50,7 +48,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: '채널',
     items: [
-      { to: '/admin/pending', label: '승인 대기', icon: <ClipboardList />, badge: 'pending' },
+      { to: '/admin/pending', label: '제보·보상', icon: <ClipboardList />, badge: 'pending' },
       { to: '/admin/register-link', label: '링크 등록', icon: <Link2 /> },
       { to: '/admin/discovery', label: '발견', icon: <RefreshCw /> },
       { to: '/admin/links', label: '채널·그룹 관리', icon: <List /> },
@@ -60,13 +58,11 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     title: '운영',
     items: [
       { to: '/admin/ads', label: '광고 관리', icon: <Star />, badge: 'ads' },
-      { to: '/admin/ton-payments', label: 'TON 지급 이력', icon: <Gem /> },
     ],
   },
   {
     title: '설정',
     items: [
-      { to: '/admin/rewards', label: '보상 설정', icon: <Wallet /> },
       { to: '/admin/users', label: '회원 관리', icon: <Users /> },
       { to: '/admin/categories', label: '카테고리 설정', icon: <FolderCog /> },
     ],

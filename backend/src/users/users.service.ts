@@ -142,6 +142,7 @@ export class UsersService {
         username: null,
         firstName: null,
         tonWalletAddress: null,
+        walletKind: null,
         isRegistered: false,
       };
     }
@@ -150,6 +151,7 @@ export class UsersService {
       username: user.username,
       firstName: user.firstName,
       tonWalletAddress: user.tonWalletAddress,
+      walletKind: user.walletKind,
       isRegistered: user.isRegistered,
     };
   }

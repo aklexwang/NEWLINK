@@ -303,6 +303,7 @@ export class AdminController {
       force: dto.force,
       phase: dto.phase,
       payoutRecordId: dto.payoutRecordId,
+      methodId: dto.methodId,
     });
     return {
       ...result.channel,

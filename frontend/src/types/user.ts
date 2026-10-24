@@ -12,4 +12,9 @@ export interface AppUser {
 export interface AdminUser extends AppUser {
   submissionCount: number;
   isBlocked: boolean;
+  walletKind?: string | null;
+  payoutCount?: number;
+  payoutTon?: number;
+  payoutUsdt?: number;
+  payoutStars?: number;
 }

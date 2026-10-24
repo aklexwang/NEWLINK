@@ -60,3 +60,32 @@ export class PayoutMethodUpdateDto {
   @MaxLength(64)
   label?: string;
 }
+
+export class SkipPayoutDto {
+  @IsString()
+  @MaxLength(500)
+  reason: string;
+
+  @IsBoolean()
+  @IsOptional()
+  force?: boolean;
+}
+
+export class VoidPayoutDto {
+  @IsString()
+  @MaxLength(500)
+  reason: string;
+}
+
+export class ConfirmPayoutDto {
+  @IsString()
+  @MaxLength(500)
+  memo: string;
+}
+
+export class FailPayoutDto {
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  reason?: string;
+}

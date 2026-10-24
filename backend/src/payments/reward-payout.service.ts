@@ -17,10 +17,17 @@ import {
   type PayoutSendMethod,
 } from './payout-record.entity';
 import {
+  addPaidAmount,
+  emptyUserPayoutTotals,
+  normalizePayoutAmount,
+  type UserPayoutTotals,
+} from './payout-format.logic';
+import {
   isBlockingPayoutStatus,
   submitRequiresWallet,
 } from './payout-status.logic';
 import { newRewardSettingsRow } from './reward-seed.logic';
+import { telegramIdKey } from '../common/telegram-id';
 import { RewardSettings } from './reward-settings.entity';
 import { TonPaymentService } from './ton-payment.service';
 
@@ -34,6 +41,7 @@ export type RecordPayoutInput = {
   method?: 'tonconnect' | 'external';
   sendMethod?: PayoutSendMethod;
   currency?: string;
+  methodId?: string;
   force?: boolean;
   phase?: 'sending' | 'paid' | 'failed';
   payoutRecordId?: string;
@@ -184,7 +192,7 @@ export class RewardPayoutService {
       username: reporter?.username
         ? `@${reporter.username}`
         : (reporter?.firstName ?? null),
-      methodId: await this.methodIdForCurrency(currency),
+      methodId: input.methodId ?? (await this.methodIdForCurrency(currency)),
       destinationKind:
         currency === 'STARS' ? 'telegram_account' : 'wallet_address',
       currency,
@@ -257,16 +265,16 @@ export class RewardPayoutService {
   }
 
   private resolveAmount(input: RecordPayoutInput, currency: string) {
-    const raw =
-      currency === 'STARS' ? (input.amount ?? input.amountTon) : input.amountTon;
-    const amount = Number(raw);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new BadRequestException('지급 수량을 확인해 주세요.');
+    try {
+      return normalizePayoutAmount(
+        currency,
+        Number(input.amount ?? input.amountTon),
+      );
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '지급 수량을 확인해 주세요.',
+      );
     }
-    if (currency === 'STARS' && !Number.isInteger(amount)) {
-      throw new BadRequestException('Stars 는 정수만 기록합니다.');
-    }
-    return amount;
   }
 
   private async methodIdForCurrency(currency: string) {
@@ -314,5 +322,173 @@ export class RewardPayoutService {
 
   private reloadChannel(id: string) {
     return this.channelsService.findById(id);
+  }
+
+  async listPendingPayouts() {
+    const [channels, methods] = await Promise.all([
+      this.channelRepository.find({
+        where: { payoutStatus: 'pending' },
+        order: { createdAt: 'DESC' },
+      }),
+      this.listMethods(),
+    ]);
+    const items = await Promise.all(
+      channels.map(async (channel) => ({
+        ...channel,
+        reporter: await this.usersService.getReporterOrNull(channel.submittedBy),
+      })),
+    );
+    return {
+      methods: methods.filter((method) => method.enabled),
+      items,
+    };
+  }
+
+  async listRecords(filter: {
+    status?: string;
+    currency?: string;
+    q?: string;
+    from?: string;
+    to?: string;
+  }) {
+    const rows = await this.recordRepository.find();
+    const q = filter.q?.trim().toLowerCase() ?? '';
+    const from = filter.from ? new Date(filter.from) : null;
+    const to = filter.to ? new Date(`${filter.to}T23:59:59.999`) : null;
+    const filtered = rows.filter((row) => {
+      if (filter.status && row.status !== filter.status) return false;
+      if (
+        filter.currency &&
+        row.currency.toUpperCase() !== filter.currency.toUpperCase()
+      ) {
+        return false;
+      }
+      if (from && new Date(row.createdAt) < from) return false;
+      if (to && new Date(row.createdAt) > to) return false;
+      if (q) {
+        const hay = [
+          row.username,
+          row.walletAddress,
+          row.txOrMemo,
+          row.channelId,
+          row.telegramId,
+          row.currency,
+          row.sendMethod,
+        ]
+          .join(' ')
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    filtered.sort((a, b) => {
+      if (a.status === 'sending' && b.status !== 'sending') return -1;
+      if (b.status === 'sending' && a.status !== 'sending') return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+    const ids = [...new Set(filtered.map((row) => row.channelId))];
+    const channels =
+      ids.length > 0
+        ? await this.channelRepository.find({ where: { id: In(ids) } })
+        : [];
+    const titles = new Map(channels.map((channel) => [channel.id, channel.title]));
+    return filtered.map((row) => ({
+      ...row,
+      channelTitle: titles.get(row.channelId) ?? null,
+    }));
+  }
+
+  async skipPayout(channelId: string, reason: string, force?: boolean) {
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      throw new BadRequestException('지급 안 함 이유를 입력해 주세요.');
+    }
+    const channel = await this.channelRepository.findOneBy({ id: channelId });
+    if (!channel) throw new NotFoundException('채널을 찾을 수 없습니다.');
+    await this.assertNoBlocking(channelId, force === true);
+    await this.channelRepository.update(channelId, {
+      payoutStatus: 'skipped',
+      payoutSkipReason: trimmed.slice(0, 500),
+    });
+    return this.reloadChannel(channelId);
+  }
+
+  async voidRecord(id: string, reason: string) {
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      throw new BadRequestException('취소 이유를 입력해 주세요.');
+    }
+    const record = await this.recordRepository.findOneBy({ id });
+    if (!record) throw new NotFoundException('지급 기록을 찾을 수 없습니다.');
+    if (record.status === 'void') {
+      throw new BadRequestException('이미 취소된 기록입니다.');
+    }
+    const wasPaid = record.status === 'paid';
+    record.status = 'void';
+    record.voidOrFailReason = trimmed.slice(0, 500);
+    record.updatedAt = new Date();
+    await this.recordRepository.save(record);
+    if (wasPaid) {
+      const stillPaid = await this.recordRepository.find({
+        where: { channelId: record.channelId, status: 'paid' },
+      });
+      if (stillPaid.length === 0) {
+        await this.channelRepository.update(record.channelId, {
+          payoutStatus: 'pending',
+          payoutSkipReason: null,
+        });
+      }
+    }
+    return record;
+  }
+
+  async confirmRecord(id: string, memo: string) {
+    const tx = memo.trim();
+    if (!tx) {
+      throw new BadRequestException('TX 또는 메모를 입력해 주세요.');
+    }
+    const record = await this.recordRepository.findOneBy({ id });
+    if (!record) throw new NotFoundException('지급 기록을 찾을 수 없습니다.');
+    if (record.status !== 'sending') {
+      throw new BadRequestException('확인이 필요한 지급만 확정할 수 있습니다.');
+    }
+    const channel = await this.channelRepository.findOneBy({
+      id: record.channelId,
+    });
+    if (!channel) throw new NotFoundException('채널을 찾을 수 없습니다.');
+    return this.finishExisting(channel, id, 'paid', {
+      memo: tx,
+      amount: record.amount,
+    });
+  }
+
+  async failRecord(id: string, reason?: string) {
+    const record = await this.recordRepository.findOneBy({ id });
+    if (!record) throw new NotFoundException('지급 기록을 찾을 수 없습니다.');
+    if (record.status !== 'sending') {
+      throw new BadRequestException('확인이 필요한 지급만 실패 처리할 수 있습니다.');
+    }
+    const channel = await this.channelRepository.findOneBy({
+      id: record.channelId,
+    });
+    if (!channel) throw new NotFoundException('채널을 찾을 수 없습니다.');
+    return this.finishExisting(channel, id, 'failed', {
+      memo: reason?.trim() || '실패 처리',
+    });
+  }
+
+  async paidTotalsByTelegramId(): Promise<Record<string, UserPayoutTotals>> {
+    const rows = await this.recordRepository.find({ where: { status: 'paid' } });
+    const map: Record<string, UserPayoutTotals> = {};
+    for (const row of rows) {
+      const key = telegramIdKey(row.telegramId);
+      if (!key) continue;
+      map[key] = addPaidAmount(
+        map[key] ?? emptyUserPayoutTotals(),
+        row.currency,
+        row.amount,
+      );
+    }
+    return map;
   }
 }

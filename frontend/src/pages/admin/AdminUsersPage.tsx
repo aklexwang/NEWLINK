@@ -3,6 +3,7 @@ import { deleteAdminUser, getAdminUsers, setAdminUserBlocked } from '../../api/a
 import type { AdminUser } from '../../types/user';
 import { WalletNetworkBadge } from '../../components/WalletNetworkBadge';
 import { useToast } from '../../providers/ToastProvider';
+import { formatPayoutAmount } from '../../utils/payoutDisplay';
 
 export function AdminUsersPage() {
   const { confirm } = useToast();
@@ -140,7 +141,12 @@ export function AdminUsersPage() {
                   <th className="px-4 py-3 font-medium">회원</th>
                   <th className="px-4 py-3 font-medium">Telegram ID</th>
                   <th className="px-4 py-3 font-medium">TON 지갑</th>
+                  <th className="px-4 py-3 font-medium">지갑 종류</th>
                   <th className="px-4 py-3 font-medium">제보 수</th>
+                  <th className="px-4 py-3 font-medium">지급 건수</th>
+                  <th className="px-4 py-3 font-medium">TON</th>
+                  <th className="px-4 py-3 font-medium">USDT</th>
+                  <th className="px-4 py-3 font-medium">⭐Stars</th>
                   <th className="px-4 py-3 font-medium">상태</th>
                   <th className="px-4 py-3 font-medium">가입일</th>
                   <th className="px-4 py-3 font-medium">관리</th>
@@ -200,7 +206,24 @@ export function AdminUsersPage() {
                           <span className="text-slate-400">미등록</span>
                         )}
                       </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {user.walletKind === 'ton'
+                          ? 'TON'
+                          : user.walletKind === 'usdt_trc20'
+                            ? 'USDT TRC-20'
+                            : '미등록'}
+                      </td>
                       <td className="px-4 py-3 text-slate-700">{user.submissionCount}</td>
+                      <td className="px-4 py-3 text-slate-700">{user.payoutCount ?? 0}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {formatPayoutAmount('TON', user.payoutTon ?? 0)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {formatPayoutAmount('USDT', user.payoutUsdt ?? 0)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {formatPayoutAmount('STARS', user.payoutStars ?? 0)}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
                           {user.isBlocked ? (

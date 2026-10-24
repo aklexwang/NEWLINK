@@ -28,7 +28,6 @@ import {
 } from '../../components/admin/AdminTable';
 import type { Channel, PendingChannel } from '../../types/channel';
 import type { CategoryItem } from '../../types/categoryItem';
-import { ReporterTonPanel } from '../../components/ReporterTonPanel';
 import { refreshAdminBadges } from '../../utils/adminBadges';
 import { linkTypeBadgeClass, linkTypeLabel } from '../../utils/linkType';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
@@ -581,11 +580,16 @@ export function AdminLinksManagePage() {
                                 linkType={channel.linkType}
                                 onUpdated={(patch) => setChannels((prev) => prev.map((item) => (item.id === channel.id ? { ...item, ...patch } : item)))}
                               />
-                              {channel.rewardTonAmount != null && channel.rewardTonAmount > 0 ? (
-                                <div className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">제보 보상 지급됨</div>
-                              ) : (
-                                <ReporterTonPanel item={channel} onRecorded={() => void load()} />
-                              )}
+                              <div className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+                                제보 보상은{' '}
+                                <Link to="/admin/pending?tab=payout" className="font-medium text-primary underline">
+                                  제보·보상 화면에서 지급
+                                </Link>
+                                합니다.
+                                {channel.rewardTonAmount != null && channel.rewardTonAmount > 0
+                                  ? ` (TON ${channel.rewardTonAmount} 기록됨)`
+                                  : ''}
+                              </div>
                               <div className="grid gap-2 sm:grid-cols-2">
                                 <label className="text-xs text-slate-500">
                                   제목

@@ -100,7 +100,7 @@ export class RecordRewardDto {
   amountTon?: number;
 
   @IsNumber()
-  @Min(1)
+  @Min(0.000001)
   @IsOptional()
   amount?: number;
 
@@ -137,6 +137,10 @@ export class RecordRewardDto {
   @IsOptional()
   @IsUUID()
   payoutRecordId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  methodId?: string;
 }
 
 export class UpdateChannelDto {

@@ -468,6 +468,7 @@ export async function recordReporterReward(
     force?: boolean;
     phase?: 'sending' | 'paid' | 'failed';
     payoutRecordId?: string;
+    methodId?: string;
   },
 ): Promise<Channel & { payoutRecordId?: string; payoutRecordStatus?: string }> {
   const { data } = await apiClient.post<
@@ -542,6 +543,93 @@ export async function patchAdminPayoutMethod(
   const { data } = await apiClient.patch<AdminPayoutMethod>(
     `/admin/rewards/methods/${id}`,
     payload,
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export type AdminPayoutRecord = {
+  id: string;
+  channelId: string;
+  channelTitle?: string | null;
+  telegramId: number | null;
+  username: string | null;
+  methodId: string | null;
+  destinationKind: string;
+  currency: string;
+  amount: number;
+  walletAddress: string | null;
+  sendMethod: 'tonconnect' | 'external' | 'manual_gift' | 'bot_gift';
+  status: 'sending' | 'paid' | 'failed' | 'void';
+  txOrMemo: string | null;
+  voidOrFailReason: string | null;
+  createdAt: string;
+  paidAt: string | null;
+};
+
+export type PendingPayoutItem = PendingChannel & {
+  payoutStatus?: string;
+};
+
+export async function getAdminPendingPayouts(): Promise<{
+  methods: AdminPayoutMethod[];
+  items: PendingPayoutItem[];
+}> {
+  const { data } = await apiClient.get<{
+    methods: AdminPayoutMethod[];
+    items: PendingPayoutItem[];
+  }>('/admin/rewards/pending-payouts', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function getAdminPayoutRecords(params?: {
+  status?: string;
+  currency?: string;
+  q?: string;
+  from?: string;
+  to?: string;
+}): Promise<AdminPayoutRecord[]> {
+  const { data } = await apiClient.get<AdminPayoutRecord[]>('/admin/rewards/records', {
+    headers: getAdminAuthHeaders(),
+    params,
+  });
+  return data;
+}
+
+export async function skipAdminPayout(
+  channelId: string,
+  payload: { reason: string; force?: boolean },
+) {
+  const { data } = await apiClient.post(`/admin/rewards/channels/${channelId}/skip`, payload, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function voidAdminPayoutRecord(id: string, reason: string) {
+  const { data } = await apiClient.post(
+    `/admin/rewards/records/${id}/void`,
+    { reason },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function confirmAdminPayoutRecord(id: string, memo: string) {
+  const { data } = await apiClient.post(
+    `/admin/rewards/records/${id}/confirm`,
+    { memo },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function failAdminPayoutRecord(id: string, reason?: string) {
+  const { data } = await apiClient.post(
+    `/admin/rewards/records/${id}/fail`,
+    { reason },
     { headers: getAdminAuthHeaders() },
   );
   return data;

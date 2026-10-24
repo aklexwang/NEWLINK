@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import {
   createAdminPayoutMethod,
@@ -23,6 +24,10 @@ import {
 } from '@/components/admin/ui/table';
 
 export function AdminRewardsPage() {
+  return <Navigate to="/admin/pending?tab=settings" replace />;
+}
+
+export function AdminRewardSettingsPanel() {
   const [enabled, setEnabled] = useState(true);
   const [methods, setMethods] = useState<AdminPayoutMethod[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +90,7 @@ export function AdminRewardsPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div>
       <h2 className="text-xl font-bold">보상 설정</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         끄면 회원 제보 화면의 보상 안내만 숨깁니다. 제보는 계속 받습니다. 서버가 돈을 보내지는

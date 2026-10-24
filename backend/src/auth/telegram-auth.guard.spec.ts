@@ -189,6 +189,13 @@ describe('관리자 가드', () => {
     const paths = [
       '/api/admin/rewards/settings',
       '/api/admin/rewards/methods',
+      '/api/admin/rewards/pending-payouts',
+      '/api/admin/rewards/records',
+      '/api/admin/rewards/channels/ch-1/skip',
+      '/api/admin/rewards/records/rec-1/void',
+      '/api/admin/rewards/records/rec-1/confirm',
+      '/api/admin/rewards/records/rec-1/fail',
+      '/api/admin/users',
     ];
     for (const url of paths) {
       const req = requestFor({}, url);
