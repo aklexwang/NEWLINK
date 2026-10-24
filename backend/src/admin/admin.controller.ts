@@ -23,6 +23,7 @@ import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { TelegramUserParam } from '../auth/telegram-user.decorator';
 import type { TelegramUser } from '../auth/interfaces/telegram-user.interface';
 import { ChannelsService } from '../channels/channels.service';
+import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
 import { TonPaymentService } from '../payments/ton-payment.service';
 import { UsersService } from '../users/users.service';
 import {
@@ -103,11 +104,14 @@ export class AdminController {
         const base = channel.isPromoted
           ? await this.withAdClient(channel)
           : channel;
+        const memberPage = describeMemberPageVisibility(channel);
         return {
           ...base,
           reporter: await this.usersService.getReporterOrNull(
             channel.submittedBy,
           ),
+          memberPageVisible: memberPage.visible,
+          memberPageHiddenReason: memberPage.reason,
         };
       }),
     );

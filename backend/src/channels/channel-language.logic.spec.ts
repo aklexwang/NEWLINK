@@ -5,6 +5,7 @@ import {
   foreignReasonLabel,
   hangulRatio,
   isDefaultPublicLanguage,
+  isAdminDirectRegistered,
   isVisibleOnPublicLists,
   LANGUAGE_MIN_LETTERS,
   LANGUAGE_MIN_POST_EXCERPTS,
@@ -175,6 +176,20 @@ describe('isVisibleOnPublicLists', () => {
         isVisible: false,
       }),
     ).toBe(false);
+  });
+
+  it('어드민이 직접 등록한 미확인 언어는 숨기지 않는다', () => {
+    expect(isAdminDirectRegistered({ autoRegistered: false, submittedBy: null })).toBe(
+      true,
+    );
+    expect(
+      isVisibleOnPublicLists({
+        language: 'unknown',
+        isPromoted: false,
+        autoRegistered: false,
+        submittedBy: null,
+      }),
+    ).toBe(true);
   });
 });
 

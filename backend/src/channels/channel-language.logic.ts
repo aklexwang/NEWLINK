@@ -223,13 +223,29 @@ export function isDefaultPublicLanguage(
   return language !== 'foreign';
 }
 
+/** 어드민이 직접 넣은 채널 (제보·자동등록 아님) */
+export function isAdminDirectRegistered(channel: {
+  autoRegistered?: boolean | null;
+  submittedBy?: number | null;
+}): boolean {
+  return channel.autoRegistered !== true && channel.submittedBy == null;
+}
+
 /** 광고 채널은 언어와 상관없이 공개 화면에 남김. 비활성은 광고여도 뺀다. */
 export function isVisibleOnPublicLists(channel: {
   language?: ChannelLanguage | string | null;
   isPromoted?: boolean;
   isVisible?: boolean | null;
+  autoRegistered?: boolean | null;
+  submittedBy?: number | null;
 }): boolean {
   if (channel.isVisible === false) return false;
   if (channel.isPromoted) return true;
+  if (
+    isAdminDirectRegistered(channel) &&
+    (channel.language == null || channel.language === 'unknown')
+  ) {
+    return true;
+  }
   return isDefaultPublicLanguage(channel.language);
 }

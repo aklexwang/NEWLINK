@@ -277,7 +277,7 @@ export function AdminLinksManagePage({
 
   const colCount = collectFailedOnly
     ? 8
-    : (showTypeColumn ? 9 : 8) + 2;
+    : (showTypeColumn ? 9 : 8) + 3;
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { '': countSource.length };
@@ -464,6 +464,7 @@ export function AdminLinksManagePage({
                       <AdminTh className="w-24">카테고리</AdminTh>
                       <AdminTh className="w-16">언어</AdminTh>
                       <AdminTh className="w-16">상태</AdminTh>
+                      <AdminTh className="w-36">회원 페이지 노출</AdminTh>
                       <AdminTh className="w-12">👍</AdminTh>
                       <AdminTh className="min-w-[100px]">광고 의뢰</AdminTh>
                       <AdminTh className="w-24">광고</AdminTh>
@@ -581,6 +582,18 @@ export function AdminLinksManagePage({
                                   {channel.isVisible === false ? '비활성' : '활성'}
                                 </label>
                               </div>
+                            </AdminTd>
+                            <AdminTd>
+                              {channel.memberPageVisible ? (
+                                <span className="text-[11px] font-medium text-green-700">예</span>
+                              ) : (
+                                <span className="text-[11px] text-amber-800">
+                                  아니오
+                                  {channel.memberPageHiddenReason
+                                    ? ` (${channel.memberPageHiddenReason})`
+                                    : ''}
+                                </span>
+                              )}
                             </AdminTd>
                             <AdminTd><span className="text-xs tabular-nums">{channel.recommendCount}</span></AdminTd>
                             <AdminTd>
