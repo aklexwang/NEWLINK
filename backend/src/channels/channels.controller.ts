@@ -9,9 +9,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { TelegramUserParam } from '../auth/telegram-user.decorator';
 import type { TelegramUser } from '../auth/interfaces/telegram-user.interface';
+import { RewardPayoutService } from '../payments/reward-payout.service';
 import { UsersService } from '../users/users.service';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
@@ -23,6 +25,7 @@ export class ChannelsController {
     private readonly channelsService: ChannelsService,
     private readonly usersService: UsersService,
     private readonly channelVerifyService: ChannelVerifyService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   @Get('search')
@@ -63,7 +66,13 @@ export class ChannelsController {
   @UseGuards(TelegramAuthGuard)
   async mySubmissions(@TelegramUserParam() user: TelegramUser) {
     await this.usersService.assertActiveByTelegramId(user.id);
-    return this.channelsService.findBySubmitter(user.id);
+    const rows = await this.channelsService.findBySubmitter(user.id);
+    try {
+      const rewards = this.moduleRef.get(RewardPayoutService, { strict: false });
+      return rewards.attachMemberRewards(rows);
+    } catch {
+      return rows;
+    }
   }
 
   @Post()
@@ -72,8 +81,11 @@ export class ChannelsController {
     @Body() dto: CreateChannelDto,
     @TelegramUserParam() user: TelegramUser,
   ) {
-    await this.usersService.requireRegistered(user);
+    await this.usersService.assertActiveByTelegramId(user.id);
     await this.usersService.syncFromTelegram(user);
+    if (await this.shouldRequireWallet()) {
+      await this.usersService.requireRegistered(user);
+    }
     return this.channelsService.create(dto, user.id);
   }
 
@@ -115,5 +127,15 @@ export class ChannelsController {
   ) {
     await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.incrementRecommend(id, user.id);
+  }
+
+  private async shouldRequireWallet(): Promise<boolean> {
+    try {
+      const rewards = this.moduleRef.get(RewardPayoutService, { strict: false });
+      const policy = await rewards.getPublicPolicy();
+      return policy.requireWallet;
+    } catch {
+      return true;
+    }
   }
 }

@@ -38,6 +38,7 @@ export interface Channel {
   rewardTonUsdRate?: number | null;
   rewardPaidAt?: string | null;
   rewardWallet?: string | null;
+  rewardStarsAmount?: number | null;
   username?: string | null;
   language?: 'ko' | 'foreign' | 'unknown';
   languageLocked?: boolean;

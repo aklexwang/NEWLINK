@@ -12,6 +12,7 @@ import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
 import { AdminLinksManagePage } from '../pages/admin/AdminLinksManagePage';
 import { AdminPendingPage } from '../pages/admin/AdminPendingPage';
 import { AdminTonPaymentsPage } from '../pages/admin/AdminTonPaymentsPage';
+import { AdminRewardsPage } from '../pages/admin/AdminRewardsPage';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage';
 
 export default function AdminRoutes() {
@@ -35,6 +36,7 @@ export default function AdminRoutes() {
         <Route path="ads" element={<AdminAdsManagePage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="ton-payments" element={<AdminTonPaymentsPage />} />
+        <Route path="rewards" element={<AdminRewardsPage />} />
         <Route path="users" element={<AdminUsersPage />} />
       </Route>
     </Routes>

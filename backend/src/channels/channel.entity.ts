@@ -299,6 +299,23 @@ export class Channel {
   })
   rewardWallet: string | null;
 
+  /** 회원 제보만 pending. 기본은 지급 대상 아님. */
+  @Column({
+    name: 'payout_status',
+    type: 'varchar',
+    length: 20,
+    default: 'not_eligible',
+  })
+  payoutStatus: 'not_eligible' | 'pending' | 'paid' | 'skipped';
+
+  @Column({
+    name: 'payout_skip_reason',
+    type: 'varchar',
+    length: 200,
+    nullable: true,
+  })
+  payoutSkipReason: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: dateTimeColumnType() })
   createdAt: Date;
 

@@ -458,15 +458,92 @@ export async function rejectInvalidChannels(ids: string[]): Promise<{ rejected: 
 export async function recordReporterReward(
   id: string,
   payload: {
-    amountTon: number;
+    amountTon?: number;
+    amount?: number;
     wallet?: string;
     method?: 'tonconnect' | 'external';
+    sendMethod?: 'tonconnect' | 'external' | 'manual_gift' | 'bot_gift';
+    currency?: 'TON' | 'STARS' | 'USDT';
     memo?: string;
+    force?: boolean;
+    phase?: 'sending' | 'paid' | 'failed';
+    payoutRecordId?: string;
   },
-): Promise<Channel> {
-  const { data } = await apiClient.post<Channel>(`/admin/channels/${id}/reward`, payload, {
+): Promise<Channel & { payoutRecordId?: string; payoutRecordStatus?: string }> {
+  const { data } = await apiClient.post<
+    Channel & { payoutRecordId?: string; payoutRecordStatus?: string }
+  >(`/admin/channels/${id}/reward`, payload, {
     headers: getAdminAuthHeaders(),
   });
+  return data;
+}
+
+export type RewardSettings = {
+  id: string;
+  enabled: boolean;
+  updatedAt: string;
+};
+
+export type AdminPayoutMethod = {
+  id: string;
+  code: string;
+  label: string;
+  destinationKind: 'wallet_address' | 'telegram_account';
+  network: string | null;
+  currency: string;
+  defaultAmount: number;
+  enabled: boolean;
+  sort: number;
+};
+
+export async function getAdminRewardSettings(): Promise<RewardSettings> {
+  const { data } = await apiClient.get<RewardSettings>('/admin/rewards/settings', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function patchAdminRewardSettings(enabled: boolean): Promise<RewardSettings> {
+  const { data } = await apiClient.patch<RewardSettings>(
+    '/admin/rewards/settings',
+    { enabled },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function getAdminPayoutMethods(): Promise<AdminPayoutMethod[]> {
+  const { data } = await apiClient.get<AdminPayoutMethod[]>('/admin/rewards/methods', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function createAdminPayoutMethod(payload: {
+  code: string;
+  label: string;
+  destinationKind: 'wallet_address' | 'telegram_account';
+  network?: string;
+  currency: string;
+  defaultAmount?: number;
+}): Promise<AdminPayoutMethod> {
+  const { data } = await apiClient.post<AdminPayoutMethod>(
+    '/admin/rewards/methods',
+    payload,
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function patchAdminPayoutMethod(
+  id: string,
+  payload: { enabled?: boolean; defaultAmount?: number; label?: string },
+): Promise<AdminPayoutMethod> {
+  const { data } = await apiClient.patch<AdminPayoutMethod>(
+    `/admin/rewards/methods/${id}`,
+    payload,
+    { headers: getAdminAuthHeaders() },
+  );
   return data;
 }
 

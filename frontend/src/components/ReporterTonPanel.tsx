@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isAxiosError } from 'axios';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { recordReporterReward } from '../api/admin';
 import type { PendingChannel } from '../types/channel';
@@ -6,6 +7,17 @@ import type { TonPaymentMethod } from '../types/tonPayment';
 import { toNanoTon } from '../utils/tonAmount';
 import { identifyWalletAddress } from '../utils/walletAddress';
 import { WalletNetworkBadge } from './WalletNetworkBadge';
+
+function adminLikeMessage(err: unknown): string {
+  if (isAxiosError(err)) {
+    const raw = err.response?.data?.message;
+    if (typeof raw === 'string' && raw.trim()) return raw;
+  }
+  if (err && typeof err === 'object' && 'message' in err) {
+    return String((err as { message: unknown }).message);
+  }
+  return '회원 MY·지급 이력 반영에 실패했습니다.';
+}
 
 interface ReporterTonPanelProps {
   item: PendingChannel;
@@ -56,25 +68,48 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
     setDialog(next);
   };
 
-  const persistPayment = async (method: TonPaymentMethod): Promise<boolean> => {
-    try {
-      await recordReporterReward(item.id, {
+  const persistPayment = async (
+    method: TonPaymentMethod,
+    extra?: {
+      phase?: 'sending' | 'paid' | 'failed';
+      payoutRecordId?: string;
+      force?: boolean;
+    },
+  ): Promise<{ ok: boolean; payoutRecordId?: string }> => {
+    const run = (force?: boolean) =>
+      recordReporterReward(item.id, {
         amountTon: amountNum,
         wallet,
         method,
         memo: memo.trim() || (method === 'external' ? '외부 지갑 송금' : undefined),
+        phase: extra?.phase,
+        payoutRecordId: extra?.payoutRecordId,
+        force,
       });
+    try {
+      const saved = await run(extra?.force);
       setLastMethod(method);
-      onRecorded?.();
-      return true;
+      if (extra?.phase !== 'sending' && extra?.phase !== 'failed') onRecorded?.();
+      return { ok: true, payoutRecordId: saved.payoutRecordId };
     } catch (err) {
-      const message =
-        err && typeof err === 'object' && 'message' in err
-          ? String((err as { message: unknown }).message)
-          : '회원 MY·지급 이력 반영에 실패했습니다.';
-      setSendError(message);
+      if (isAxiosError(err) && err.response?.status === 409) {
+        if (window.confirm('이미 지급 기록이 있습니다. 계속할까요?')) {
+          try {
+            const saved = await run(true);
+            setLastMethod(method);
+            if (extra?.phase !== 'sending' && extra?.phase !== 'failed') onRecorded?.();
+            return { ok: true, payoutRecordId: saved.payoutRecordId };
+          } catch (retryErr) {
+            setSendError(adminLikeMessage(retryErr));
+            return { ok: false };
+          }
+        }
+        setSendError('이미 지급 기록이 있습니다');
+        return { ok: false };
+      }
+      setSendError(adminLikeMessage(err));
       setLastMethod(method);
-      return false;
+      return { ok: false };
     }
   };
 
@@ -82,6 +117,12 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
     if (!wallet) return;
     setDialog('sending');
     setSendError('');
+    setLastMethod('tonconnect');
+    const started = await persistPayment('tonconnect', { phase: 'sending' });
+    if (!started.ok || !started.payoutRecordId) {
+      setDialog('wallet-confirm');
+      return;
+    }
     try {
       if (!tonConnectUI.connected) {
         await tonConnectUI.openModal();
@@ -100,9 +141,17 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
         ],
       });
 
-      const saved = await persistPayment('tonconnect');
-      setDialog(saved ? 'success' : 'wallet-confirm');
+      const saved = await persistPayment('tonconnect', {
+        phase: 'paid',
+        payoutRecordId: started.payoutRecordId,
+      });
+      setDialog(saved.ok ? 'success' : 'wallet-confirm');
     } catch (err) {
+      await persistPayment('tonconnect', {
+        phase: 'failed',
+        payoutRecordId: started.payoutRecordId,
+        force: true,
+      });
       const message =
         err && typeof err === 'object' && 'message' in err
           ? String((err as { message: unknown }).message)
@@ -116,8 +165,8 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
     if (!wallet) return;
     setDialog('sending');
     setSendError('');
-    const saved = await persistPayment('external');
-    setDialog(saved ? 'success' : 'external-confirm');
+    const saved = await persistPayment('external', { phase: 'paid' });
+    setDialog(saved.ok ? 'success' : 'external-confirm');
   };
 
   if (alreadyRewarded) {

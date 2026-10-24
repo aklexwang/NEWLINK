@@ -7,6 +7,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TelegramUser } from '../auth/interfaces/telegram-user.interface';
+import { telegramIdKey } from '../common/telegram-id';
+import { classifyWalletKind } from '../payments/wallet-kind.logic';
 import { RegisterUserDto } from './dto/user.dto';
 import { User } from './user.entity';
 
@@ -23,6 +25,7 @@ export class UsersService {
       firstName: user.firstName,
       username: user.username,
       tonWalletAddress: user.tonWalletAddress,
+      walletKind: user.walletKind,
       isRegistered: user.isRegistered,
       isBlocked: user.isBlocked,
       createdAt: user.createdAt?.toISOString?.() ?? user.createdAt,
@@ -42,9 +45,7 @@ export class UsersService {
     user: User;
     isNewUser: boolean;
   }> {
-    const existing = await this.userRepository.findOne({
-      where: { telegramId: telegramUser.id },
-    });
+    const existing = await this.findByTelegramId(telegramUser.id);
 
     if (existing) {
       this.assertNotBlocked(existing);
@@ -71,9 +72,7 @@ export class UsersService {
   }
 
   async syncFromTelegram(telegramUser: TelegramUser): Promise<User> {
-    let user = await this.userRepository.findOne({
-      where: { telegramId: telegramUser.id },
-    });
+    let user = await this.findByTelegramId(telegramUser.id);
 
     if (!user) {
       user = this.userRepository.create({
@@ -91,8 +90,15 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  async findByTelegramId(telegramId: number): Promise<User | null> {
-    return this.userRepository.findOne({ where: { telegramId } });
+  async findByTelegramId(
+    telegramId: number | string | null,
+  ): Promise<User | null> {
+    const key = telegramIdKey(telegramId);
+    if (!key) return null;
+    return this.userRepository
+      .createQueryBuilder('user')
+      .where('CAST(user.telegram_id AS TEXT) = :id', { id: key })
+      .getOne();
   }
 
   async assertActiveByTelegramId(telegramId: number) {
@@ -113,20 +119,22 @@ export class UsersService {
     const user = await this.syncFromTelegram(telegramUser);
     this.assertNotBlocked(user);
     user.tonWalletAddress = dto.tonWalletAddress.trim();
+    user.walletKind = classifyWalletKind(user.tonWalletAddress);
     user.isRegistered = true;
     return this.userRepository.save(user);
   }
 
-  async findByTelegramIds(ids: number[]): Promise<User[]> {
-    if (ids.length === 0) return [];
+  async findByTelegramIds(ids: Array<number | string>): Promise<User[]> {
+    const keys = [...new Set(ids.map((id) => telegramIdKey(id)).filter(Boolean))];
+    if (keys.length === 0) return [];
     return this.userRepository
       .createQueryBuilder('user')
-      .where('user.telegram_id IN (:...ids)', { ids })
+      .where('CAST(user.telegram_id AS TEXT) IN (:...ids)', { ids: keys })
       .getMany();
   }
 
-  async getReporterOrNull(telegramId: number | null) {
-    if (!telegramId) return null;
+  async getReporterOrNull(telegramId: number | string | null) {
+    if (!telegramIdKey(telegramId)) return null;
     const user = await this.findByTelegramId(telegramId);
     if (!user) {
       return {

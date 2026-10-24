@@ -183,6 +183,21 @@ describe('관리자 가드', () => {
     }
   });
 
+  it('보상 설정 API 는 로그인 없이 401이다', () => {
+    process.env.NODE_ENV = 'test';
+    const { authGuard } = build({ DEV_ADMIN_BYPASS: 'false' });
+    const paths = [
+      '/api/admin/rewards/settings',
+      '/api/admin/rewards/methods',
+    ];
+    for (const url of paths) {
+      const req = requestFor({}, url);
+      expect(() => authGuard.canActivate(contextFor(req))).toThrow(
+        UnauthorizedException,
+      );
+    }
+  });
+
   it('발견 API 는 로그인 없이 401이다', () => {
     process.env.NODE_ENV = 'test';
     const { authGuard } = build({ DEV_ADMIN_BYPASS: 'false' });

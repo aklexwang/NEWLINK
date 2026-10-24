@@ -96,7 +96,13 @@ export class PromoteChannelDto {
 export class RecordRewardDto {
   @IsNumber()
   @Min(0.000001)
-  amountTon: number;
+  @IsOptional()
+  amountTon?: number;
+
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  amount?: number;
 
   @IsString()
   @IsOptional()
@@ -108,9 +114,29 @@ export class RecordRewardDto {
   method?: 'tonconnect' | 'external';
 
   @IsOptional()
+  @IsIn(['tonconnect', 'external', 'manual_gift', 'bot_gift'])
+  sendMethod?: 'tonconnect' | 'external' | 'manual_gift' | 'bot_gift';
+
+  @IsOptional()
+  @IsIn(['TON', 'STARS', 'USDT'])
+  currency?: 'TON' | 'STARS' | 'USDT';
+
+  @IsOptional()
   @IsString()
   @MaxLength(500)
   memo?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  force?: boolean;
+
+  @IsOptional()
+  @IsIn(['sending', 'paid', 'failed'])
+  phase?: 'sending' | 'paid' | 'failed';
+
+  @IsOptional()
+  @IsUUID()
+  payoutRecordId?: string;
 }
 
 export class UpdateChannelDto {

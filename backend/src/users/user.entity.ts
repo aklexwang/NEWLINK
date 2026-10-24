@@ -31,6 +31,10 @@ export class User {
   })
   tonWalletAddress: string | null;
 
+  /** ton | usdt_trc20 | unknown. 주소 없으면 null */
+  @Column({ name: 'wallet_kind', type: 'varchar', length: 20, nullable: true })
+  walletKind: string | null;
+
   @Column({ name: 'is_registered', default: false })
   isRegistered: boolean;
 

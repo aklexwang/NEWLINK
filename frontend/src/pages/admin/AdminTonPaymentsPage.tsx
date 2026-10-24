@@ -126,11 +126,16 @@ export function AdminTonPaymentsPage() {
     setSyncingId(item.id);
     setMessage('');
     try {
+      if (!window.confirm('이미 지급 기록이 있을 수 있습니다. 회원 MY에 다시 반영할까요?')) {
+        return;
+      }
       await recordReporterReward(item.channelId, {
         amountTon: item.amount,
         wallet: item.wallet,
         method: item.method ?? 'external',
         memo: item.memo ?? undefined,
+        phase: 'paid',
+        force: true,
       });
       setMessage(`「${item.channelTitle}」보상을 회원 MY에 다시 반영했습니다.`);
       await load();

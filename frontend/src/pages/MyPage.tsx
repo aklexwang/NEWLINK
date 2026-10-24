@@ -18,6 +18,13 @@ const TELEGRAM_BOT_USERNAME =
 
 const AD_INQUIRY_URL = 'https://t.me/Kplaytwo';
 
+function hasPayout(item: Channel) {
+  return (
+    (item.rewardTonAmount != null && item.rewardTonAmount > 0) ||
+    (item.rewardStarsAmount != null && item.rewardStarsAmount > 0)
+  );
+}
+
 function getCategoryMeta(
   categories: { id: string; label: string; emoji: string; iconUrl: string | null }[],
   categoryName: string,
@@ -46,26 +53,22 @@ export function MyPage() {
   const isLoggedIn = authStatus === 'authenticated' && Boolean(profile);
 
   const rewardSummary = useMemo(() => {
-    const rewarded = submissions
-      .filter((item) => item.rewardTonAmount != null && item.rewardTonAmount > 0)
-      .sort((a, b) => {
-        const at = a.rewardPaidAt ? new Date(a.rewardPaidAt).getTime() : 0;
-        const bt = b.rewardPaidAt ? new Date(b.rewardPaidAt).getTime() : 0;
-        return bt - at;
-      });
+    const rewarded = submissions.filter(hasPayout).sort((a, b) => {
+      const at = a.rewardPaidAt ? new Date(a.rewardPaidAt).getTime() : 0;
+      const bt = b.rewardPaidAt ? new Date(b.rewardPaidAt).getTime() : 0;
+      return bt - at;
+    });
 
     const totalTon = rewarded.reduce((sum, item) => sum + (item.rewardTonAmount ?? 0), 0);
     const totalUsd = rewarded.reduce((sum, item) => sum + (item.rewardUsdAmount ?? 0), 0);
+    const totalStars = rewarded.reduce((sum, item) => sum + (item.rewardStarsAmount ?? 0), 0);
 
-    return { rewarded, totalTon, totalUsd, count: rewarded.length };
+    return { rewarded, totalTon, totalUsd, totalStars, count: rewarded.length };
   }, [submissions]);
 
   /** 보상 지급된 건은 "받은 보상 내역"에만 두고 제보 목록에서는 제외 */
   const pendingSubmissions = useMemo(
-    () =>
-      submissions.filter(
-        (item) => item.rewardTonAmount == null || item.rewardTonAmount <= 0,
-      ),
+    () => submissions.filter((item) => !hasPayout(item)),
     [submissions],
   );
 
@@ -276,6 +279,11 @@ export function MyPage() {
                     </p>
                   </div>
                 </div>
+                {rewardSummary.totalStars > 0 && (
+                  <p className="mt-2 text-xs text-tg-hint">
+                    ⭐ {rewardSummary.totalStars.toLocaleString('ko-KR')} Stars
+                  </p>
+                )}
                 {rewardSummary.totalUsd > 0 && (
                   <p className="mt-2 text-xs text-tg-hint">
                     지급 시점 기준 합계 약 ${rewardSummary.totalUsd.toFixed(2)}
@@ -286,10 +294,19 @@ export function MyPage() {
                     <li key={item.id} className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-black/5">
                       <p className="truncate text-sm font-medium text-tg-text">{item.title}</p>
                       <p className="mt-1 text-xs font-semibold text-emerald-700">
-                        TON/Gram {(item.rewardTonAmount ?? 0).toLocaleString('ko-KR')}개
-                        {item.rewardUsdAmount != null && item.rewardUsdAmount > 0 && (
-                          <span className="ml-1 font-normal text-tg-hint">
-                            · ${item.rewardUsdAmount.toFixed(2)}
+                        {item.rewardTonAmount != null && item.rewardTonAmount > 0 && (
+                          <>
+                            TON/Gram {item.rewardTonAmount.toLocaleString('ko-KR')}개
+                            {item.rewardUsdAmount != null && item.rewardUsdAmount > 0 && (
+                              <span className="ml-1 font-normal text-tg-hint">
+                                · ${item.rewardUsdAmount.toFixed(2)}
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {item.rewardStarsAmount != null && item.rewardStarsAmount > 0 && (
+                          <span className={item.rewardTonAmount ? ' ml-1' : ''}>
+                            ⭐ {item.rewardStarsAmount.toLocaleString('ko-KR')} Stars
                           </span>
                         )}
                       </p>

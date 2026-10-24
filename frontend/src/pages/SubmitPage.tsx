@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { submitChannel } from '../api/channels';
+import { getRewardPolicy } from '../api/rewards';
 import { SubmitWalletPicker, type WalletMethod } from '../components/SubmitWalletPicker';
 import { useCategories } from '../hooks/useCategories';
 import { useTonWalletLink } from '../hooks/useTonWalletLink';
@@ -19,6 +20,8 @@ export function SubmitPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [walletMethod, setWalletMethod] = useState<WalletMethod>('telegram');
+  const [rewardsEnabled, setRewardsEnabled] = useState(true);
+  const [requireWalletPolicy, setRequireWalletPolicy] = useState(true);
   const pendingSubmitRef = useRef(false);
   const [form, setForm] = useState({
     linkType: 'channel' as LinkType,
@@ -30,7 +33,9 @@ export function SubmitPage() {
 
   const isLoggedIn = authStatus === 'authenticated' && Boolean(user);
   const hasWallet = Boolean((user?.isRegistered && user.tonWalletAddress) || isLinked || savedAddress);
-  const requireWallet = Boolean((location.state as { requireWallet?: boolean } | null)?.requireWallet);
+  const requireWallet =
+    requireWalletPolicy ||
+    Boolean((location.state as { requireWallet?: boolean } | null)?.requireWallet);
   const defaultCategory = submitCategories[0] ?? '';
   const categoryValue = form.category || defaultCategory;
 
@@ -66,10 +71,19 @@ export function SubmitPage() {
   }, [form, categoryValue, notify, navigate]);
 
   useEffect(() => {
-    if (requireWallet && isLoggedIn && !hasWallet) {
+    void getRewardPolicy()
+      .then((policy) => {
+        setRewardsEnabled(policy.rewardsEnabled);
+        setRequireWalletPolicy(policy.requireWallet);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (requireWalletPolicy && isLoggedIn && !hasWallet) {
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [requireWallet, isLoggedIn, hasWallet, navigate, location.pathname]);
+  }, [requireWalletPolicy, isLoggedIn, hasWallet, navigate, location.pathname]);
 
   useEffect(() => {
     if (!pendingSubmitRef.current || !hasWallet) return;
@@ -99,7 +113,7 @@ export function SubmitPage() {
       return;
     }
 
-    if (!hasWallet) {
+    if (requireWallet && !hasWallet) {
       if (walletMethod === 'telegram') {
         pendingSubmitRef.current = true;
         try {
@@ -121,7 +135,11 @@ export function SubmitPage() {
     <>
       <header className="border-b border-black/5 px-4 py-5">
         <h1 className="text-xl font-bold text-tg-text">채널/그룹 제보</h1>
-        <p className="mt-1 text-sm text-tg-hint">새로운 채널/그룹 정보를 등록하고 코인을 받으세요</p>
+        <p className="mt-1 text-sm text-tg-hint">
+          {rewardsEnabled
+            ? '새로운 채널/그룹 정보를 등록하고 코인을 받으세요'
+            : '새로운 채널/그룹 정보를 등록해 주세요'}
+        </p>
       </header>
 
       {!isLoggedIn && (
@@ -135,7 +153,7 @@ export function SubmitPage() {
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
-        {isLoggedIn && (
+        {isLoggedIn && (requireWallet || rewardsEnabled) && (
           <SubmitWalletPicker onLinked={handleWalletLinked} onNotify={notify} />
         )}
 

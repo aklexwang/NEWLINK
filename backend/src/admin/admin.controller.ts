@@ -24,7 +24,7 @@ import { TelegramUserParam } from '../auth/telegram-user.decorator';
 import type { TelegramUser } from '../auth/interfaces/telegram-user.interface';
 import { ChannelsService } from '../channels/channels.service';
 import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
-import { TonPaymentService } from '../payments/ton-payment.service';
+import { RewardPayoutService } from '../payments/reward-payout.service';
 import { UsersService } from '../users/users.service';
 import { AdminCollectService } from './admin-collect.service';
 import {
@@ -60,7 +60,7 @@ export class AdminController {
   constructor(
     private readonly channelsService: ChannelsService,
     private readonly usersService: UsersService,
-    private readonly tonPaymentService: TonPaymentService,
+    private readonly rewardPayout: RewardPayoutService,
     private readonly adminCollect: AdminCollectService,
   ) {}
 
@@ -292,29 +292,23 @@ export class AdminController {
 
   @Post(':id/reward')
   async recordReward(@Param('id') id: string, @Body() dto: RecordRewardDto) {
-    const channel = await this.channelsService.recordReporterReward(id, {
+    const result = await this.rewardPayout.recordChannelPayout(id, {
       amountTon: dto.amountTon,
+      amount: dto.amount,
       wallet: dto.wallet,
+      method: dto.method,
+      sendMethod: dto.sendMethod,
+      currency: dto.currency,
+      memo: dto.memo,
+      force: dto.force,
+      phase: dto.phase,
+      payoutRecordId: dto.payoutRecordId,
     });
-
-    const reporter = await this.usersService.getReporterOrNull(
-      channel.submittedBy,
-    );
-    await this.tonPaymentService.create({
-      channelId: channel.id,
-      amount: dto.amountTon,
-      wallet: dto.wallet?.trim() || channel.rewardWallet || '',
-      method: dto.method ?? 'external',
-      memo: dto.memo ?? null,
-      telegramId: channel.submittedBy ?? null,
-      reporterName: reporter?.username
-        ? `@${reporter.username}`
-        : (reporter?.firstName ?? null),
-      channelTitle: channel.title,
-      channelLink: channel.link,
-    });
-
-    return channel;
+    return {
+      ...result.channel,
+      payoutRecordId: result.payoutRecord.id,
+      payoutRecordStatus: result.payoutRecord.status,
+    };
   }
 
   @Patch(':id')

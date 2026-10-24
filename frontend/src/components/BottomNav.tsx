@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { getRewardPolicy } from '../api/rewards';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 
@@ -16,6 +18,13 @@ export function BottomNav() {
 
   const isLoggedIn = authStatus === 'authenticated' && Boolean(user);
   const hasWallet = Boolean(user?.isRegistered && user.tonWalletAddress);
+  const [requireWallet, setRequireWallet] = useState(true);
+
+  useEffect(() => {
+    void getRewardPolicy()
+      .then((policy) => setRequireWallet(policy.requireWallet))
+      .catch(() => setRequireWallet(true));
+  }, []);
   const isSubmitActive = location.pathname === '/submit';
   const isFavoritesActive = location.pathname === '/favorites';
   const isCategoriesActive = location.pathname.startsWith('/categories');
@@ -31,7 +40,7 @@ export function BottomNav() {
       return;
     }
 
-    if (!hasWallet) {
+    if (requireWallet && !hasWallet) {
       notify('제보하려면 텔레그램 Wallet 연결이 필요합니다.');
       navigate('/submit', { state: { requireWallet: true } });
       return;

@@ -14,6 +14,9 @@ const ENTITY_IMPORTS = [
   '../admin/admin-inspect-job.entity',
   '../admin/admin-inspect-item.entity',
   '../stats/discovery-keyword.entity',
+  '../payments/reward-settings.entity',
+  '../payments/payout-method.entity',
+  '../payments/payout-record.entity',
 ];
 
 function loadEntitiesForEnv(kind: 'postgres' | 'sqlite') {

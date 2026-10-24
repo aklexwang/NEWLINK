@@ -11,6 +11,7 @@ import {
   Star,
   Timer,
   Users,
+  Wallet,
 } from 'lucide-react';
 import { getPendingChannelCount, getPromotedChannels } from '../../api/admin';
 import { getMemberUrl } from '../../config/site';
@@ -65,6 +66,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: '설정',
     items: [
+      { to: '/admin/rewards', label: '보상 설정', icon: <Wallet /> },
       { to: '/admin/users', label: '회원 관리', icon: <Users /> },
       { to: '/admin/categories', label: '카테고리 설정', icon: <FolderCog /> },
     ],

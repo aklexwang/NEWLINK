@@ -27,6 +27,7 @@ import { ALREADY_REGISTERED_CHANNEL } from './merge-duplicate-channels.logic';
 import { ChannelFavorite } from './channel-favorite.entity';
 import { ChannelRecommendation } from './channel-recommendation.entity';
 import { UsersService } from '../users/users.service';
+import { telegramIdKey } from '../common/telegram-id';
 import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
 import { AutoExposeService } from '../stats/auto-expose.service';
@@ -152,6 +153,8 @@ export class ChannelsService implements OnModuleInit {
       status: ChannelStatus.PENDING,
       avatarApproved: false,
       collectTier: 'daily',
+      payoutStatus: 'pending',
+      payoutSkipReason: null,
       username: usernameFromChannelLink(
         this.normalizeTelegramLink(dto.link),
       ),
@@ -307,6 +310,8 @@ export class ChannelsService implements OnModuleInit {
       status: ChannelStatus.ACTIVE,
       avatarApproved: false,
       submittedBy: null,
+      payoutStatus: 'not_eligible',
+      payoutSkipReason: null,
       username: usernameFromChannelLink(link),
       collectTier: 'daily',
     });
@@ -742,11 +747,14 @@ export class ChannelsService implements OnModuleInit {
     return { ok: true };
   }
 
-  async findBySubmitter(userId: number): Promise<Channel[]> {
-    return this.channelRepository.find({
-      where: { submittedBy: userId },
-      order: { createdAt: 'DESC' },
-    });
+  async findBySubmitter(userId: number | string): Promise<Channel[]> {
+    const key = telegramIdKey(userId);
+    if (!key) return [];
+    return this.channelRepository
+      .createQueryBuilder('channel')
+      .where('CAST(channel.submitted_by AS TEXT) = :id', { id: key })
+      .orderBy('channel.created_at', 'DESC')
+      .getMany();
   }
 
   /** Fetch current TON (Gram) USD price. Returns null when unavailable. */
