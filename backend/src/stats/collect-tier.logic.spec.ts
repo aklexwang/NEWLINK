@@ -1,7 +1,9 @@
 import {
   COLLECT_DAILY_MIN_MEMBERS,
   isCollectDueToday,
+  isNewChannelDailyWindow,
   kstWeekdayIndex,
+  NEW_CHANNEL_DAILY_DAYS,
   resolveCollectTier,
   weeklyCollectBucket,
 } from './collect-tier.logic';
@@ -45,6 +47,41 @@ describe('collect_tier', () => {
         weekday: (a + 1) % 7,
       }),
     ).toBe(true);
+  });
+
+  it('등록 후 7일은 인원과 상관없이 daily 이다', () => {
+    expect(NEW_CHANNEL_DAILY_DAYS).toBe(7);
+    const createdAt = new Date('2026-10-24T00:00:00+09:00');
+    const now = new Date('2026-10-30T00:00:00+09:00');
+    expect(isNewChannelDailyWindow(createdAt, now)).toBe(true);
+    expect(
+      resolveCollectTier({
+        memberCount: 10,
+        posts7d: 0,
+        createdAt,
+        now,
+      }),
+    ).toBe('daily');
+    expect(
+      isCollectDueToday({
+        id: 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
+        memberCount: 10,
+        posts7d: 0,
+        createdAt,
+        now,
+        weekday: 0,
+      }),
+    ).toBe(true);
+    const after = new Date('2026-10-31T00:00:00+09:00');
+    expect(isNewChannelDailyWindow(createdAt, after)).toBe(false);
+    expect(
+      resolveCollectTier({
+        memberCount: 10,
+        posts7d: 0,
+        createdAt,
+        now: after,
+      }),
+    ).toBe('weekly');
   });
 
   it('KST 요일은 0~6 이다', () => {
