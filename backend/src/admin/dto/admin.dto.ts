@@ -260,6 +260,58 @@ export class AdminInspectTextDto {
   category?: string;
 }
 
+export class DiscoveryUsernamesDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  usernames: string[];
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  category?: string;
+}
+
+export class DiscoveryKeywordCreateDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  word: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  category?: string;
+}
+
+export class DiscoveryKeywordUpdateDto {
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  word?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  category?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  enabled?: boolean;
+
+  @IsInt()
+  @IsOptional()
+  sort?: number;
+}
+
+export class DiscoveryKeywordReorderDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  ids: string[];
+}
+
 export class AdminRegisterManyDto {
   @IsArray()
   @ArrayNotEmpty()

@@ -6,7 +6,9 @@ export type DiscoveredUsernameResult =
   | 'added'
   | 'not_korean'
   | 'too_small'
-  | 'not_found';
+  | 'not_found'
+  | 'invite_or_private'
+  | 'discarded';
 
 /** 눈덩이 발견에서 이미 검사한 아이디 (30일 후 재검사) */
 @Entity('discovered_usernames')

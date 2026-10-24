@@ -18,6 +18,7 @@ import {
 import { ImportCandidateStatus } from './channel-import-candidate.entity';
 import { AutoManageService } from './auto-manage.service';
 
+/** Google·TGStat·시드 동기화 API. 발견 화면에서는 쓰지 않지만 나중에 다시 켤 수 있게 유지. */
 @Controller('admin/auto-manage')
 @UseGuards(TelegramAuthGuard, TelegramAdminGuard)
 export class AdminAutoManageController {

@@ -603,6 +603,135 @@ export type GoogleSearchPreset =
   | 'directory'
   | 'custom';
 
+export type DiscoveryQueueFilter =
+  | 'queued'
+  | 'added'
+  | 'not_korean'
+  | 'too_small'
+  | 'not_found'
+  | 'invite_or_private'
+  | 'all';
+
+export interface DiscoveryQueueItem {
+  username: string;
+  result: string;
+  resultLabel: string;
+  source: string | null;
+  sourceLabel: string;
+  checkedAt: string;
+  mentionCount: number;
+  title: string | null;
+  memberCount: number | null;
+}
+
+export interface DiscoveryQueueResponse {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: DiscoveryQueueItem[];
+}
+
+export interface DiscoveryUsage {
+  snowball: { today: number; dailyMax: number };
+  keywordSearch: { today: number; dailyMax: number };
+  resolve: { today: number; dailyMax: number };
+}
+
+export interface DiscoveryKeywordRow {
+  id: string;
+  word: string;
+  category: string | null;
+  enabled: boolean;
+  sort: number;
+  createdAt: string;
+  lastSearchedAt: string | null;
+  lastFoundCount: number | null;
+  totalNewCount: number;
+}
+
+export async function getDiscoveryQueue(params: {
+  filter?: DiscoveryQueueFilter;
+  source?: string;
+  page?: number;
+}): Promise<DiscoveryQueueResponse> {
+  const { data } = await apiClient.get<DiscoveryQueueResponse>('/admin/discovery/queue', {
+    headers: getAdminAuthHeaders(),
+    params,
+  });
+  return data;
+}
+
+export async function getDiscoveryUsage(): Promise<DiscoveryUsage> {
+  const { data } = await apiClient.get<DiscoveryUsage>('/admin/discovery/usage', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function registerDiscoveryUsernames(payload: {
+  usernames: string[];
+  category?: string;
+}) {
+  const { data } = await apiClient.post<{
+    results: Array<{ username: string; ok: boolean; message?: string }>;
+  }>('/admin/discovery/register', payload, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function discardDiscoveryUsernames(usernames: string[]) {
+  const { data } = await apiClient.post<{ count: number }>(
+    '/admin/discovery/discard',
+    { usernames },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function getDiscoveryKeywords(sort?: string): Promise<DiscoveryKeywordRow[]> {
+  const { data } = await apiClient.get<DiscoveryKeywordRow[]>('/admin/discovery/keywords', {
+    headers: getAdminAuthHeaders(),
+    params: sort ? { sort } : undefined,
+  });
+  return data;
+}
+
+export async function createDiscoveryKeyword(payload: { word: string; category?: string }) {
+  const { data } = await apiClient.post<DiscoveryKeywordRow>('/admin/discovery/keywords', payload, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function updateDiscoveryKeyword(
+  id: string,
+  payload: { enabled?: boolean; sort?: number; word?: string; category?: string },
+) {
+  const { data } = await apiClient.patch<DiscoveryKeywordRow>(
+    `/admin/discovery/keywords/${id}`,
+    payload,
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function deleteDiscoveryKeyword(id: string) {
+  const { data } = await apiClient.delete<{ ok: boolean }>(`/admin/discovery/keywords/${id}`, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function reorderDiscoveryKeywords(ids: string[]) {
+  const { data } = await apiClient.post<DiscoveryKeywordRow[]>(
+    '/admin/discovery/keywords/reorder',
+    { ids },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
 export async function getAutoManageStatus(): Promise<AutoManageStatus> {
   const { data } = await apiClient.get<AutoManageStatus>('/admin/auto-manage/status', {
     headers: getAdminAuthHeaders(),

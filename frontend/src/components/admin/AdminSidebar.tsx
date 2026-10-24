@@ -51,7 +51,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { to: '/admin/pending', label: '승인 대기', icon: <ClipboardList />, badge: 'pending' },
       { to: '/admin/register-link', label: '링크 등록', icon: <Link2 /> },
-      { to: '/admin/auto-manage', label: '자동관리', icon: <RefreshCw /> },
+      { to: '/admin/discovery', label: '발견', icon: <RefreshCw /> },
       { to: '/admin/links', label: '채널·그룹 관리', icon: <List /> },
     ],
   },

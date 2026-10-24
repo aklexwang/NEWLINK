@@ -11,6 +11,7 @@ export const DISCOVERY_SINGLE_MENTION_MIN_MEMBERS = 1_000;
 export const DISCOVERY_MAX_PER_DAY = 1000;
 /** 서버 눈덩이(키워드 대기열 검사 포함). PC 대량 도구는 source 를 안 넣음 */
 export const DISCOVERY_SOURCE_SNOWBALL = 'snowball';
+export const DISCOVERY_SOURCE_KEYWORD = 'keyword';
 export const DISCOVERY_DELAY_MS = 1000;
 export const DISCOVERY_LOOKBACK_DAYS = 7;
 export const DISCOVERY_RECHECK_DAYS = 30;

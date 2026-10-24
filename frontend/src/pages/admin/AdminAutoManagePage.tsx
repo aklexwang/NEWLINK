@@ -1,3 +1,4 @@
+/** 예전 Google·TGStat·시드 동기화 화면. 발견 메뉴에서는 쓰지 않지만 코드는 유지. */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isAxiosError } from 'axios';
 import {

@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from '../components/admin/AdminLayout';
-import { AdminAutoManagePage } from '../pages/admin/AdminAutoManagePage';
+import { AdminDiscoveryPage } from '../pages/admin/AdminDiscoveryPage';
 import { AdminAdsManagePage } from '../pages/admin/AdminAdsManagePage';
 import { AdminCategoriesPage } from '../pages/admin/AdminCategoriesPage';
 import { AdminCategoryLinksPage } from '../pages/admin/AdminCategoryLinksPage';
@@ -24,7 +24,8 @@ export default function AdminRoutes() {
         <Route path="links" element={<AdminLinksManagePage />} />
         <Route path="pending" element={<AdminPendingPage />} />
         <Route path="register-link" element={<AdminManualRegisterPage />} />
-        <Route path="auto-manage" element={<AdminAutoManagePage />} />
+        <Route path="discovery" element={<AdminDiscoveryPage />} />
+        <Route path="auto-manage" element={<AdminDiscoveryPage />} />
         <Route path="by-category" element={<AdminCategoryLinksPage />} />
         <Route path="register" element={<Navigate to="/admin/register-link" replace />} />
         <Route path="channels/register" element={<Navigate to="/admin/register-link" replace />} />

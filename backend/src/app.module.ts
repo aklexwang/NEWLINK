@@ -29,6 +29,7 @@ import { AddStatsRunMode1761280000000 } from './migrations/1761280000000-AddStat
 import { AddAccessHashAndMtprotoState1761290000000 } from './migrations/1761290000000-AddAccessHashAndMtprotoState';
 import { AddChannelCollectTier1761300000000 } from './migrations/1761300000000-AddChannelCollectTier';
 import { AddAdminInspectJobs1761320000000 } from './migrations/1761320000000-AddAdminInspectJobs';
+import { AddDiscoveryKeywords1761330000000 } from './migrations/1761330000000-AddDiscoveryKeywords';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -82,6 +83,7 @@ function truthy(value: string | undefined): boolean {
                 AddAccessHashAndMtprotoState1761290000000,
                 AddChannelCollectTier1761300000000,
                 AddAdminInspectJobs1761320000000,
+                AddDiscoveryKeywords1761330000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -116,6 +118,7 @@ function truthy(value: string | undefined): boolean {
               AddAccessHashAndMtprotoState1761290000000,
               AddChannelCollectTier1761300000000,
               AddAdminInspectJobs1761320000000,
+              AddDiscoveryKeywords1761330000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -146,6 +149,7 @@ function truthy(value: string | undefined): boolean {
             AddAccessHashAndMtprotoState1761290000000,
             AddChannelCollectTier1761300000000,
             AddAdminInspectJobs1761320000000,
+            AddDiscoveryKeywords1761330000000,
           ],
         };
       },

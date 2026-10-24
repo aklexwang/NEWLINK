@@ -7,11 +7,8 @@ import {
 } from '../auto-manage/channel-import-candidate.entity';
 import { Channel, ChannelStatus } from '../channels/channel.entity';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
-import { formatKstYmd } from './channel-metrics.math';
-import {
-  flattenDiscoveryKeywords,
-  rotateDiscoveryKeywords,
-} from './discovery-keywords';
+import { DISCOVERY_SOURCE_KEYWORD } from './channel-discovery.logic';
+import { DiscoveryKeywordService } from './discovery-keyword.service';
 import { DiscoveredUsername } from './discovered-username.entity';
 import {
   canRunAnotherKeywordSearch,
@@ -40,6 +37,7 @@ export class KeywordSearchService {
     private readonly candidateRepository: Repository<ChannelImportCandidate>,
     @InjectRepository(DiscoveredUsername)
     private readonly discoveredRepository: Repository<DiscoveredUsername>,
+    private readonly keywords: DiscoveryKeywordService,
   ) {}
 
   dailyLimit(): number {
@@ -54,13 +52,7 @@ export class KeywordSearchService {
     if (!this.mtproto.canUseMtproto()) return empty;
 
     const cap = this.dailyLimit();
-    const ymd = formatKstYmd().replace(/-/g, '');
-    const offset = Number(ymd) || 0;
-    const keywords = rotateDiscoveryKeywords(
-      flattenDiscoveryKeywords(),
-      offset,
-      cap,
-    );
+    const keywords = await this.keywords.pickEnabledForSearch(cap);
     const known = await this.knownUsernames();
     let searched = 0;
     let found = 0;
@@ -74,15 +66,26 @@ export class KeywordSearchService {
       const delay = nextKeywordSearchDelayMs(i);
       if (delay > 0) await sleep(delay);
 
-      const hits = await this.mtproto.searchPublicByKeyword(keywords[i]);
+      const hits = await this.mtproto.searchPublicByKeyword(keywords[i].word);
       searched += 1;
+      let foundThis = 0;
+      let queuedThis = 0;
       for (const hit of hits) {
         found += 1;
+        foundThis += 1;
         if (known.has(hit.username)) continue;
         const added = await this.enqueue(hit.username);
         known.add(hit.username);
-        if (added) queued += 1;
+        if (added) {
+          queued += 1;
+          queuedThis += 1;
+        }
       }
+      await this.keywords.recordSearch(
+        keywords[i].id,
+        foundThis,
+        queuedThis,
+      );
     }
 
     this.logger.log(
@@ -102,6 +105,7 @@ export class KeywordSearchService {
       result: 'queued',
       checkedAt: new Date(),
       mentionCount: 0,
+      source: DISCOVERY_SOURCE_KEYWORD,
     });
     return true;
   }

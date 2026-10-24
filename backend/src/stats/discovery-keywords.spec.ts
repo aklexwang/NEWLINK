@@ -1,7 +1,10 @@
 import {
   DISCOVERY_KEYWORD_GROUPS,
+  flattenDiscoveryKeywordSeed,
   flattenDiscoveryKeywords,
+  pickKeywordsForSearch,
   rotateDiscoveryKeywords,
+  shouldSeedDiscoveryKeywords,
 } from './discovery-keywords';
 
 describe('discovery-keywords', () => {
@@ -48,6 +51,26 @@ describe('discovery-keywords', () => {
     expect(flat).toContain('주식');
     expect(flat).toContain('코인');
     expect(flat).toContain('개발');
+  });
+
+  it('테이블이 비어 있을 때만 시드한다', () => {
+    expect(shouldSeedDiscoveryKeywords(0)).toBe(true);
+    expect(shouldSeedDiscoveryKeywords(1)).toBe(false);
+    const seed = flattenDiscoveryKeywordSeed();
+    expect(seed.map((row) => row.word)).toEqual(flattenDiscoveryKeywords());
+    expect(seed[0].category).toBe('분류대기');
+  });
+
+  it('검색은 오래된 last_searched_at 과 sort 순으로 고른다', () => {
+    const picked = pickKeywordsForSearch(
+      [
+        { word: 'b', sort: 0, lastSearchedAt: new Date('2026-10-01') },
+        { word: 'a', sort: 1, lastSearchedAt: null },
+        { word: 'c', sort: 2, lastSearchedAt: new Date('2026-09-01') },
+      ],
+      2,
+    );
+    expect(picked.map((row) => row.word)).toEqual(['a', 'c']);
   });
 
   it('하루 상한보다 많으면 시작 위치를 밀어 뒤쪽 카테고리도 검색한다', () => {

@@ -17,6 +17,7 @@ import {
   DISCOVERY_MAX_PER_DAY,
   DISCOVERY_MIN_MEMBERS,
   DISCOVERY_RECHECK_DAYS,
+  DISCOVERY_SOURCE_KEYWORD,
   DISCOVERY_SOURCE_SNOWBALL,
   isDiscoverySourceChannel,
   mergeDiscoveryQueue,
@@ -36,6 +37,7 @@ import {
 } from './public-channel-inspect.logic';
 import { createPublicTelegramFetcher } from './public-telegram-fetch.logic';
 import {
+  isPrivateChannelHtml,
   parsePublicUsernamePage,
   parseTelegramChannelHtml,
 } from './telegram-preview-html';
@@ -140,9 +142,7 @@ export class ChannelDiscoveryService {
       const preview = await this.loadPreview(item.username);
       if (!preview) {
         result = 'not_found';
-      } else if (preview.decision.result !== 'ok') {
-        result = preview.decision.result;
-      } else {
+      } else if (preview.decision.result === 'ok') {
         const registered = await this.autoExpose.tryRegisterInspected(
           {
             link,
@@ -170,6 +170,8 @@ export class ChannelDiscoveryService {
           });
         }
         result = 'added';
+      } else {
+        result = preview.decision.result;
       }
     } catch (error) {
       this.logger.warn(
@@ -184,7 +186,10 @@ export class ChannelDiscoveryService {
         result,
         checkedAt: new Date(),
         mentionCount: item.mentionCount,
-        source: DISCOVERY_SOURCE_SNOWBALL,
+        source:
+          item.source === 'keyword'
+            ? DISCOVERY_SOURCE_KEYWORD
+            : DISCOVERY_SOURCE_SNOWBALL,
       },
       ['username'],
     );
@@ -201,6 +206,21 @@ export class ChannelDiscoveryService {
   } | null> {
     const page = await this.publicFetch.fetchHtml(`https://t.me/${username}`);
     if (!page.html || page.status >= 400) return null;
+    if (isPrivateChannelHtml(page.html)) {
+      return {
+        title: null,
+        description: null,
+        members: null,
+        kind: 'channel',
+        avatarUrl: null,
+        decision: {
+          result: 'invite_or_private',
+          language: 'unknown',
+          linkType: 'channel',
+          kind: 'unknown',
+        },
+      };
+    }
     const parsed = parsePublicUsernamePage(page.html);
     if (parsed.kind !== 'channel' && parsed.kind !== 'group') return null;
     let excerpts: string[] = [];
@@ -329,14 +349,19 @@ export class ChannelDiscoveryService {
     const cutoff = new Date(
       Date.now() - DISCOVERY_RECHECK_DAYS * 24 * 60 * 60 * 1000,
     );
-    const rows = await this.discoveredRepository.find({
+    const recent = await this.discoveredRepository.find({
       where: { checkedAt: MoreThan(cutoff) },
     });
-    return new Set(
-      rows
+    const discarded = await this.discoveredRepository.find({
+      where: { result: 'discarded' },
+      select: ['username'],
+    });
+    return new Set([
+      ...recent
         .filter((row) => row.result !== 'queued')
         .map((row) => row.username.toLowerCase()),
-    );
+      ...discarded.map((row) => row.username.toLowerCase()),
+    ]);
   }
 
   private async keywordQueuedUsernames(): Promise<string[]> {

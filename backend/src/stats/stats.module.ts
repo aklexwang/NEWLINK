@@ -17,6 +17,8 @@ import { ChannelDiscoveryService } from './channel-discovery.service';
 import { KeywordSearchService } from './keyword-search.service';
 import { ChannelLanguageService } from './channel-language.service';
 import { ChannelMetricsService } from './channel-metrics.service';
+import { DiscoveryKeyword } from './discovery-keyword.entity';
+import { DiscoveryKeywordService } from './discovery-keyword.service';
 import { DiscoveredUsername } from './discovered-username.entity';
 import { InternalCronGuard } from './internal-cron.guard';
 import { InternalStatsController } from './internal-stats.controller';
@@ -40,6 +42,7 @@ import { StatsService } from './stats.service';
       ChannelEvent,
       ChannelImportCandidate,
       DiscoveredUsername,
+      DiscoveryKeyword,
       StatsRun,
       MtprotoState,
     ]),
@@ -54,6 +57,7 @@ import { StatsService } from './stats.service';
     ChannelCollectorService,
     MtprotoCollectorService,
     ChannelDiscoveryService,
+    DiscoveryKeywordService,
     KeywordSearchService,
     ChannelLanguageService,
     CategoryAiService,

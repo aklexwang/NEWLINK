@@ -104,22 +104,58 @@ export const DISCOVERY_KEYWORD_GROUPS: DiscoveryKeywordGroup[] = [
   },
 ];
 
+export type DiscoveryKeywordSeed = {
+  word: string;
+  category: string;
+  sort: number;
+};
+
 /** 카테고리 이름 + 대표 키워드. 앞선 순서를 유지하고 중복은 한 번만. */
-export function flattenDiscoveryKeywords(
+export function flattenDiscoveryKeywordSeed(
   groups: DiscoveryKeywordGroup[] = DISCOVERY_KEYWORD_GROUPS,
-): string[] {
+): DiscoveryKeywordSeed[] {
   const seen = new Set<string>();
-  const out: string[] = [];
+  const out: DiscoveryKeywordSeed[] = [];
+  let sort = 0;
   for (const group of groups) {
     const parts = [group.category, ...group.keywords];
     for (const raw of parts) {
       const word = raw.trim();
       if (!word || seen.has(word)) continue;
       seen.add(word);
-      out.push(word);
+      out.push({ word, category: group.category, sort });
+      sort += 1;
     }
   }
   return out;
+}
+
+export function flattenDiscoveryKeywords(
+  groups: DiscoveryKeywordGroup[] = DISCOVERY_KEYWORD_GROUPS,
+): string[] {
+  return flattenDiscoveryKeywordSeed(groups).map((row) => row.word);
+}
+
+export function shouldSeedDiscoveryKeywords(count: number): boolean {
+  return count === 0;
+}
+
+/** enabled 키워드: 한 번도 검색 안 한 것 먼저, 그다음 오래된 검색, 같으면 sort. */
+export function pickKeywordsForSearch<
+  T extends { lastSearchedAt: Date | string | null; sort: number },
+>(rows: T[], cap: number): T[] {
+  if (cap <= 0) return [];
+  return [...rows]
+    .sort((a, b) => {
+      const aNull = a.lastSearchedAt == null ? 0 : 1;
+      const bNull = b.lastSearchedAt == null ? 0 : 1;
+      if (aNull !== bNull) return aNull - bNull;
+      const at = a.lastSearchedAt ? new Date(a.lastSearchedAt).getTime() : 0;
+      const bt = b.lastSearchedAt ? new Date(b.lastSearchedAt).getTime() : 0;
+      if (at !== bt) return at - bt;
+      return a.sort - b.sort;
+    })
+    .slice(0, cap);
 }
 
 /** 상한보다 키워드가 많으면 날짜마다 시작 위치를 밀어 전체를 돌아가며 검색합니다. */

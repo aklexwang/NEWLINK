@@ -13,6 +13,7 @@ const ENTITY_IMPORTS = [
   '../stats/discovered-username.entity',
   '../admin/admin-inspect-job.entity',
   '../admin/admin-inspect-item.entity',
+  '../stats/discovery-keyword.entity',
 ];
 
 function loadEntitiesForEnv(kind: 'postgres' | 'sqlite') {

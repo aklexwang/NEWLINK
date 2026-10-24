@@ -4,6 +4,7 @@ import { CategoriesModule } from '../categories/categories.module';
 import { Channel } from '../channels/channel.entity';
 import { ChannelsModule } from '../channels/channels.module';
 import { PaymentsModule } from '../payments/payments.module';
+import { DiscoveryKeyword } from '../stats/discovery-keyword.entity';
 import { DiscoveredUsername } from '../stats/discovered-username.entity';
 import { MtprotoState } from '../stats/mtproto-state.entity';
 import { StatsModule } from '../stats/stats.module';
@@ -18,6 +19,8 @@ import { AdminPromotionsController } from './admin-promotions.controller';
 import { AdminInspectController } from './admin-inspect.controller';
 import { AdminInspectItem } from './admin-inspect-item.entity';
 import { AdminInspectJob } from './admin-inspect-job.entity';
+import { AdminDiscoveryController } from './admin-discovery.controller';
+import { AdminDiscoveryService } from './admin-discovery.service';
 import { AdminInspectService } from './admin-inspect.service';
 import { AdminStatsController } from './admin-stats.controller';
 import { AdminStatsService } from './admin-stats.service';
@@ -34,6 +37,7 @@ import { AdminUsersController } from './admin-users.controller';
       Channel,
       StatsRun,
       DiscoveredUsername,
+      DiscoveryKeyword,
       MtprotoState,
       AdminInspectJob,
       AdminInspectItem,
@@ -43,6 +47,7 @@ import { AdminUsersController } from './admin-users.controller';
     AdminDashboardController,
     AdminStatsController,
     AdminInspectController,
+    AdminDiscoveryController,
     AdminController,
     AdminPromotionsController,
     AdminCategoriesController,
@@ -53,6 +58,7 @@ import { AdminUsersController } from './admin-users.controller';
     AdminCollectService,
     AdminStatsService,
     AdminInspectService,
+    AdminDiscoveryService,
   ],
 })
 export class AdminModule {}
