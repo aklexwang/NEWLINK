@@ -55,7 +55,7 @@ export function AdminDashboardPage() {
             <Card to="/admin/links?status=pending" label="승인 대기" value={data.pendingCount} />
             <Card to="/admin/links?createdFrom=today" label="오늘 등록" value={data.registered.today.total} />
             <Card to="/admin/links?createdFrom=7d" label="최근 7일 등록" value={data.registered.last7d.total} />
-            <Card to="/admin/links" label="마지막 수집" value={runLabel} />
+            <Card to="/admin/collect" label="마지막 수집" value={runLabel} />
           </div>
 
           <section className="mt-8">

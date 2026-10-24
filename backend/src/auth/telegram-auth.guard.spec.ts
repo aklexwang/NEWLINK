@@ -166,6 +166,22 @@ describe('관리자 가드', () => {
     expect(adminGuard.canActivate(contextFor(req))).toBe(true);
   });
 
+  it('수집 운영 API 세 곳은 로그인 없이 401이다', () => {
+    process.env.NODE_ENV = 'test';
+    const { authGuard } = build({ DEV_ADMIN_BYPASS: 'false' });
+    const paths = [
+      '/api/admin/stats/runs',
+      '/api/admin/stats/ops',
+      '/api/admin/stats/run',
+    ];
+    for (const url of paths) {
+      const req = requestFor({}, url);
+      expect(() => authGuard.canActivate(contextFor(req))).toThrow(
+        UnauthorizedException,
+      );
+    }
+  });
+
   it('새 어드민 API 다섯 곳은 로그인 없이 401이다', () => {
     process.env.NODE_ENV = 'test';
     const { authGuard } = build({ DEV_ADMIN_BYPASS: 'false' });

@@ -136,6 +136,10 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <span className="text-base">🏠</span>
           <span>대시보드</span>
         </NavLink>
+        <NavLink to="/admin/collect" className={linkClass}>
+          <span className="text-base">⏱</span>
+          <span>수집 운영</span>
+        </NavLink>
         <NavLink to="/admin/pending" className={linkClass}>
           <span className="text-base">📋</span>
           <span className="flex-1">승인 대기</span>

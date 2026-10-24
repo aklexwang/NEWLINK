@@ -103,6 +103,81 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
   return data;
 }
 
+export type AdminStatsRunKind = 'running' | 'completed' | 'budget' | 'interrupted';
+
+export interface AdminStatsRun {
+  id: string;
+  mode: string;
+  kind: AdminStatsRunKind;
+  status: AdminStatsRunKind;
+  processed: number;
+  total: number;
+  remaining: number;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number;
+  durationLabel: string;
+  endedReason: string | null;
+  budgetNote: string | null;
+}
+
+export interface AdminStatsOps {
+  mtproto: {
+    enabled: boolean;
+    requestsToday: number;
+    resolvesToday: number;
+    resolveDailyLimit: number;
+    searchesToday: number;
+    searchDailyLimit: number;
+    lastError: string | null;
+    countersFromMemory: boolean;
+    floodWait: {
+      startedAt: string | null;
+      until: string | null;
+      seconds: number | null;
+    };
+  };
+  budgets: {
+    lightMin: number;
+    fullMin: number;
+    discoveryMin: number;
+    verifyRecheckMin: number;
+  };
+  discovery: { today: number; dailyMax: number };
+  running: boolean;
+}
+
+export async function getAdminStatsRuns(limit = 30): Promise<AdminStatsRun[]> {
+  const { data } = await apiClient.get<AdminStatsRun[]>('/admin/stats/runs', {
+    params: { limit },
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function getAdminStatsOps(): Promise<AdminStatsOps> {
+  const { data } = await apiClient.get<AdminStatsOps>('/admin/stats/ops', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function startAdminLightCollect(): Promise<{
+  started: boolean;
+  runId: string | null;
+  mode: string;
+}> {
+  const { data } = await apiClient.post(
+    '/admin/stats/run',
+    {},
+    {
+      params: { mode: 'light' },
+      headers: getAdminAuthHeaders(),
+    },
+  );
+  return data;
+}
+
 export async function getAdminChannels(params?: {
   status?: string;
   q?: string;

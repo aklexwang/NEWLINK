@@ -15,6 +15,7 @@ import { AdminChannelsManagePage } from './pages/admin/AdminChannelsManagePage';
 import { AdminGroupRegisterPage } from './pages/admin/AdminGroupRegisterPage';
 import { AdminGroupsManagePage } from './pages/admin/AdminGroupsManagePage';
 import { AdminManualRegisterPage } from './pages/admin/AdminManualRegisterPage';
+import { AdminCollectOpsPage } from './pages/admin/AdminCollectOpsPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminLinksManagePage } from './pages/admin/AdminLinksManagePage';
 import { AdminPendingPage } from './pages/admin/AdminPendingPage';
@@ -42,6 +43,7 @@ export default function App() {
                 <Route path="/admin" element={<AdminLayout />}>
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<AdminDashboardPage />} />
+                  <Route path="collect" element={<AdminCollectOpsPage />} />
                   <Route path="links" element={<AdminLinksManagePage />} />
                   <Route path="pending" element={<AdminPendingPage />} />
                   <Route path="register-link" element={<AdminManualRegisterPage />} />
