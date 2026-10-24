@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 /**
  * 키워드 검색 발견용 상수.
  * 카테고리 이름 23개(기본 20 + 증권·해킹·웹툰)와 각 3~5개의 대표 한국어 검색어입니다.
@@ -138,6 +140,20 @@ export function flattenDiscoveryKeywords(
 
 export function shouldSeedDiscoveryKeywords(count: number): boolean {
   return count === 0;
+}
+
+export function newDiscoveryKeywordInsertRows(now = new Date()) {
+  return flattenDiscoveryKeywordSeed().map((row) => ({
+    id: randomUUID(),
+    word: row.word,
+    category: row.category,
+    enabled: true,
+    sort: row.sort,
+    createdAt: now,
+    lastSearchedAt: null as Date | null,
+    lastFoundCount: null as number | null,
+    totalNewCount: 0,
+  }));
 }
 
 /** enabled 키워드: 한 번도 검색 안 한 것 먼저, 그다음 오래된 검색, 같으면 sort. */

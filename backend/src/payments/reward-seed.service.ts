@@ -1,6 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { telegramIdKey } from '../common/telegram-id';
 import { Channel } from '../channels/channel.entity';
@@ -8,49 +7,20 @@ import { User } from '../users/user.entity';
 import { PayoutMethod } from './payout-method.entity';
 import { PayoutRecord } from './payout-record.entity';
 import { backfillPayoutStatus } from './payout-status.logic';
+import {
+  newPayoutMethodSeedRows,
+  newPayoutRecordId,
+  newRewardSettingsRow,
+  shouldCopyTonPayment,
+  shouldGapFillRewardChannel,
+  shouldInsertWhenEmpty,
+} from './reward-seed.logic';
 import { RewardSettings } from './reward-settings.entity';
 import { TonPayment } from './ton-payment.entity';
 import { classifyWalletKind } from './wallet-kind.logic';
 
-const METHOD_SEEDS: Array<
-  Omit<PayoutMethod, 'id' | 'createdAt'> & { code: string }
-> = [
-  {
-    code: 'ton',
-    label: 'TON',
-    destinationKind: 'wallet_address',
-    network: 'ton',
-    currency: 'TON',
-    defaultAmount: 1,
-    enabled: true,
-    sort: 0,
-  },
-  {
-    code: 'stars',
-    label: 'Telegram Stars',
-    destinationKind: 'telegram_account',
-    network: null,
-    currency: 'STARS',
-    defaultAmount: 50,
-    enabled: true,
-    sort: 1,
-  },
-  {
-    code: 'usdt_trc20',
-    label: 'USDT TRC-20',
-    destinationKind: 'wallet_address',
-    network: 'trc20',
-    currency: 'USDT',
-    defaultAmount: 1,
-    enabled: true,
-    sort: 2,
-  },
-];
-
 @Injectable()
 export class RewardSeedService implements OnModuleInit {
-  private readonly logger = new Logger(RewardSeedService.name);
-
   constructor(
     @InjectRepository(RewardSettings)
     private readonly settingsRepository: Repository<RewardSettings>,
@@ -67,23 +37,16 @@ export class RewardSeedService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    if ((await this.settingsRepository.count()) === 0) {
-      await this.settingsRepository.insert({
-        id: 'default',
-        enabled: true,
-        updatedAt: new Date(),
-      });
+    if (shouldInsertWhenEmpty(await this.settingsRepository.count())) {
+      await this.settingsRepository.insert(newRewardSettingsRow());
     }
-    if ((await this.methodRepository.count()) === 0) {
-      const now = new Date();
-      await this.methodRepository.insert(
-        METHOD_SEEDS.map((row) => ({ ...row, id: randomUUID(), createdAt: now })),
-      );
+    if (shouldInsertWhenEmpty(await this.methodRepository.count())) {
+      await this.methodRepository.insert(newPayoutMethodSeedRows());
     }
     await this.backfillLocal();
   }
 
-  /** SQLite synchronize 환경용. 이미 채워진 행은 건너뜁니다. */
+  /** 이미 채워진 행은 건너뜁니다. 운영 마이그레이션 이후에도 한 번 더 돌아도 됩니다. */
   async backfillLocal() {
     const users = await this.userRepository.find();
     for (const user of users) {
@@ -116,9 +79,9 @@ export class RewardSeedService implements OnModuleInit {
     );
     const now = new Date();
     for (const payment of payments) {
-      if (seen.has(payment.id)) continue;
+      if (!shouldCopyTonPayment(payment.id, seen)) continue;
       await this.recordRepository.insert({
-        id: randomUUID(),
+        id: newPayoutRecordId(),
         channelId: payment.channelId,
         telegramId: payment.telegramId,
         username: payment.reporterName,
@@ -148,9 +111,9 @@ export class RewardSeedService implements OnModuleInit {
       const count = await this.recordRepository.count({
         where: { channelId: channel.id },
       });
-      if (count > 0) continue;
+      if (!shouldGapFillRewardChannel(count)) continue;
       await this.recordRepository.insert({
-        id: randomUUID(),
+        id: newPayoutRecordId(),
         channelId: channel.id,
         telegramId: channel.submittedBy,
         username: null,

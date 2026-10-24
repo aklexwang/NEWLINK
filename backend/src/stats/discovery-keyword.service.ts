@@ -1,10 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { DiscoveryKeyword } from './discovery-keyword.entity';
 import {
-  flattenDiscoveryKeywordSeed,
+  newDiscoveryKeywordInsertRows,
   pickKeywordsForSearch,
   shouldSeedDiscoveryKeywords,
 } from './discovery-keywords';
@@ -21,18 +20,7 @@ export class DiscoveryKeywordService implements OnModuleInit {
   async onModuleInit() {
     const count = await this.keywordRepository.count();
     if (!shouldSeedDiscoveryKeywords(count)) return;
-    const now = new Date();
-    const rows = flattenDiscoveryKeywordSeed().map((row) => ({
-      id: randomUUID(),
-      word: row.word,
-      category: row.category,
-      enabled: true,
-      sort: row.sort,
-      createdAt: now,
-      lastSearchedAt: null,
-      lastFoundCount: null,
-      totalNewCount: 0,
-    }));
+    const rows = newDiscoveryKeywordInsertRows();
     if (rows.length === 0) return;
     await this.keywordRepository.insert(rows);
     this.logger.log(`발견 키워드 ${rows.length}개를 처음 넣었습니다.`);

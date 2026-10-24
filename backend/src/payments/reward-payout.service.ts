@@ -20,6 +20,7 @@ import {
   isBlockingPayoutStatus,
   submitRequiresWallet,
 } from './payout-status.logic';
+import { newRewardSettingsRow } from './reward-seed.logic';
 import { RewardSettings } from './reward-settings.entity';
 import { TonPaymentService } from './ton-payment.service';
 
@@ -70,16 +71,14 @@ export class RewardPayoutService {
   }
 
   async getSettings() {
-    let row = await this.settingsRepository.findOneBy({ id: 'default' });
-    if (!row) {
-      row = this.settingsRepository.create({
-        id: 'default',
-        enabled: true,
-        updatedAt: new Date(),
-      });
-      await this.settingsRepository.save(row);
-    }
-    return row;
+    const existing = await this.settingsRepository.find({
+      order: { updatedAt: 'DESC' },
+      take: 1,
+    });
+    if (existing[0]) return existing[0];
+    return this.settingsRepository.save(
+      this.settingsRepository.create(newRewardSettingsRow()),
+    );
   }
 
   async setEnabled(enabled: boolean) {
