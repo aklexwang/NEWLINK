@@ -1,5 +1,5 @@
 /** t.me 경로 중 공개 @username이 아닌 것 */
-const RESERVED_PATHS = new Set([
+export const RESERVED_TELEGRAM_PATHS = new Set([
   's',
   'c',
   'a',
@@ -76,7 +76,7 @@ export function extractTelegramUsernameFromLink(
   }
   candidate = candidate.replace(/^@/, '');
   if (candidate.startsWith('+')) return null;
-  if (RESERVED_PATHS.has(candidate.toLowerCase())) return null;
+  if (RESERVED_TELEGRAM_PATHS.has(candidate.toLowerCase())) return null;
   if (!/^[a-zA-Z][a-zA-Z0-9_]{3,31}$/.test(candidate)) return null;
 
   return candidate.toLowerCase();

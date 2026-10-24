@@ -1,11 +1,19 @@
 import { AUTO_EXPOSE_MIN_MEMBERS } from '../channels/auto-expose.logic';
-import { detectChannelLanguage } from '../channels/channel-language.logic';
-import { LinkType } from '../channels/channel.entity';
+import {
+  detectChannelLanguage,
+  type ChannelLanguage,
+} from '../channels/channel-language.logic';
 import type { AutoExposeKind } from '../channels/auto-expose.logic';
-import type { ChannelLanguage } from '../channels/channel.entity';
 import type { DiscoveredUsernameResult } from './discovered-username.entity';
 import type { ParsedPreviewPost } from './telegram-preview-html';
 import { LANGUAGE_POST_LIMIT } from '../channels/channel-language.logic';
+import {
+  extractTelegramUsernameFromLink,
+  isDiscoverableUsername,
+  isInviteOnlyLink,
+  RESERVED_TELEGRAM_PATHS,
+} from '../channels/telegram-username';
+import { load } from 'cheerio';
 
 export const PUBLIC_INSPECT_GAP_MS = 1_000;
 export const PUBLIC_EXPAND_MAX_PAGES = 5;
@@ -24,7 +32,7 @@ export type PublicInspectPage = {
 export type PublicInspectDecision = {
   result: DiscoveredUsernameResult | 'ok';
   language: ChannelLanguage;
-  linkType: LinkType;
+  linkType: 'channel' | 'group';
   kind: AutoExposeKind;
 };
 
@@ -35,7 +43,7 @@ export function publicInspectDecision(
     page.kind === 'channel' || page.kind === 'group' || page.kind === 'invalid'
       ? page.kind
       : 'unknown';
-  const linkType = kind === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
+  const linkType = kind === 'group' ? 'group' : 'channel';
   const excerpts =
     kind === 'channel'
       ? (page.excerpts ?? []).filter(Boolean).slice(0, LANGUAGE_POST_LIMIT)
@@ -69,6 +77,22 @@ export function excerptsFromPreviewPosts(
     .slice(0, LANGUAGE_POST_LIMIT);
 }
 
+export function bulkDeadlineMs(
+  startedAtMs: number,
+  maxHours?: number | null,
+): number | null {
+  if (maxHours == null || maxHours <= 0) return null;
+  return startedAtMs + maxHours * 60 * 60 * 1000;
+}
+
+export function isBulkDeadlinePassed(
+  deadlineMs: number | null | undefined,
+  nowMs = Date.now(),
+): boolean {
+  if (deadlineMs == null) return false;
+  return nowMs >= deadlineMs;
+}
+
 export function shouldStopBulkAuto(input: {
   newCandidatesThisRound: number;
   minNew?: number;
@@ -78,10 +102,10 @@ export function shouldStopBulkAuto(input: {
 }): boolean {
   const minNew = input.minNew ?? BULK_AUTO_MIN_NEW_CANDIDATES;
   if (input.newCandidatesThisRound < minNew) return true;
-  const hours = input.maxHours;
-  if (hours == null || hours <= 0) return false;
-  const now = input.nowMs ?? Date.now();
-  return now - input.startedAtMs >= hours * 60 * 60 * 1000;
+  return isBulkDeadlinePassed(
+    bulkDeadlineMs(input.startedAtMs, input.maxHours),
+    input.nowMs ?? Date.now(),
+  );
 }
 
 export function isBulkProgressTick(checked: number): boolean {
@@ -157,4 +181,94 @@ export function parseBulkCandidatesArgs(argv: string[]): {
     }
   }
   return { mode, dryRun, limit, maxHours, file };
+}
+
+const TME_HREF_RE =
+  /(?:https?:\/\/)?(?:t\.me|telegram\.me|telegram\.dog)\/[^\s"'<>]+/gi;
+
+export type TmeHrefClass =
+  | { kind: 'username'; username: string }
+  | { kind: 'invalid_format'; path: string }
+  | { kind: 'skip' };
+
+/** t.me 링크가 공개 아이디인지, 형식이 틀린지, 초대·예약어라 건너뛸지 */
+export function classifyTmeHref(
+  raw: string,
+  selfUsername?: string | null,
+): TmeHrefClass {
+  const extracted = extractTelegramUsernameFromLink(raw);
+  if (extracted) {
+    if (!isDiscoverableUsername(extracted, selfUsername)) return { kind: 'skip' };
+    return { kind: 'username', username: extracted };
+  }
+  if (isInviteOnlyLink(raw)) return { kind: 'skip' };
+
+  let href = raw.trim();
+  if (!href) return { kind: 'skip' };
+  if (!/^https?:\/\//i.test(href)) {
+    if (/^(?:t\.me|telegram\.me|telegram\.dog)\//i.test(href)) {
+      href = `https://${href}`;
+    } else {
+      return { kind: 'skip' };
+    }
+  }
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
+    return { kind: 'skip' };
+  }
+  const host = url.hostname.replace(/^www\./i, '').toLowerCase();
+  if (!['t.me', 'telegram.me', 'telegram.dog'].includes(host)) {
+    return { kind: 'skip' };
+  }
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (parts.length === 0) return { kind: 'skip' };
+  let candidate = parts[0];
+  if (candidate.toLowerCase() === 's' && parts[1]) candidate = parts[1];
+  candidate = candidate.replace(/^@/, '');
+  if (!candidate || candidate.startsWith('+')) return { kind: 'skip' };
+  if (RESERVED_TELEGRAM_PATHS.has(candidate.toLowerCase())) {
+    return { kind: 'skip' };
+  }
+  if (!/^[a-zA-Z][a-zA-Z0-9_]{3,31}$/.test(candidate)) {
+    return { kind: 'invalid_format', path: candidate.toLowerCase() };
+  }
+  return { kind: 'skip' };
+}
+
+export function mentionsFromTelegramHtml(
+  html: string,
+  selfUsername?: string | null,
+): { usernames: string[]; invalidFormat: string[] } {
+  const usernames: string[] = [];
+  const invalidFormat: string[] = [];
+  const seenUser = new Set<string>();
+  const seenInvalid = new Set<string>();
+  const add = (raw: string) => {
+    const classified = classifyTmeHref(raw, selfUsername);
+    if (classified.kind === 'username') {
+      if (seenUser.has(classified.username)) return;
+      seenUser.add(classified.username);
+      usernames.push(classified.username);
+      return;
+    }
+    if (classified.kind === 'invalid_format') {
+      if (seenInvalid.has(classified.path)) return;
+      seenInvalid.add(classified.path);
+      invalidFormat.push(classified.path);
+    }
+  };
+  if (!html.trim()) return { usernames, invalidFormat };
+  const $ = load(html);
+  $('a[href]').each((_, el) => {
+    const href = $(el).attr('href');
+    if (href) add(href);
+  });
+  TME_HREF_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = TME_HREF_RE.exec(html))) {
+    add(match[0]);
+  }
+  return { usernames, invalidFormat };
 }

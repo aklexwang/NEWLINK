@@ -1,5 +1,6 @@
 import { PUBLIC_INSPECT_GAP_MS } from './public-channel-inspect.logic';
 import {
+  classifyTmeHref,
   isBulkProgressTick,
   parseBulkCandidatesArgs,
   parseUsernameListText,
@@ -131,6 +132,25 @@ describe('공개 페이지 429', () => {
     expect(slept).toContain(3_000);
     expect(result.status).toBe(200);
     expect(result.html).toBe('ok');
+  });
+});
+
+describe('t.me 링크 분류', () => {
+  it('공개 아이디와 형식 오류를 가른다', () => {
+    expect(classifyTmeHref('https://t.me/news_kr')).toEqual({
+      kind: 'username',
+      username: 'news_kr',
+    });
+    expect(classifyTmeHref('https://t.me/ab')).toEqual({
+      kind: 'invalid_format',
+      path: 'ab',
+    });
+    expect(classifyTmeHref('https://t.me/1news')).toEqual({
+      kind: 'invalid_format',
+      path: '1news',
+    });
+    expect(classifyTmeHref('https://t.me/+invitehash').kind).toBe('skip');
+    expect(classifyTmeHref('https://t.me/helper_bot').kind).toBe('skip');
   });
 });
 

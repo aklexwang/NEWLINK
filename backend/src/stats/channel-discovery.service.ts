@@ -137,7 +137,8 @@ export class ChannelDiscoveryService {
             username: item.username,
             kind: preview.kind,
             language: preview.decision.language,
-            linkType: preview.decision.linkType,
+            linkType:
+              preview.decision.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL,
             avatarUrl: preview.avatarUrl,
           },
           { skipCollect: true },
@@ -149,7 +150,8 @@ export class ChannelDiscoveryService {
             description: preview.description,
             members: preview.members ?? DISCOVERY_MIN_MEMBERS,
             avatarUrl: preview.avatarUrl,
-            linkType: preview.decision.linkType,
+            linkType:
+              preview.decision.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL,
           });
         }
         result = 'added';
