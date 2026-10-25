@@ -1,0 +1,92 @@
+# Claude ↔ 운영자 텔레그램 다리.
+# - send: Claude 가 보낸 글을 @봇으로 운영자에게 보낸다.
+# - read: 운영자가 봇에 보낸 글을 가져와 Claude 의 공개키로 암호화해 inbox 이슈에 댓글로 남긴다.
+# 공개 저장소라 실행 기록이 보인다: 글 내용은 로그에 찍지 않고(이벤트 파일에서 읽음), 받은 글은 암호화한다.
+# 필요한 비밀값: TELEGRAM_BOT_TOKEN, TELEGRAM_OWNER_CHAT_ID (운영자 텔레그램 숫자 id)
+name: claude-telegram
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: send 또는 read
+        required: true
+        default: read
+        type: choice
+        options: [send, read]
+      text:
+        description: 보낼 글 (send)
+        required: false
+        default: ''
+      issue:
+        description: 받은 글을 남길 이슈 번호 (read)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: claude-telegram
+  cancel-in-progress: false
+
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: 공개키 가져오기
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/claude-telegram.pub.pem
+          sparse-checkout-cone-mode: false
+
+      - name: 텔레그램
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          OWNER: ${{ secrets.TELEGRAM_OWNER_CHAT_ID }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ] || [ -z "${OWNER:-}" ]; then
+            echo "비밀값 TELEGRAM_BOT_TOKEN / TELEGRAM_OWNER_CHAT_ID 가 없습니다."; exit 1
+          fi
+          ACTION=$(jq -r '.inputs.action // "read"' "$GITHUB_EVENT_PATH")
+          API="https://api.telegram.org/bot${TOKEN}"
+
+          if [ "$ACTION" = "send" ]; then
+            jq -n --arg chat "$OWNER" --arg text "$(jq -r '.inputs.text // ""' "$GITHUB_EVENT_PATH")" \
+              '{chat_id: $chat, text: $text, disable_web_page_preview: true}' > body.json
+            if [ "$(jq -r '.text | length' body.json)" = "0" ]; then echo "보낼 글이 비어 있습니다."; exit 1; fi
+            code=$(curl -sS -o resp.json -w '%{http_code}' -H 'Content-Type: application/json' -d @body.json "$API/sendMessage")
+            echo "sendMessage http=$code ok=$(jq -r '.ok' resp.json)"
+            [ "$(jq -r '.ok' resp.json)" = "true" ]
+            exit 0
+          fi
+
+          ISSUE=$(jq -r '.inputs.issue // ""' "$GITHUB_EVENT_PATH")
+          [ -n "$ISSUE" ] || { echo "issue 번호가 필요합니다."; exit 1; }
+          curl -sS "$API/getUpdates?timeout=0&allowed_updates=%5B%22message%22%5D" > updates.json
+          [ "$(jq -r '.ok' updates.json)" = "true" ] || { echo "getUpdates 실패: $(jq -r '.description // "?"' updates.json)"; exit 1; }
+          MAX=$(jq '[.result[].update_id] | max // 0' updates.json)
+          jq --arg owner "$OWNER" '[.result[] | select(.message != null) | select((.message.chat.id|tostring) == $owner)
+              | {id: .update_id, date: .message.date, text: (.message.text // .message.caption // "")}]' updates.json > msgs.json
+          COUNT=$(jq 'length' msgs.json)
+          echo "받은 글 ${COUNT}개 (내용은 암호화되어 이슈에 남습니다)"
+          if [ "$COUNT" -gt 0 ]; then
+            KEY=$(openssl rand -hex 32)
+            ENC_KEY=$(printf %s "$KEY" | openssl pkeyutl -encrypt -pubin -inkey .github/claude-telegram.pub.pem \
+              -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64 -w0)
+            ENC_DATA=$(openssl enc -aes-256-cbc -pbkdf2 -pass "pass:${KEY}" -in msgs.json | base64 -w0)
+            jq -n --arg k "$ENC_KEY" --arg d "$ENC_DATA" '{body: ("claude-tg-v1\n" + $k + "\n" + $d)}' > comment.json
+            curl -sS -o /dev/null -w 'comment http=%{http_code}\n' -X POST \
+              -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+              -d @comment.json "https://api.github.com/repos/${REPO}/issues/${ISSUE}/comments"
+          fi
+          if [ "$MAX" -gt 0 ]; then
+            # 읽은 글은 확인 처리해서 다음 read 에서 다시 오지 않게
+            curl -sS -o /dev/null "$API/getUpdates?timeout=0&offset=$((MAX + 1))"
+          fi
