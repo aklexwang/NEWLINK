@@ -19,7 +19,12 @@ import type { CompareStatsItem } from '../types/stats';
 import { extractTelegramUsername } from '../utils/channelAvatar';
 import { channelDetailPath } from '../utils/channelDetailPath';
 import { addCompareId, COMPARE_MAX, getCompareIds, removeCompareId } from '../utils/compareChannels';
-import { formatCount, formatPercent, formatSignedPercent } from '../utils/formatCount';
+import { formatPercent } from '../utils/formatCount';
+import {
+  formatMemberNumber,
+  formatSignedMembers,
+  memberDeltaFromGrowth,
+} from '../utils/memberDisplay';
 import { BLOCKED_SEARCH_MESSAGE } from '../utils/searchMessage';
 
 const LINE_COLORS = ['#2481cc', '#059669', '#d97706'];
@@ -108,12 +113,17 @@ export function ComparePage() {
     void reload(next);
   };
 
+  const deltaOf = (item: CompareStatsItem) =>
+    formatSignedMembers(memberDeltaFromGrowth(item.memberCount, item.growth7d));
   const rows: { label: string; render: (item: CompareStatsItem) => string }[] = [
-    { label: '구독자', render: (item) => formatCount(item.memberCount) },
+    { label: '회원', render: (item) => formatMemberNumber(item.memberCount) ?? '미집계' },
     { label: '점수', render: (item) => (item.score == null ? '—' : String(item.score)) },
     { label: '조회율', render: (item) => formatPercent(item.viewRate) },
-    { label: '7일 성장', render: (item) => formatSignedPercent(item.growth7d) },
   ];
+  // 7일 증감은 모든 항목에 값이 없으면 줄째 숨기고, 일부만 없으면 그 칸만 비운다
+  if (items.some((item) => deltaOf(item) != null)) {
+    rows.push({ label: '7일 증감', render: (item) => deltaOf(item) ?? '' });
+  }
 
   return (
     <div className="px-4 pb-10 pt-5">
@@ -194,7 +204,13 @@ export function ComparePage() {
                           </button>
                         </div>
                         <div className="mt-1 flex items-center gap-1">
-                          <GradeBadge grade={item.grade} size="sm" />
+                          <GradeBadge
+                            grade={item.grade}
+                            size="sm"
+                            channelId={item.id}
+                            score={item.score}
+                            lowData={item.badges.some((badge) => badge.code === 'low_data')}
+                          />
                           <span className="h-2 w-2 rounded-full" style={{ background: LINE_COLORS[index] }} />
                         </div>
                       </th>
@@ -217,7 +233,7 @@ export function ComparePage() {
             </table>
           </div>
 
-          <h2 className="mt-5 text-[15px] font-semibold text-tg-text">30일 구독자 추이</h2>
+          <h2 className="mt-5 text-[15px] font-semibold text-tg-text">30일 회원 수 추이</h2>
           <div className="mt-2 h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>

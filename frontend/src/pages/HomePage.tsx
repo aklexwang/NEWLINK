@@ -16,7 +16,8 @@ import { useAuth } from '../providers/AuthProvider';
 import { useTheme } from '../providers/ThemeProvider';
 import type { Channel } from '../types/channel';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
-import { formatCount, formatRelativeKo, formatSignedPercent } from '../utils/formatCount';
+import { formatRelativeKo } from '../utils/formatCount';
+import { formatGrowthLine, formatMembers } from '../utils/memberDisplay';
 import { BLOCKED_SEARCH_MESSAGE } from '../utils/searchMessage';
 
 type HomeView = 'dash' | 'search';
@@ -492,7 +493,7 @@ export function HomePage() {
           </Link>
         </div>
         {home?.topBy === 'members' && (
-          <p className="px-4 pt-1 text-[11px] text-nl-muted">점수 데이터가 부족해 구독자 순으로 보여 줍니다.</p>
+          <p className="px-4 pt-1 text-[11px] text-nl-muted">점수 데이터가 부족해 회원 수 순으로 보여 줍니다.</p>
         )}
         <div className="mt-2 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none">
           {homeLoading
@@ -621,7 +622,7 @@ function TopChip({ rank, item, onOpen }: { rank: number; item: HomeCard; onOpen:
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-semibold">{item.title}</span>
         <span className="text-[11px] text-nl-muted">
-          {item.score != null ? `점수 ${item.score}` : `구독 ${formatCount(item.memberCount)}`}
+          {item.score != null ? `점수 ${item.score}` : formatMembers(item.memberCount)}
         </span>
       </span>
     </button>
@@ -629,25 +630,43 @@ function TopChip({ rank, item, onOpen }: { rank: number; item: HomeCard; onOpen:
 }
 
 function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) {
+  // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다
+  const deltaLine = formatGrowthLine('7일', item.memberCount, item.growth7d);
   return (
-    <button
-      type="button"
+    // 등급 배지가 버튼이라 카드는 button 이 아니라 role="link" 로 둔다 (버튼 안 버튼 방지)
+    <div
+      role="link"
+      tabIndex={0}
       onClick={onOpen}
-      className="flex w-full items-center gap-3 rounded-2xl bg-nl-card px-3 py-2.5 text-left ring-1 ring-nl-line"
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="flex w-full cursor-pointer items-center gap-3 rounded-2xl bg-nl-card px-3 py-2.5 text-left ring-1 ring-nl-line"
     >
       <Avatar channel={item} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          <span className="truncate text-[14px] font-semibold">{item.title}</span>
-          <GradeBadge grade={item.grade} size="sm" />
+          <span className="min-w-0 truncate text-[14px] font-semibold">{item.title}</span>
+          <GradeBadge
+            grade={item.grade}
+            size="sm"
+            channelId={item.id}
+            linkType={item.linkType}
+            score={item.score}
+          />
         </span>
         <span className="mt-0.5 block truncate text-[11px] text-nl-muted">
-          {item.category} · 구독 {formatCount(item.memberCount)} · 7일 {formatSignedPercent(item.growth7d)}
+          {item.category} · {formatMembers(item.memberCount)}
+          {deltaLine ? ` · ${deltaLine}` : ''}
         </span>
         <span className="text-[11px] text-nl-muted">
           {item.activityKind === 'members' ? '인원 수 갱신' : '게시글'} · {formatRelativeKo(item.lastPostAt)}
         </span>
       </span>
-    </button>
+    </div>
   );
 }

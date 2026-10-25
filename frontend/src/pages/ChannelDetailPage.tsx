@@ -39,7 +39,14 @@ import type {
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { addCompareId } from '../utils/compareChannels';
 import { getSiteOrigin } from '../config/site';
-import { formatCount, formatPercent, formatSignedPercent } from '../utils/formatCount';
+import { formatCount, formatPercent } from '../utils/formatCount';
+import {
+  deltaTone,
+  formatMemberNumber,
+  formatSignedMembers,
+  memberDeltaFromGrowth,
+  type GrowthPeriod,
+} from '../utils/memberDisplay';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import { channelDetailPath, isInviteLink } from '../utils/channelDetailPath';
 
@@ -258,9 +265,8 @@ export function ChannelDetailPage() {
     if (notFound) {
       document.title = '채널을 찾을 수 없습니다 - NEWLINK';
     } else if (detail) {
-      const members =
-        detail.memberCount == null ? '0' : detail.memberCount.toLocaleString('ko-KR');
-      document.title = `${detail.title} 텔레그램 채널 · 구독자 ${members}명 - NEWLINK`;
+      const members = formatMemberNumber(detail.memberCount ?? 0) ?? '0명';
+      document.title = `${detail.title} 텔레그램 채널 · 회원 ${members} - NEWLINK`;
     }
     return () => {
       document.title = previous;
@@ -275,15 +281,6 @@ export function ChannelDetailPage() {
       value: membersOnly ? p.memberCount : p.medianViews7d,
     }));
   }, [stats, chartTab, detail?.linkType]);
-
-  const growthClass =
-    detail?.growth7d == null
-      ? 'text-tg-text'
-      : detail.growth7d > 0
-        ? 'text-emerald-600'
-        : detail.growth7d < 0
-          ? 'text-red-600'
-          : 'text-tg-text';
 
   const openTelegram = () => {
     if (!detail) return;
@@ -434,6 +431,22 @@ export function ChannelDetailPage() {
   const score = detail.latestScore;
   const avatarSrc = avatarSources[avatarIndex];
   const isGroup = detail.linkType === 'group';
+  // 24시간·7일·30일 증감. 수집 기간이 모자라 값이 없으면 카드를 숨긴다
+  const deltaCards = (
+    [
+      ['24시간', detail.growth24h],
+      ['7일', detail.growth7d],
+      ['30일', detail.growth30d],
+    ] as [GrowthPeriod, number | null][]
+  )
+    .map(([period, growth]) => {
+      const delta = memberDeltaFromGrowth(detail.memberCount, growth);
+      const text = formatSignedMembers(delta);
+      return text ? { period, text, tone: deltaTone(delta) } : null;
+    })
+    .filter((card): card is { period: GrowthPeriod; text: string; tone: 'up' | 'down' | 'flat' } =>
+      card != null,
+    );
 
   return (
     <div className="pb-24">
@@ -461,7 +474,14 @@ export function ChannelDetailPage() {
                 {detail.title}
               </h1>
               {detail.isVerified && <VerifiedBadge />}
-              <GradeBadge grade={detail.grade} />
+              <GradeBadge
+                grade={detail.grade}
+                channelId={detail.id}
+                linkType={detail.linkType}
+                score={detail.score}
+                observedDays={detail.observedDays}
+                lowData={lowData}
+              />
             </div>
             <p className="mt-0.5 text-[13px] text-tg-hint">{handle}</p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -508,7 +528,7 @@ export function ChannelDetailPage() {
       )}
 
       <section className="grid grid-cols-2 gap-2 px-4">
-        <MetricCard label={isGroup ? '멤버' : '구독자'} value={formatCount(detail.memberCount)} />
+        <MetricCard label="회원" value={formatMemberNumber(detail.memberCount) ?? '미집계'} />
         {isGroup ? (
           <MetricCard
             label="최근 7일 메시지 수"
@@ -520,7 +540,20 @@ export function ChannelDetailPage() {
         {isGroup ? null : (
           <MetricCard label="실조회율" value={formatPercent(detail.viewRate)} />
         )}
-        <MetricCard label="7일 성장" value={formatSignedPercent(detail.growth7d)} valueClass={growthClass} />
+        {deltaCards.map((card) => (
+          <MetricCard
+            key={card.period}
+            label={card.period}
+            value={card.text}
+            valueClass={
+              card.tone === 'up'
+                ? 'text-emerald-600'
+                : card.tone === 'down'
+                  ? 'text-red-600'
+                  : 'text-tg-text'
+            }
+          />
+        ))}
       </section>
 
       <section className="mx-4 mt-4 rounded-2xl bg-tg-secondary/70 p-4">
@@ -549,7 +582,7 @@ export function ChannelDetailPage() {
         <div className="flex items-center justify-between gap-2">
           <div className="flex rounded-full bg-tg-secondary p-0.5">
             <ChartTab active={chartTab === 'members'} onClick={() => setChartTab('members')}>
-              {isGroup ? '멤버 추이' : '구독자 추이'}
+              회원 추이
             </ChartTab>
             {isGroup ? null : (
               <ChartTab active={chartTab === 'views'} onClick={() => setChartTab('views')}>
@@ -582,7 +615,7 @@ export function ChannelDetailPage() {
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#8e8e93' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#8e8e93' }} width={48} />
                 <Tooltip
-                  formatter={(value) => [formatCount(typeof value === 'number' ? value : null), isGroup || chartTab === 'members' ? (isGroup ? '멤버' : '구독자') : '조회']}
+                  formatter={(value) => [formatCount(typeof value === 'number' ? value : null), isGroup || chartTab === 'members' ? '회원' : '조회']}
                   labelFormatter={(label) => String(label)}
                 />
                 <Line

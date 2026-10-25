@@ -11,7 +11,7 @@ import { resolveMediaUrl } from '../utils/mediaUrl';
 
 const SORT_CHIPS: { id: RankingSort; label: string }[] = [
   { id: 'score', label: '종합' },
-  { id: 'members', label: '구독자' },
+  { id: 'members', label: '회원 수' },
   { id: 'viewRate', label: '조회율' },
   { id: 'rising', label: '급상승' },
   { id: 'growth24h', label: '24시간' },

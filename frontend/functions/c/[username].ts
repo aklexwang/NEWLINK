@@ -75,12 +75,12 @@ export const onRequestGet = async (context: {
 };
 
 function pageTitle(detail: ChannelSeoDetail): string {
-  return `${detail.title} 텔레그램 채널 · 구독자 ${formatCount(detail.memberCount)}명 - NEWLINK`;
+  return `${detail.title} 텔레그램 채널 · 회원 ${formatCount(detail.memberCount)}명 - NEWLINK`;
 }
 
 function metaDescription(detail: ChannelSeoDetail): string {
   const parts = [
-    `구독자 ${formatCount(detail.memberCount)}명`,
+    `회원 ${formatCount(detail.memberCount)}명`,
     `7일 평균조회 ${formatCount(detail.medianViews7d)}`,
     `카테고리 ${detail.category || '미분류'}`,
   ];
@@ -151,7 +151,7 @@ function buildBodyHtml(detail: ChannelSeoDetail, username: string): string {
     `<p>${text(handle)} · ${text(detail.category || '미분류')}</p>`,
     `<p>${intro}</p>`,
     `<ul>`,
-    `<li>구독자 ${text(formatCount(detail.memberCount))}명</li>`,
+    `<li>회원 ${text(formatCount(detail.memberCount))}명</li>`,
     `<li>7일 평균조회 ${text(formatCount(detail.medianViews7d))}</li>`,
     `<li>조회율 ${text(formatPercent(detail.viewRate))}</li>`,
     `</ul>`,
@@ -159,7 +159,7 @@ function buildBodyHtml(detail: ChannelSeoDetail, username: string): string {
     `<noscript>`,
     `<h1>${text(detail.title)}</h1>`,
     `<p>${intro}</p>`,
-    `<p>구독자 ${text(formatCount(detail.memberCount))}명 · 7일 평균조회 ${text(formatCount(detail.medianViews7d))} · 카테고리 ${text(detail.category || '미분류')}</p>`,
+    `<p>회원 ${text(formatCount(detail.memberCount))}명 · 7일 평균조회 ${text(formatCount(detail.medianViews7d))} · 카테고리 ${text(detail.category || '미분류')}</p>`,
     `</noscript>`,
   ].join('');
   return summary;

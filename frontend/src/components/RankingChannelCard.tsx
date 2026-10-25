@@ -3,7 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import type { RankingChannel } from '../types/ranking';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { channelDetailPath } from '../utils/channelDetailPath';
-import { formatCount, formatPercent, formatSignedPercent } from '../utils/formatCount';
+import { formatPercent } from '../utils/formatCount';
+import {
+  deltaTone,
+  formatDeltaLine,
+  formatMembers,
+  memberDeltaFromGrowth,
+} from '../utils/memberDisplay';
 import { GradeBadge } from './GradeBadge';
 import { VerifiedBadge } from './VerifiedBadge';
 import { Sparkline } from './Sparkline';
@@ -18,9 +24,19 @@ interface RankingChannelCardProps {
 export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: RankingChannelCardProps) {
   const navigate = useNavigate();
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
-  const growth = channel.growth7d;
+  // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다
+  const delta7d = memberDeltaFromGrowth(channel.participantsCount, channel.growth7d);
+  const deltaLine = formatDeltaLine('7일', delta7d);
+  const tone = deltaTone(delta7d);
   const growthClass =
-    growth == null ? 'text-tg-hint' : growth > 0 ? 'text-emerald-600' : growth < 0 ? 'text-red-600' : 'text-tg-hint';
+    tone === 'up' ? 'text-emerald-600' : tone === 'down' ? 'text-red-600' : 'text-tg-hint';
+  const lowData = Boolean(channel.badges?.some((badge) => badge.code === 'low_data'));
+
+  const openDetail = () => {
+    const path = channelDetailPath(channel);
+    if (path) navigate(path);
+    else onOpen();
+  };
 
   const avatarSources = useMemo(
     () => getChannelAvatarSources({ avatarUrl, link: channel.link }),
@@ -37,14 +53,19 @@ export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: Ranking
   const currentSrc = avatarSources[sourceIndex];
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        const path = channelDetailPath(channel);
-        if (path) navigate(path);
-        else onOpen();
+    // 등급 배지가 버튼이라 카드는 button 이 아니라 role="link" 로 둔다 (버튼 안 버튼 방지)
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={openDetail}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openDetail();
+        }
       }}
-      className="flex w-full items-start gap-2.5 px-4 py-3 text-left active:bg-black/[0.03]"
+      className="flex w-full cursor-pointer items-start gap-2.5 px-4 py-3 text-left active:bg-black/[0.03]"
     >
       <div className="flex w-7 shrink-0 items-center justify-center pt-3 text-[13px] font-bold text-tg-hint">
         {medal ?? rank}
@@ -74,12 +95,19 @@ export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: Ranking
         <div className="flex items-center gap-1.5">
           <p className="min-w-0 truncate text-[15px] font-semibold leading-tight text-tg-text">{channel.title}</p>
           {channel.isVerified && <VerifiedBadge size="sm" />}
-          <GradeBadge grade={channel.grade ?? null} size="sm" />
+          <GradeBadge
+            grade={channel.grade ?? null}
+            size="sm"
+            channelId={channel.id}
+            linkType={channel.linkType}
+            score={channel.score}
+            lowData={lowData}
+          />
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-tg-hint">
-          <span>구독 {formatCount(channel.participantsCount)}</span>
+          <span>{formatMembers(channel.participantsCount)}</span>
           <span>조회율 {formatPercent(channel.viewRate)}</span>
-          <span className={growthClass}>7일 {formatSignedPercent(growth)}</span>
+          {deltaLine && <span className={growthClass}>{deltaLine}</span>}
           <Sparkline values={channel.sparkline14 ?? []} />
         </div>
         {channel.badges && channel.badges.length > 0 && (
@@ -95,6 +123,6 @@ export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: Ranking
           </div>
         )}
       </div>
-    </button>
+    </div>
   );
 }

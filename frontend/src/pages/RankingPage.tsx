@@ -7,11 +7,12 @@ import { RankingChannelCard } from '../components/RankingChannelCard';
 import type { RankingCategoryItem } from '../types/ranking';
 import type { RankingSort } from '../types/stats';
 import { resolveMediaUrl } from '../utils/mediaUrl';
+import { normalizeMemberWording } from '../utils/memberDisplay';
 import { AdultConfirmDialog, hasConfirmedAdult } from '../components/AdultConfirmDialog';
 
 const SORT_CHIPS: { id: RankingSort; label: string }[] = [
   { id: 'score', label: '종합' },
-  { id: 'members', label: '구독자' },
+  { id: 'members', label: '회원 수' },
   { id: 'viewRate', label: '조회율' },
   { id: 'rising', label: '급상승' },
   { id: 'growth24h', label: '24시간' },
@@ -48,7 +49,7 @@ export function RankingPage() {
     searchParams.get('includeForeign') === 'true';
 
   const [categories, setCategories] = useState<RankingCategoryItem[]>([]);
-  const [sourceLabel, setSourceLabel] = useState('텔레그램 인기 채널 · 구독자 순');
+  const [sourceLabel, setSourceLabel] = useState('텔레그램 인기 채널 · 회원 수 순');
   const [sourceHint, setSourceHint] = useState('');
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [adultOpen, setAdultOpen] = useState(
@@ -103,8 +104,9 @@ export function RankingPage() {
     setCategoriesLoading(true);
     Promise.all([getRankingStatus(), getRankingCategories()])
       .then(([status, items]) => {
-        setSourceLabel(status.label);
-        setSourceHint(status.hint ?? '');
+        // 서버 문구에 옛 표현("구독자")이 남아 있어도 화면에서는 "회원 수"로 보인다
+        setSourceLabel(normalizeMemberWording(status.label));
+        setSourceHint(normalizeMemberWording(status.hint ?? ''));
         setCategories(items);
       })
       .catch(() => setCategories([]))
