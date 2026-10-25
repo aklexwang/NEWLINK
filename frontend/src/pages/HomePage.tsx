@@ -17,7 +17,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import type { Channel } from '../types/channel';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { formatRelativeKo } from '../utils/formatCount';
-import { formatGrowthLine, formatMembers } from '../utils/memberDisplay';
+import { formatDeltaLine, formatMembers, resolveMemberDelta } from '../utils/memberDisplay';
 import { BLOCKED_SEARCH_MESSAGE } from '../utils/searchMessage';
 
 type HomeView = 'dash' | 'search';
@@ -631,7 +631,10 @@ function TopChip({ rank, item, onOpen }: { rank: number; item: HomeCard; onOpen:
 
 function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) {
   // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다
-  const deltaLine = formatGrowthLine('7일', item.memberCount, item.growth7d);
+  const deltaLine = formatDeltaLine(
+    '7일',
+    resolveMemberDelta(item.memberDelta7d, item.memberCount, item.growth7d),
+  );
   return (
     // 등급 배지가 버튼이라 카드는 button 이 아니라 role="link" 로 둔다 (버튼 안 버튼 방지)
     <div

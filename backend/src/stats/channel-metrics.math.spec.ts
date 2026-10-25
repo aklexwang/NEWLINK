@@ -175,3 +175,21 @@ describe('growthFromSnapshots', () => {
     ).toBeCloseTo(0.3);
   });
 });
+
+describe('회원 증감 수(명)', () => {
+  const { memberDeltaFromSnapshots } = jest.requireActual('./channel-metrics.math');
+  const snaps = [
+    { capturedOn: '2026-10-19', memberCount: 1000 },
+    { capturedOn: '2026-10-25', memberCount: 1100 },
+  ];
+  it('오늘 − N일 전', () => {
+    expect(memberDeltaFromSnapshots(snaps, '2026-10-26', 1150, 7)).toBe(150);
+    expect(memberDeltaFromSnapshots(snaps, '2026-10-26', 1150, 1)).toBe(50);
+  });
+  it('기준일 기록이 없으면 null', () => {
+    expect(memberDeltaFromSnapshots(snaps, '2026-10-26', 1150, 30)).toBeNull();
+  });
+  it('줄면 음수', () => {
+    expect(memberDeltaFromSnapshots(snaps, '2026-10-26', 970, 7)).toBe(-30);
+  });
+});

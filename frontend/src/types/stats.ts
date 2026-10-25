@@ -67,6 +67,10 @@ export interface ChannelDetail {
   growth24h: number | null;
   growth7d: number | null;
   growth30d: number | null;
+  /** 서버가 일별 기록으로 계산한 회원 증감 수(명). 없으면 증가율로 계산 */
+  memberDelta24h?: number | null;
+  memberDelta7d?: number | null;
+  memberDelta30d?: number | null;
   medianViews7d: number | null;
   posts7d: number | null;
   activity7d?: number | null;
@@ -163,6 +167,7 @@ export interface CompareStatsItem {
   grade: ChannelGrade | null;
   viewRate: number | null;
   growth7d: number | null;
+  memberDelta7d?: number | null;
   memberCount: number | null;
   badges: ChannelBadge[];
   latestScore: ChannelLatestScore | null;

@@ -42,6 +42,16 @@ export function memberDeltaFromGrowth(
   return delta === 0 ? 0 : delta;
 }
 
+/** 서버의 정확한 증감 수가 있으면 그것을, 없으면 증가율에서 되돌린 값을 쓴다 */
+export function resolveMemberDelta(
+  exactDelta: number | null | undefined,
+  memberCount: number | null | undefined,
+  growth: number | null | undefined,
+): number | null {
+  if (exactDelta != null && Number.isFinite(exactDelta)) return Math.round(exactDelta);
+  return memberDeltaFromGrowth(memberCount, growth);
+}
+
 /** "+120명" / "−30명" / "변화 없음". 증감 값이 없으면 null */
 export function formatSignedMembers(delta: number | null | undefined): string | null {
   if (delta == null || !Number.isFinite(delta)) return null;

@@ -45,7 +45,7 @@ import {
   deltaTone,
   formatMemberNumber,
   formatSignedMembers,
-  memberDeltaFromGrowth,
+  resolveMemberDelta,
   type GrowthPeriod,
 } from '../utils/memberDisplay';
 import { resolveMediaUrl } from '../utils/mediaUrl';
@@ -435,13 +435,13 @@ export function ChannelDetailPage() {
   // 24시간·7일·30일 증감. 수집 기간이 모자라 값이 없으면 카드를 숨긴다
   const deltaCards = (
     [
-      ['24시간', detail.growth24h],
-      ['7일', detail.growth7d],
-      ['30일', detail.growth30d],
-    ] as [GrowthPeriod, number | null][]
+      ['24시간', detail.growth24h, detail.memberDelta24h],
+      ['7일', detail.growth7d, detail.memberDelta7d],
+      ['30일', detail.growth30d, detail.memberDelta30d],
+    ] as [GrowthPeriod, number | null, number | null | undefined][]
   )
-    .map(([period, growth]) => {
-      const delta = memberDeltaFromGrowth(detail.memberCount, growth);
+    .map(([period, growth, exact]) => {
+      const delta = resolveMemberDelta(exact, detail.memberCount, growth);
       const text = formatSignedMembers(delta);
       return text ? { period, text, tone: deltaTone(delta) } : null;
     })

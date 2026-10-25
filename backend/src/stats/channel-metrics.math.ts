@@ -98,6 +98,24 @@ export function growthFromSnapshots(
   );
 }
 
+/**
+ * 회원 증감 수(명) = 오늘 값 − N일 전 값. 기준일 기록이 없으면 null.
+ * 증가율(%)에서 되돌려 계산하면 큰 채널은 오차가 생겨서, 화면에는 이 값을 우선 쓴다.
+ */
+export function memberDeltaFromSnapshots(
+  snapshots: { capturedOn: string; memberCount: number }[],
+  todayYmd: string,
+  todayMemberCount: number,
+  daysBack: number,
+): number | null {
+  const base = snapshots.find(
+    (snap) => snap.capturedOn === addKstDays(todayYmd, -daysBack),
+  );
+  if (!base || base.memberCount == null) return null;
+  if (!Number.isFinite(todayMemberCount) || todayMemberCount <= 0) return null;
+  return Math.round(todayMemberCount - base.memberCount);
+}
+
 export function gradeFromTotal(total: number): ScoreGrade {
   if (total >= GRADE_S_MIN) return 'S';
   if (total >= GRADE_A_MIN) return 'A';

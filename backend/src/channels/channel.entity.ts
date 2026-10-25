@@ -276,6 +276,16 @@ export class Channel {
   @Column({ name: 'growth_30d', type: 'real', nullable: true })
   growth30d: number | null;
 
+  /** 회원 증감 수(명). 일별 기록끼리 뺀 값이라 증가율에서 되돌린 값보다 정확하다 */
+  @Column({ name: 'member_delta_24h', type: 'integer', nullable: true })
+  memberDelta24h: number | null;
+
+  @Column({ name: 'member_delta_7d', type: 'integer', nullable: true })
+  memberDelta7d: number | null;
+
+  @Column({ name: 'member_delta_30d', type: 'integer', nullable: true })
+  memberDelta30d: number | null;
+
   @Column({ name: 'median_views_7d', type: 'integer', nullable: true })
   medianViews7d: number | null;
 

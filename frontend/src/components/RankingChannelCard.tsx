@@ -8,7 +8,7 @@ import {
   deltaTone,
   formatDeltaLine,
   formatMembers,
-  memberDeltaFromGrowth,
+  resolveMemberDelta,
 } from '../utils/memberDisplay';
 import { GradeBadge } from './GradeBadge';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -25,7 +25,11 @@ export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: Ranking
   const navigate = useNavigate();
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
   // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다
-  const delta7d = memberDeltaFromGrowth(channel.participantsCount, channel.growth7d);
+  const delta7d = resolveMemberDelta(
+    channel.memberDelta7d,
+    channel.participantsCount,
+    channel.growth7d,
+  );
   const deltaLine = formatDeltaLine('7일', delta7d);
   const tone = deltaTone(delta7d);
   const growthClass =

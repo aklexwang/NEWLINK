@@ -106,6 +106,7 @@ export interface HomeFeedItem {
   linkType: 'channel' | 'group';
   memberCount: number | null;
   growth7d: number | null;
+  memberDelta7d?: number | null;
   grade: 'S' | 'A' | 'B' | 'C' | 'D' | null;
   score: number | null;
   lastPostAt: string;

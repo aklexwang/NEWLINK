@@ -19,6 +19,7 @@ import {
   GRADE_S_MIN,
   gradeFromTotal,
   growthFromSnapshots,
+  memberDeltaFromSnapshots,
   isManipulationSuspected,
   MANIPULATION_SCORE_MULTIPLIER,
   MEMBER_SPIKE_RATIO,
@@ -78,6 +79,9 @@ interface ChannelMetricsRow {
   viewRate: number | null;
   growth24h: number | null;
   growth7d: number | null;
+  memberDelta24h: number | null;
+  memberDelta7d: number | null;
+  memberDelta30d: number | null;
   growth30d: number | null;
   observedDays: number;
   memberCount: number;
@@ -239,6 +243,7 @@ export class ChannelMetricsService {
         growth24h,
         growth7d,
         growth30d,
+        ...memberDeltas(snapshots, today, memberCount),
         observedDays: countObservedDays(channel.firstObservedAt, today),
         memberCount,
         isGroup,
@@ -319,6 +324,7 @@ export class ChannelMetricsService {
       growth24h,
       growth7d,
       growth30d,
+      ...memberDeltas(snapshots, today, memberCount),
       observedDays,
       memberCount,
       isGroup,
@@ -480,12 +486,27 @@ export class ChannelMetricsService {
         growth24h: row.growth24h,
         growth7d: row.growth7d,
         growth30d: row.growth30d,
+        memberDelta24h: row.memberDelta24h,
+        memberDelta7d: row.memberDelta7d,
+        memberDelta30d: row.memberDelta30d,
         medianViews7d: row.medianViews7d,
         posts7d: row.posts7d,
         observedDays: row.observedDays,
       });
     }
   }
+}
+
+function memberDeltas(
+  snapshots: { capturedOn: string; memberCount: number }[],
+  today: string,
+  memberCount: number,
+) {
+  return {
+    memberDelta24h: memberDeltaFromSnapshots(snapshots, today, memberCount, 1),
+    memberDelta7d: memberDeltaFromSnapshots(snapshots, today, memberCount, 7),
+    memberDelta30d: memberDeltaFromSnapshots(snapshots, today, memberCount, 30),
+  };
 }
 
 function groupBy<T>(items: T[], keyOf: (item: T) => string): Map<string, T[]> {

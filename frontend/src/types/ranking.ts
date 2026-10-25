@@ -16,6 +16,7 @@ export interface RankingChannel {
   grade?: ChannelGrade | null;
   viewRate?: number | null;
   growth7d?: number | null;
+  memberDelta7d?: number | null;
   isVerified?: boolean;
   badges?: ChannelBadge[];
   sparkline14?: (number | null)[];

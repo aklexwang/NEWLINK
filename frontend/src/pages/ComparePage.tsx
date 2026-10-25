@@ -23,7 +23,7 @@ import { formatPercent } from '../utils/formatCount';
 import {
   formatMemberNumber,
   formatSignedMembers,
-  memberDeltaFromGrowth,
+  resolveMemberDelta,
 } from '../utils/memberDisplay';
 import { BLOCKED_SEARCH_MESSAGE } from '../utils/searchMessage';
 
@@ -114,7 +114,7 @@ export function ComparePage() {
   };
 
   const deltaOf = (item: CompareStatsItem) =>
-    formatSignedMembers(memberDeltaFromGrowth(item.memberCount, item.growth7d));
+    formatSignedMembers(resolveMemberDelta(item.memberDelta7d, item.memberCount, item.growth7d));
   const rows: { label: string; render: (item: CompareStatsItem) => string }[] = [
     { label: '회원', render: (item) => formatMemberNumber(item.memberCount) ?? '미집계' },
     { label: '점수', render: (item) => (item.score == null ? '—' : String(item.score)) },

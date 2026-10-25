@@ -1,7 +1,7 @@
 /// <reference types="node" />
 // 실행: node --test src/utils/*.test.ts  (frontend 폴더에서)
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it, test } from 'node:test';
 import {
   deltaTone,
   formatDeltaLine,
@@ -10,6 +10,7 @@ import {
   formatMembers,
   formatNumber,
   formatSignedMembers,
+  resolveMemberDelta,
   memberDeltaFromGrowth,
   normalizeMemberWording,
 } from './memberDisplay.ts';
@@ -121,4 +122,11 @@ describe('증감 표시', () => {
     assert.equal(deltaTone(0), 'flat');
     assert.equal(deltaTone(null), 'flat');
   });
+});
+
+test('resolveMemberDelta: 서버 정확한 값 우선, 없으면 증가율 계산', () => {
+  assert.equal(resolveMemberDelta(123, 1000, 0.5), 123);
+  assert.equal(resolveMemberDelta(null, 1100, 0.1), 100);
+  assert.equal(resolveMemberDelta(undefined, null, null), null);
+  assert.equal(resolveMemberDelta(-30, 970, null), -30);
 });
