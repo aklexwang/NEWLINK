@@ -9,10 +9,8 @@ jest.mock('@nestjs/schedule', () => ({
 }));
 
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
-import {
-  ChannelCollectorService,
-  LIGHT_LIST_COLUMNS,
-} from './channel-collector.service';
+import { ChannelCollectorService } from './channel-collector.service';
+import * as queueQuery from './collect-queue.query';
 import { TME_COOLDOWN_MIN_MS, TmeGate } from './tme-gate';
 
 type Loose = Record<string, any>;
@@ -134,7 +132,10 @@ describe('그룹 수집: 공개 페이지 우선, Bot 은 폴백', () => {
 
   it('collectOne 에서 공개 아이디 그룹은 공개 페이지로, 초대 링크 그룹은 기존 경로로 간다', async () => {
     const { target } = build();
-    target.classifyAccount = jest.fn(async () => 'ok');
+    target.classifyAccount = jest.fn(async () => ({
+      status: 'ok',
+      exactMemberCount: null,
+    }));
     target.collectGroup = jest.fn(async () => ({ ok: true, mode: 'preview' }));
     target.collectInvitePreview = jest.fn(async () => ({
       ok: true,
@@ -186,14 +187,16 @@ describe('그룹 수집: 공개 페이지 우선, Bot 은 폴백', () => {
 });
 
 describe('light 수집', () => {
-  it('목록 조회는 필요한 칸만 select 하고, 채널만 오늘 대상으로 고른다', async () => {
+  it('큐에서 light 대상만 뽑고, 채널만 오늘 대상으로 고른다', async () => {
     const { target } = build();
     const rows = [
       channel({ id: 'a', linkType: LinkType.CHANNEL, username: 'a_ch', link: 'https://t.me/a_ch' }),
       channel({ id: 'b', linkType: LinkType.CHANNEL, username: 'b_ch', link: 'https://t.me/b_ch' }),
       channel({ id: 'g', linkType: LinkType.GROUP, username: 'g_gr', link: 'https://t.me/g_gr' }),
     ];
-    target.channelRepository.find = jest.fn(async () => rows);
+    const pick = jest
+      .spyOn(queueQuery, 'selectDueChannels')
+      .mockResolvedValue(rows);
     const handled: string[] = [];
     target.collectOneSafe = jest.fn(async (row: Channel) => {
       handled.push(row.id);
@@ -202,14 +205,10 @@ describe('light 수집', () => {
 
     const result = await target.collectLightAll();
 
-    expect(target.channelRepository.find).toHaveBeenCalledTimes(1);
-    const findOptions = target.channelRepository.find.mock.calls[0][0];
-    expect(findOptions.where).toEqual({ status: ChannelStatus.ACTIVE });
-    expect(findOptions.select).toEqual([...LIGHT_LIST_COLUMNS]);
-    // 소개글·제목 같은 큰 칸은 읽지 않는다
-    for (const heavy of ['description', 'title', 'collectError', 'avatarUrl']) {
-      expect(findOptions.select).not.toContain(heavy);
-    }
+    expect(pick).toHaveBeenCalledTimes(1);
+    expect(pick.mock.calls[0][1]).toMatchObject({ light: true });
+    // 큐가 건넨 목록 중 채널(그룹 제외)만 수집한다
+    pick.mockRestore();
     expect(handled.sort()).toEqual(['a', 'b']);
     expect(result).toEqual({ ok: 2, fail: 0, remaining: 0 });
   });

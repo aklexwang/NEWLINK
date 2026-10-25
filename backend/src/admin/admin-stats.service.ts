@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
+import { Channel, ChannelStatus } from '../channels/channel.entity';
 import { DISCOVERY_MAX_PER_DAY } from '../stats/channel-discovery.logic';
 import {
   COLLECT_FULL_BUDGET_MIN_DEFAULT,
@@ -13,6 +14,7 @@ import {
   VERIFY_RECHECK_BUDGET_MIN_DEFAULT,
 } from '../stats/collect-budget.logic';
 import { ChannelDiscoveryService } from '../stats/channel-discovery.service';
+import { summarizeCollectQueue } from '../stats/collect-queue.logic';
 import { KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT } from '../stats/mtproto-budget.logic';
 import { RESOLVE_DAILY_LIMIT_DEFAULT } from '../stats/mtproto-access.logic';
 import { MtprotoState } from '../stats/mtproto-state.entity';
@@ -37,6 +39,8 @@ export class AdminStatsService {
     private readonly discovery: ChannelDiscoveryService,
     private readonly categoryAi: CategoryAiService,
     private readonly configService: ConfigService,
+    @InjectRepository(Channel)
+    private readonly channelRepository: Repository<Channel>,
     @InjectRepository(StatsRun)
     private readonly runRepository: Repository<StatsRun>,
     @InjectRepository(MtprotoState)
@@ -83,6 +87,7 @@ export class AdminStatsService {
       where: { id: 1 },
     });
     const discoveryToday = await this.discovery.countSnowballToday();
+    const queue = await this.getQueueSummary();
     return {
       mtproto: {
         enabled: mtproto.enabled,
@@ -148,8 +153,28 @@ export class AdminStatsService {
       categoryAi: this.categoryAi.status(),
       // 메모리 기준이라 서버가 다시 뜨면 0부터 센다
       collectGate: getTmeGate().snapshot(),
+      queue,
       running: this.statsJob.isRunning(),
     };
+  }
+
+  /** 수집 큐 현황: 구간별 채널 수 · 지금 밀린 수 · 다음 24시간 예상 수집 수 */
+  private async getQueueSummary() {
+    const rows = await this.channelRepository.find({
+      where: { status: ChannelStatus.ACTIVE },
+      select: [
+        'id',
+        'linkType',
+        'memberCount',
+        'posts7d',
+        'createdAt',
+        'nextCollectAt',
+        'collectStatus',
+        'collectFailCount',
+        'lastCollectedAt',
+      ],
+    });
+    return summarizeCollectQueue(rows);
   }
 
   async startLight() {

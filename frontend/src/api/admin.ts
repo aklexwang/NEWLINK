@@ -169,7 +169,27 @@ export interface AdminStatsOps {
     run: AdminCollectGateRun | null;
     lastRun: AdminCollectGateRun | null;
   };
+  /** 수집 큐 현황 (next_collect_at 기준) */
+  queue: AdminCollectQueue;
   running: boolean;
+}
+
+export type AdminCollectBand = 'hot' | 'normal' | 'quiet' | 'dormant';
+
+export interface AdminCollectBandSummary {
+  /** 이 구간의 채널 수 */
+  count: number;
+  /** 지금 수집 시각이 지난(밀린) 채널 수 */
+  overdue: number;
+  /** 지금부터 24시간 안에 수집될 것으로 예상되는 횟수 */
+  expected24h: number;
+}
+
+export interface AdminCollectQueue {
+  total: number;
+  overdue: number;
+  expected24h: number;
+  bands: Record<AdminCollectBand, AdminCollectBandSummary>;
 }
 
 export interface AdminCollectGateRun {

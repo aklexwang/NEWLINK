@@ -63,6 +63,7 @@ import {
   publicUsernamesFromContactsSearch,
   type PublicSearchHit,
 } from './mtproto-search.logic';
+import { nextCollectAtAfterSuccess } from './collect-queue.logic';
 import { MtprotoState } from './mtproto-state.entity';
 import {
   extractTmeUsernamesFromHtml,
@@ -820,6 +821,7 @@ export class MtprotoCollectorService implements OnModuleInit {
     channel.collectStatus = 'ok';
     channel.collectError = null;
     channel.collectFailCount = 0;
+    channel.collectGoneCount = 0;
     if (!savePosts) {
       channel.posts7d = data.activity.activity7d;
       if (!channel.languageLocked) {
@@ -828,6 +830,8 @@ export class MtprotoCollectorService implements OnModuleInit {
           data.hangulRatio === undefined ? channel.languageHangulRatio : data.hangulRatio;
       }
     }
+    // MTProto 는 정확한 회원 수를 주므로 그대로 저장했다. 다음 수집 시각을 목표 간격만큼 뒤로 민다
+    channel.nextCollectAt = nextCollectAtAfterSuccess(channel, now);
     await this.channelRepository.save(channel);
 
     const isGroup = !savePosts;

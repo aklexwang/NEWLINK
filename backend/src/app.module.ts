@@ -36,6 +36,7 @@ import { AddSearchTerms1761360000000 } from './migrations/1761360000000-AddSearc
 import { AddSearchLogs1761370000000 } from './migrations/1761370000000-AddSearchLogs';
 import { AddTelegramOpens1761380000000 } from './migrations/1761380000000-AddTelegramOpens';
 import { AddTitleLocked1761390000000 } from './migrations/1761390000000-AddTitleLocked';
+import { AddChannelNextCollectAt1761400000000 } from './migrations/1761400000000-AddChannelNextCollectAt';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -96,6 +97,7 @@ function truthy(value: string | undefined): boolean {
                 AddSearchLogs1761370000000,
                 AddTelegramOpens1761380000000,
                 AddTitleLocked1761390000000,
+                AddChannelNextCollectAt1761400000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -137,6 +139,7 @@ function truthy(value: string | undefined): boolean {
               AddSearchLogs1761370000000,
               AddTelegramOpens1761380000000,
               AddTitleLocked1761390000000,
+              AddChannelNextCollectAt1761400000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -174,6 +177,7 @@ function truthy(value: string | undefined): boolean {
             AddSearchLogs1761370000000,
             AddTelegramOpens1761380000000,
             AddTitleLocked1761390000000,
+            AddChannelNextCollectAt1761400000000,
           ],
         };
       },
