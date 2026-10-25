@@ -1,6 +1,7 @@
 import {
   hasIllegalDrugSuspicion,
   ILLEGAL_HIDE_REASON,
+  illegalSuspicionSql,
   shouldHideIllegalSuspicion,
 } from './illegal-content.logic';
 
@@ -12,6 +13,28 @@ describe('illegal-content.logic', () => {
     expect(hasIllegalDrugSuspicion('아이스크림 맛집', '서울 카페')).toBe(false);
     expect(hasIllegalDrugSuspicion('케이팝 차트', '아이돌 소식')).toBe(false);
     expect(hasIllegalDrugSuspicion('손이 떨려요', '건강 상담')).toBe(false);
+  });
+
+  it('소개글의 마약 금지·추방 규칙 문구는 오탐으로 보지 않는다', () => {
+    expect(
+      hasIllegalDrugSuspicion(
+        '자유홍보방',
+        '홍보 횟수제한 없음 마약, 음란물, 사기꾼 차단',
+      ),
+    ).toBe(false);
+    expect(
+      hasIllegalDrugSuspicion('홍보랜드', '사기. 마약. 19금 절대 금!!'),
+    ).toBe(false);
+    expect(
+      hasIllegalDrugSuspicion('삼국지 홍보', '삼국지 자유홍보 마약/야동 즉시추방'),
+    ).toBe(false);
+    expect(
+      hasIllegalDrugSuspicion('백과사전', '🖥️ 모든 종류의 마약 정보 🖥️'),
+    ).toBe(true);
+  });
+
+  it('소개글의 강한 약물 단어는 문맥과 상관없이 잡는다', () => {
+    expect(hasIllegalDrugSuspicion('정보방', '필로폰 후기 공유')).toBe(true);
   });
 
   it('문제없음이면 숨기지 않는다', () => {
@@ -30,5 +53,13 @@ describe('illegal-content.logic', () => {
       }),
     ).toBe(false);
     expect(ILLEGAL_HIDE_REASON).toBe('불법 의심(관리자 확인)');
+  });
+
+  it('SQL 은 제목 전체·소개 강한 단어만 보고 boolean 리터럴을 쓴다', () => {
+    const sql = illegalSuspicionSql('c', { t: 'TRUE', f: 'FALSE' });
+    expect(sql).toContain("c.title LIKE '%마약%'");
+    expect(sql).not.toContain("c.description LIKE '%마약%'");
+    expect(sql).toContain("c.description LIKE '%필로폰%'");
+    expect(sql).toContain('COALESCE(c.illegal_cleared, FALSE) = FALSE');
   });
 });
