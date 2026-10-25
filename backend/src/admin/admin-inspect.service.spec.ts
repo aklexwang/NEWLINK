@@ -179,6 +179,22 @@ describe('AdminInspectService 부팅', () => {
     expect(group.title).toBe('한국뉴스속보그룹');
   });
 
+  it('단건 조회는 키워드 분류 추천 카테고리를 함께 준다', async () => {
+    const view = await buildService({
+      html: CHANNEL_HTML,
+      status: 200,
+      finalUrl: 'https://t.me/NewsKorea',
+    }).service.inspectOne('@NewsKorea');
+    expect(view.suggestedCategory).toBe('뉴스');
+
+    const weak = await buildService({
+      html: INVITE_HTML,
+      status: 200,
+      finalUrl: 'https://t.me/+uI8tNLAF57MzMThk',
+    }).service.inspectOne('https://t.me/+uI8tNLAF57MzMThk');
+    expect(typeof weak.suggestedCategory).toBe('string');
+  });
+
   it('없는 방은 not_found 이고 제목이 없다', async () => {
     const missing = await buildService({
       html: `This channel doesn't seem to exist`,

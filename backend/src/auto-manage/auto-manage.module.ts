@@ -5,7 +5,6 @@ import { ChannelsModule } from '../channels/channels.module';
 import { RankingModule } from '../ranking/ranking.module';
 import { StatsModule } from '../stats/stats.module';
 import { AutoManageService } from './auto-manage.service';
-import { CategoryAiService } from './category-ai.service';
 import { ChannelImportCandidate } from './channel-import-candidate.entity';
 import { GoogleCseService } from './google-cse.service';
 import { SerperSearchService } from './serper-search.service';
@@ -22,7 +21,6 @@ import { SerperSearchService } from './serper-search.service';
     AutoManageService,
     GoogleCseService,
     SerperSearchService,
-    CategoryAiService,
   ],
 })
 export class AutoManageModule {}

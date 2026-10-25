@@ -7,6 +7,8 @@ import {
   isPlaceholderTitle,
   isPrivateChannelHtml,
   isTelegramOrgUrl,
+  normalizeMultilineText,
+  parsePublicUsernamePage,
   parseCount,
   kindFromTelegramPageExtra,
   parseInviteLinkHtml,
@@ -279,5 +281,60 @@ describe('parseInviteLinkHtml', () => {
         'https://t.me/+abc',
       ).expired,
     ).toBe(true);
+  });
+});
+
+describe('소개글 줄바꿈 보존', () => {
+  const page = (description: string) => `
+<div class="tgme_page_title">소개 있는 채널</div>
+<div class="tgme_page_extra">1 200 subscribers</div>
+<div class="tgme_page_description">${description}</div>`;
+
+  it('<br> 은 줄바꿈이 되어 문장이 붙지 않는다', () => {
+    const parsed = parsePublicUsernamePage(
+      page('안녕하세요 반갑습니다<br>Since 2020<br/>문의는 DM<br />감사합니다'),
+    );
+    expect(parsed.description).toBe(
+      '안녕하세요 반갑습니다\nSince 2020\n문의는 DM\n감사합니다',
+    );
+    expect(parsed.description).not.toContain('반갑습니다Since');
+  });
+
+  it('원본의 실제 줄바꿈도 살리고 줄 안 공백은 하나로 줄인다', () => {
+    const parsed = parsePublicUsernamePage(page('첫째   줄\n둘째 줄\r\n\r\n\r\n\r\n셋째 줄  '));
+    expect(parsed.description).toBe('첫째 줄\n둘째 줄\n\n셋째 줄');
+  });
+
+  it('초대 링크 소개글도 같은 방식으로 읽는다', () => {
+    const parsed = parseInviteLinkHtml(
+      `
+<div class="tgme_page_title">초대방</div>
+<div class="tgme_page_extra">300 members</div>
+<div class="tgme_page_description">첫 줄<br>둘째 줄</div>`,
+      'https://t.me/+abc',
+    );
+    expect(parsed.description).toBe('첫 줄\n둘째 줄');
+  });
+
+  it('og:description 메타의 줄바꿈도 유지한다', () => {
+    const parsed = parsePublicUsernamePage(
+      `
+<div class="tgme_page_title">메타 소개</div>
+<div class="tgme_page_extra">500 subscribers</div>
+<meta property="og:description" content="위 줄&#10;아래 줄">`,
+    );
+    expect(parsed.description).toBe('위 줄\n아래 줄');
+  });
+
+  it('줄바꿈이 없던 소개글은 그대로다', () => {
+    expect(parsePublicUsernamePage(page('공개된 소개글')).description).toBe(
+      '공개된 소개글',
+    );
+  });
+
+  it('normalizeMultilineText: 빈 값은 null', () => {
+    expect(normalizeMultilineText('  \n \n ')).toBeNull();
+    expect(normalizeMultilineText(null)).toBeNull();
+    expect(normalizeMultilineText(undefined)).toBeNull();
   });
 });

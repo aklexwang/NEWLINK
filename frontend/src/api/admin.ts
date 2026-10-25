@@ -147,6 +147,15 @@ export interface AdminStatsOps {
     verifyRecheckMin: number;
   };
   discovery: { today: number; dailyMax: number };
+  categoryAi: {
+    configured: boolean;
+    provider: string | null;
+    model: string | null;
+    today: number;
+    dailyMax: number;
+    stopped: boolean;
+    stopReason: string | null;
+  };
   running: boolean;
 }
 
@@ -238,6 +247,8 @@ export interface AdminChannelLookup {
   result: AdminInspectItemResult;
   resultCaption: string;
   alreadyRegistered: boolean;
+  /** 키워드 분류 추천 카테고리(확신이 낮으면 분류대기) */
+  suggestedCategory?: string;
   existingChannelId: string | null;
   existingStatus: string | null;
   memberPageVisible: boolean | null;

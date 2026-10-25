@@ -1,4 +1,10 @@
-import { AUTO_EXPOSE_MIN_MEMBERS } from '../channels/auto-expose.logic';
+import { DEFAULT_CATEGORIES } from '../categories/default-categories';
+import {
+  AUTO_EXPOSE_MIN_MEMBERS,
+  PENDING_CATEGORY,
+  resolveCategoryWithConfidence,
+} from '../channels/auto-expose.logic';
+import { scoreKeywordCategory } from '../channels/channel-category-score.logic';
 import { linkIdentityKey } from '../channels/channel-link.logic';
 import type { ChannelLanguage } from '../channels/channel-language.logic';
 import {
@@ -268,3 +274,23 @@ function normalizeInviteLink(raw: string): string {
 }
 
 export { AUTO_EXPOSE_MIN_MEMBERS };
+
+/**
+ * 단건 등록 화면의 카테고리 기본값. 제목·소개를 키워드로만 분류한 추천값이고(AI 는 부르지 않는다),
+ * 확신이 낮으면 분류대기를 돌려준다.
+ */
+export function suggestInspectCategory(
+  title: string | null | undefined,
+  description: string | null | undefined,
+): string {
+  const allowed = DEFAULT_CATEGORIES.map((item) => item.name).filter(
+    (name) => name !== PENDING_CATEGORY,
+  );
+  const scored = scoreKeywordCategory({
+    title: title ?? '',
+    description: description ?? '',
+    allowedCategories: allowed,
+  });
+  return resolveCategoryWithConfidence(scored.category, scored.confidence)
+    .category;
+}

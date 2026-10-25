@@ -120,7 +120,7 @@ export function PendingApproveTab() {
                       <Badge variant="outline">{item.category}</Badge>
                     </div>
                     <CardTitle className="text-base">{item.title}</CardTitle>
-                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
+                    <p className="mt-1 line-clamp-2 whitespace-pre-line text-sm text-muted-foreground">{item.description}</p>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">

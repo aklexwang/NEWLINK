@@ -207,7 +207,7 @@ async function main() {
   const ai = new CategoryAiService(new ConfigService(process.env));
   const allowed = ai.defaultCategoryNames();
   if (!ai.isConfigured()) {
-    console.log('OPENAI_API_KEY 없음. 카테고리는 키워드 폴백으로 분류합니다.');
+    console.log('AI_API_KEY 없음. 카테고리는 키워드 폴백으로 분류합니다.');
   }
   console.log(`진행 파일: data/bulk-candidates-progress.json (중단 후 이어서 가능)`);
   const progress = loadProgress();

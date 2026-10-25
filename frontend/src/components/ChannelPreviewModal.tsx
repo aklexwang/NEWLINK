@@ -39,7 +39,7 @@ export function ChannelPreviewModal({ preview, loading, onClose, onApprove }: Ch
               {preview.memberCount && (
                 <p className="mt-1 text-sm text-white/60">{preview.memberCount} subscribers</p>
               )}
-              <p className="mt-3 line-clamp-4 text-sm leading-relaxed text-white/80">{preview.description}</p>
+              <p className="mt-3 line-clamp-4 whitespace-pre-line text-sm leading-relaxed text-white/80">{preview.description}</p>
             </div>
             <div className="border-t border-white/10 px-4 py-4">
               <a

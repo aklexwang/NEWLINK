@@ -153,6 +153,28 @@ export function parseTelegramChannelHtml(html: string): ParsedTelegramPreview {
   return { title, memberCount, usernameFromPosts, posts, hasPreview };
 }
 
+/**
+ * 소개글처럼 줄바꿈이 뜻을 갖는 글을 정리한다. 줄 안의 공백은 하나로 줄이되
+ * 줄바꿈은 남기고, 연속된 빈 줄은 한 줄로 합친다.
+ */
+export function normalizeMultilineText(raw: string | null | undefined): string | null {
+  const text = (raw ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[^\S\n]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return text || null;
+}
+
+/** <br> 을 줄바꿈으로 바꿔 읽는다. 원본에 실제 줄바꿈이 있어도 그대로 살린다. */
+function multilineTextOrNull(node: Cheerio<Element>): string | null {
+  const copy = node.clone();
+  copy.find('br').replaceWith('\n');
+  return normalizeMultilineText(copy.text());
+}
+
 function textOrNull(node: Cheerio<Element>): string | null {
   const text = node.text().replace(/\s+/g, ' ').trim();
   return text || null;
@@ -333,8 +355,8 @@ export function parsePublicUsernamePage(html: string): ParsedPublicUsernamePage 
     $('meta[property="og:title"]').attr('content')?.trim() ||
     null;
   const description =
-    textOrNull($('.tgme_page_description').first()) ||
-    $('meta[property="og:description"]').attr('content')?.trim() ||
+    multilineTextOrNull($('.tgme_page_description').first()) ||
+    normalizeMultilineText($('meta[property="og:description"]').attr('content')) ||
     null;
   const extra = textOrNull($('.tgme_page_extra').first());
   const memberCount = parseTelegramExtraMemberCount(extra);
@@ -403,8 +425,8 @@ export function parseInviteLinkHtml(
     null;
   const extra = textOrNull($('.tgme_page_extra').first());
   const description =
-    textOrNull($('.tgme_page_description').first()) ||
-    $('meta[property="og:description"]').attr('content')?.trim() ||
+    multilineTextOrNull($('.tgme_page_description').first()) ||
+    normalizeMultilineText($('meta[property="og:description"]').attr('content')) ||
     null;
   const rawAvatar =
     $('meta[property="og:image"]').attr('content')?.trim() ||

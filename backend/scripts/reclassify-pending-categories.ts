@@ -1,11 +1,16 @@
 /**
  * 분류대기 채널 키워드 재분류.
  * 기본 dry-run. --apply 일 때만 UPDATE.
+ * --ai: 키워드 점수가 낮은 채널만 AI 로 다시 분류(AI_API_KEY 필요).
+ *   dry-run 에서는 AI 를 부르지 않고 대상 수와 예상 호출 수만 보여 준다.
  * 연결 주소는 출력하지 않습니다.
  */
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { ConfigService } from '@nestjs/config';
 import { Client } from 'pg';
+import { aiSkipReason } from '../src/auto-manage/category-ai.logic';
+import { CategoryAiService } from '../src/auto-manage/category-ai.service';
 import {
   PENDING_CATEGORY,
   resolveCategoryWithConfidence,
@@ -24,6 +29,11 @@ function readTargetUrl(): string {
 
 async function main() {
   const apply = process.argv.includes('--apply');
+  const useAi = process.argv.includes('--ai');
+  const aiService = new CategoryAiService(new ConfigService(process.env));
+  if (useAi && apply && !aiService.isConfigured()) {
+    throw new Error('--ai --apply 에는 AI_API_KEY 가 필요합니다.');
+  }
   const client = new Client({
     connectionString: readTargetUrl(),
     ssl: { rejectUnauthorized: false },
@@ -103,6 +113,8 @@ async function main() {
   const casinoTitles: string[] = [];
   let remainPending = 0;
   let skippedLocked = 0;
+  let aiTargets = 0;
+  let aiResolved = 0;
 
   const ids = pending.rows.map((row) => row.id);
   const postMap = new Map<string, string[]>();
@@ -142,10 +154,41 @@ async function main() {
       posts,
       allowedCategories: allowed,
     });
-    const resolved = resolveCategoryWithConfidence(
+    let resolved = resolveCategoryWithConfidence(
       scored.category,
       scored.confidence,
     );
+    let confidence = scored.confidence;
+    // 키워드로 못 정한 채널만 AI 후보. 불법 의심·성인 키워드 근거가 있는 채널은 제외된다.
+    if (
+      useAi &&
+      resolved.pending &&
+      aiSkipReason({
+        configured: true,
+        keyword: scored,
+        title: row.title,
+        description: row.description,
+        posts,
+      }) === null
+    ) {
+      aiTargets += 1;
+      if (apply) {
+        const classified = await aiService.classify({
+          title: row.title,
+          description: row.description,
+          posts,
+          allowedCategories: allowed,
+        });
+        if (classified.source === 'ai') {
+          resolved = resolveCategoryWithConfidence(
+            classified.category,
+            classified.confidence,
+          );
+          confidence = classified.confidence;
+          if (!resolved.pending) aiResolved += 1;
+        }
+      }
+    }
     byCat.set(resolved.category, (byCat.get(resolved.category) ?? 0) + 1);
     if (resolved.pending) remainPending += 1;
     if (!resolved.pending && resolved.category === '성인') {
@@ -157,7 +200,7 @@ async function main() {
     if (apply && !resolved.pending) {
       await client.query(
         `UPDATE channels SET category = $1, category_confidence = $2 WHERE id = $3 AND COALESCE(category_locked, FALSE) = FALSE`,
-        [resolved.category, scored.confidence, row.id],
+        [resolved.category, confidence, row.id],
       );
     }
   }
@@ -173,6 +216,21 @@ async function main() {
   for (const title of adultTitles) console.log('adult_title', title);
   console.log('--- casino titles ---', casinoTitles.length);
   for (const title of casinoTitles) console.log('casino_title', title);
+  if (useAi) {
+    const limit = aiService.status().dailyMax;
+    console.log('--- AI ---');
+    console.log('ai_targets', aiTargets);
+    console.log('ai_daily_limit', limit);
+    console.log('ai_expected_calls', Math.min(aiTargets, limit));
+    if (apply) {
+      const status = aiService.status();
+      console.log('ai_calls_used', status.today);
+      console.log('ai_resolved', aiResolved);
+      if (status.stopReason) console.log('ai_stopped', status.stopReason);
+    } else {
+      console.log('dry-run: AI 를 부르지 않았습니다.');
+    }
+  }
   console.log(apply ? 'applied' : 'dry-run');
   await client.end();
 }

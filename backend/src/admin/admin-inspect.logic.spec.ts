@@ -6,6 +6,7 @@ import {
   interruptRunningInspectJobs,
   parseAdminInspectLines,
   parseOneInspectLine,
+  suggestInspectCategory,
 } from './admin-inspect.logic';
 
 describe('어드민 링크 미리보기 분류', () => {
@@ -192,5 +193,19 @@ describe('어드민 링크 미리보기 분류', () => {
     expect(() =>
       assertRegisterManySize(Array.from({ length: 101 }, (_, i) => `id-${i}`)),
     ).toThrow(/최대 100개/);
+  });
+});
+
+describe('단건 등록 카테고리 추천', () => {
+  it('제목·소개가 뚜렷하면 키워드 추천 카테고리를 돌려준다', () => {
+    expect(
+      suggestInspectCategory('한국 뉴스 속보 채널', '오늘의 뉴스 속보와 정치 소식'),
+    ).toBe('뉴스');
+    expect(suggestInspectCategory('카지노 토토 사이트', '카지노 베팅')).toBe('카지노');
+  });
+
+  it('근거가 약하면 분류대기를 돌려준다', () => {
+    expect(suggestInspectCategory('소통방', '')).toBe('분류대기');
+    expect(suggestInspectCategory(null, null)).toBe('분류대기');
   });
 });

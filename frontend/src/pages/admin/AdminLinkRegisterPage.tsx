@@ -106,6 +106,11 @@ export function AdminLinkRegisterPage() {
       setTitleValue(result.title);
       setDescription(result.description);
       if (result.linkType) setChosenKind(result.linkType);
+      // 카테고리 기본값은 키워드 분류 추천값(목록에 있을 때만). 직접 바꿀 수 있다.
+      const suggested = result.suggestedCategory;
+      if (suggested && categories.some((item) => item.name === suggested)) {
+        setCategory(suggested);
+      }
       if (!result.title.trim()) {
         setError(NOT_FOUND_MESSAGE);
       } else if (result.alreadyRegistered && result.existingStatus === 'rejected') {

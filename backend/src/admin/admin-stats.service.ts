@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { CategoryAiService } from '../auto-manage/category-ai.service';
 import { DISCOVERY_MAX_PER_DAY } from '../stats/channel-discovery.logic';
 import {
   COLLECT_FULL_BUDGET_MIN_DEFAULT,
@@ -33,6 +34,7 @@ export class AdminStatsService {
   constructor(
     private readonly statsJob: StatsJobService,
     private readonly discovery: ChannelDiscoveryService,
+    private readonly categoryAi: CategoryAiService,
     private readonly configService: ConfigService,
     @InjectRepository(StatsRun)
     private readonly runRepository: Repository<StatsRun>,
@@ -141,6 +143,8 @@ export class AdminStatsService {
         today: discoveryToday,
         dailyMax: DISCOVERY_MAX_PER_DAY,
       },
+      // AI 분류 호출 현황(서버가 켜진 뒤 센 값. 재시작하면 0 부터 다시 센다)
+      categoryAi: this.categoryAi.status(),
       running: this.statsJob.isRunning(),
     };
   }

@@ -36,7 +36,8 @@ PC Nest + Cloudflare 터널 대신, Render에 API를 올려 두면 PC를 꺼도 
 | `TELEGRAM_BOT_TOKEN` | BotFather 토큰 |
 | `TELEGRAM_ADMIN_IDS` | 관리자 텔레그램 숫자 ID |
 | `SERPER_API_KEY` | (선택) Serper 키 |
-| `OPENAI_API_KEY` | (선택) OpenAI 키 |
+| `AI_API_KEY` | (선택) AI 분류 키. `AI_PROVIDER`(deepseek 기본 / openai), `AI_MODEL`, `AI_BASE_URL`, `AI_DAILY_LIMIT`(기본 300) 와 함께 사용 |
+| `OPENAI_API_KEY` | (선택, 하위 호환) `AI_API_KEY` 가 없을 때만 openai 로 사용 |
 | `TGSTAT_API_TOKEN` | (선택) |
 
 6. Deploy 완료 후 서비스 URL 확인  

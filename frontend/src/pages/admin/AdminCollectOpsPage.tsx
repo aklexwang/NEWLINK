@@ -177,6 +177,25 @@ export function AdminCollectOpsPage() {
               </CardTitle>
             </CardHeader>
           </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>오늘 AI 분류</CardDescription>
+              <CardTitle>
+                {ops.categoryAi.configured
+                  ? `${ops.categoryAi.today}/${ops.categoryAi.dailyMax}`
+                  : '꺼짐'}
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground">
+                {!ops.categoryAi.configured
+                  ? 'AI 키 없음 · 키워드만 사용'
+                  : ops.categoryAi.stopReason
+                    ? `오늘 중단됨(${ops.categoryAi.stopReason}) · 키워드 결과 사용`
+                    : ops.categoryAi.stopped
+                      ? '오늘 상한 도달 · 키워드 결과 사용'
+                      : `${ops.categoryAi.provider} · 서버 재시작 후 0부터`}
+              </p>
+            </CardHeader>
+          </Card>
         </section>
       )}
 

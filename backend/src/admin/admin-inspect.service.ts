@@ -43,6 +43,7 @@ import {
   inspectJobTtlCutoff,
   parseAdminInspectLines,
   parseOneInspectLine,
+  suggestInspectCategory,
   toChannelLanguage,
   type AdminInspectPageClassified,
 } from './admin-inspect.logic';
@@ -312,6 +313,10 @@ export class AdminInspectService implements OnModuleInit {
           visibility && !visibility.visible ? visibility.reason : null,
       }),
       alreadyRegistered,
+      // 등록 화면 카테고리 기본값(키워드 추천). 이미 등록된 행은 기존 카테고리를 그대로 쓴다.
+      suggestedCategory: input.existing
+        ? input.existing.category
+        : suggestInspectCategory(input.title, input.description),
       existingChannelId: input.existing?.id ?? null,
       existingStatus: input.existing?.status ?? null,
       memberPageVisible: visibility?.visible ?? null,

@@ -40,7 +40,7 @@
 | `INTERNAL_CRON_TOKEN` | `X-Internal-Token` (수집 run/status) |
 | `SERPER_API_KEY` | 자동관리 검색 (권장) |
 | `GOOGLE_CSE_API_KEY` / `GOOGLE_CSE_CX` | Google CSE 폴백 |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` | 후보 카테고리 분류 (선택) |
+| `AI_PROVIDER` / `AI_API_KEY` / `AI_MODEL` / `AI_BASE_URL` / `AI_DAILY_LIMIT` | AI 카테고리 분류 (선택, 기본 deepseek). 예전 `OPENAI_API_KEY` 도 계속 동작 |
 | `TGSTAT_API_TOKEN` | TGStat 랭킹·동기화 (선택) |
 | `TELEGRAM_PAYMENT_PROVIDER_TOKEN` 등 | TON 프로모션 (미사용 시 더미) |
 

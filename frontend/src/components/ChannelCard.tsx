@@ -91,7 +91,7 @@ export function ChannelCard({
           {channel.isVerified && <VerifiedBadge size="sm" />}
         </div>
         {description ? (
-          <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-tg-hint">{description}</p>
+          <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-[13px] leading-snug text-tg-hint">{description}</p>
         ) : null}
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(channel.linkType)}`}>
