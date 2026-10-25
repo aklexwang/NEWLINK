@@ -35,6 +35,7 @@ import {
   nextCollectAtAfterInvalid,
   nextCollectAtAfterInviteExpired,
   nextCollectAtAfterSuccess,
+  nextFullWindowAt,
 } from './collect-queue.logic';
 import { collectQueueLimit, selectDueChannels } from './collect-queue.query';
 import { resolveMemberCount } from './member-count.logic';
@@ -581,6 +582,11 @@ export class ChannelCollectorService {
       // 미리보기가 막힌 채널은 full 수집(봇·MTProto)이 처리한다. 이미 수집된 채널은 failed 로 덮어쓰지 않는다
       if (shouldMarkLightNoPostsFailed(channel)) {
         await this.markFailed(channel, 'failed', 'preview:no_posts');
+      } else {
+        // 상태를 그대로 두면 매 light 회차 맨 앞에 다시 뽑혀 예산을 쓴다. 다음 새벽 full 로 넘긴다
+        await this.channelRepository.update(channel.id, {
+          nextCollectAt: nextFullWindowAt(),
+        });
       }
       return { ok: false, reason: 'failed' };
     }

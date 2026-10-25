@@ -133,6 +133,31 @@ export function nextCollectAtAfterFailure(
   return new Date(now.getTime() + wait);
 }
 
+/** 새벽 full 수집 기준 시각(KST 03:00). GitHub 크론은 03:05 KST 에 full 을 시작한다 */
+export const FULL_WINDOW_KST_HOUR = 3;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/**
+ * light 가 미리보기를 못 읽은(이미 수집된) 채널: 다음 새벽 full 시각으로 미룬다.
+ * 그동안 light 는 이 채널을 다시 뽑지 않고, full 이 봇·MTProto 로 맨 앞에서 처리한다.
+ * 지금이 KST 03:00 전이면 오늘 03:00, 지났으면 내일 03:00.
+ */
+export function nextFullWindowAt(now = new Date()): Date {
+  const kst = new Date(now.getTime() + KST_OFFSET_MS);
+  const target = Date.UTC(
+    kst.getUTCFullYear(),
+    kst.getUTCMonth(),
+    kst.getUTCDate(),
+    FULL_WINDOW_KST_HOUR,
+    0,
+    0,
+    0,
+  );
+  const targetUtc = target - KST_OFFSET_MS;
+  const next = targetUtc > now.getTime() ? targetUtc : targetUtc + 24 * 60 * 60 * 1000;
+  return new Date(next);
+}
+
 /** 만료된 초대 링크: 7일 뒤에 다시 확인 */
 export function nextCollectAtAfterInviteExpired(now = new Date()): Date {
   return new Date(now.getTime() + INVITE_EXPIRED_RECHECK_MS);

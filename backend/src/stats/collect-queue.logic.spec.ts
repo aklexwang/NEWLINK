@@ -1,4 +1,5 @@
 import {
+  nextFullWindowAt,
   COLLECT_BAND_INTERVAL_MS,
   FAIL_BACKOFF_MAX_MS,
   failureBackoffMultiplier,
@@ -215,5 +216,26 @@ describe('수집 운영 요약', () => {
     );
     expect(summary.overdue).toBe(0);
     expect(summary.expected24h).toBe(0);
+  });
+});
+
+describe('light 가 못 읽은 채널은 다음 새벽 full 로 미룬다', () => {
+  it('KST 03:00 전이면 오늘 03:00 KST', () => {
+    // 2026-10-26 01:30 KST = 2026-10-25 16:30Z
+    const at = nextFullWindowAt(new Date('2026-10-25T16:30:00Z'));
+    expect(at.toISOString()).toBe('2026-10-25T18:00:00.000Z');
+  });
+  it('KST 03:00 이 지났으면 내일 03:00 KST', () => {
+    // 2026-10-26 09:00 KST = 2026-10-26 00:00Z
+    const at = nextFullWindowAt(new Date('2026-10-26T00:00:00Z'));
+    expect(at.toISOString()).toBe('2026-10-26T18:00:00.000Z');
+  });
+  it('정확히 03:00 KST 면 다음 날', () => {
+    const at = nextFullWindowAt(new Date('2026-10-25T18:00:00Z'));
+    expect(at.toISOString()).toBe('2026-10-26T18:00:00.000Z');
+  });
+  it('밤 23:50 KST 면 다음 날 03:00 KST', () => {
+    const at = nextFullWindowAt(new Date('2026-10-25T14:50:00Z'));
+    expect(at.toISOString()).toBe('2026-10-25T18:00:00.000Z');
   });
 });
