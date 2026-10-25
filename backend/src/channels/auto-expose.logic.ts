@@ -63,6 +63,18 @@ export function isPendingCategory(name: string | null | undefined): boolean {
   return (name ?? '').trim() === PENDING_CATEGORY;
 }
 
+export function isWeeklyReclassifyTarget(channel: {
+  status?: string | null;
+  category?: string | null;
+  categoryLocked?: boolean | null;
+}): boolean {
+  return (
+    channel.status === 'active' &&
+    isPendingCategory(channel.category) &&
+    channel.categoryLocked !== true
+  );
+}
+
 /** 홈·피드·랭킹 기본값에서 성인을 뺄지. 성인 카테고리를 고르면 남긴다. */
 export function allowAdultInList(
   category: string | null | undefined,

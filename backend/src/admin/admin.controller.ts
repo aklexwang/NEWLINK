@@ -345,6 +345,7 @@ export class AdminController {
       link: dto.link,
       isVisible: dto.isVisible,
       categoryLocked: dto.categoryLocked,
+      illegalCleared: dto.illegalCleared,
       },
       user.id,
     );

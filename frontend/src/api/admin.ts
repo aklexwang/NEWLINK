@@ -380,6 +380,7 @@ export async function updateAdminChannel(
     link?: string;
     isVisible?: boolean;
     categoryLocked?: boolean;
+    illegalCleared?: boolean;
   }>,
 ) {
   const { data } = await apiClient.patch(`/admin/channels/${id}`, payload, {

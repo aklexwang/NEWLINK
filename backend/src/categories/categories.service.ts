@@ -10,7 +10,10 @@ import { ChannelImportCandidate } from '../auto-manage/channel-import-candidate.
 import { Channel } from '../channels/channel.entity';
 import { CategoryEntity } from './category.entity';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
-import { DEFAULT_CATEGORIES } from './default-categories';
+import {
+  DEFAULT_CATEGORIES,
+  MERGED_CATEGORY_NAMES,
+} from './default-categories';
 
 export { DEFAULT_CATEGORIES } from './default-categories';
 
@@ -65,6 +68,22 @@ export class CategoriesService implements OnModuleInit {
         dirty = true;
       }
       if (dirty) await this.categoryRepository.save(existing);
+    }
+
+    for (const [from, to] of Object.entries(MERGED_CATEGORY_NAMES)) {
+      await this.channelRepository.update({ category: from }, { category: to });
+      await this.candidateRepository.update(
+        { category: from },
+        { category: to },
+      );
+      await this.candidateRepository.update(
+        { categoryAiSuggested: from },
+        { categoryAiSuggested: to },
+      );
+      const leftover = await this.categoryRepository.findOne({
+        where: { name: from },
+      });
+      if (leftover) await this.categoryRepository.remove(leftover);
     }
 
     for (const name of OBSOLETE_CATEGORIES) {

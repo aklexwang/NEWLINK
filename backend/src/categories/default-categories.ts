@@ -19,5 +19,17 @@ export const DEFAULT_CATEGORIES = [
   { name: '구인구직', emoji: '💼', sortOrder: 16 },
   { name: '성인', emoji: '🔞', sortOrder: 17 },
   { name: '카지노', emoji: '🎰', sortOrder: 18 },
-  { name: '기타', emoji: '📁', sortOrder: 19 },
+  { name: '홍보', emoji: '📢', sortOrder: 19 },
+  { name: '반려동물', emoji: '🐾', sortOrder: 20 },
+  { name: '육아', emoji: '🍼', sortOrder: 21 },
+  { name: '종교', emoji: '🙏', sortOrder: 22 },
+  { name: '기타', emoji: '📁', sortOrder: 23 },
 ];
+
+/** 옛 이름 → 현재 이름. 채널 이동 후 빈 행 삭제 */
+export const MERGED_CATEGORY_NAMES: Record<string, string> = {
+  증권: '경제',
+  웹튠: '엔터테인먼트',
+  News: '뉴스',
+  Community: '커뮤니티',
+};

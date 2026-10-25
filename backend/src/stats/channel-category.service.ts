@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
 import {
+  isWeeklyReclassifyTarget,
   PENDING_CATEGORY,
   resolveCategoryWithConfidence,
 } from '../channels/auto-expose.logic';
@@ -67,12 +68,16 @@ export class ChannelCategoryService {
 
   async classifyUnlockedWeekly(): Promise<{ updated: number; skipped: number }> {
     const channels = await this.channelRepository.find({
-      where: { status: ChannelStatus.ACTIVE },
+      where: {
+        status: ChannelStatus.ACTIVE,
+        category: PENDING_CATEGORY,
+        categoryLocked: false,
+      },
     });
     let updated = 0;
     let skipped = 0;
     for (const channel of channels) {
-      if (channel.categoryLocked) {
+      if (!isWeeklyReclassifyTarget(channel) || channel.categoryLocked) {
         skipped += 1;
         continue;
       }
@@ -81,7 +86,7 @@ export class ChannelCategoryService {
       if (next.category !== before) updated += 1;
     }
     this.logger.log(
-      `주간 카테고리 재분류: 변경 ${updated} / 고정 ${skipped} / 대상 ${channels.length}`,
+      `주간 카테고리 재분류: 변경 ${updated} / 건너뜀 ${skipped} / 대상 ${channels.length}`,
     );
     return { updated, skipped };
   }

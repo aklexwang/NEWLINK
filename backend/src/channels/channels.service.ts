@@ -1184,6 +1184,7 @@ export class ChannelsService implements OnModuleInit {
         | 'link'
         | 'isVisible'
         | 'categoryLocked'
+        | 'illegalCleared'
       >
     >,
     actorTelegramId?: number,
@@ -1217,6 +1218,10 @@ export class ChannelsService implements OnModuleInit {
     }
     if (data.categoryLocked !== undefined) {
       channel.categoryLocked = data.categoryLocked;
+    }
+    if (data.illegalCleared !== undefined) {
+      channel.illegalCleared = data.illegalCleared;
+      channel.illegalClearedAt = data.illegalCleared ? new Date() : null;
     }
     if (data.isVisible !== undefined && data.isVisible !== channel.isVisible) {
       await this.recordVisibilityChange(

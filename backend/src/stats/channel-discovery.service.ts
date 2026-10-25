@@ -9,6 +9,7 @@ import {
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { AutoExposeService } from './auto-expose.service';
 import { isPublicCollectable } from './collect-visibility';
+import { hasIllegalDrugSuspicion } from '../channels/illegal-content.logic';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import {
   aggregateMentionedUsernames,
@@ -300,6 +301,7 @@ export class ChannelDiscoveryService {
     if (existing) return;
     const username = extractTelegramUsernameFromLink(info.link);
     if (username && (await this.hasActiveUsername(username))) return;
+    if (hasIllegalDrugSuspicion(info.title, info.description)) return;
 
     const classified = await this.categoryAi.classify({
       title: info.title,

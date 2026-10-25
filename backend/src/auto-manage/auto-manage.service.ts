@@ -9,6 +9,7 @@ import {
   CategoriesService,
   DEFAULT_CATEGORIES,
 } from '../categories/categories.service';
+import { hasIllegalDrugSuspicion } from '../channels/illegal-content.logic';
 import { ChannelStatus, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { TelegramRankingService } from '../ranking/telegram-ranking.service';
@@ -283,6 +284,9 @@ export class AutoManageService {
       }
 
       const title = hit.title.slice(0, 255) || link;
+      if (hasIllegalDrugSuspicion(title, hit.snippet)) {
+        continue;
+      }
       let category = forceCategory ?? '기타';
       let categoryAiSuggested: string | null = null;
       let categoryConfidence: number | null = null;

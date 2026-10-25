@@ -44,6 +44,8 @@ export interface Channel {
   languageLocked?: boolean;
   isVisible?: boolean;
   categoryLocked?: boolean;
+  illegalCleared?: boolean;
+  illegalClearedAt?: string | null;
   categoryConfidence?: number | null;
   payoutStatus?: 'not_eligible' | 'pending' | 'paid' | 'skipped';
   payoutSkipReason?: string | null;

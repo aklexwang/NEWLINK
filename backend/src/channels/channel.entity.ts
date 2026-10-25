@@ -210,6 +210,17 @@ export class Channel {
   @Column({ name: 'category_locked', default: false })
   categoryLocked: boolean;
 
+  /** 관리자가 불법 의심을 문제없음으로 풀었는지 */
+  @Column({ name: 'illegal_cleared', default: false })
+  illegalCleared: boolean;
+
+  @Column({
+    name: 'illegal_cleared_at',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
+  illegalClearedAt: Date | null;
+
   @Column({ name: 'category_confidence', type: 'real', nullable: true })
   categoryConfidence: number | null;
 

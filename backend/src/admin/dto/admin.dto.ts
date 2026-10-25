@@ -215,6 +215,10 @@ export class UpdateChannelDto {
   @IsBoolean()
   @IsOptional()
   categoryLocked?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  illegalCleared?: boolean;
 }
 
 export class BulkVisibilityDto {

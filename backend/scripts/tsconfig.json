@@ -11,6 +11,9 @@
   "include": [
     "./**/*.ts",
     "../src/channels/merge-duplicate-channels.logic.ts",
-    "../src/channels/channel-language.logic.ts"
+    "../src/channels/channel-language.logic.ts",
+    "../src/channels/channel-category-score.logic.ts",
+    "../src/channels/auto-expose.logic.ts",
+    "../src/channels/illegal-content.logic.ts"
   ]
 }

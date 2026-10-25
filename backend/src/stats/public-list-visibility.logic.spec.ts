@@ -81,6 +81,27 @@ describe('describeMemberPageVisibility', () => {
     ).toEqual({ visible: false, reason: '외국어', reasonKey: '외국어' });
   });
 
+  it('불법 의심은 숨기고 문제없음이면 통과한다', () => {
+    const base = {
+      status: 'active' as const,
+      isVisible: true,
+      firstObservedAt: observed,
+      collectStatus: 'ok' as const,
+      category: '뉴스',
+      language: 'ko' as const,
+      title: '필로폰 정보',
+      description: '',
+    };
+    expect(describeMemberPageVisibility({ ...base, illegalCleared: false })).toEqual({
+      visible: false,
+      reason: '불법 의심(관리자 확인)',
+      reasonKey: '불법 의심(관리자 확인)',
+    });
+    expect(
+      describeMemberPageVisibility({ ...base, illegalCleared: true }),
+    ).toEqual({ visible: true, reason: '', reasonKey: '' });
+  });
+
   it('분류대기는 숨긴다', () => {
     expect(
       describeMemberPageVisibility({

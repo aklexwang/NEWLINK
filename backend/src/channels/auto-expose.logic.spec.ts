@@ -4,6 +4,7 @@ import {
   canAutoExpose,
   CATEGORY_CONFIDENCE_MIN,
   isChannelListed,
+  isWeeklyReclassifyTarget,
   PENDING_CATEGORY,
   resolveCategoryWithConfidence,
 } from './auto-expose.logic';
@@ -45,6 +46,32 @@ describe('resolveCategoryWithConfidence', () => {
       category: '뉴스',
       pending: false,
     });
+  });
+});
+
+describe('isWeeklyReclassifyTarget', () => {
+  it('분류대기이고 고정이 아닌 활성만 다시 분류한다', () => {
+    expect(
+      isWeeklyReclassifyTarget({
+        status: 'active',
+        category: '분류대기',
+        categoryLocked: false,
+      }),
+    ).toBe(true);
+    expect(
+      isWeeklyReclassifyTarget({
+        status: 'active',
+        category: '뉴스',
+        categoryLocked: false,
+      }),
+    ).toBe(false);
+    expect(
+      isWeeklyReclassifyTarget({
+        status: 'active',
+        category: '분류대기',
+        categoryLocked: true,
+      }),
+    ).toBe(false);
   });
 });
 

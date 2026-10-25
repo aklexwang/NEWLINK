@@ -18,6 +18,7 @@ import {
 } from '../channels/channel.entity';
 import { resolveCollectTier } from './collect-tier.logic';
 import { detectChannelLanguage } from '../channels/channel-language.logic';
+import { hasIllegalDrugSuspicion } from '../channels/illegal-content.logic';
 import { ChannelsService } from '../channels/channels.service';
 import { TelegramPreviewService } from '../channels/telegram-preview.service';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
@@ -118,6 +119,9 @@ export class AutoExposeService {
         hasActiveUsername: Boolean(dup),
       });
       if (!check.ok) return false;
+      if (hasIllegalDrugSuspicion(inspected.title, inspected.description)) {
+        return false;
+      }
 
       let channel =
         (await this.channelsService.findByLink(inspected.link)) ?? null;
@@ -180,6 +184,9 @@ export class AutoExposeService {
       hasActiveUsername: Boolean(dup),
     });
     if (!check.ok) return false;
+    if (hasIllegalDrugSuspicion(inspected.title, inspected.description)) {
+      return false;
+    }
     if (await this.channelsService.findByLink(inspected.link)) return false;
 
     let channel = await this.channelsService.createByAdmin(
@@ -223,6 +230,9 @@ export class AutoExposeService {
       hasActiveUsername: hasDup,
     });
     if (!check.ok) return null;
+    if (hasIllegalDrugSuspicion(inspected.title, inspected.description)) {
+      return null;
+    }
 
     channel.status = ChannelStatus.ACTIVE;
     channel.language = inspected.language;

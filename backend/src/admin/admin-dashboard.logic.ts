@@ -1,3 +1,4 @@
+import { illegalSuspicionSql } from '../channels/illegal-content.logic';
 import { addKstDays, formatKstYmd } from '../stats/channel-metrics.math';
 import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
 import { classifyRegisterSource } from './admin-list.logic';
@@ -14,6 +15,9 @@ export type DashboardChannelRow = {
   autoRegistered?: boolean | null;
   submittedBy?: number | null;
   category?: string | null;
+  title?: string | null;
+  description?: string | null;
+  illegalCleared?: boolean | null;
   createdAt: Date | string;
 };
 
@@ -127,6 +131,7 @@ export function visibilityReasonSql(
     WHEN ${alias}.collect_status = 'merged' THEN '합쳐진 채널'
     WHEN ${alias}.collect_status = 'invite_expired' THEN '초대 만료'
     WHEN ${alias}.language = 'foreign' AND COALESCE(${alias}.is_promoted, ${bool.f}) = ${bool.f} THEN '외국어'
+    WHEN ${illegalSuspicionSql(alias, bool)} THEN '불법 의심(관리자 확인)'
     WHEN ${alias}.category = '분류대기' THEN '분류대기'
     WHEN ${alias}.category = '성인' THEN '성인 카테고리'
     ELSE ''

@@ -2,6 +2,10 @@ import {
   allowAdultInList,
   isPendingCategory,
 } from '../channels/auto-expose.logic';
+import {
+  ILLEGAL_HIDE_REASON,
+  shouldHideIllegalSuspicion,
+} from '../channels/illegal-content.logic';
 import { ChannelStatus } from '../channels/channel.entity';
 import { isVisibleOnPublicLists } from '../channels/channel-language.logic';
 import { HIDDEN_COLLECT_STATUSES, isPublicCollectable } from './collect-visibility';
@@ -27,6 +31,7 @@ export const MEMBER_PAGE_REASON = {
   foreign: '외국어',
   pendingCategory: '분류대기',
   adult: '성인 카테고리',
+  illegal: ILLEGAL_HIDE_REASON,
 } as const;
 
 export type MemberPageReasonKey =
@@ -51,6 +56,9 @@ export function describeMemberPageVisibility(channel: {
   autoRegistered?: boolean | null;
   submittedBy?: number | null;
   category?: string | null;
+  title?: string | null;
+  description?: string | null;
+  illegalCleared?: boolean | null;
 }): MemberPageVisibility {
   if (channel.status && channel.status !== ChannelStatus.ACTIVE) {
     return hidden(MEMBER_PAGE_REASON.notApproved);
@@ -99,6 +107,9 @@ export function describeMemberPageVisibility(channel: {
 
   if (!isVisibleOnPublicLists(channel)) {
     return hidden(MEMBER_PAGE_REASON.foreign);
+  }
+  if (shouldHideIllegalSuspicion(channel)) {
+    return hidden(MEMBER_PAGE_REASON.illegal);
   }
   if (isPendingCategory(channel.category)) {
     return hidden(MEMBER_PAGE_REASON.pendingCategory);

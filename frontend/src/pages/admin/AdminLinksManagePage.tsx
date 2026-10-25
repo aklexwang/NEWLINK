@@ -61,6 +61,7 @@ const HIDE_REASONS = [
   '외국어',
   '분류대기',
   '성인 카테고리',
+  '불법 의심(관리자 확인)',
 ];
 
 type Draft = {
@@ -69,6 +70,7 @@ type Draft = {
   category: string;
   categoryLocked: boolean;
   isVisible: boolean;
+  illegalCleared: boolean;
 };
 
 function param(params: URLSearchParams, key: string) {
@@ -175,6 +177,7 @@ export function AdminLinksManagePage() {
     if (draft.category !== channel.category) payload.category = draft.category;
     if (draft.categoryLocked !== Boolean(channel.categoryLocked)) payload.categoryLocked = draft.categoryLocked;
     if (draft.isVisible !== (channel.isVisible !== false)) payload.isVisible = draft.isVisible;
+    if (draft.illegalCleared !== Boolean(channel.illegalCleared)) payload.illegalCleared = draft.illegalCleared;
     if (languageLocked !== Boolean(channel.languageLocked)) payload.languageLocked = languageLocked;
     if (languageLocked && language && language !== channel.language) {
       payload.language = language as 'ko' | 'foreign' | 'unknown';
@@ -620,6 +623,28 @@ export function AdminLinksManagePage() {
                                   <input type="checkbox" checked={draft.isVisible} onChange={(e) => setDrafts((prev) => ({ ...prev, [channel.id]: { ...draft, isVisible: e.target.checked } }))} />
                                   공개 노출 활성
                                 </label>
+                                {(channel.memberPageReasonKey === '불법 의심(관리자 확인)' ||
+                                  draft.illegalCleared ||
+                                  Boolean(channel.illegalCleared)) && (
+                                  <label className="flex items-center gap-2 text-xs text-slate-600">
+                                    <input
+                                      type="checkbox"
+                                      checked={draft.illegalCleared}
+                                      onChange={(e) =>
+                                        setDrafts((prev) => ({
+                                          ...prev,
+                                          [channel.id]: {
+                                            ...draft,
+                                            illegalCleared: e.target.checked,
+                                          },
+                                        }))
+                                      }
+                                    />
+                                    {draft.illegalCleared
+                                      ? '불법 의심 문제없음 (체크 해제하면 다시 숨김)'
+                                      : '불법 의심 · 문제없음으로 풀기'}
+                                  </label>
+                                )}
                               </div>
                               {channel.status === 'active' && (
                                 <div className="rounded-xl bg-purple-50 px-3 py-3 ring-1 ring-purple-100">
@@ -679,5 +704,6 @@ function draftFromChannel(channel: PendingChannel): Draft {
     category: channel.category,
     categoryLocked: Boolean(channel.categoryLocked),
     isVisible: channel.isVisible !== false,
+    illegalCleared: Boolean(channel.illegalCleared),
   };
 }

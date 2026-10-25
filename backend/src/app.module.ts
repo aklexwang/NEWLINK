@@ -31,6 +31,7 @@ import { AddChannelCollectTier1761300000000 } from './migrations/1761300000000-A
 import { AddAdminInspectJobs1761320000000 } from './migrations/1761320000000-AddAdminInspectJobs';
 import { AddDiscoveryKeywords1761330000000 } from './migrations/1761330000000-AddDiscoveryKeywords';
 import { AddRewardPayoutLedger1761340000000 } from './migrations/1761340000000-AddRewardPayoutLedger';
+import { AddIllegalCleared1761350000000 } from './migrations/1761350000000-AddIllegalCleared';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -86,6 +87,7 @@ function truthy(value: string | undefined): boolean {
                 AddAdminInspectJobs1761320000000,
                 AddDiscoveryKeywords1761330000000,
                 AddRewardPayoutLedger1761340000000,
+                AddIllegalCleared1761350000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -122,6 +124,7 @@ function truthy(value: string | undefined): boolean {
               AddAdminInspectJobs1761320000000,
               AddDiscoveryKeywords1761330000000,
               AddRewardPayoutLedger1761340000000,
+              AddIllegalCleared1761350000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -154,6 +157,7 @@ function truthy(value: string | undefined): boolean {
             AddAdminInspectJobs1761320000000,
             AddDiscoveryKeywords1761330000000,
             AddRewardPayoutLedger1761340000000,
+            AddIllegalCleared1761350000000,
           ],
         };
       },
