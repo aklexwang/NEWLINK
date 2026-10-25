@@ -4,6 +4,8 @@ export type AdminInspectItemResult =
   | 'ok'
   | 'already_registered'
   | 'not_korean'
+  /** 언어를 확인하지 못함. 경고만 하고 등록은 허용 */
+  | 'language_unknown'
   | 'too_small'
   | 'not_found'
   | 'invite_or_private'

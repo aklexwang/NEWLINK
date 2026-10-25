@@ -2,13 +2,7 @@ import {
   ChannelStatus,
   type ChannelCollectStatus,
 } from '../channels/channel.entity';
-import {
-  allowAdultInList,
-  isPendingCategory,
-} from '../channels/auto-expose.logic';
-import { isDefaultPublicLanguage } from '../channels/channel-language.logic';
-import { shouldHideIllegalSuspicion } from '../channels/illegal-content.logic';
-import { isPublicCollectable } from './collect-visibility';
+import { describeMemberPageVisibility } from './public-list-visibility.logic';
 
 export type WeeklyHeadlineChannel = {
   status?: string | null;
@@ -20,21 +14,22 @@ export type WeeklyHeadlineChannel = {
   title?: string | null;
   description?: string | null;
   illegalCleared?: boolean | null;
+  isPromoted?: boolean | null;
+  autoRegistered?: boolean | null;
+  submittedBy?: number | null;
+  collectError?: string | null;
 };
 
-/** 홈 상위·랭킹과 같이 주간 소식에 올릴 채널인지 */
+/**
+ * 주간 소식에 올릴 채널인지. 회원 화면과 같은 노출 규칙(describeMemberPageVisibility)을 쓴다.
+ * 승인된 채널만, 외국어·성인·분류대기·사라짐·합쳐짐·불법 의심은 제외한다.
+ */
 export function isWeeklyHeadlineChannel(
   channel: WeeklyHeadlineChannel,
 ): boolean {
   if (channel.status !== ChannelStatus.ACTIVE) return false;
-  if (!isPublicCollectable(channel)) return false;
-  if (!isDefaultPublicLanguage(channel.language)) return false;
-  if (shouldHideIllegalSuspicion(channel)) return false;
-  if (!allowAdultInList(channel.category)) return false;
-  if (isPendingCategory(channel.category)) return false;
-  return true;
+  return describeMemberPageVisibility(channel).visible;
 }
-
 export type RankUpLike = {
   channelId: string;
   occurredAt: Date | string;

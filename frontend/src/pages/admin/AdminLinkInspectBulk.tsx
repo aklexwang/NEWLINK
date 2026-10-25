@@ -18,6 +18,7 @@ const RESULT_LABEL: Record<AdminInspectItemResult, string> = {
   ok: '정상',
   already_registered: '이미 등록됨',
   not_korean: '외국어',
+  language_unknown: '언어 미확인',
   too_small: '100명 미만',
   not_found: '없는 채널',
   invite_or_private: '초대 만료·비공개',
@@ -25,6 +26,11 @@ const RESULT_LABEL: Record<AdminInspectItemResult, string> = {
 };
 
 const REGISTER_MAX = 100;
+
+// 정상과 '언어 미확인'(경고만)은 등록할 수 있다. 미확인은 기본 선택에서 빠진다.
+function isRegistrable(item: AdminInspectItemView) {
+  return (item.result === 'ok' || item.result === 'language_unknown') && !item.registeredChannelId;
+}
 
 function apiErrorMessage(error: unknown, fallback: string) {
   if (axios.isAxiosError(error)) {
@@ -286,7 +292,7 @@ export function AdminLinkInspectBulk() {
               </thead>
               <tbody>
                 {job.items.map((item) => {
-                  const canSelect = item.result === 'ok' && !item.registeredChannelId;
+                  const canSelect = isRegistrable(item);
                   return (
                     <tr key={item.id} className="border-b border-slate-50">
                       <td className="px-2 py-2">
@@ -330,7 +336,7 @@ function defaultSelected(items: AdminInspectItemView[]) {
 function keepAllowedSelection(prev: Set<string>, items: AdminInspectItemView[]) {
   const allowed = new Set(
     items
-      .filter((item) => item.result === 'ok' && !item.registeredChannelId)
+      .filter(isRegistrable)
       .map((item) => item.id),
   );
   const next = new Set<string>();

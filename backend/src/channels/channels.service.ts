@@ -17,13 +17,25 @@ import {
   HIDDEN_COLLECT_STATUSES,
   isPublicCollectable,
 } from '../stats/collect-visibility';
-import { isVisibleOnPublicLists } from './channel-language.logic';
 import {
-  channelLinkKey,
+  isVisibleOnPublicLists,
+  type ChannelLanguage,
+} from './channel-language.logic';
+import {
   dedupeChannelsByLink,
   normalizeTelegramLink,
 } from './channel-link.logic';
+import {
+  DUPLICATE_ACTIVE_OR_PENDING_MESSAGE,
+  DUPLICATE_REJECTED_CODE,
+  DUPLICATE_REJECTED_MESSAGE,
+  duplicateSearchTerm,
+  pickDuplicate,
+  type DuplicateMatch,
+} from './link-duplicate.logic';
+import { isTitleLocked } from './title-lock.logic';
 import { shouldHideIllegalSuspicion } from './illegal-content.logic';
+import { selectMemberVisibleRows } from '../stats/member-visible.logic';
 import { buildMemberRankingCounts } from '../stats/member-page-count.logic';
 import { loadMemberPageRows } from '../stats/member-page-rows';
 import {
@@ -143,34 +155,80 @@ export class ChannelsService implements OnModuleInit {
       .getOne();
   }
 
+  /**
+   * 같은 링크가 이미 있는지 찾는 단 하나의 함수. 모든 등록 경로가 이것을 쓴다.
+   * - 공개 링크는 username(대소문자 무시), 초대 링크는 해시(대소문자 구분)로 비교
+   * - 합쳐진(merged) 행은 비교하지 않고, 여러 행이면 ACTIVE > PENDING > REJECTED 순
+   */
+  async findDuplicate(
+    link: string,
+    options?: { excludeId?: string },
+  ): Promise<DuplicateMatch<Channel> | null> {
+    const term = duplicateSearchTerm(link);
+    if (!term) return null;
+    // 후보만 좁히고(소문자 부분 일치), 정확한 비교는 pickDuplicate 가 한다
+    const rows = await this.channelRepository
+      .createQueryBuilder('channel')
+      .where('LOWER(channel.link) LIKE :like', { like: `%${term}%` })
+      .orWhere('LOWER(channel.username) = :term', { term })
+      .getMany();
+    return pickDuplicate(rows, link, options?.excludeId);
+  }
+
+  /** 승인된(ACTIVE) 같은 링크 행. 없으면 null */
   async findActiveDuplicate(link: string): Promise<Channel | null> {
-    const normalized = this.normalizeTelegramLink(link);
-    const username = extractTelegramUsernameFromLink(normalized);
-    if (username) {
-      const byUser = await this.findActiveByUsername(username);
-      if (byUser) return byUser;
-    }
-    const byLink = await this.findByLink(normalized);
-    if (byLink?.status === ChannelStatus.ACTIVE) return byLink;
-    return null;
+    const match = await this.findDuplicate(link);
+    return match?.kind === 'active' ? match.channel : null;
+  }
+
+  /** 회원 제보에서 중복일 때 돌려줄 오류 */
+  private memberDuplicateError(match: DuplicateMatch<Channel>): ConflictException {
+    return new ConflictException(
+      match.kind === 'rejected'
+        ? DUPLICATE_REJECTED_MESSAGE
+        : DUPLICATE_ACTIVE_OR_PENDING_MESSAGE,
+    );
+  }
+
+  /**
+   * 제보 링크의 채널/그룹 종류를 서버가 판별한다(단건 등록과 같은 미리보기 fetcher).
+   * 판별에 실패했을 때만 회원이 고른 값을 쓰고, 그것도 없으면 선택을 요청한다.
+   */
+  private async resolveSubmitLinkType(
+    link: string,
+    chosen: LinkType | undefined,
+  ): Promise<LinkType> {
+    const preview = await this.telegramPreviewService.fetchPreview(link);
+    if (preview.kind === 'group') return LinkType.GROUP;
+    if (preview.kind === 'channel') return LinkType.CHANNEL;
+    if (chosen === LinkType.CHANNEL || chosen === LinkType.GROUP) return chosen;
+    throw new BadRequestException({
+      statusCode: 400,
+      code: 'LINK_TYPE_REQUIRED',
+      message:
+        '채널인지 그룹인지 자동으로 확인하지 못했습니다. 직접 선택해 주세요.',
+    });
   }
 
   async create(dto: CreateChannelDto, submittedBy: number): Promise<Channel> {
-    const duplicate = await this.findActiveDuplicate(dto.link);
+    // 제보 링크는 정규화해서 저장하고, 중복 판단도 같은 링크로 한다
+    const link = this.normalizeTelegramLink(dto.link);
+    const duplicate = await this.findDuplicate(link);
     if (duplicate) {
-      throw new ConflictException(ALREADY_REGISTERED_CHANNEL);
+      throw this.memberDuplicateError(duplicate);
     }
+    const linkType = await this.resolveSubmitLinkType(link, dto.linkType);
     const channel = this.channelRepository.create({
       ...dto,
+      link,
+      linkType,
       submittedBy,
       status: ChannelStatus.PENDING,
       avatarApproved: false,
       collectTier: 'daily',
       payoutStatus: 'pending',
       payoutSkipReason: null,
-      username: usernameFromChannelLink(
-        this.normalizeTelegramLink(dto.link),
-      ),
+      username: usernameFromChannelLink(link),
     });
     const saved = await this.channelRepository.save(channel);
     void this.refreshPreview(saved.id).catch(() => undefined);
@@ -213,17 +271,6 @@ export class ChannelsService implements OnModuleInit {
     return dedupeChannelsByLink(channels);
   }
 
-  async findByLink(link: string): Promise<Channel | null> {
-    const normalized = this.normalizeTelegramLink(link);
-    const compact = normalized.toLowerCase().replace(/\/$/, '');
-    return this.channelRepository
-      .createQueryBuilder('channel')
-      .where("LOWER(REPLACE(channel.link, '/', '')) = :compact", {
-        compact: compact.replace(/\//g, ''),
-      })
-      .getOne();
-  }
-
   async lookupTelegramLink(rawLink: string) {
     if (!rawLink?.trim()) {
       throw new BadRequestException('링크를 입력해 주세요.');
@@ -237,9 +284,7 @@ export class ChannelsService implements OnModuleInit {
     }
 
     const preview = await this.telegramPreviewService.fetchPreview(link);
-    const existing = await this.findByLink(link);
-    const duplicate = await this.findActiveDuplicate(link);
-    const shown = duplicate ?? existing;
+    const match = await this.findDuplicate(link);
 
     return {
       link,
@@ -248,9 +293,9 @@ export class ChannelsService implements OnModuleInit {
       avatarUrl: stripUnsafeAvatarUrl(preview.avatarUrl),
       memberCount: preview.memberCount,
       linkType: preview.kind,
-      alreadyRegistered: Boolean(duplicate ?? existing),
-      existingChannelId: shown?.id ?? null,
-      existingStatus: shown?.status ?? null,
+      alreadyRegistered: Boolean(match),
+      existingChannelId: match?.channel.id ?? null,
+      existingStatus: match?.channel.status ?? null,
     };
   }
 
@@ -262,36 +307,63 @@ export class ChannelsService implements OnModuleInit {
       category: string;
       description?: string;
       isPromoted?: boolean;
+      /** 검사로 판별한 언어. 있으면 그대로 저장한다 */
+      language?: ChannelLanguage | null;
     },
-    options?: { skipPublicCollect?: boolean },
+    options?: { skipPublicCollect?: boolean; reactivateRejected?: boolean },
   ): Promise<Channel> {
     const link = this.normalizeTelegramLink(data.link);
-    const duplicate = await this.findActiveDuplicate(link);
-    if (duplicate) {
+    const match = await this.findDuplicate(link);
+    if (match && match.kind !== 'rejected') {
       throw new ConflictException(ALREADY_REGISTERED_CHANNEL);
     }
-    const existing = await this.findByLink(link);
-    if (existing) {
-      throw new ConflictException('이미 등록된 채널/그룹 링크입니다.');
+    // 거절된 행만 있으면 새로 만들지 않는다. 어드민이 확인해야 그 행을 다시 활성화한다
+    if (match && !options?.reactivateRejected) {
+      throw new ConflictException({
+        statusCode: 409,
+        code: DUPLICATE_REJECTED_CODE,
+        message: '이전에 거절된 링크입니다. 그 항목을 다시 활성화할까요?',
+        existingChannelId: match.channel.id,
+      });
     }
 
-    const channel = this.channelRepository.create({
-      title: data.title.trim(),
-      link,
-      linkType: data.linkType,
-      category: data.category,
-      description: (data.description?.trim() || data.title.trim()).slice(
-        0,
-        2000,
-      ),
-      status: ChannelStatus.ACTIVE,
-      avatarApproved: false,
-      submittedBy: null,
-      payoutStatus: 'not_eligible',
-      payoutSkipReason: null,
-      username: usernameFromChannelLink(link),
-      collectTier: 'daily',
-    });
+    const description = (data.description?.trim() || data.title.trim()).slice(
+      0,
+      2000,
+    );
+    const language =
+      data.language === 'ko' ||
+      data.language === 'foreign' ||
+      data.language === 'unknown'
+        ? data.language
+        : null;
+    let channel: Channel;
+    if (match) {
+      channel = match.channel;
+      channel.title = data.title.trim();
+      channel.linkType = data.linkType;
+      channel.category = data.category;
+      channel.description = description;
+      channel.status = ChannelStatus.ACTIVE;
+      channel.isVisible = true;
+      if (language) channel.language = language;
+    } else {
+      channel = this.channelRepository.create({
+        title: data.title.trim(),
+        link,
+        linkType: data.linkType,
+        category: data.category,
+        description,
+        status: ChannelStatus.ACTIVE,
+        avatarApproved: false,
+        submittedBy: null,
+        payoutStatus: 'not_eligible',
+        payoutSkipReason: null,
+        username: usernameFromChannelLink(link),
+        collectTier: 'daily',
+        ...(language ? { language } : {}),
+      });
+    }
 
     let saved = await this.channelRepository.save(channel);
 
@@ -334,7 +406,11 @@ export class ChannelsService implements OnModuleInit {
     if (preview.avatarUrl && !isTelegramBotFileUrl(preview.avatarUrl)) {
       channel.avatarUrl = preview.avatarUrl;
     }
-    if (preview.title && channel.status === ChannelStatus.PENDING)
+    if (
+      preview.title &&
+      channel.status === ChannelStatus.PENDING &&
+      !isTitleLocked(channel)
+    )
       channel.title = preview.title;
     if (preview.description && channel.status === ChannelStatus.PENDING)
       channel.description = preview.description;
@@ -518,9 +594,8 @@ export class ChannelsService implements OnModuleInit {
 
     const [allItems] = await qb.getManyAndCount();
     const now = new Date();
-    const deduped = this.dedupeByLink(allItems).filter(
-      (item) => !shouldHideIllegalSuspicion(item),
-    );
+    // 회원 노출 규칙은 한 곳(describeMemberPageVisibility)만 쓰고, 같은 링크는 가장 좋은 행 1개
+    const deduped = selectMemberVisibleRows(allItems, dto.category);
     const activeItems = deduped
       .map((item) => ({
         ...item,
@@ -803,6 +878,11 @@ export class ChannelsService implements OnModuleInit {
 
   async approve(id: string, isPromoted = false): Promise<Channel> {
     let channel = await this.findById(id);
+    // 같은 링크로 이미 승인된 다른 행이 있으면 두 번째 ACTIVE 를 만들지 않는다
+    const other = await this.findDuplicate(channel.link, { excludeId: id });
+    if (other?.kind === 'active') {
+      throw new ConflictException(ALREADY_REGISTERED_CHANNEL);
+    }
     if (!channel.avatarUrl) channel = await this.refreshPreview(id);
     channel.status = ChannelStatus.ACTIVE;
     channel.avatarApproved = Boolean(channel.avatarUrl);
@@ -1144,6 +1224,7 @@ export class ChannelsService implements OnModuleInit {
       Pick<
         Channel,
         | 'title'
+        | 'titleLocked'
         | 'category'
         | 'status'
         | 'isPromoted'
@@ -1170,11 +1251,7 @@ export class ChannelsService implements OnModuleInit {
       if (!normalized) {
         throw new BadRequestException('링크가 필요합니다.');
       }
-      const other = await this.channelRepository
-        .createQueryBuilder('channel')
-        .where('LOWER(channel.link) = :key', { key: channelLinkKey(normalized) })
-        .andWhere('channel.id <> :id', { id })
-        .getOne();
+      const other = await this.findDuplicate(normalized, { excludeId: id });
       if (other) {
         throw new ConflictException('이미 등록된 채널/그룹 링크입니다.');
       }
@@ -1186,7 +1263,13 @@ export class ChannelsService implements OnModuleInit {
       channel.collectError = null;
       channel.collectFailCount = 0;
     }
-    if (data.title !== undefined) channel.title = data.title;
+    if (data.title !== undefined) {
+      // 어드민이 제목을 바꾸면 수집이 덮어쓰지 못하게 자동으로 고정한다
+      if (data.title !== channel.title) channel.titleLocked = true;
+      channel.title = data.title;
+    }
+    // 명시한 고정 값이 자동 고정보다 우선한다(풀면 다음 수집부터 텔레그램 제목)
+    if (data.titleLocked !== undefined) channel.titleLocked = data.titleLocked;
     if (data.category !== undefined) {
       channel.category = data.category;
       channel.categoryLocked = true;
@@ -1208,7 +1291,19 @@ export class ChannelsService implements OnModuleInit {
       channel.isVisible = data.isVisible;
     }
     if (data.linkType !== undefined) channel.linkType = data.linkType;
-    if (data.status !== undefined) channel.status = data.status;
+    if (data.status !== undefined) {
+      // 편집으로 ACTIVE 로 바꿀 때도 같은 링크의 다른 ACTIVE 행이 있으면 막는다
+      if (
+        data.status === ChannelStatus.ACTIVE &&
+        channel.status !== ChannelStatus.ACTIVE
+      ) {
+        const other = await this.findDuplicate(channel.link, { excludeId: id });
+        if (other?.kind === 'active') {
+          throw new ConflictException(ALREADY_REGISTERED_CHANNEL);
+        }
+      }
+      channel.status = data.status;
+    }
     if (data.promotionClientTelegramId !== undefined)
       channel.promotionClientTelegramId = data.promotionClientTelegramId;
     if (data.promotionClientName !== undefined)

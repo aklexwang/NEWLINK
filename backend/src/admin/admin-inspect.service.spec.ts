@@ -32,15 +32,38 @@ const GROUP_HTML = `<div class="tgme_page_title">한국뉴스속보그룹</div>
 <div class="tgme_page_extra">1 200 members</div>
 <div class="tgme_page_description">국내 뉴스 속보를 모읍니다</div>`;
 
+const ENGLISH_CHANNEL_HTML = `<div class="tgme_page_title">English News</div>
+<div class="tgme_page_extra">12 003 subscribers</div>
+<div class="tgme_page_description">breaking news daily</div>`;
+
+function feedHtml(texts: string[]): string {
+  return texts
+    .map(
+      (text, index) =>
+        `<div class="tgme_widget_message" data-post="news_en/${index + 1}"><div class="tgme_widget_message_text">${text}</div><time datetime="2026-10-20T0${index}:00:00+00:00"></time></div>`,
+    )
+    .join('\n');
+}
+
 function buildService(overrides?: {
   existing?: unknown;
   html?: string | null;
   status?: number;
   finalUrl?: string | null;
+  existingKind?: 'active' | 'pending' | 'rejected';
+  /** t.me/s 최근 글 페이지 HTML */
+  feedHtml?: string | null;
   createByAdmin?: jest.Mock;
 }) {
   const channelsService = {
-    findByLink: jest.fn().mockResolvedValue(overrides?.existing ?? null),
+    findDuplicate: jest.fn().mockResolvedValue(
+      overrides?.existing
+        ? {
+            kind: overrides.existingKind ?? 'active',
+            channel: overrides.existing,
+          }
+        : null,
+    ),
     createByAdmin: overrides?.createByAdmin ?? jest.fn(),
   };
   const channelRepository = {
@@ -66,13 +89,26 @@ function buildService(overrides?: {
       };
     }
   ).publicFetch = {
-    fetchHtml: jest.fn().mockResolvedValue({
-      html: overrides?.html ?? null,
-      status: overrides?.status ?? 404,
-      finalUrl: overrides?.finalUrl ?? null,
-    }),
+    fetchHtml: jest.fn((url: string) =>
+      Promise.resolve(
+        url.includes('/s/')
+          ? {
+              html: overrides?.feedHtml ?? null,
+              status: overrides?.feedHtml ? 200 : 404,
+              finalUrl: null,
+            }
+          : {
+              html: overrides?.html ?? null,
+              status: overrides?.status ?? 404,
+              finalUrl: overrides?.finalUrl ?? null,
+            },
+      ),
+    ),
   };
-  return { service, channelsService };
+  const fetchHtml = (
+    service as unknown as { publicFetch: { fetchHtml: jest.Mock } }
+  ).publicFetch.fetchHtml;
+  return { service, channelsService, fetchHtml };
 }
 
 describe('AdminInspectService 부팅', () => {
@@ -195,4 +231,90 @@ describe('AdminInspectService 부팅', () => {
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
-});
+
+  it('공개 채널은 제목·소개로 못 가르면 최근 글(t.me/s)로 한국어를 판별한다', async () => {
+    const { service, fetchHtml } = buildService({
+      html: ENGLISH_CHANNEL_HTML,
+      status: 200,
+      feedHtml: feedHtml([
+        '한국 경제 뉴스를 전합니다 오늘',
+        '서울 날씨와 교통 소식입니다',
+        '국회 본회의 결과를 전합니다',
+        '증시 마감 상황을 공유합니다',
+        '내일 일정 안내입니다 여러분',
+      ]),
+    });
+    const view = await service.inspectOne('https://t.me/news_en');
+    expect(view.result).toBe('ok');
+    expect(view.language).toBe('ko');
+    expect(fetchHtml).toHaveBeenCalledWith('https://t.me/s/news_en');
+  });
+
+  it('최근 글을 못 읽으면 언어 미확인으로 두고 등록은 막지 않는다', async () => {
+    const createByAdmin = jest.fn().mockResolvedValue({ id: 'ch-2' });
+    const { service } = buildService({
+      html: ENGLISH_CHANNEL_HTML,
+      status: 200,
+      feedHtml: null,
+      createByAdmin,
+    });
+    const view = await service.inspectOne('https://t.me/news_en');
+    expect(view.result).toBe('language_unknown');
+    expect(view.resultCaption).toBe('언어 미확인');
+
+    await service.registerInspected({
+      title: 'English News',
+      link: 'https://t.me/news_en',
+      category: '뉴스',
+    });
+    // 검사로 판별한 언어를 등록할 때 그대로 저장한다
+    expect(createByAdmin).toHaveBeenCalledWith(
+      expect.objectContaining({ language: 'unknown' }),
+    );
+  });
+
+  it('최근 글까지 외국어면 한국어 아님(외국어)이다', async () => {
+    const { service } = buildService({
+      html: ENGLISH_CHANNEL_HTML,
+      status: 200,
+      feedHtml: feedHtml([
+        'Breaking news from Washington today',
+        'Market closed higher in New York',
+        'Official statement released this morning',
+        'Further details will follow later',
+        'Subscribe for more English updates',
+      ]),
+    });
+    const view = await service.inspectOne('https://t.me/news_en');
+    expect(view.result).toBe('not_korean');
+    expect(view.language).toBe('foreign');
+  });
+
+  it('거절된 행만 있으면 새로 만들지 않고 확인을 거쳐 그 행을 다시 활성화한다', async () => {
+    const createByAdmin = jest.fn().mockResolvedValue({ id: 'ch-3' });
+    const { service } = buildService({
+      html: CHANNEL_HTML,
+      status: 200,
+      existing: {
+        id: 'ch-old',
+        title: '예전 제목',
+        status: 'rejected',
+        linkType: LinkType.CHANNEL,
+      },
+      existingKind: 'rejected',
+      createByAdmin,
+    });
+    const data = {
+      title: '한국뉴스속보채널',
+      link: 'https://t.me/NewsKorea',
+      category: '뉴스',
+    };
+    await service.registerInspected(data);
+    expect(createByAdmin).toHaveBeenLastCalledWith(expect.anything(), {
+      reactivateRejected: false,
+    });
+    await service.registerInspected({ ...data, reactivateRejected: true });
+    expect(createByAdmin).toHaveBeenLastCalledWith(expect.anything(), {
+      reactivateRejected: true,
+    });
+  });});

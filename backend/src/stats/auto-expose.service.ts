@@ -21,6 +21,7 @@ import { detectChannelLanguage } from '../channels/channel-language.logic';
 import { hasIllegalDrugSuspicion } from '../channels/illegal-content.logic';
 import { ChannelsService } from '../channels/channels.service';
 import { TelegramPreviewService } from '../channels/telegram-preview.service';
+import { applyCollectedTitle } from '../channels/title-lock.logic';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import { ChannelCategoryService } from './channel-category.service';
 import { ChannelCollectorService } from './channel-collector.service';
@@ -109,22 +110,21 @@ export class AutoExposeService {
       if (inspected.memberCount == null && candidate.participantsCount > 0) {
         inspected.memberCount = candidate.participantsCount;
       }
-      const dup = inspected.username
-        ? await this.channelsService.findActiveByUsername(inspected.username)
-        : await this.channelsService.findActiveDuplicate(inspected.link);
+      const match = await this.channelsService.findDuplicate(inspected.link);
       const check = canAutoExpose({
         kind: inspected.kind,
         language: inspected.language,
         memberCount: inspected.memberCount,
-        hasActiveUsername: Boolean(dup),
+        hasActiveUsername: match?.kind === 'active',
       });
       if (!check.ok) return false;
       if (hasIllegalDrugSuspicion(inspected.title, inspected.description)) {
         return false;
       }
+      // 거절된 행은 자동으로 되살리지 않는다
+      if (match?.kind === 'rejected') return false;
 
-      let channel =
-        (await this.channelsService.findByLink(inspected.link)) ?? null;
+      let channel: Channel | null = match?.channel ?? null;
       if (channel) {
         if (channel.status !== ChannelStatus.ACTIVE) {
           channel = await this.activateIfEligible(channel, inspected, true);
@@ -174,20 +174,18 @@ export class AutoExposeService {
     inspected: InspectedAccount,
     options?: { skipCollect?: boolean },
   ): Promise<boolean> {
-    const dup = inspected.username
-      ? await this.channelsService.findActiveByUsername(inspected.username)
-      : await this.channelsService.findActiveDuplicate(inspected.link);
+    const match = await this.channelsService.findDuplicate(inspected.link);
     const check = canAutoExpose({
       kind: inspected.kind,
       language: inspected.language,
       memberCount: inspected.memberCount,
-      hasActiveUsername: Boolean(dup),
+      hasActiveUsername: match?.kind === 'active',
     });
     if (!check.ok) return false;
     if (hasIllegalDrugSuspicion(inspected.title, inspected.description)) {
       return false;
     }
-    if (await this.channelsService.findByLink(inspected.link)) return false;
+    if (match) return false;
 
     let channel = await this.channelsService.createByAdmin(
       {
@@ -219,10 +217,10 @@ export class AutoExposeService {
     inspected: InspectedAccount,
     autoRegistered: boolean,
   ): Promise<Channel | null> {
-    const other = inspected.username
-      ? await this.channelsService.findActiveByUsername(inspected.username)
-      : null;
-    const hasDup = Boolean(other && other.id !== channel.id);
+    const other = await this.channelsService.findDuplicate(inspected.link, {
+      excludeId: channel.id,
+    });
+    const hasDup = other?.kind === 'active';
     const check = canAutoExpose({
       kind: inspected.kind,
       language: inspected.language,
@@ -240,7 +238,7 @@ export class AutoExposeService {
     channel.username =
       inspected.username ?? extractTelegramUsernameFromLink(channel.link);
     channel.linkType = inspected.linkType;
-    if (inspected.title) channel.title = inspected.title;
+    applyCollectedTitle(channel, inspected.title);
     if (inspected.description) channel.description = inspected.description;
     channel.autoRegistered = autoRegistered;
     channel.isVisible = channel.isVisible !== false;

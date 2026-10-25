@@ -54,7 +54,8 @@ describe('어드민 링크 미리보기 분류', () => {
       status: 200,
       isInvite: false,
     });
-    expect(foreign.result).toBe('not_korean');
+    // 최근 글을 아직 못 봤으면 외국어로 단정하지 않고 "언어 미확인"으로 둔다
+    expect(foreign.result).toBe('language_unknown');
     expect(foreign.linkType).toBe('channel');
 
     const small = classifyAdminInspectPage({

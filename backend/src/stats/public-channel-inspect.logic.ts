@@ -29,12 +29,27 @@ export type PublicInspectPage = {
   excerpts?: Array<string | null | undefined>;
 };
 
+export type PublicInspectResult =
+  | DiscoveredUsernameResult
+  | 'ok'
+  /** 한국어인지 외국어인지 확인하지 못함. 경고만 하고 등록은 허용한다 */
+  | 'language_unknown';
+
 export type PublicInspectDecision = {
-  result: DiscoveredUsernameResult | 'ok';
+  result: PublicInspectResult;
   language: ChannelLanguage;
   linkType: 'channel' | 'group';
   kind: AutoExposeKind;
 };
+
+/**
+ * 자동 발견·PC 대량 도구용. 사람이 확인하지 않으므로 언어 미확인은 예전처럼 한국어 아님으로 본다.
+ */
+export function toDiscoveryResult(
+  result: PublicInspectResult,
+): DiscoveredUsernameResult | 'ok' {
+  return result === 'language_unknown' ? 'not_korean' : result;
+}
 
 export function publicInspectDecision(
   page: PublicInspectPage,
@@ -56,7 +71,8 @@ export function publicInspectDecision(
   if (kind === 'invalid' || kind === 'unknown') {
     return { result: 'not_found', language, linkType, kind };
   }
-  if (language !== 'ko') {
+  // 외국어로 확인된 경우만 탈락. 확인 못 한 것(unknown)은 따로 구분한다
+  if (language === 'foreign') {
     return { result: 'not_korean', language, linkType, kind };
   }
   if (
@@ -64,6 +80,9 @@ export function publicInspectDecision(
     page.memberCount < AUTO_EXPOSE_MIN_MEMBERS
   ) {
     return { result: 'too_small', language, linkType, kind };
+  }
+  if (language !== 'ko') {
+    return { result: 'language_unknown', language, linkType, kind };
   }
   return { result: 'ok', language, linkType, kind };
 }

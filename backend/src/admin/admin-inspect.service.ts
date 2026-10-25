@@ -13,7 +13,11 @@ import { CategoryAiService } from '../auto-manage/category-ai.service';
 import { Channel, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { isInviteOnlyLink } from '../channels/telegram-username';
-import { PUBLIC_INSPECT_GAP_MS } from '../stats/public-channel-inspect.logic';
+import {
+  excerptsFromPreviewPosts,
+  PUBLIC_INSPECT_GAP_MS,
+} from '../stats/public-channel-inspect.logic';
+import { parseTelegramChannelHtml } from '../stats/telegram-preview-html';
 import { createPublicTelegramFetcher } from '../stats/public-telegram-fetch.logic';
 import { StatsJobService } from '../stats/stats-job.service';
 import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
@@ -39,6 +43,8 @@ import {
   inspectJobTtlCutoff,
   parseAdminInspectLines,
   parseOneInspectLine,
+  toChannelLanguage,
+  type AdminInspectPageClassified,
 } from './admin-inspect.logic';
 
 @Injectable()
@@ -181,7 +187,7 @@ export class AdminInspectService implements OnModuleInit {
         existing: null,
       });
     }
-    const existing = await this.findExisting(parsed.link, parsed.username);
+    const existing = await this.findExisting(parsed.link);
     if (existing) {
       return this.toInspectOneView({
         link: parsed.link,
@@ -196,14 +202,8 @@ export class AdminInspectService implements OnModuleInit {
         existing,
       });
     }
-    const page = await this.publicFetch.fetchHtml(parsed.link);
     const classified = applyMissingTitleResult(
-      classifyAdminInspectPage({
-        html: page.html,
-        status: page.status,
-        isInvite: isInviteOnlyLink(parsed.link),
-        finalUrl: page.finalUrl,
-      }),
+      await this.fetchAndClassify(parsed.link, parsed.username),
     );
     return this.toInspectOneView({
       link: parsed.link,
@@ -225,10 +225,30 @@ export class AdminInspectService implements OnModuleInit {
     category: string;
     description?: string;
     isPromoted?: boolean;
+    /** 거절된 같은 링크 행을 다시 활성화할지(확인창에서 승인한 경우) */
+    reactivateRejected?: boolean;
   }) {
     const viewed = await this.inspectOne(data.link);
     if (viewed.alreadyRegistered) {
-      throw new ConflictException('이미 등록된 채널입니다.');
+      if (viewed.existingStatus !== 'rejected') {
+        throw new ConflictException('이미 등록된 채널입니다.');
+      }
+      // 거절된 행만 있으면 새로 만들지 않는다. 확인 전이면 createByAdmin 이 확인을 요청한다
+      return this.channelsService.createByAdmin(
+        {
+          title: (data.title.trim() || viewed.title).slice(0, 255),
+          link: viewed.link || data.link,
+          linkType:
+            viewed.linkType === 'group'
+              ? LinkType.GROUP
+              : (data.linkType ?? LinkType.CHANNEL),
+          category: data.category,
+          description:
+            data.description?.trim() || viewed.description || viewed.title,
+          isPromoted: data.isPromoted,
+        },
+        { reactivateRejected: data.reactivateRejected === true },
+      );
     }
     if (
       !viewed.link ||
@@ -255,6 +275,8 @@ export class AdminInspectService implements OnModuleInit {
       category: data.category,
       description: data.description?.trim() || viewed.description || viewed.title,
       isPromoted: data.isPromoted,
+      // 검사로 판별한 언어를 그대로 저장한다
+      language: toChannelLanguage(viewed.language),
     });
   }
 
@@ -332,16 +354,25 @@ export class AdminInspectService implements OnModuleInit {
     const item = await this.itemRepository.findOneBy({ id: itemId });
     if (!item) throw new Error('항목을 찾을 수 없습니다.');
     if (item.registeredChannelId) return;
-    if (item.result !== 'ok' || !item.link) {
+    // 언어 미확인은 경고만 하므로 등록할 수 있다
+    if (
+      (item.result !== 'ok' && item.result !== 'language_unknown') ||
+      !item.link
+    ) {
       throw new Error('정상 항목만 등록할 수 있습니다.');
     }
-    const existing = await this.findExisting(item.link, item.username);
+    const existing = await this.findExisting(item.link);
     if (existing) {
       await this.itemRepository.update(item.id, {
         result: 'already_registered',
         registeredChannelId: existing.id,
       });
-      throw new Error('이미 등록된 채널입니다.');
+      // 거절된 행은 대량 등록에서 되살리지 않는다(단건 등록 화면에서 확인 후 활성화)
+      throw new Error(
+        existing.status === 'rejected'
+          ? '이전에 거절된 링크입니다. 단건 등록에서 다시 활성화해 주세요.'
+          : '이미 등록된 채널입니다.',
+      );
     }
     const linkType =
       item.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
@@ -359,6 +390,7 @@ export class AdminInspectService implements OnModuleInit {
       linkType,
       category: nextCategory,
       description: item.title ?? undefined,
+      language: toChannelLanguage(item.language),
     });
     await this.itemRepository.update(item.id, {
       registeredChannelId: saved.id,
@@ -412,7 +444,7 @@ export class AdminInspectService implements OnModuleInit {
       await this.itemRepository.update(item.id, { result: 'invalid_format' });
       return false;
     }
-    const existing = await this.findExisting(item.link, item.username);
+    const existing = await this.findExisting(item.link);
     if (existing) {
       await this.itemRepository.update(item.id, {
         result: 'already_registered',
@@ -423,13 +455,7 @@ export class AdminInspectService implements OnModuleInit {
       });
       return false;
     }
-    const page = await this.publicFetch.fetchHtml(item.link);
-    const classified = classifyAdminInspectPage({
-      html: page.html,
-      status: page.status,
-      isInvite: isInviteOnlyLink(item.link),
-      finalUrl: page.finalUrl,
-    });
+    const classified = await this.fetchAndClassify(item.link, item.username);
     await this.itemRepository.update(item.id, {
       result: classified.result,
       title: classified.title,
@@ -440,13 +466,47 @@ export class AdminInspectService implements OnModuleInit {
     return true;
   }
 
-  private async findExisting(link: string, username: string | null) {
-    const byLink = await this.channelsService.findByLink(link);
-    if (byLink) return byLink;
-    if (!username) return null;
-    return this.channelRepository.findOne({
-      where: { username: username.toLowerCase() },
-    });
+  /** 같은 링크 행(중복 판단은 ChannelsService.findDuplicate 하나만 쓴다) */
+  private async findExisting(link: string): Promise<Channel | null> {
+    const match = await this.channelsService.findDuplicate(link);
+    return match?.channel ?? null;
+  }
+
+  /**
+   * 공개 페이지를 읽어 판정한다. 공개 채널은 한국어 여부가 제목·소개만으로 안 나올 수 있어
+   * t.me/s 최근 글 발췌를 한 번 더 읽는다(같은 fetcher 라 대량 검사 간격 그대로).
+   */
+  private async fetchAndClassify(
+    link: string,
+    username: string | null,
+  ): Promise<AdminInspectPageClassified> {
+    const isInvite = isInviteOnlyLink(link);
+    const page = await this.publicFetch.fetchHtml(link);
+    const base = {
+      html: page.html,
+      status: page.status,
+      isInvite,
+      finalUrl: page.finalUrl,
+    };
+    const first = classifyAdminInspectPage(base);
+    const needsFeed =
+      !isInvite &&
+      Boolean(username) &&
+      first.linkType === 'channel' &&
+      first.language !== 'ko' &&
+      first.result !== 'not_found' &&
+      first.result !== 'invalid_format' &&
+      first.result !== 'invite_or_private';
+    if (!needsFeed || !username) return first;
+    const feed = await this.publicFetch.fetchHtml(
+      `https://t.me/s/${username}`,
+    );
+    if (!feed.html) return first;
+    const excerpts = excerptsFromPreviewPosts(
+      parseTelegramChannelHtml(feed.html).posts,
+    );
+    if (excerpts.length === 0) return first;
+    return classifyAdminInspectPage({ ...base, excerpts });
   }
 
   private async assertCanStart() {
@@ -519,7 +579,8 @@ export class AdminInspectService implements OnModuleInit {
           ? describeMemberPageVisibility(channel)
           : null;
         const registeredThisJob =
-          Boolean(item.registeredChannelId) && item.result === 'ok';
+          Boolean(item.registeredChannelId) &&
+          (item.result === 'ok' || item.result === 'language_unknown');
         return {
           id: item.id,
           lineNo: item.lineNo,

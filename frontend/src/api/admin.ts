@@ -259,6 +259,8 @@ export async function registerAdminChannel(payload: {
   category: string;
   description?: string;
   isPromoted?: boolean;
+  /** 거절된 같은 링크 행이 있을 때, 새로 만들지 않고 그 행을 다시 활성화 */
+  reactivateRejected?: boolean;
 }): Promise<Channel> {
   const { data } = await apiClient.post<Channel>('/admin/channels/register', payload, {
     headers: getAdminAuthHeaders(),
@@ -270,6 +272,7 @@ export type AdminInspectItemResult =
   | 'ok'
   | 'already_registered'
   | 'not_korean'
+  | 'language_unknown'
   | 'too_small'
   | 'not_found'
   | 'invite_or_private'
@@ -381,6 +384,7 @@ export async function updateAdminChannel(
     avatarApproved?: boolean;
     language?: 'ko' | 'foreign' | 'unknown';
     languageLocked?: boolean;
+    titleLocked?: boolean;
     link?: string;
     isVisible?: boolean;
     categoryLocked?: boolean;

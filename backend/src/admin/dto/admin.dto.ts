@@ -61,6 +61,11 @@ export class AdminCreateChannelDto {
   @IsBoolean()
   @IsOptional()
   isPromoted?: boolean;
+
+  /** 거절된 같은 링크 행이 있을 때, 새로 만들지 않고 그 행을 다시 활성화할지 */
+  @IsBoolean()
+  @IsOptional()
+  reactivateRejected?: boolean;
 }
 
 export class ApproveChannelDto {
@@ -219,6 +224,11 @@ export class UpdateChannelDto {
   @IsBoolean()
   @IsOptional()
   illegalCleared?: boolean;
+
+  /** 제목 고정. true 면 수집이 제목을 덮어쓰지 않는다 */
+  @IsBoolean()
+  @IsOptional()
+  titleLocked?: boolean;
 }
 
 export class BulkVisibilityDto {

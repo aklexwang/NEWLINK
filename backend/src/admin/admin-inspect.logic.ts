@@ -1,4 +1,6 @@
 import { AUTO_EXPOSE_MIN_MEMBERS } from '../channels/auto-expose.logic';
+import { linkIdentityKey } from '../channels/channel-link.logic';
+import type { ChannelLanguage } from '../channels/channel-language.logic';
 import {
   extractTelegramUsernameFromLink,
   isInviteOnlyLink,
@@ -33,7 +35,10 @@ export function parseAdminInspectLines(raw: string): ParsedInspectLine[] {
     const trimmed = line.trim();
     if (!trimmed) continue;
     const parsed = parseOneInspectLine(trimmed);
-    const key = (parsed.link ?? parsed.rawInput).toLowerCase();
+    // 공개 링크는 대소문자 무시, 초대 링크는 해시 대소문자를 그대로 비교한다
+    const key = parsed.link
+      ? linkIdentityKey(parsed.link)
+      : `raw:${parsed.rawInput.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(parsed);
@@ -79,6 +84,8 @@ export function classifyAdminInspectPage(input: {
   status: number;
   isInvite: boolean;
   finalUrl?: string | null;
+  /** 채널 최근 글 발췌(t.me/s). 언어 판별에만 쓴다 */
+  excerpts?: Array<string | null | undefined>;
 }): AdminInspectPageClassified {
   if (!input.html || input.status >= 400) {
     return emptyInspect('not_found');
@@ -120,6 +127,7 @@ export function classifyAdminInspectPage(input: {
     description: parsed.description,
     memberCount: parsed.memberCount,
     avatarUrl: parsed.avatarUrl ?? null,
+    excerpts: input.excerpts,
   });
   return fromPublicDecision(
     decided,
@@ -142,6 +150,15 @@ export function applyMissingTitleResult(
     return classified;
   }
   return { ...classified, result: 'not_found' };
+}
+
+/** 검사 결과로 저장된 언어 문자열을 채널 언어로. 알 수 없으면 null(저장하지 않음) */
+export function toChannelLanguage(
+  value: string | null | undefined,
+): ChannelLanguage | null {
+  return value === 'ko' || value === 'foreign' || value === 'unknown'
+    ? value
+    : null;
 }
 
 export const ADMIN_INSPECT_REGISTER_BLOCKED = new Set<AdminInspectItemResult>([
@@ -186,6 +203,7 @@ export function inspectItemResultCaption(input: {
   if (input.registeredThisJob) return '이번에 등록함';
   if (input.result === 'ok') return '정상';
   if (input.result === 'not_korean') return '외국어';
+  if (input.result === 'language_unknown') return '언어 미확인';
   if (input.result === 'too_small') return '100명 미만';
   if (input.result === 'not_found') return '없는 채널';
   if (input.result === 'invite_or_private') return '초대 만료·비공개';
@@ -214,6 +232,7 @@ function fromPublicDecision(
   let result: AdminInspectItemResult = 'not_found';
   if (decided.result === 'ok') result = 'ok';
   else if (decided.result === 'not_korean') result = 'not_korean';
+  else if (decided.result === 'language_unknown') result = 'language_unknown';
   else if (decided.result === 'too_small') result = 'too_small';
   return {
     result,

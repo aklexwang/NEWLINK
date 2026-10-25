@@ -12,7 +12,9 @@ import {
   allowAdultInList,
   isPendingCategory,
 } from '../channels/auto-expose.logic';
+import { dedupeChannelsByLink } from '../channels/channel-link.logic';
 import { isPublicCollectable } from './collect-visibility';
+import { pickBestMemberRow, selectMemberVisibleRows } from './member-visible.logic';
 import { sliceRankingPage } from './collect-budget.logic';
 import { lastPostAtFromCollectedPosts } from './stats-collect.logic';
 import {
@@ -84,11 +86,13 @@ export class PublicStatsService {
     if (!username) {
       throw new BadRequestException('username이 필요합니다.');
     }
-    const channel = await this.channelRepository
+    const rows = await this.channelRepository
       .createQueryBuilder('channel')
       .where('channel.status = :status', { status: ChannelStatus.ACTIVE })
       .andWhere('LOWER(channel.username) = :username', { username })
-      .getOne();
+      .getMany();
+    // 같은 username 행이 여럿이면 노출 가능한 행을 먼저, 그다음 가장 좋은 행
+    const channel = pickBestMemberRow(rows);
     if (!channel) {
       throw new NotFoundException('채널을 찾을 수 없습니다.');
     }
@@ -370,12 +374,8 @@ export class PublicStatsService {
     let channels = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
-    channels = this.dedupeByLink(channels)
-      .filter(isPublicCollectable)
-      .filter(isVisibleOnPublicLists)
-      .filter((c) => !shouldHideIllegalSuspicion(c))
-      .filter((c) => allowAdultInList(c.category))
-      .filter((c) => !isPendingCategory(c.category));
+    // 회원 노출 규칙은 한 곳(describeMemberPageVisibility), 같은 링크는 가장 좋은 행 1개
+    channels = selectMemberVisibleRows(channels);
     if (type === 'channel') {
       channels = channels.filter((c) => c.linkType === LinkType.CHANNEL);
     } else if (type === 'group') {
@@ -538,12 +538,14 @@ export class PublicStatsService {
     let channels = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
-    channels = this.dedupeByLink(channels)
-      .filter(isPublicCollectable)
-      .filter((c) => !shouldHideIllegalSuspicion(c));
-    if (!query.includeForeign) {
-      channels = channels.filter(isVisibleOnPublicLists);
-    }
+    const listable = (c: Channel) =>
+      isPublicCollectable(c) &&
+      !shouldHideIllegalSuspicion(c) &&
+      (query.includeForeign || isVisibleOnPublicLists(c));
+    // 같은 링크는 목록에 나올 수 있는 행을 먼저 대표로 고른다
+    channels = dedupeChannelsByLink(channels, { prefer: listable }).filter(
+      listable,
+    );
 
     if (query.category && query.category !== 'all') {
       channels = channels.filter((c) => c.category === query.category);
@@ -787,17 +789,6 @@ export class PublicStatsService {
     return channel;
   }
 
-  private dedupeByLink(channels: Channel[]): Channel[] {
-    const seen = new Set<string>();
-    const result: Channel[] = [];
-    for (const channel of channels) {
-      const key = channel.link.replace(/\/+$/, '').toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      result.push(channel);
-    }
-    return result;
-  }
 }
 
 function parseFeedCursor(

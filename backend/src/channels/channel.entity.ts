@@ -221,6 +221,10 @@ export class Channel {
   })
   illegalClearedAt: Date | null;
 
+  /** 제목 고정. true 면 수집이 제목을 덮어쓰지 않음(소개글은 계속 갱신) */
+  @Column({ name: 'title_locked', default: false })
+  titleLocked: boolean;
+
   @Column({ name: 'category_confidence', type: 'real', nullable: true })
   categoryConfidence: number | null;
 

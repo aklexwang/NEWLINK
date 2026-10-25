@@ -23,6 +23,8 @@ export function SubmitPage() {
   const [rewardsEnabled, setRewardsEnabled] = useState(true);
   const [requireWalletPolicy, setRequireWalletPolicy] = useState(true);
   const pendingSubmitRef = useRef(false);
+  // 서버가 링크 종류를 판별하지 못했을 때만 회원에게 선택을 받는다.
+  const [needLinkType, setNeedLinkType] = useState(false);
   const [form, setForm] = useState({
     linkType: 'channel' as LinkType,
     title: '',
@@ -48,7 +50,7 @@ export function SubmitPage() {
     setIsSubmitting(true);
     try {
       await submitChannel({
-        linkType: form.linkType,
+        linkType: needLinkType ? form.linkType : undefined,
         title: form.title,
         link: form.link,
         description: form.description,
@@ -57,7 +59,14 @@ export function SubmitPage() {
       notify('제보가 접수되었습니다. 관리자 승인 후 노출됩니다.');
       navigate('/');
     } catch (error) {
-      if (isAxiosError(error) && error.response?.status === 409) {
+      if (
+        isAxiosError(error) &&
+        error.response?.status === 400 &&
+        error.response.data?.code === 'LINK_TYPE_REQUIRED'
+      ) {
+        setNeedLinkType(true);
+        notify('링크 종류를 자동으로 확인하지 못했습니다. 채널/그룹을 선택한 뒤 다시 제보해 주세요.');
+      } else if (isAxiosError(error) && error.response?.status === 409) {
         const message = error.response.data?.message;
         notify(
           typeof message === 'string' ? message : '이미 등록된 채널입니다.',
@@ -68,7 +77,7 @@ export function SubmitPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [form, categoryValue, notify, navigate]);
+  }, [form, needLinkType, categoryValue, notify, navigate]);
 
   useEffect(() => {
     void getRewardPolicy()
@@ -157,6 +166,7 @@ export function SubmitPage() {
           <SubmitWalletPicker onLinked={handleWalletLinked} onNotify={notify} />
         )}
 
+        {needLinkType && (
         <div>
           <label className="mb-1.5 block text-xs font-medium text-tg-hint">유형</label>
           <div className="inline-flex gap-1.5">
@@ -178,14 +188,16 @@ export function SubmitPage() {
               </button>
             ))}
           </div>
+          <p className="mt-1.5 text-xs text-tg-hint">링크 종류를 자동으로 확인하지 못했습니다. 직접 선택해 주세요.</p>
         </div>
+        )}
         <div>
           <label className="mb-1.5 block text-xs font-medium text-tg-hint">제목</label>
           <input
             required
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder={form.linkType === 'group' ? '그룹 이름' : '채널 이름'}
+            placeholder="채널/그룹 이름"
             className="w-full rounded-xl bg-tg-secondary px-4 py-3 text-sm outline-none"
           />
         </div>

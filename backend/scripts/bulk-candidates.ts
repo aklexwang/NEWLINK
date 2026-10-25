@@ -31,6 +31,7 @@ import {
   publicInspectDecision,
   PUBLIC_EXPAND_MAX_PAGES,
   shouldStopBulkAuto,
+  toDiscoveryResult,
 } from '../src/stats/public-channel-inspect.logic';
 import { createPublicTelegramFetcher } from '../src/stats/public-telegram-fetch.logic';
 import {
@@ -589,9 +590,11 @@ async function inspectAndMaybeRegister(
     avatarUrl: parsed.avatarUrl,
     excerpts,
   });
-  if (decision.result !== 'ok') {
-    await markDiscovered(client, username, decision.result, dryRun);
-    return decision.result;
+  // PC 대량 도구는 사람이 확인하지 않으므로 언어 미확인도 한국어 아님으로 둔다
+  const decided = toDiscoveryResult(decision.result);
+  if (decided !== 'ok') {
+    await markDiscovered(client, username, decided, dryRun);
+    return decided;
   }
 
   const dup = await client.query<{ n: string }>(

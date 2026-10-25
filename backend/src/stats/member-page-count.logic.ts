@@ -2,7 +2,9 @@ import {
   dedupeChannelsByLink,
   type DuplicateCandidate,
 } from '../channels/channel-link.logic';
+import { ADULT_CATEGORY } from '../channels/auto-expose.logic';
 import { ChannelStatus } from '../channels/channel.entity';
+import { isMemberVisible } from './member-visible.logic';
 import {
   describeMemberPageVisibility,
   MEMBER_PAGE_REASON,
@@ -71,7 +73,10 @@ export function summarizeMemberVisibility(
   const linked = rows.filter(
     (row): row is LinkedRow => isActiveRow(row) && Boolean(row.link),
   );
-  const winners = new Set<MemberPageRow>(dedupeChannelsByLink(linked));
+  // 회원 화면과 같이 노출 가능한 행을 먼저 대표로 고른다
+  const winners = new Set<MemberPageRow>(
+    dedupeChannelsByLink(linked, { prefer: (row) => visibleRows.has(row) }),
+  );
   let duplicateExcess = 0;
   for (const row of linked) {
     if (!winners.has(row) && visibleRows.has(row)) duplicateExcess += 1;
@@ -93,7 +98,9 @@ export function summarizeMemberVisibility(
 export function buildMemberRankingCounts<T extends MemberPageRow & { link: string }>(
   rows: T[],
 ): Record<string, number> {
-  const winners = dedupeChannelsByLink(rows.filter(isActiveRow));
+  const winners = dedupeChannelsByLink(rows.filter(isActiveRow), {
+    prefer: (row) => isMemberVisible(row, ADULT_CATEGORY),
+  });
   const counts: Record<string, number> = { all: 0 };
   for (const channel of winners) {
     const vis = describeMemberPageVisibility(channel);

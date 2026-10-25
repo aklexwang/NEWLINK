@@ -10,7 +10,7 @@ import {
   DEFAULT_CATEGORIES,
 } from '../categories/categories.service';
 import { hasIllegalDrugSuspicion } from '../channels/illegal-content.logic';
-import { ChannelStatus, LinkType } from '../channels/channel.entity';
+import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { TelegramRankingService } from '../ranking/telegram-ranking.service';
 import { TgstatService } from '../ranking/tgstat.service';
@@ -164,9 +164,7 @@ export class AutoManageService {
       }
 
       const link = this.channelsService.normalizeTelegramLink(item.link);
-      const existingChannel =
-        (await this.channelsService.findActiveDuplicate(link)) ??
-        (await this.channelsService.findByLink(link));
+      const existingChannel = await this.channelsService.findActiveDuplicate(link);
       const existingCandidate = await this.candidateRepository.findOne({
         where: { link },
       });
@@ -264,9 +262,7 @@ export class AutoManageService {
 
     for (const hit of hits) {
       const link = this.channelsService.normalizeTelegramLink(hit.link);
-      const existingChannel =
-        (await this.channelsService.findActiveDuplicate(link)) ??
-        (await this.channelsService.findByLink(link));
+      const existingChannel = await this.channelsService.findActiveDuplicate(link);
       const existingCandidate = await this.candidateRepository.findOne({
         where: { link },
       });
@@ -539,7 +535,7 @@ export class AutoManageService {
         ...item,
         alreadyOnMemberPage:
           item.status === ImportCandidateStatus.PUBLISHED ||
-          Boolean(await this.channelsService.findByLink(item.link)),
+          Boolean(await this.channelsService.findDuplicate(item.link)),
         discoverySources: (item.discoverySources ?? '')
           .split(',')
           .map((name) => name.trim())
@@ -601,12 +597,19 @@ export class AutoManageService {
       }
 
       try {
-        let channel = await this.channelsService.findActiveDuplicate(
-          candidate.link,
-        );
-        if (!channel) {
-          channel = await this.channelsService.findByLink(candidate.link);
+        // 같은 링크 판단은 findDuplicate 하나만 쓴다(ACTIVE 우선)
+        const match = await this.channelsService.findDuplicate(candidate.link);
+        // 거절된 행은 자동으로 되살리지 않는다(예전에는 approve 로 되살아났다)
+        if (match?.kind === 'rejected') {
+          results.push({
+            id: candidate.id,
+            ok: false,
+            message:
+              '이전에 거절된 링크입니다. 단건 등록에서 다시 활성화해 주세요.',
+          });
+          continue;
         }
+        let channel: Channel | null = match?.channel ?? null;
         if (!channel) {
           channel = await this.channelsService.createByAdmin({
             title: candidate.title,

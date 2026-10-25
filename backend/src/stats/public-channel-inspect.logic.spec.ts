@@ -5,6 +5,7 @@ import {
   parseBulkCandidatesArgs,
   parseUsernameListText,
   publicInspectDecision,
+  toDiscoveryResult,
   shouldStopBulkAuto,
 } from './public-channel-inspect.logic';
 import { createPublicTelegramFetcher } from './public-telegram-fetch.logic';
@@ -181,5 +182,48 @@ describe('대량 도구 인자', () => {
     ).toBe(true);
     expect(isBulkProgressTick(100)).toBe(true);
     expect(isBulkProgressTick(99)).toBe(false);
+  });
+});
+
+describe('언어 미확인 분리', () => {
+  const english = {
+    kind: 'channel' as const,
+    title: 'Daily News',
+    description: 'Official updates channel',
+    avatarUrl: null,
+  };
+
+  it('최근 글이 없어 언어를 못 가르면 외국어가 아니라 language_unknown 이다', () => {
+    const decision = publicInspectDecision({ ...english, memberCount: 500 });
+    expect(decision.language).toBe('unknown');
+    expect(decision.result).toBe('language_unknown');
+  });
+
+  it('언어 미확인이어도 인원이 모자라면 too_small 이 먼저다', () => {
+    expect(
+      publicInspectDecision({ ...english, memberCount: 50 }).result,
+    ).toBe('too_small');
+  });
+
+  it('최근 글까지 외국어로 확인되면 not_korean 이다', () => {
+    const decision = publicInspectDecision({
+      ...english,
+      memberCount: 500,
+      excerpts: [
+        'Breaking news from Washington today',
+        'Market closed higher in New York',
+        'Official statement released this morning',
+        'Further details will follow later',
+        'Subscribe for more English updates',
+      ],
+    });
+    expect(decision.language).toBe('foreign');
+    expect(decision.result).toBe('not_korean');
+  });
+
+  it('자동 발견·PC 도구는 언어 미확인을 한국어 아님으로 본다', () => {
+    expect(toDiscoveryResult('language_unknown')).toBe('not_korean');
+    expect(toDiscoveryResult('ok')).toBe('ok');
+    expect(toDiscoveryResult('too_small')).toBe('too_small');
   });
 });

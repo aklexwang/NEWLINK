@@ -227,8 +227,14 @@ export class AdminDiscoveryService {
     const row = await this.discoveredRepository.findOneBy({ username });
     if (!row) throw new Error('항목을 찾을 수 없습니다.');
     const link = `https://t.me/${username}`;
-    const existing = await this.channelsService.findByLink(link);
+    const existing = await this.channelsService.findDuplicate(link);
     if (existing) {
+      // 거절된 행은 새로 만들거나 되살리지 않는다(단건 등록에서 확인 후 활성화)
+      if (existing.kind === 'rejected') {
+        throw new Error(
+          '이전에 거절된 링크입니다. 단건 등록에서 다시 활성화해 주세요.',
+        );
+      }
       await this.discoveredRepository.update(username, { result: 'added' });
       throw new Error('이미 등록된 채널입니다.');
     }

@@ -38,8 +38,10 @@ export class CreateChannelDto {
   @MaxLength(512)
   link: string;
 
+  /** 서버가 링크를 검사해 자동 판별한다. 판별에 실패했을 때만 회원이 고른 값을 쓴다 */
+  @IsOptional()
   @IsIn([LinkType.CHANNEL, LinkType.GROUP])
-  linkType: LinkType;
+  linkType?: LinkType;
 
   @IsString()
   @IsNotEmpty()

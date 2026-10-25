@@ -42,6 +42,8 @@ export interface Channel {
   username?: string | null;
   language?: 'ko' | 'foreign' | 'unknown';
   languageLocked?: boolean;
+  /** 켜져 있으면 수집이 제목을 덮어쓰지 않는다 */
+  titleLocked?: boolean;
   isVisible?: boolean;
   categoryLocked?: boolean;
   illegalCleared?: boolean;
@@ -105,7 +107,8 @@ export interface SearchResult {
 export interface CreateChannelPayload {
   title: string;
   link: string;
-  linkType: LinkType;
+  /** 비워 두면 서버가 링크를 검사해 판별한다 */
+  linkType?: LinkType;
   category: string;
   description: string;
 }

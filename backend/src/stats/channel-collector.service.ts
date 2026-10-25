@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
+import { applyCollectedTitle, isTitleLocked } from '../channels/title-lock.logic';
 import {
   extractTelegramUsernameFromLink,
   isInviteOnlyLink,
@@ -696,7 +697,12 @@ export class ChannelCollectorService {
 
     const classified = classifyTelegramAccountHtml(page.html);
     const realTitle = classified.title?.trim() || null;
-    if (realTitle && isPlaceholderTitle(channel.title) && !isPlaceholderTitle(realTitle)) {
+    if (
+      realTitle &&
+      !isTitleLocked(channel) &&
+      isPlaceholderTitle(channel.title) &&
+      !isPlaceholderTitle(realTitle)
+    ) {
       channel.title = realTitle;
     }
 
@@ -958,7 +964,7 @@ export class ChannelCollectorService {
         nextTitle ?? nextUsername,
       );
     } else {
-      if (nextTitle && nextTitle !== channel.title) {
+      if (nextTitle && nextTitle !== channel.title && !isTitleLocked(channel)) {
         await this.recordEvent(
           channel.id,
           'title_changed',
@@ -985,7 +991,8 @@ export class ChannelCollectorService {
       await this.recordEvent(channel.id, 'returned', 'gone', 'ok');
     }
 
-    if (nextTitle) channel.title = nextTitle;
+    // 제목 고정이면 수집 제목으로 덮어쓰지 않는다(소개글은 아래에서 계속 갱신)
+    applyCollectedTitle(channel, nextTitle);
     if (!keepUsername && nextUsername) channel.username = nextUsername;
     if (info.memberCount != null) channel.memberCount = info.memberCount;
     if (info.description != null && info.description.trim()) {

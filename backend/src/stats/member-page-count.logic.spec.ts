@@ -46,12 +46,15 @@ function row(overrides: Partial<Row> = {}): Row {
 /** 회원 목록(getRankingCounts·랭킹·피드)이 쓰는 필터 체인을 그대로 옮긴 기준 구현 */
 function referenceMemberTotal(rows: Row[]): number {
   const active = rows.filter((r) => r.status === 'active');
-  return dedupeChannelsByLink(active)
-    .filter((c) => isPublicCollectable(c as never))
-    .filter(isVisibleOnPublicLists)
-    .filter((c) => !shouldHideIllegalSuspicion(c))
-    .filter((c) => allowAdultInList(c.category))
-    .filter((c) => !isPendingCategory(c.category)).length;
+  const listable = (c: Row) =>
+    isPublicCollectable(c as never) &&
+    isVisibleOnPublicLists(c) &&
+    !shouldHideIllegalSuspicion(c) &&
+    allowAdultInList(c.category) &&
+    !isPendingCategory(c.category);
+  // 같은 링크는 노출 가능한 행을 먼저 대표로 고른 뒤, 노출 가능한 것만 센다
+  return dedupeChannelsByLink(active, { prefer: listable }).filter(listable)
+    .length;
 }
 
 function sampleChannels(): Row[] {
@@ -61,7 +64,7 @@ function sampleChannels(): Row[] {
     // 같은 링크(대소문자·끝 슬래시만 다름) 두 개: 대표 1개만 회원 화면에 나온다
     row({ link: 'https://t.me/Same_Link', recommendCount: 5 }),
     row({ link: 'https://t.me/same_link/', recommendCount: 1 }),
-    // 대표가 숨김(외국어)이면 같은 링크의 다른 행도 회원 화면에 안 나온다
+    // 대표 후보가 숨김(외국어)이어도 같은 링크에 노출 가능한 행이 있으면 그 행이 대표가 된다
     row({ link: 'https://t.me/dup_hidden', language: 'foreign', recommendCount: 9 }),
     row({ link: 'https://t.me/dup_hidden/', recommendCount: 1 }),
     row({ title: '마약 정보방' }),

@@ -325,6 +325,7 @@ export class AdminController {
       id,
       {
       title: dto.title,
+      titleLocked: dto.titleLocked,
       category: dto.category,
       linkType: dto.linkType,
       status: dto.status,

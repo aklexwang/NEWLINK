@@ -5,6 +5,7 @@ import { In, IsNull, Repository } from 'typeorm';
 import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
 import { Channel, LinkType } from '../channels/channel.entity';
 import { clipPostExcerpt } from '../channels/channel-language.logic';
+import { applyCollectedTitle, isTitleLocked } from '../channels/title-lock.logic';
 import {
   extractTelegramUsernameFromLink,
   isInviteOnlyLink,
@@ -773,7 +774,11 @@ export class MtprotoCollectorService implements OnModuleInit {
         after: nextTitle ?? data.username,
         occurredAt: now,
       });
-    } else if (nextTitle && nextTitle !== channel.title) {
+    } else if (
+      nextTitle &&
+      nextTitle !== channel.title &&
+      !isTitleLocked(channel)
+    ) {
       await this.eventRepository.save({
         channelId: channel.id,
         type: 'title_changed',
@@ -791,7 +796,8 @@ export class MtprotoCollectorService implements OnModuleInit {
         occurredAt: now,
       });
     }
-    if (nextTitle) channel.title = nextTitle;
+    // 제목 고정이면 수집 제목으로 덮어쓰지 않는다(소개글은 계속 갱신)
+    applyCollectedTitle(channel, nextTitle);
     channel.username = data.username;
     if (data.memberCount != null) channel.memberCount = data.memberCount;
     if (data.description) channel.description = data.description;

@@ -22,11 +22,15 @@ const RESULT_LABEL: Record<AdminInspectItemResult, string> = {
   ok: '정상',
   already_registered: '이미 등록됨',
   not_korean: '외국어',
+  language_unknown: '언어 미확인',
   too_small: '100명 미만',
   not_found: '없는 방·초대 만료',
   invite_or_private: '없는 방·초대 만료',
   invalid_format: '형식 오류',
 };
+
+const REACTIVATE_CONFIRM =
+  '이전에 거절된 링크입니다. 새로 만들지 않고 그 행을 다시 활성화할까요?';
 
 const NOT_FOUND_MESSAGE =
   '이 링크로 방을 찾지 못했습니다. 링크(대소문자 포함)를 다시 확인하세요';
@@ -48,7 +52,8 @@ function kindLabel(kind: 'channel' | 'group' | null) {
 
 function canRegisterLookup(lookup: AdminChannelLookup, chosenKind: LinkType | '') {
   if (!lookup.title.trim()) return false;
-  if (lookup.alreadyRegistered) return false;
+  // 거절된 행만 있는 경우는 확인 후 다시 활성화할 수 있다
+  if (lookup.alreadyRegistered && lookup.existingStatus !== 'rejected') return false;
   if (
     lookup.result === 'not_found' ||
     lookup.result === 'invite_or_private' ||
@@ -103,6 +108,8 @@ export function AdminLinkRegisterPage() {
       if (result.linkType) setChosenKind(result.linkType);
       if (!result.title.trim()) {
         setError(NOT_FOUND_MESSAGE);
+      } else if (result.alreadyRegistered && result.existingStatus === 'rejected') {
+        setError('이전에 거절된 링크입니다. 등록하면 새로 만들지 않고 그 행을 다시 활성화합니다.');
       } else if (result.alreadyRegistered) {
         setError(
           result.resultCaption ||
@@ -110,6 +117,8 @@ export function AdminLinkRegisterPage() {
         );
       } else if (result.result === 'not_korean') {
         setError('외국어로 분류됐습니다. 확인 후 등록할 수 있습니다.');
+      } else if (result.result === 'language_unknown') {
+        setError('언어를 확인하지 못했습니다. 확인 후 등록할 수 있습니다.');
       } else if (result.result === 'too_small') {
         setError('인원이 100명 미만입니다. 확인 후 등록할 수 있습니다.');
       } else if (
@@ -139,23 +148,39 @@ export function AdminLinkRegisterPage() {
     if (lookup.result === 'not_korean') {
       if (!window.confirm('외국어로 분류됐습니다. 그래도 등록할까요?')) return;
     }
+    if (lookup.result === 'language_unknown') {
+      if (!window.confirm('언어를 확인하지 못했습니다. 그래도 등록할까요?')) return;
+    }
     if (lookup.result === 'too_small') {
       if (!window.confirm('인원이 100명 미만입니다. 그래도 등록할까요?')) return;
+    }
+    const rejectedBefore = lookup.alreadyRegistered && lookup.existingStatus === 'rejected';
+    if (rejectedBefore) {
+      if (!window.confirm(REACTIVATE_CONFIRM)) return;
     }
 
     setSaving(true);
     setError('');
     setMessage('');
 
+    const payload = {
+      title: titleValue.trim(),
+      link: lookup.link,
+      linkType: lookup.linkType ?? (chosenKind || undefined),
+      category,
+      description: description.trim() || titleValue.trim(),
+      isPromoted,
+    };
+
     try {
-      await registerAdminChannel({
-        title: titleValue.trim(),
-        link: lookup.link,
-        linkType: lookup.linkType ?? (chosenKind || undefined),
-        category,
-        description: description.trim() || titleValue.trim(),
-        isPromoted,
-      });
+      try {
+        await registerAdminChannel({ ...payload, reactivateRejected: rejectedBefore || undefined });
+      } catch (err) {
+        // 조회 이후에 거절 행이 생긴 경우: 서버가 확인을 요청하면 한 번 더 묻고 다시 보낸다
+        const code = axios.isAxiosError(err) ? err.response?.data?.code : null;
+        if (code !== 'DUPLICATE_REJECTED' || !window.confirm(REACTIVATE_CONFIRM)) throw err;
+        await registerAdminChannel({ ...payload, reactivateRejected: true });
+      }
       setMessage('등록되었습니다. 공개 페이지 수집 후 랭킹에 노출됩니다.');
       setLookup(null);
       setLinkInput('');

@@ -40,6 +40,7 @@ import {
 import {
   excerptsFromPreviewPosts,
   publicInspectDecision,
+  toDiscoveryResult,
 } from './public-channel-inspect.logic';
 import { createPublicTelegramFetcher } from './public-telegram-fetch.logic';
 import {
@@ -205,7 +206,9 @@ export class ChannelDiscoveryService {
         }
         result = 'added';
       } else {
-        result = preview.decision.result;
+        // 자동 발견은 사람이 확인하지 않으므로 언어 미확인도 한국어 아님으로 둔다
+        const mapped = toDiscoveryResult(preview.decision.result);
+        result = mapped === 'ok' ? 'not_found' : mapped;
       }
     } catch (error) {
       this.logger.warn(

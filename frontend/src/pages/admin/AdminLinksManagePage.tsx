@@ -67,6 +67,7 @@ const HIDE_REASONS = [
 
 type Draft = {
   title: string;
+  titleLocked: boolean;
   language: 'ko' | 'foreign' | 'unknown' | 'auto';
   category: string;
   categoryLocked: boolean;
@@ -175,6 +176,7 @@ export function AdminLinksManagePage() {
     const language = languageLocked ? draft.language : channel.language;
     const payload: Parameters<typeof updateAdminChannel>[1] = {};
     if (draft.title.trim() && draft.title.trim() !== channel.title) payload.title = draft.title.trim();
+    if (draft.titleLocked !== Boolean(channel.titleLocked)) payload.titleLocked = draft.titleLocked;
     if (draft.category !== channel.category) payload.category = draft.category;
     if (draft.categoryLocked !== Boolean(channel.categoryLocked)) payload.categoryLocked = draft.categoryLocked;
     if (draft.isVisible !== (channel.isVisible !== false)) payload.isVisible = draft.isVisible;
@@ -599,7 +601,23 @@ export function AdminLinksManagePage() {
                               <div className="grid gap-2 sm:grid-cols-2">
                                 <label className="text-xs text-slate-500">
                                   제목
-                                  <input value={draft.title} onChange={(e) => setDrafts((prev) => ({ ...prev, [channel.id]: { ...draft, title: e.target.value } }))} className="mt-1 w-full rounded-lg bg-white px-3 py-1.5 text-sm ring-1 ring-black/10" />
+                                  <input
+                                    value={draft.title}
+                                    onChange={(e) => {
+                                      const title = e.target.value;
+                                      // 제목을 바꾸면 수집이 덮어쓰지 않도록 고정을 자동으로 켠다(풀고 싶으면 체크 해제)
+                                      const changed = title.trim() !== channel.title;
+                                      setDrafts((prev) => ({
+                                        ...prev,
+                                        [channel.id]: { ...draft, title, titleLocked: changed ? true : Boolean(channel.titleLocked) },
+                                      }));
+                                    }}
+                                    className="mt-1 w-full rounded-lg bg-white px-3 py-1.5 text-sm ring-1 ring-black/10"
+                                  />
+                                </label>
+                                <label className="flex items-center gap-2 text-xs text-slate-600">
+                                  <input type="checkbox" checked={draft.titleLocked} onChange={(e) => setDrafts((prev) => ({ ...prev, [channel.id]: { ...draft, titleLocked: e.target.checked } }))} />
+                                  제목 고정 (풀면 다음 수집 때 텔레그램 제목으로 바뀝니다)
                                 </label>
                                 <label className="text-xs text-slate-500">
                                   언어
@@ -702,6 +720,7 @@ export function AdminLinksManagePage() {
 function draftFromChannel(channel: PendingChannel): Draft {
   return {
     title: channel.title,
+    titleLocked: Boolean(channel.titleLocked),
     language: channel.languageLocked ? (channel.language ?? 'unknown') : 'auto',
     category: channel.category,
     categoryLocked: Boolean(channel.categoryLocked),
