@@ -57,7 +57,11 @@ export class AdminDiscoveryService {
     if (filter !== 'all') {
       qb.andWhere('row.result = :result', { result: filter });
     }
-    if (input.source === 'snowball' || input.source === 'keyword') {
+    if (
+      input.source === 'snowball' ||
+      input.source === 'keyword' ||
+      input.source === 'linked'
+    ) {
       qb.andWhere('row.source = :source', { source: input.source });
     } else if (input.source === 'other') {
       qb.andWhere('(row.source IS NULL OR row.source = :other)', {

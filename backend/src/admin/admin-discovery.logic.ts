@@ -50,6 +50,7 @@ export function discoveryResultLabel(
 export function discoverySourceLabel(source: string | null | undefined): string {
   if (source === 'snowball') return 'snowball';
   if (source === 'keyword') return 'keyword';
+  if (source === 'linked') return '연결 대화방';
   return '기타';
 }
 

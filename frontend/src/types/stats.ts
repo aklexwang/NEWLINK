@@ -75,6 +75,21 @@ export interface ChannelDetail {
   isVisible?: boolean;
   latestScore: ChannelLatestScore | null;
   badges: ChannelBadge[];
+  /** 텔레그램 개설일 (MTProto 로 확인된 것만) */
+  createdOn?: string | null;
+  /** 채널이면 연결된 대화방(discussion), 그룹이면 부모 채널(parent) */
+  linkedChat?: ChannelLinkedChat | null;
+}
+
+export interface ChannelLinkedChat {
+  role: 'discussion' | 'parent';
+  title: string | null;
+  username: string | null;
+  /** 우리 목록에 있고 회원에게 보여도 되는 행이면 그 id */
+  channelId: string | null;
+  memberCount: number | null;
+  isPrivate: boolean;
+  createdOn: string | null;
 }
 
 export interface ChannelStatsPoint {

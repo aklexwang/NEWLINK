@@ -28,6 +28,7 @@ import { openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import { useAuth } from '../providers/AuthProvider';
 import { toastMessage } from '../providers/ToastProvider';
 import type {
+  ChannelLinkedChat,
   ChannelDetail,
   ChannelEventItem,
   ChannelEventType,
@@ -516,6 +517,8 @@ export function ChannelDetailPage() {
         </div>
       </header>
 
+      <LinkedChatSection createdOn={detail.createdOn ?? null} linked={detail.linkedChat ?? null} />
+
       {inviteRoom && !inviteExpired && (
         <section className="mx-4 rounded-2xl bg-tg-secondary/70 px-4 py-3 text-[13px] leading-snug text-tg-hint">
           비공개 초대방이라 인원 수만 집계합니다
@@ -856,5 +859,65 @@ function ActionButton({ onClick, children }: { onClick: () => void; children: st
     >
       {children}
     </button>
+  );
+}
+
+function formatKoreanDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  // 개설일은 KST 날짜로
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  const y = kst.getUTCFullYear();
+  const m = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(kst.getUTCDate()).padStart(2, '0');
+  return `${y}년 ${m}월 ${day}일`;
+}
+
+function LinkedChatSection({
+  createdOn,
+  linked,
+}: {
+  createdOn: string | null;
+  linked: ChannelLinkedChat | null;
+}) {
+  const created = formatKoreanDate(createdOn);
+  if (!created && !linked) return null;
+  const linkedTitle = linked?.title ?? (linked?.username ? `@${linked.username}` : null);
+  const target = linked?.channelId
+    ? linked.username
+      ? `/c/${linked.username}`
+      : `/c/id/${linked.channelId}`
+    : null;
+  return (
+    <section className="mx-4 space-y-2 rounded-2xl bg-tg-secondary/70 px-4 py-3 text-[13px] leading-snug text-tg-text">
+      {created && (
+        <p>
+          <span className="text-tg-hint">개설</span> {created}
+        </p>
+      )}
+      {linked && linkedTitle && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-tg-hint">
+            {linked.role === 'parent'
+              ? '이 대화방은 아래 채널에 딸린 방입니다'
+              : '이 채널에 딸린 대화방'}
+          </span>
+          {target ? (
+            <Link
+              to={target}
+              className="rounded-full bg-tg-bg px-3 py-1 text-[12px] font-semibold text-tg-link ring-1 ring-black/5"
+            >
+              {linked.role === 'parent' ? '📢' : '💬'} {linkedTitle}
+            </Link>
+          ) : (
+            <span className="rounded-full bg-tg-bg px-3 py-1 text-[12px] font-semibold ring-1 ring-black/5">
+              {linked.role === 'parent' ? '📢' : '💬'} {linkedTitle}
+              {linked.isPrivate ? ' · 비공개' : ''}
+            </span>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

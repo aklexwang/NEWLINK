@@ -188,6 +188,7 @@ describe('mergeDiscoveryQueue', () => {
     expect(queue[0].source).toBe('other');
     expect(persistDiscoverySource(queue[0].source)).toBe('other');
     expect(persistDiscoverySource('keyword')).toBe('keyword');
+    expect(persistDiscoverySource('linked')).toBe('linked');
     expect(persistDiscoverySource('mention')).toBe('snowball');
   });
 });

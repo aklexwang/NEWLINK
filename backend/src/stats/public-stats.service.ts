@@ -14,7 +14,12 @@ import {
 } from '../channels/auto-expose.logic';
 import { dedupeChannelsByLink } from '../channels/channel-link.logic';
 import { isPublicCollectable } from './collect-visibility';
-import { pickBestMemberRow, selectMemberVisibleRows } from './member-visible.logic';
+import {
+  isMemberVisible,
+  pickBestMemberRow,
+  selectMemberVisibleRows,
+} from './member-visible.logic';
+import { telegramChatIdVariants } from './linked-chat.logic';
 import { sliceRankingPage } from './collect-budget.logic';
 import { lastPostAtFromCollectedPosts } from './stats-collect.logic';
 import {
@@ -674,12 +679,16 @@ export class PublicStatsService {
       todayYmd: today,
     });
 
+    const linkedChat = await this.buildLinkedChat(channel);
+
     return {
       id: channel.id,
       title: channel.title,
       username: channel.username,
       link: channel.link,
       linkType: channel.linkType,
+      createdOn: channel.createdOn ? new Date(channel.createdOn).toISOString() : null,
+      linkedChat,
       category: channel.category,
       description: channel.description,
       avatarUrl: this.channelsService.getListAvatarUrl(channel),
@@ -715,6 +724,37 @@ export class PublicStatsService {
           }
         : null,
       badges,
+    };
+  }
+
+  /**
+   * 채널이면 연결된 대화방, 그룹이면 부모 채널. MTProto 로 확인된 것만.
+   * 우리 DB 에 회원에게 보여도 되는 행이 있으면 그 행으로 연결하고, 없으면 이름만 보여준다.
+   */
+  private async buildLinkedChat(channel: Channel) {
+    if (channel.linkedChatTelegramId == null) return null;
+    const role = channel.linkType === LinkType.GROUP ? 'parent' : 'discussion';
+    const rows = await this.channelRepository
+      .createQueryBuilder('c')
+      .where('c.status = :status', { status: ChannelStatus.ACTIVE })
+      .andWhere('c.id <> :self', { self: channel.id })
+      .andWhere('c.telegramChatId IN (:...ids)', {
+        ids: telegramChatIdVariants(channel.linkedChatTelegramId),
+      })
+      .getMany();
+    const row = pickBestMemberRow(rows);
+    const visible = row && isMemberVisible(row) ? row : null;
+    const username = visible?.username ?? channel.linkedChatUsername ?? null;
+    return {
+      role,
+      title: visible?.title ?? channel.linkedChatTitle ?? null,
+      username,
+      channelId: visible?.id ?? null,
+      memberCount: visible?.memberCount ?? null,
+      isPrivate: !username,
+      createdOn: channel.linkedChatCreatedOn
+        ? new Date(channel.linkedChatCreatedOn).toISOString()
+        : null,
     };
   }
 
