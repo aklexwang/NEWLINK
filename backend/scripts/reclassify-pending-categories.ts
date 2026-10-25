@@ -30,11 +30,48 @@ async function main() {
   });
   await client.connect();
 
+  // 해킹 → 게임 이동 + 빈 해킹 카테고리 행 정리 (--apply 때만 실제 변경)
   const hacking = await client.query<{ title: string }>(
     `SELECT title FROM channels WHERE category = '해킹' ORDER BY title`,
   );
-  console.log('hacking_count', hacking.rows.length);
+  const hackingCandidates = await client.query<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM channel_import_candidates
+     WHERE category = '해킹' OR category_ai_suggested = '해킹'`,
+  );
+  const hackingRow = await client.query<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM categories WHERE name = '해킹'`,
+  );
+  const gameRow = await client.query<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM categories WHERE name = '게임'`,
+  );
+  console.log('hacking_channels_to_game', hacking.rows.length);
   for (const row of hacking.rows) console.log('hacking_title', row.title);
+  console.log('hacking_candidates_to_game', hackingCandidates.rows[0].n);
+  console.log('hacking_category_row', hackingRow.rows[0].n);
+  console.log('game_category_row', gameRow.rows[0].n);
+  if (apply) {
+    if (gameRow.rows[0].n === 0) {
+      throw new Error('게임 카테고리가 없어 해킹을 옮길 수 없습니다.');
+    }
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE channels SET category = '게임' WHERE category = '해킹'`,
+    );
+    await client.query(
+      `UPDATE channel_import_candidates SET category = '게임' WHERE category = '해킹'`,
+    );
+    await client.query(
+      `UPDATE channel_import_candidates SET category_ai_suggested = '게임' WHERE category_ai_suggested = '해킹'`,
+    );
+    const removed = await client.query(
+      `DELETE FROM categories
+       WHERE name = '해킹'
+         AND NOT EXISTS (SELECT 1 FROM channels WHERE category = '해킹')
+         AND NOT EXISTS (SELECT 1 FROM channel_import_candidates WHERE category = '해킹')`,
+    );
+    await client.query('COMMIT');
+    console.log('hacking_category_rows_removed', removed.rowCount ?? 0);
+  }
 
   const allText = await client.query<{ title: string; description: string }>(
     `SELECT title, description FROM channels`,

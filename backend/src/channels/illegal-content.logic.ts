@@ -32,6 +32,56 @@ export const ILLEGAL_TITLE_LIKE_NEEDLES = [
 ];
 export const ILLEGAL_DESCRIPTION_LIKE_NEEDLES = [...STRONG_DRUG_WORDS];
 
+/** "마약" 바로 뒤에 붙어 음식 이름이 되는 말 (마약김밥, 마약떡볶이 …). "마약류"는 해당 없음 */
+export const FOOD_SUFFIXES = [
+  '김밥',
+  '떡볶이',
+  '옥수수',
+  '토스트',
+  '계란',
+  '달걀',
+  '소스',
+  '치킨',
+  '피자',
+  '빵',
+  '쿠키',
+  '커피',
+  '라면',
+  '우동',
+  '국수',
+  '족발',
+  '순대',
+  '튀김',
+  '만두',
+  '감자',
+  '고구마',
+  '샌드위치',
+  '햄버거',
+  '버거',
+  '파스타',
+  '볶음',
+  '찌개',
+  '치즈',
+  '아이스크림',
+  '크림',
+  '밥',
+  '반찬',
+  '양념',
+  '간장',
+  '순두부',
+  '두부',
+  '핫도그',
+  '와플',
+  '도넛',
+  '호떡',
+  '꿀',
+  '김치',
+  '오이',
+  '땅콩',
+  '쌈',
+  '막걸리',
+];
+
 /** "마약" 주변에 이런 말이 있으면 규칙·금지 문구로 본다 */
 const PROHIBIT_CONTEXT_RE =
   /금지|불가|제외|제재|추방|강퇴|퇴장|퇴출|차단|제한|빼고|금함|일절|절대|즉시|강제|칼밴|음란|야동|야짤|사기꾼|성매매|19금|성착취|성인물|먹튀|패드립|위조|박사|아동/;
@@ -43,17 +93,38 @@ function containsStrongDrugWord(text: string): boolean {
   return STRONG_DRUG_WORDS.some((word) => lower.includes(word));
 }
 
+function isFoodMention(text: string, afterIndex: number): boolean {
+  const rest = text.slice(afterIndex);
+  return FOOD_SUFFIXES.some((food) => rest.startsWith(food));
+}
+
+/** 제목: 음식 표현이 아닌 "마약" 이 하나라도 있으면 의심 */
+function titleHasNonFoodGenericMention(title: string): boolean {
+  let from = 0;
+  while (from < title.length) {
+    const index = title.indexOf(GENERIC_DRUG_WORD, from);
+    if (index < 0) return false;
+    const after = index + GENERIC_DRUG_WORD.length;
+    if (!isFoodMention(title, after)) return true;
+    from = after;
+  }
+  return false;
+}
+
 function hasNonRuleGenericMention(description: string): boolean {
   let from = 0;
   while (from < description.length) {
     const index = description.indexOf(GENERIC_DRUG_WORD, from);
     if (index < 0) return false;
+    const after = index + GENERIC_DRUG_WORD.length;
     const around = description.slice(
       Math.max(0, index - 14),
-      index + GENERIC_DRUG_WORD.length + 22,
+      after + 22,
     );
-    if (!PROHIBIT_CONTEXT_RE.test(around)) return true;
-    from = index + GENERIC_DRUG_WORD.length;
+    if (!isFoodMention(description, after) && !PROHIBIT_CONTEXT_RE.test(around)) {
+      return true;
+    }
+    from = after;
   }
   return false;
 }
@@ -64,7 +135,7 @@ export function hasIllegalDrugSuspicion(
 ): boolean {
   const titleText = title ?? '';
   const descText = description ?? '';
-  if (titleText.includes(GENERIC_DRUG_WORD)) return true;
+  if (titleHasNonFoodGenericMention(titleText)) return true;
   if (containsStrongDrugWord(titleText)) return true;
   if (containsStrongDrugWord(descText)) return true;
   return hasNonRuleGenericMention(descText);
@@ -80,7 +151,8 @@ export function shouldHideIllegalSuspicion(channel: {
 }
 
 /**
- * 대시보드 집계용 근사. 소개글의 "마약" 단독 언급은 문맥 판별이 필요해 빠진다.
+ * 대시보드 집계용 근사. 소개글의 "마약" 단독 언급은 문맥 판별이 필요해 빠지고,
+ * 제목의 "마약" 은 음식 표현(마약김밥 등)이 하나도 없는 경우만 센다.
  * 어드민 목록 필터는 JS(hasIllegalDrugSuspicion)로 정확히 거른다.
  */
 export function illegalSuspicionSql(
@@ -88,8 +160,13 @@ export function illegalSuspicionSql(
   bool: { t: string; f: string },
 ): string {
   const quote = (word: string) => word.replace(/'/g, "''");
-  const titleParts = ILLEGAL_TITLE_LIKE_NEEDLES.map(
-    (word) => `${alias}.title LIKE '%${quote(word)}%'`,
+  const notFood = FOOD_SUFFIXES.map(
+    (food) => `${alias}.title NOT LIKE '%${quote(GENERIC_DRUG_WORD + food)}%'`,
+  ).join(' AND ');
+  const titleParts = ILLEGAL_TITLE_LIKE_NEEDLES.map((word) =>
+    word === GENERIC_DRUG_WORD
+      ? `(${alias}.title LIKE '%${quote(word)}%' AND ${notFood})`
+      : `${alias}.title LIKE '%${quote(word)}%'`,
   );
   const descParts = ILLEGAL_DESCRIPTION_LIKE_NEEDLES.map(
     (word) => `${alias}.description LIKE '%${quote(word)}%'`,
