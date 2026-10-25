@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { UsersModule } from '../users/users.module';
 import { ChannelRecommendation } from './channel-recommendation.entity';
 import { ChannelFavorite } from './channel-favorite.entity';
@@ -22,6 +23,7 @@ import { ChannelEvent } from '../stats/channel-event.entity';
       ChannelEvent,
     ]),
     UsersModule,
+    AnalyticsModule,
   ],
   controllers: [ChannelsController, TelegramAvatarController],
   providers: [

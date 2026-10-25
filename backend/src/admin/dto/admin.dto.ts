@@ -379,3 +379,26 @@ export class UpdateImportCandidateDto {
   @MaxLength(255)
   title?: string;
 }
+
+/** 검색 금지어·예외어 추가 */
+export class SearchTermCreateDto {
+  @IsIn(['block', 'allow'])
+  kind: 'block' | 'allow';
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  term: string;
+}
+
+/** 검색 금지어·예외어 수정(켜기/끄기, 단어 변경) */
+export class SearchTermUpdateDto {
+  @IsBoolean()
+  @IsOptional()
+  enabled?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  term?: string;
+}

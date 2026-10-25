@@ -17,6 +17,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import type { Channel } from '../types/channel';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { formatCount, formatRelativeKo, formatSignedPercent } from '../utils/formatCount';
+import { BLOCKED_SEARCH_MESSAGE } from '../utils/searchMessage';
 
 type HomeView = 'dash' | 'search';
 type SearchType = 'all' | 'channel' | 'group';
@@ -73,6 +74,10 @@ export function HomePage() {
   const [suggestions, setSuggestions] = useState<Channel[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  /** 금지어로 막힌 검색일 때 서버가 준 안내 문구 (검색 결과 화면) */
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
+  /** 입력 중 자동완성이 금지어에 걸렸을 때 안내 문구 */
+  const [suggestBlockedMessage, setSuggestBlockedMessage] = useState<string | null>(null);
   const suggestRequestId = useRef(0);
 
   const [home, setHome] = useState<HomeDashboard | null>(null);
@@ -95,25 +100,31 @@ export function HomePage() {
     setSearchChannelsList([]);
     setSuggestions([]);
     setShowSuggestions(false);
+    setBlockedMessage(null);
+    setSuggestBlockedMessage(null);
     setView('dash');
   }, []);
 
   const closeSuggestions = useCallback(() => setShowSuggestions(false), []);
 
   const loadSearch = useCallback(
-    async (keyword: string) => {
+    // record=false 는 추천 후 목록 새로고침처럼 사용자가 새로 검색한 게 아닌 경우
+    async (keyword: string, record = true) => {
       setSearchLoading(true);
       setShowSuggestions(false);
       try {
         const result = await searchChannels({
           q: keyword,
           type: searchType === 'all' ? undefined : searchType,
+          record,
         });
         setSearchChannelsList(result.items);
+        setBlockedMessage(result.blocked ? result.message ?? BLOCKED_SEARCH_MESSAGE : null);
         setView('search');
       } catch {
         notifyUser(webApp, isLocalBrowser, '검색 결과를 불러오지 못했습니다.');
         setSearchChannelsList([]);
+        setBlockedMessage(null);
         setView('search');
       } finally {
         setSearchLoading(false);
@@ -133,6 +144,7 @@ export function HomePage() {
     if (!keyword) {
       suggestRequestId.current += 1;
       setSuggestions([]);
+      setSuggestBlockedMessage(null);
       setSuggestionsLoading(false);
       setShowSuggestions(false);
       return;
@@ -281,7 +293,7 @@ export function HomePage() {
     }
     try {
       await recommend(id);
-      await loadSearch(query.trim());
+      await loadSearch(query.trim(), false);
       hapticSuccess(webApp, isLocalBrowser);
     } catch {
       notifyUser(webApp, isLocalBrowser, '이미 추천했거나 추천 처리에 실패했습니다.');
@@ -325,6 +337,7 @@ export function HomePage() {
     onLinkTypeChange: setSearchType,
     suggestions,
     suggestionsLoading,
+    blockedMessage: suggestBlockedMessage,
     showSuggestions,
     onSelectSuggestion: handleSelectSuggestion,
     onCloseSuggestions: closeSuggestions,
@@ -371,7 +384,7 @@ export function HomePage() {
           onRecommend={handleRecommend}
           onToggleFavorite={handleToggleFavorite}
           sectionTitle="검색 결과"
-          emptyMessage="검색 결과가 없습니다."
+          emptyMessage={blockedMessage ?? '검색 결과가 없습니다.'}
         />
       </div>
     );

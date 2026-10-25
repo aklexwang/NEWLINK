@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { CategoriesModule } from '../categories/categories.module';
 import { Channel } from '../channels/channel.entity';
 import { ChannelsModule } from '../channels/channels.module';
@@ -15,6 +16,8 @@ import { AdminCollectService } from './admin-collect.service';
 import { AdminController } from './admin.controller';
 import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
+import { AdminOpensController } from './admin-opens.controller';
+import { AdminSearchController } from './admin-search.controller';
 import { AdminPromotionsController } from './admin-promotions.controller';
 import { AdminInspectController } from './admin-inspect.controller';
 import { AdminInspectItem } from './admin-inspect-item.entity';
@@ -33,6 +36,7 @@ import { AdminUsersController } from './admin-users.controller';
     UsersModule,
     PaymentsModule,
     StatsModule,
+    AnalyticsModule,
     TypeOrmModule.forFeature([
       Channel,
       StatsRun,
@@ -52,6 +56,8 @@ import { AdminUsersController } from './admin-users.controller';
     AdminPromotionsController,
     AdminCategoriesController,
     AdminUsersController,
+    AdminSearchController,
+    AdminOpensController,
   ],
   providers: [
     AdminDashboardService,

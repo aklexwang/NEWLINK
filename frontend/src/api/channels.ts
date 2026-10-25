@@ -8,8 +8,13 @@ export async function searchChannels(params: {
   type?: 'channel' | 'group';
   page?: number;
   limit?: number;
+  /** 확정된 검색(검색 버튼·엔터)만 true. 입력 중 자동완성은 보내지 않는다. */
+  record?: boolean;
 }): Promise<SearchResult> {
-  const { data } = await apiClient.get<SearchResult>('/channels/search', { params });
+  const { record, ...rest } = params;
+  const { data } = await apiClient.get<SearchResult>('/channels/search', {
+    params: { ...rest, ...(record ? { record: 1 } : {}) },
+  });
   return data;
 }
 

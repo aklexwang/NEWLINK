@@ -8,6 +8,9 @@ import { AdminCollectOpsPage } from '../pages/admin/AdminCollectOpsPage';
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
 import { AdminLinksManagePage } from '../pages/admin/AdminLinksManagePage';
 import { AdminPendingPage } from '../pages/admin/AdminPendingPage';
+import { AdminOpensPage } from '../pages/admin/AdminOpensPage';
+import { AdminSearchInsightsPage } from '../pages/admin/AdminSearchInsightsPage';
+import { AdminSearchTermsPage } from '../pages/admin/AdminSearchTermsPage';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage';
 
 export default function AdminRoutes() {
@@ -22,6 +25,9 @@ export default function AdminRoutes() {
         <Route path="register-link" element={<AdminManualRegisterPage />} />
         <Route path="discovery" element={<AdminDiscoveryPage />} />
         <Route path="ads" element={<AdminAdsManagePage />} />
+        <Route path="search-insights" element={<AdminSearchInsightsPage />} />
+        <Route path="opens" element={<AdminOpensPage />} />
+        <Route path="search-terms" element={<AdminSearchTermsPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="users" element={<AdminUsersPage />} />
       </Route>

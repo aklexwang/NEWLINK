@@ -847,3 +847,112 @@ export async function reorderDiscoveryKeywords(ids: string[]) {
   return data;
 }
 
+// ── 검색 금지어 · 검색 인사이트 · 텔레그램 이동 수 ─────────────────
+
+export type SearchTermKind = 'block' | 'allow';
+
+export interface SearchTermRow {
+  id: string;
+  kind: SearchTermKind;
+  term: string;
+  termNormalized: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /** 예외어가 효과 없을 때 서버가 주는 안내 */
+  warning?: string;
+}
+
+export type AnalyticsRange = 'today' | '7d' | '30d';
+
+export interface SearchInsightRow {
+  query: string;
+  sample: string;
+  searchCount: number;
+  zeroCount: number;
+  blockedCount: number;
+}
+
+export interface SearchInsights {
+  range: AnalyticsRange;
+  from: string;
+  to: string;
+  totals: { searchCount: number; zeroCount: number; blockedCount: number };
+  popular: SearchInsightRow[];
+  zero: SearchInsightRow[];
+  blocked: SearchInsightRow[];
+}
+
+export interface OpenRankingRow {
+  channelId: string;
+  title: string;
+  link: string;
+  category: string;
+  opens: number;
+}
+
+export interface OpenRanking {
+  range: AnalyticsRange;
+  from: string;
+  to: string;
+  items: OpenRankingRow[];
+}
+
+export interface ChannelOpenSummary {
+  channelId: string;
+  today: number;
+  last7d: number;
+  last30d: number;
+  daily: Array<{ date: string; count: number }>;
+}
+
+export async function getSearchTerms(): Promise<SearchTermRow[]> {
+  const { data } = await apiClient.get<{ items: SearchTermRow[] }>('/admin/search/terms', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data.items;
+}
+
+export async function createSearchTerm(payload: { kind: SearchTermKind; term: string }) {
+  const { data } = await apiClient.post<SearchTermRow>('/admin/search/terms', payload, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function updateSearchTerm(id: string, payload: { enabled?: boolean; term?: string }) {
+  const { data } = await apiClient.patch<SearchTermRow>(`/admin/search/terms/${id}`, payload, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function deleteSearchTerm(id: string) {
+  const { data } = await apiClient.delete<{ ok: boolean }>(`/admin/search/terms/${id}`, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function getSearchInsights(range: AnalyticsRange): Promise<SearchInsights> {
+  const { data } = await apiClient.get<SearchInsights>('/admin/search/insights', {
+    headers: getAdminAuthHeaders(),
+    params: { range },
+  });
+  return data;
+}
+
+export async function getOpenRanking(range: AnalyticsRange, limit = 50): Promise<OpenRanking> {
+  const { data } = await apiClient.get<OpenRanking>('/admin/opens/ranking', {
+    headers: getAdminAuthHeaders(),
+    params: { range, limit },
+  });
+  return data;
+}
+
+export async function getChannelOpenSummary(channelId: string): Promise<ChannelOpenSummary> {
+  const { data } = await apiClient.get<ChannelOpenSummary>(`/admin/opens/channel/${channelId}`, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}

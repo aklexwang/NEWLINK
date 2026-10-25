@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { trackTelegramOpen } from '../api/opens';
 import type { Channel } from '../types/channel';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { channelDetailPath } from '../utils/channelDetailPath';
@@ -122,6 +123,7 @@ export function ChannelCard({
           href={channel.link}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => trackTelegramOpen(channel.id)}
           className="rounded-full bg-tg-open-bg px-4 py-1.5 text-[15px] font-semibold text-tg-open-text"
         >
           Open

@@ -97,6 +97,9 @@ export interface SearchResult {
   page: number;
   limit: number;
   totalPages: number;
+  /** 검색어에 금지어가 있어 결과를 막았을 때 true */
+  blocked?: boolean;
+  message?: string;
 }
 
 export interface CreateChannelPayload {

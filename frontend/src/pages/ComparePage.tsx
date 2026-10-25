@@ -20,6 +20,7 @@ import { extractTelegramUsername } from '../utils/channelAvatar';
 import { channelDetailPath } from '../utils/channelDetailPath';
 import { addCompareId, COMPARE_MAX, getCompareIds, removeCompareId } from '../utils/compareChannels';
 import { formatCount, formatPercent, formatSignedPercent } from '../utils/formatCount';
+import { BLOCKED_SEARCH_MESSAGE } from '../utils/searchMessage';
 
 const LINE_COLORS = ['#2481cc', '#059669', '#d97706'];
 
@@ -29,6 +30,8 @@ export function ComparePage() {
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<Channel[]>([]);
   const [searching, setSearching] = useState(false);
+  /** 금지어에 걸린 검색어일 때 서버가 준 안내 문구 */
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
 
   const reload = useCallback(async (nextIds: string[]) => {
     if (nextIds.length === 0) {
@@ -55,13 +58,20 @@ export function ComparePage() {
     const keyword = query.trim();
     if (!keyword) {
       setHits([]);
+      setBlockedMessage(null);
       return;
     }
     setSearching(true);
     const timer = window.setTimeout(() => {
       void searchChannels({ q: keyword })
-        .then((result) => setHits(result.items.slice(0, 8)))
-        .catch(() => setHits([]))
+        .then((result) => {
+          setHits(result.items.slice(0, 8));
+          setBlockedMessage(result.blocked ? result.message ?? BLOCKED_SEARCH_MESSAGE : null);
+        })
+        .catch(() => {
+          setHits([]);
+          setBlockedMessage(null);
+        })
         .finally(() => setSearching(false));
     }, 220);
     return () => window.clearTimeout(timer);
@@ -122,12 +132,12 @@ export function ComparePage() {
           placeholder="채널 검색해서 추가"
           className="w-full rounded-2xl bg-tg-secondary px-4 py-2.5 text-sm outline-none"
         />
-        {(searching || hits.length > 0) && query.trim() && (
+        {(searching || hits.length > 0 || blockedMessage) && query.trim() && (
           <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-2xl border border-black/10 bg-white shadow-lg">
             {searching && hits.length === 0 ? (
               <li className="px-3 py-2 text-[13px] text-tg-hint">검색 중...</li>
             ) : hits.length === 0 ? (
-              <li className="px-3 py-2 text-[13px] text-tg-hint">결과가 없습니다.</li>
+              <li className="px-3 py-2 text-[13px] text-tg-hint">{blockedMessage ?? '결과가 없습니다.'}</li>
             ) : (
               hits.map((channel) => (
                 <li key={channel.id}>

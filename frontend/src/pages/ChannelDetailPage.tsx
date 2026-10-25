@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { trackTelegramOpen } from '../api/opens';
 import {
   getChannelDetailById,
   getChannelDetailByUsername,
@@ -286,6 +287,8 @@ export function ChannelDetailPage() {
 
   const openTelegram = () => {
     if (!detail) return;
+    // 이동 기록은 링크 이동을 막지 않게 먼저 쏘고 기다리지 않는다. (게시글 링크는 기록하지 않음)
+    trackTelegramOpen(detail.id);
     openTelegramChannel(webApp, isLocalBrowser, detail.link);
   };
 

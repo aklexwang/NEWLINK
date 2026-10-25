@@ -11,6 +11,8 @@ interface SearchBarProps {
   className?: string;
   suggestions?: Channel[];
   suggestionsLoading?: boolean;
+  /** 금지어에 걸린 검색어일 때 목록 대신 보여줄 안내 문구 */
+  blockedMessage?: string | null;
   showSuggestions?: boolean;
   onSelectSuggestion?: (channel: Channel) => void;
   onCloseSuggestions?: () => void;
@@ -36,6 +38,7 @@ export function SearchBar({
   className = '',
   suggestions = [],
   suggestionsLoading = false,
+  blockedMessage = null,
   showSuggestions = false,
   onSelectSuggestion,
   onCloseSuggestions,
@@ -47,7 +50,7 @@ export function SearchBar({
   const open =
     showSuggestions &&
     value.trim().length > 0 &&
-    (suggestionsLoading || suggestions.length > 0);
+    (suggestionsLoading || suggestions.length > 0 || Boolean(blockedMessage));
 
   useEffect(() => {
     if (!open || !onCloseSuggestions) return;
@@ -68,7 +71,9 @@ export function SearchBar({
         variant === 'google' ? 'rounded-b-3xl' : 'rounded-b-2xl'
       }`}
     >
-      {suggestionsLoading && suggestions.length === 0 ? (
+      {blockedMessage ? (
+        <li className="px-4 py-3 text-sm text-[#70757a]">{blockedMessage}</li>
+      ) : suggestionsLoading && suggestions.length === 0 ? (
         <li className="px-4 py-3 text-sm text-[#70757a]">검색 중…</li>
       ) : (
         suggestions.map((channel) => {
@@ -150,7 +155,9 @@ export function SearchBar({
             aria-label="검색 제안"
             className="absolute left-0 right-0 z-20 overflow-hidden rounded-b-2xl border border-t-0 border-nl-line bg-nl-card shadow-lg"
           >
-            {suggestionsLoading && suggestions.length === 0 ? (
+            {blockedMessage ? (
+              <li className="px-4 py-3 text-sm text-nl-muted">{blockedMessage}</li>
+            ) : suggestionsLoading && suggestions.length === 0 ? (
               <li className="px-4 py-3 text-sm text-nl-muted">검색 중…</li>
             ) : (
               suggestions.map((channel) => {

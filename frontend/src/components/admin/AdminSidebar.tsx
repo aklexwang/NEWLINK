@@ -6,7 +6,10 @@ import {
   LayoutDashboard,
   Link2,
   List,
+  MousePointerClick,
   RefreshCw,
+  Search,
+  SearchX,
   Star,
   Timer,
   Users,
@@ -58,6 +61,8 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     title: '운영',
     items: [
       { to: '/admin/ads', label: '광고 관리', icon: <Star />, badge: 'ads' },
+      { to: '/admin/search-insights', label: '검색 인사이트', icon: <Search /> },
+      { to: '/admin/opens', label: '텔레그램 이동 순위', icon: <MousePointerClick /> },
     ],
   },
   {
@@ -65,6 +70,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { to: '/admin/users', label: '회원 관리', icon: <Users /> },
       { to: '/admin/categories', label: '카테고리 설정', icon: <FolderCog /> },
+      { to: '/admin/search-terms', label: '검색 금지어', icon: <SearchX /> },
     ],
   },
 ];

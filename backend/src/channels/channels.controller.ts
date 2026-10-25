@@ -7,9 +7,14 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import type { Request } from 'express';
+import { SearchLogService } from '../analytics/search-log.service';
+import { SearchTermsService } from '../analytics/search-terms.service';
+import { SEARCH_BLOCKED_MESSAGE } from '../analytics/search-text.logic';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { TelegramUserParam } from '../auth/telegram-user.decorator';
 import type { TelegramUser } from '../auth/interfaces/telegram-user.interface';
@@ -26,11 +31,45 @@ export class ChannelsController {
     private readonly usersService: UsersService,
     private readonly channelVerifyService: ChannelVerifyService,
     private readonly moduleRef: ModuleRef,
+    private readonly searchTerms: SearchTermsService,
+    private readonly searchLog: SearchLogService,
   ) {}
 
+  /**
+   * 회원 검색. 금지어가 들어 있으면 결과 없이 안내 문구를 돌려준다(HTTP 200, blocked: true).
+   * record=1 인 확정 검색만 익명 검색 기록에 남긴다.
+   */
   @Get('search')
-  search(@Query() dto: SearchChannelDto) {
-    return this.channelsService.search(dto);
+  async search(@Query() dto: SearchChannelDto, @Req() req: Request) {
+    const check = await this.searchTerms.check(dto.q);
+    if (check.blocked) {
+      if (dto.record) {
+        void this.searchLog.recordFromRequest(req, {
+          query: dto.q,
+          resultCount: 0,
+          blocked: true,
+        });
+      }
+      return {
+        items: [],
+        total: 0,
+        page: dto.page ?? 1,
+        limit: dto.limit ?? 20,
+        totalPages: 0,
+        blocked: true,
+        message: SEARCH_BLOCKED_MESSAGE,
+      };
+    }
+
+    const result = await this.channelsService.search(dto);
+    if (dto.record && dto.q?.trim()) {
+      void this.searchLog.recordFromRequest(req, {
+        query: dto.q,
+        resultCount: result.total,
+        blocked: false,
+      });
+    }
+    return result;
   }
 
   @Get('promoted')

@@ -16,6 +16,7 @@ import {
 } from '../../api/admin';
 import { AdminCategoryChipBar } from '../../components/admin/AdminCategoryChipBar';
 import { AdClientCells, AdClientDetail } from '../../components/admin/AdClientInfo';
+import { AdminChannelOpens } from '../../components/admin/AdminChannelOpens';
 import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor';
 import {
   AdminEmptyState,
@@ -574,6 +575,7 @@ export function AdminLinksManagePage() {
                                   </button>
                                 </div>
                               )}
+                              <AdminChannelOpens channelId={channel.id} />
                               {channel.isPromoted && <AdClientDetail channel={channel} />}
                               <ChannelAvatarEditor
                                 key={`${channel.id}-${channel.avatarUrl ?? 'none'}`}
