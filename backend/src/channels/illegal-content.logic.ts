@@ -110,11 +110,11 @@ function hasNonRuleGenericMention(description: string): boolean {
     const index = description.indexOf(GENERIC_DRUG_WORD, from);
     if (index < 0) return false;
     const after = index + GENERIC_DRUG_WORD.length;
-    const around = description.slice(
-      Math.max(0, index - 14),
-      after + 22,
-    );
-    if (!isFoodMention(description, after) && !PROHIBIT_CONTEXT_RE.test(around)) {
+    const around = description.slice(Math.max(0, index - 14), after + 22);
+    if (
+      !isFoodMention(description, after) &&
+      !PROHIBIT_CONTEXT_RE.test(around)
+    ) {
       return true;
     }
     from = after;
@@ -148,8 +148,28 @@ export function shouldHideIllegalSuspicion(channel: {
  * 있을 때만 true 가 될 수 있으므로, 이 조건이 거짓인 소개글은 읽지 않아도 판정이 같다.
  * (판정 자체는 항상 JS hasIllegalDrugSuspicion 이 한다. SQL 은 읽는 양만 줄인다.)
  */
-export function illegalDescriptionPrefilterSql(alias: string): string {
-  return [GENERIC_DRUG_WORD, ...STRONG_DRUG_WORDS]
-    .map((word) => `LOWER(${alias}.description) LIKE '%${word.replace(/'/g, "''")}%'`)
+export function illegalDescriptionPrefilterSql(
+  alias: string,
+  dialect: 'sqlite' | 'postgres' = 'sqlite',
+): string {
+  const words = [GENERIC_DRUG_WORD, ...STRONG_DRUG_WORDS];
+  if (dialect === 'postgres') {
+    // LOWER(...) LIKE 를 18번 돌리면 1.5만 행에서 4초 넘게 걸린다. 정규식 두 번(한글·영문)으로 한 번에 훑는다
+    const escape = (word: string) =>
+      word.replace(/[\\^$.|?*+()[\]{}]/g, '\\$&').replace(/'/g, "''");
+    const hangul = words.filter((word) => !/[a-z]/i.test(word)).map(escape);
+    const latin = words.filter((word) => /[a-z]/i.test(word)).map(escape);
+    const parts: string[] = [];
+    if (hangul.length)
+      parts.push(`${alias}.description ~ '(${hangul.join('|')})'`);
+    if (latin.length)
+      parts.push(`${alias}.description ~* '(${latin.join('|')})'`);
+    return `(${parts.join(' OR ')})`;
+  }
+  return words
+    .map(
+      (word) =>
+        `LOWER(${alias}.description) LIKE '%${word.replace(/'/g, "''")}%'`,
+    )
     .join(' OR ');
 }

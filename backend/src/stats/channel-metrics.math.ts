@@ -124,13 +124,18 @@ export function gradeFromTotal(total: number): ScoreGrade {
   return 'D';
 }
 
+/** 한국은 서머타임이 없어 UTC+9 고정 */
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/**
+ * KST 날짜 YYYY-MM-DD.
+ * 예전에는 부를 때마다 Intl.DateTimeFormat 을 새로 만들었는데, 이 객체가 무거워
+ * 1.5만 개 채널 사이트맵 한 번에 메모리가 400MB 넘게 늘었다. 산술로 계산한다.
+ */
 export function formatKstYmd(date: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: KST,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
+  const time = date.getTime();
+  if (!Number.isFinite(time)) throw new RangeError('Invalid time value');
+  return new Date(time + KST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 export function addKstDays(ymd: string, days: number): string {

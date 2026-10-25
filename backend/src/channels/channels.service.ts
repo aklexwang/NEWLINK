@@ -182,7 +182,9 @@ export class ChannelsService implements OnModuleInit {
   }
 
   /** 회원 제보에서 중복일 때 돌려줄 오류 */
-  private memberDuplicateError(match: DuplicateMatch<Channel>): ConflictException {
+  private memberDuplicateError(
+    match: DuplicateMatch<Channel>,
+  ): ConflictException {
     return new ConflictException(
       match.kind === 'rejected'
         ? DUPLICATE_REJECTED_MESSAGE
@@ -434,9 +436,7 @@ export class ChannelsService implements OnModuleInit {
       description: preview.description ?? channel.description,
       avatarUrl: stripUnsafeAvatarUrl(channel.avatarUrl ?? preview.avatarUrl),
       memberCount:
-        preview.memberCount != null
-          ? String(preview.memberCount)
-          : null,
+        preview.memberCount != null ? String(preview.memberCount) : null,
       link: channel.link,
       avatarApproved: channel.avatarApproved,
     };
@@ -641,9 +641,7 @@ export class ChannelsService implements OnModuleInit {
     // 회원 목록은 텔레그램 미리보기를 동기 호출하지 않음 (느림). 필요 시 프록시 URL만 붙인다.
     return this.dedupeByLink(channels)
       .filter((channel) => !shouldHideIllegalSuspicion(channel))
-      .map((channel) =>
-        this.withListAvatar(this.hideOwnerTelegramId(channel)),
-      );
+      .map((channel) => this.withListAvatar(this.hideOwnerTelegramId(channel)));
   }
 
   private needsAvatarRefresh(channel: Channel): boolean {
@@ -1035,7 +1033,9 @@ export class ChannelsService implements OnModuleInit {
           (categoryCounts[item.category] ?? 0) + 1;
       }
       const paged = paginateItems(matched, page, pageSize);
-      const items = paged.items.map((item) => this.sanitizeChannelForResponse(item));
+      const items = paged.items.map((item) =>
+        this.sanitizeChannelForResponse(item),
+      );
       return {
         items,
         total: paged.total,
@@ -1158,19 +1158,13 @@ export class ChannelsService implements OnModuleInit {
     sort: AdminListSort,
   ) {
     if (sort === 'members_desc') {
-      qb.orderBy(
-        nullsLastCaseSql('channel', 'member_count'),
-        'ASC',
-      )
+      qb.orderBy(nullsLastCaseSql('channel', 'member_count'), 'ASC')
         .addOrderBy('channel.memberCount', 'DESC')
         .addOrderBy('channel.createdAt', 'DESC');
       return;
     }
     if (sort === 'collected_desc') {
-      qb.orderBy(
-        nullsLastCaseSql('channel', 'last_collected_at'),
-        'ASC',
-      )
+      qb.orderBy(nullsLastCaseSql('channel', 'last_collected_at'), 'ASC')
         .addOrderBy('channel.lastCollectedAt', 'DESC')
         .addOrderBy('channel.createdAt', 'DESC');
       return;
@@ -1383,8 +1377,7 @@ export class ChannelsService implements OnModuleInit {
     after: boolean,
     actorTelegramId?: number,
   ) {
-    const actor =
-      actorTelegramId != null ? `:${String(actorTelegramId)}` : '';
+    const actor = actorTelegramId != null ? `:${String(actorTelegramId)}` : '';
     await this.eventRepository.save({
       channelId,
       type: 'visibility_changed',
@@ -1432,12 +1425,26 @@ export class ChannelsService implements OnModuleInit {
     }));
   }
 
+  private rankingCountsCache: {
+    expiresAt: number;
+    data: Record<string, number>;
+  } | null = null;
+
   async getRankingCounts(): Promise<Record<string, number>> {
+    // 카테고리 화면마다 불리므로 60초 동안 같은 값을 쓴다
+    if (
+      this.rankingCountsCache &&
+      this.rankingCountsCache.expiresAt > Date.now()
+    ) {
+      return this.rankingCountsCache.data;
+    }
     // 집계에 필요한 컬럼만 읽고, 노출 판정은 어드민 대시보드와 같은 함수로 한다
     const rows = await loadMemberPageRows(this.channelRepository, {
       onlyActive: true,
     });
-    return buildMemberRankingCounts(rows);
+    const data = buildMemberRankingCounts(rows);
+    this.rankingCountsCache = { expiresAt: Date.now() + 60_000, data };
+    return data;
   }
 
   private extractUsername(link: string): string | null {

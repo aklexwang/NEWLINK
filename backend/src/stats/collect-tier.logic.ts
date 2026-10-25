@@ -3,7 +3,6 @@
  * 수집 대상은 collect-queue.logic.ts 의 우선순위 큐(next_collect_at)가 정한다. 수집기·등록 경로는 이 파일을 쓰지 않는다.
  * scripts/bulk-candidates.ts 가 collect_tier 칸을 채우려고 resolveCollectTier 만 아직 가져다 쓰므로 파일은 남겨 둔다.
  */
-import { KST } from './channel-metrics.math';
 
 export type CollectTier = 'daily' | 'weekly';
 
@@ -20,7 +19,9 @@ export function isNewChannelDailyWindow(
 ): boolean {
   if (createdAt == null) return false;
   const at =
-    createdAt instanceof Date ? createdAt.getTime() : Date.parse(String(createdAt));
+    createdAt instanceof Date
+      ? createdAt.getTime()
+      : Date.parse(String(createdAt));
   if (!Number.isFinite(at)) return false;
   return now.getTime() - at < NEW_CHANNEL_DAILY_MS;
 }
@@ -50,20 +51,10 @@ export function weeklyCollectBucket(channelId: string): number {
 
 /** KST 요일. 0=일요일 … 6=토요일 */
 export function kstWeekdayIndex(now = new Date()): number {
-  const weekday = new Intl.DateTimeFormat('en-US', {
-    timeZone: KST,
-    weekday: 'short',
-  }).format(now);
-  const map: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
-  return map[weekday] ?? 0;
+  const time = now.getTime();
+  if (!Number.isFinite(time)) return 0;
+  // 한국은 서머타임이 없어 UTC+9 고정
+  return new Date(time + 9 * 60 * 60 * 1000).getUTCDay();
 }
 
 export function isCollectDueToday(input: {

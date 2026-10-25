@@ -7,7 +7,13 @@ type RawRow = Record<string, unknown>;
 
 function toBool(value: unknown): boolean | null {
   if (value == null) return null;
-  return value === true || value === 1 || value === '1' || value === 't' || value === 'true';
+  return (
+    value === true ||
+    value === 1 ||
+    value === '1' ||
+    value === 't' ||
+    value === 'true'
+  );
 }
 
 function toNum(value: unknown): number | null {
@@ -43,7 +49,12 @@ export async function loadMemberPageRows(
     .addSelect('channel.category', 'category')
     .addSelect('channel.title', 'title')
     .addSelect(
-      `CASE WHEN ${illegalDescriptionPrefilterSql('channel')} THEN channel.description ELSE NULL END`,
+      `CASE WHEN ${illegalDescriptionPrefilterSql(
+        'channel',
+        repository.manager.connection.options.type === 'postgres'
+          ? 'postgres'
+          : 'sqlite',
+      )} THEN channel.description ELSE NULL END`,
       'description',
     )
     .addSelect('channel.illegalCleared', 'illegalCleared')

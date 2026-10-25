@@ -27,7 +27,10 @@ describe('illegal-content.logic', () => {
       hasIllegalDrugSuspicion('홍보랜드', '사기. 마약. 19금 절대 금!!'),
     ).toBe(false);
     expect(
-      hasIllegalDrugSuspicion('삼국지 홍보', '삼국지 자유홍보 마약/야동 즉시추방'),
+      hasIllegalDrugSuspicion(
+        '삼국지 홍보',
+        '삼국지 자유홍보 마약/야동 즉시추방',
+      ),
     ).toBe(false);
     expect(
       hasIllegalDrugSuspicion('백과사전', '🖥️ 모든 종류의 마약 정보 🖥️'),
@@ -114,5 +117,14 @@ describe('illegal-content.logic', () => {
     } finally {
       await dataSource.destroy();
     }
+  });
+});
+
+describe('불법 의심 소개글 SQL (Postgres)', () => {
+  it('한글은 정규식 하나, 영문은 대소문자 무시 정규식 하나로 만든다', () => {
+    const sql = illegalDescriptionPrefilterSql('c', 'postgres');
+    expect(sql).toContain("c.description ~ '(마약|");
+    expect(sql).toContain("c.description ~* '(cocaine|cannabis|ketamine)'");
+    expect(sql).not.toContain('LIKE');
   });
 });

@@ -59,6 +59,47 @@ import {
 } from './kst-week';
 
 const HOME_CACHE_MS = 3 * 60 * 1000;
+/** 순위 목록용 공개 채널 묶음. 요청마다 전체 표를 읽지 않게 잠깐 들고 있는다 */
+const RANKING_POOL_MS = 60 * 1000;
+/**
+ * 순위 묶음이 읽는 칸. 노출 판정(수집·언어·불법 의심)·중복 대표 고르기·정렬·배지·목록 출력에 필요한 것만.
+ * 70여 칸 전체를 1.5만 행 읽으면 메모리가 수백 MB 로 늘어난다.
+ */
+const RANKING_POOL_COLUMNS: (keyof Channel)[] = [
+  'id',
+  'title',
+  'link',
+  'linkType',
+  'category',
+  'description',
+  'recommendCount',
+  'status',
+  'isPromoted',
+  'submittedBy',
+  'autoRegistered',
+  'avatarUrl',
+  'avatarApproved',
+  'memberCount',
+  'username',
+  'firstObservedAt',
+  'collectStatus',
+  'language',
+  'isVisible',
+  'score',
+  'grade',
+  'viewRate',
+  'growth24h',
+  'growth7d',
+  'growth30d',
+  'memberDelta7d',
+  'medianViews7d',
+  'posts7d',
+  'observedDays',
+  'isVerified',
+  'illegalCleared',
+  'createdAt',
+  'updatedAt',
+];
 
 const WEEKLY_EVENT_TYPES: ChannelEventType[] = [
   'title_changed',
@@ -70,7 +111,19 @@ const WEEKLY_EVENT_TYPES: ChannelEventType[] = [
 @Injectable()
 export class PublicStatsService {
   private homeCache: { expiresAt: number; data: unknown } | null = null;
-  private readonly feedCache = new Map<string, { expiresAt: number; data: unknown }>();
+  private rankingPool: {
+    expiresAt: number;
+    rows: Channel[];
+    illegalIds: Set<string>;
+  } | null = null;
+  private rankingPoolLoading: Promise<{
+    rows: Channel[];
+    illegalIds: Set<string>;
+  }> | null = null;
+  private readonly feedCache = new Map<
+    string,
+    { expiresAt: number; data: unknown }
+  >();
 
   constructor(
     @InjectRepository(Channel)
@@ -308,6 +361,47 @@ export class PublicStatsService {
   clearPublicCaches() {
     this.homeCache = null;
     this.feedCache.clear();
+    this.rankingPool = null;
+  }
+
+  /**
+   * 활성 채널 전체를 60초 동안 한 번만 읽는다. 동시에 여러 요청이 와도 읽기는 한 번.
+   * 채널 1.5만 개에서 순위·카테고리 화면을 넘길 때마다 표 전체를 읽으면 무료 서버(512MB)가 버티지 못한다.
+   * 돌려준 배열·행은 바꾸지 말 것 (필터·정렬은 새 배열로).
+   */
+  private async loadRankingPool(): Promise<{
+    rows: Channel[];
+    illegalIds: Set<string>;
+  }> {
+    const now = Date.now();
+    if (this.rankingPool && this.rankingPool.expiresAt > now) {
+      return this.rankingPool;
+    }
+    if (this.rankingPoolLoading) return this.rankingPoolLoading;
+    this.rankingPoolLoading = this.channelRepository
+      .find({
+        where: { status: ChannelStatus.ACTIVE },
+        select: RANKING_POOL_COLUMNS,
+      })
+      .then((rows) => {
+        // 불법 의심 판정에만 쓰는 소개글은 판정 뒤 버려 메모리를 줄인다 (이 행들은 이 묶음 전용)
+        const illegalIds = new Set<string>();
+        for (const row of rows) {
+          if (shouldHideIllegalSuspicion(row)) illegalIds.add(row.id);
+          row.description = '';
+        }
+        const pool = {
+          expiresAt: Date.now() + RANKING_POOL_MS,
+          rows,
+          illegalIds,
+        };
+        this.rankingPool = pool;
+        return pool;
+      })
+      .finally(() => {
+        this.rankingPoolLoading = null;
+      });
+    return this.rankingPoolLoading;
   }
 
   async getHome() {
@@ -354,8 +448,7 @@ export class PublicStatsService {
       promoted: promoted.map((ch) => ({
         id: ch.id,
         title: ch.title,
-        username:
-          ch.username ?? extractTelegramUsernameFromLink(ch.link),
+        username: ch.username ?? extractTelegramUsernameFromLink(ch.link),
         link: ch.link,
         avatarUrl: this.channelsService.getListAvatarUrl(ch),
         category: ch.category,
@@ -407,7 +500,11 @@ export class PublicStatsService {
       .map((channel) => {
         if (channel.linkType === LinkType.GROUP) {
           if (channel.collectStatus !== 'ok' || !channel.lastCollectedAt) {
-            return { channel, lastPostAt: null as Date | null, activityKind: 'members' as const };
+            return {
+              channel,
+              lastPostAt: null as Date | null,
+              activityKind: 'members' as const,
+            };
           }
           return {
             channel,
@@ -420,7 +517,8 @@ export class PublicStatsService {
       })
       .filter((row) => row.lastPostAt != null)
       .sort((a, b) => {
-        const dt = (b.lastPostAt as Date).getTime() - (a.lastPostAt as Date).getTime();
+        const dt =
+          (b.lastPostAt as Date).getTime() - (a.lastPostAt as Date).getTime();
         if (dt !== 0) return dt;
         return b.channel.id.localeCompare(a.channel.id);
       });
@@ -542,12 +640,11 @@ export class PublicStatsService {
     const limit = Math.min(Math.max(query.limit ?? 50, 1), 100);
     const today = formatKstYmd();
 
-    let channels = await this.channelRepository.find({
-      where: { status: ChannelStatus.ACTIVE },
-    });
+    const pool = await this.loadRankingPool();
+    let channels = [...pool.rows];
     const listable = (c: Channel) =>
       isPublicCollectable(c) &&
-      !shouldHideIllegalSuspicion(c) &&
+      !pool.illegalIds.has(c.id) &&
       (query.includeForeign || isVisibleOnPublicLists(c));
     // 같은 링크는 목록에 나올 수 있는 행을 먼저 대표로 고른다
     channels = dedupeChannelsByLink(channels, { prefer: listable }).filter(
@@ -558,8 +655,7 @@ export class PublicStatsService {
       channels = channels.filter((c) => c.category === query.category);
     } else {
       channels = channels.filter(
-        (c) =>
-          allowAdultInList(c.category) && !isPendingCategory(c.category),
+        (c) => allowAdultInList(c.category) && !isPendingCategory(c.category),
       );
     }
     if (query.type) {
@@ -575,8 +671,7 @@ export class PublicStatsService {
     }
     if (sort === 'rising') {
       channels = channels.filter(
-        (c) =>
-          (c.memberCount ?? 0) >= RISING_MIN_MEMBERS && c.growth7d != null,
+        (c) => (c.memberCount ?? 0) >= RISING_MIN_MEMBERS && c.growth7d != null,
       );
     }
 
@@ -690,7 +785,9 @@ export class PublicStatsService {
       username: channel.username,
       link: channel.link,
       linkType: channel.linkType,
-      createdOn: channel.createdOn ? new Date(channel.createdOn).toISOString() : null,
+      createdOn: channel.createdOn
+        ? new Date(channel.createdOn).toISOString()
+        : null,
       linkedChat,
       category: channel.category,
       description: channel.description,
@@ -834,7 +931,6 @@ export class PublicStatsService {
     }
     return channel;
   }
-
 }
 
 function parseFeedCursor(
