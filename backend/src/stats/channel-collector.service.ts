@@ -23,7 +23,6 @@ import {
   runFetchRetries,
   shouldRetrySameDayFailed,
   shouldSkipDailyCollect,
-  shouldSkipInviteExpiredRecheck,
 } from './collect-fetch';
 import {
   CHANNEL_COLLECT_TIMEOUT_MS,
@@ -31,15 +30,19 @@ import {
   withTimeout,
 } from './mtproto-collect.logic';
 import { formatKstYmd } from './channel-metrics.math';
-import { isCollectDueToday, kstWeekdayIndex, resolveCollectTier } from './collect-tier.logic';
+import {
+  nextCollectAtAfterFailure,
+  nextCollectAtAfterInvalid,
+  nextCollectAtAfterInviteExpired,
+  nextCollectAtAfterSuccess,
+} from './collect-queue.logic';
+import { collectQueueLimit, selectDueChannels } from './collect-queue.query';
+import { resolveMemberCount } from './member-count.logic';
 import {
   isLightCollectTarget,
   shouldMarkLightNoPostsFailed,
 } from './stats-collect.logic';
-import {
-  isCollectBudgetOver,
-  orderChannelsForCollect,
-} from './collect-budget.logic';
+import { isCollectBudgetOver } from './collect-budget.logic';
 import { ChannelPost } from './channel-post.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import {
@@ -51,6 +54,7 @@ import {
   isPrivateChannelHtml,
   joinMentionedUsernames,
   parseInviteLinkHtml,
+  parseExactMemberCountFromPage,
   parsePublicUsernamePage,
   parseTelegramChannelHtml,
   TELEGRAM_FETCH_HEADERS,
@@ -60,18 +64,6 @@ import {
 
 const EXTRA_PAGES = 3;
 const FETCH_TIMEOUT_MS = 12_000;
-/** light 수집 대상 목록 조회에 필요한 칸 */
-export const LIGHT_LIST_COLUMNS = [
-  'id',
-  'link',
-  'username',
-  'linkType',
-  'memberCount',
-  'posts7d',
-  'createdAt',
-  'lastCollectedAt',
-] as const satisfies ReadonlyArray<keyof Channel>;
-
 /** 쿨다운이 이보다 길면 full 수집 요청은 기다리지 않고 429 로 돌려보낸다 */
 const FULL_GATE_MAX_WAIT_MS = 60_000;
 
@@ -92,6 +84,12 @@ export type CollectOneResult =
         | 'invite_expired';
     };
 
+/** 계정 판별 결과. 페이지를 실제로 읽었을 때만 정확한 회원 수가 따라온다 */
+type ClassifyOutcome = {
+  status: 'ok' | 'invalid' | 'failed';
+  exactMemberCount: number | null;
+};
+
 @Injectable()
 export class ChannelCollectorService {
   private readonly logger = new Logger(ChannelCollectorService.name);
@@ -104,6 +102,12 @@ export class ChannelCollectorService {
 
   private get gate(): TmeGate {
     return this.gateOverride ?? getTmeGate();
+  }
+
+  private queueLimit(): number {
+    return collectQueueLimit(
+      this.configService.get<string>('COLLECT_QUEUE_LIMIT'),
+    );
   }
 
   constructor(
@@ -128,24 +132,10 @@ export class ChannelCollectorService {
     options?: { deadlineMs?: number },
   ): Promise<{ ok: number; fail: number; remaining: number }> {
     await this.fillMissingUsernamesFromLinks();
-    const allActive = await this.channelRepository.find({
-      where: { status: ChannelStatus.ACTIVE },
+    // 우선순위 큐: 수집 차례(next_collect_at)가 된 채널을 오래 밀린 순으로. 그룹·초대 링크 포함 전체
+    const channels = await selectDueChannels(this.channelRepository, {
+      limit: this.queueLimit(),
     });
-    const weekday = kstWeekdayIndex();
-    const channels = orderChannelsForCollect(
-      allActive.filter(
-        (ch) =>
-          !shouldSkipDailyCollect(ch.collectStatus) &&
-          !shouldSkipInviteExpiredRecheck(ch.collectStatus, ch.lastCollectedAt) &&
-          isCollectDueToday({
-            id: ch.id,
-            memberCount: ch.memberCount,
-            posts7d: ch.posts7d,
-            createdAt: ch.createdAt,
-            weekday,
-          }),
-      ),
-    );
 
     const result = await this.collectQueued(
       channels,
@@ -175,25 +165,13 @@ export class ChannelCollectorService {
     }) => void,
     options?: { deadlineMs?: number },
   ): Promise<{ ok: number; fail: number; remaining: number }> {
-    // 대상 선별에 쓰는 칸만 읽는다 (항목마다 collectOne 이 id 로 전체 행을 다시 읽는다)
-    const allActive = (await this.channelRepository.find({
-      where: { status: ChannelStatus.ACTIVE },
-      select: [...LIGHT_LIST_COLUMNS],
-    })) as Channel[];
-    const weekday = kstWeekdayIndex();
-    const channels = orderChannelsForCollect(
-      allActive.filter(
-        (ch) =>
-          isLightCollectTarget(ch) &&
-          isCollectDueToday({
-            id: ch.id,
-            memberCount: ch.memberCount,
-            posts7d: ch.posts7d,
-            createdAt: ch.createdAt,
-            weekday,
-          }),
-      ),
-    );
+    // 큐에서 필요한 칸만 읽는다 (항목마다 collectOne 이 id 로 전체 행을 다시 읽는다).
+    // light 대상 조건은 그대로: 채널만, 공개 username 이 있는 것만
+    const due = await selectDueChannels(this.channelRepository, {
+      light: true,
+      limit: this.queueLimit(),
+    });
+    const channels = due.filter((ch) => isLightCollectTarget(ch));
     const result = await this.collectQueued(
       channels,
       onProgress,
@@ -397,10 +375,10 @@ export class ChannelCollectorService {
     }
 
     const classified = await this.classifyAccount(channel, username);
-    if (classified === 'invalid') {
+    if (classified.status === 'invalid') {
       return { ok: false, reason: 'invalid' };
     }
-    if (classified === 'failed') {
+    if (classified.status === 'failed') {
       return { ok: false, reason: 'failed' };
     }
 
@@ -443,9 +421,12 @@ export class ChannelCollectorService {
     parsed = await this.fetchOlderPagesIfNeeded(username, parsed, postsById);
 
     await this.upsertPosts(channel.id, [...postsById.values()]);
+    // 이번에 t.me/<username> 페이지를 읽어 정확한 회원 수를 얻었으면 미리보기의 축약값보다 우선한다
+    const exact = classified.exactMemberCount;
     await this.applySuccessfulCollect(channel, {
       title: parsed.title,
-      memberCount: parsed.memberCount,
+      memberCount: exact ?? parsed.memberCount,
+      memberCountTolerance: exact != null ? 0 : parsed.memberCountTolerance,
       username: parsed.usernameFromPosts ?? username,
     });
     return { ok: true, mode: 'preview' };
@@ -605,12 +586,15 @@ export class ChannelCollectorService {
     }
 
     await this.upsertPosts(channel.id, parsed.posts);
+    // 미리보기 숫자는 "40.8K" 처럼 축약돼 있다. 저장된 정확한 값과 반올림 오차 안이면 덮어쓰지 않는다
     await this.applySuccessfulCollect(channel, {
       title: parsed.title,
       memberCount: parsed.memberCount,
+      memberCountTolerance: parsed.memberCountTolerance,
       username: parsed.usernameFromPosts ?? username,
     });
-    await this.upsertTodayMemberCount(channel.id, parsed.memberCount);
+    // 일별 기록에도 지켜진(정확한) 값을 남긴다
+    await this.upsertTodayMemberCount(channel.id, channel.memberCount);
     return { ok: true, mode: 'preview' };
   }
 
@@ -645,7 +629,11 @@ export class ChannelCollectorService {
       if (postsById.size === beforeSize) break;
       if (parsed.title) latestMeta = { ...latestMeta, title: parsed.title };
       if (parsed.memberCount != null) {
-        latestMeta = { ...latestMeta, memberCount: parsed.memberCount };
+        latestMeta = {
+          ...latestMeta,
+          memberCount: parsed.memberCount,
+          memberCountTolerance: parsed.memberCountTolerance,
+        };
       }
       if (parsed.usernameFromPosts) {
         latestMeta = {
@@ -702,7 +690,7 @@ export class ChannelCollectorService {
   private async classifyAccount(
     channel: Channel,
     username: string,
-  ): Promise<'ok' | 'invalid' | 'failed'> {
+  ): Promise<ClassifyOutcome> {
     if (
       isClassifyFresh(channel.classifiedAt) &&
       (channel.classifiedKind === 'channel' ||
@@ -710,7 +698,10 @@ export class ChannelCollectorService {
         channel.classifiedKind === 'invalid')
     ) {
       if (channel.classifiedKind === 'invalid') {
-        return 'invalid';
+        // 이미 계정이 아니라고 판별된 채널: 판별 결과 재사용 기간이 끝날 때까지 큐에서 뒤로 민다
+        channel.nextCollectAt = nextCollectAtAfterInvalid();
+        await this.channelRepository.save(channel);
+        return { status: 'invalid', exactMemberCount: null };
       }
       const nextType =
         channel.classifiedKind === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
@@ -724,13 +715,13 @@ export class ChannelCollectorService {
         channel.linkType = nextType;
         await this.channelRepository.save(channel);
       }
-      return 'ok';
+      return { status: 'ok', exactMemberCount: null };
     }
 
     const page = await this.fetchHtml(`https://t.me/${username}`);
     if (page.error === 'fetch:timeout') {
       await this.markFailed(channel, 'failed', 'fetch:timeout');
-      return 'failed';
+      return { status: 'failed', exactMemberCount: null };
     }
     if (page.status >= 400 && page.status !== 404) {
       await this.markFailed(
@@ -738,15 +729,15 @@ export class ChannelCollectorService {
         'failed',
         page.error ?? `fetch:http_${page.status}`,
       );
-      return 'failed';
+      return { status: 'failed', exactMemberCount: null };
     }
     if (!page.html) {
       await this.markFailed(channel, 'failed', page.error ?? 'fetch:empty');
-      return 'failed';
+      return { status: 'failed', exactMemberCount: null };
     }
     if (isPrivateChannelHtml(page.html)) {
       await this.markFailed(channel, 'private', 'page:private');
-      return 'failed';
+      return { status: 'failed', exactMemberCount: null };
     }
 
     const classified = classifyTelegramAccountHtml(page.html);
@@ -765,7 +756,7 @@ export class ChannelCollectorService {
 
     if (classified.kind === 'invalid') {
       await this.markInvalid(channel, classified.reason);
-      return 'invalid';
+      return { status: 'invalid', exactMemberCount: null };
     }
 
     const nextType =
@@ -780,7 +771,11 @@ export class ChannelCollectorService {
       channel.linkType = nextType;
     }
     await this.channelRepository.save(channel);
-    return 'ok';
+    // 이 페이지는 축약 없는 정확한 회원 수를 준다. 미리보기(t.me/s)의 축약값보다 우선해서 쓴다
+    return {
+      status: 'ok',
+      exactMemberCount: parseExactMemberCountFromPage(page.html),
+    };
   }
 
   /**
@@ -1080,6 +1075,8 @@ export class ChannelCollectorService {
     info: {
       title: string | null;
       memberCount: number | null;
+      /** memberCount 의 반올림 오차. 미리보기의 축약값이면 > 0, 정확한 값이면 0(기본) */
+      memberCountTolerance?: number;
       username?: string | null;
       keepUsername?: boolean;
       description?: string | null;
@@ -1138,7 +1135,12 @@ export class ChannelCollectorService {
     // 제목 고정이면 수집 제목으로 덮어쓰지 않는다(소개글은 아래에서 계속 갱신)
     applyCollectedTitle(channel, nextTitle);
     if (!keepUsername && nextUsername) channel.username = nextUsername;
-    if (info.memberCount != null) channel.memberCount = info.memberCount;
+    // 정확한 값을 축약값으로 덮어쓰지 않는다 (오차 범위 안이면 저장된 값 유지)
+    channel.memberCount = resolveMemberCount({
+      stored: channel.memberCount,
+      observed: info.memberCount,
+      tolerance: info.memberCountTolerance ?? 0,
+    });
     if (info.description != null && info.description.trim()) {
       channel.description = info.description.trim();
     }
@@ -1165,6 +1167,7 @@ export class ChannelCollectorService {
     channel.collectStatus = 'ok';
     channel.collectError = null;
     channel.collectFailCount = 0;
+    channel.collectGoneCount = 0;
     const weekAgo = new Date(Date.now() - SEVEN_DAYS_MS);
     const posts7d = await this.postRepository.count({
       where: {
@@ -1174,11 +1177,8 @@ export class ChannelCollectorService {
       },
     });
     channel.posts7d = posts7d;
-    channel.collectTier = resolveCollectTier({
-      memberCount: channel.memberCount,
-      posts7d,
-      createdAt: channel.createdAt,
-    });
+    // 다음 수집 시각 = 지금 + 이 채널의 목표 간격(핫 12h · 보통 24h · 조용 48h · 휴면 72h)
+    channel.nextCollectAt = nextCollectAtAfterSuccess(channel, now);
     await this.channelRepository.save(channel);
   }
 
@@ -1232,9 +1232,16 @@ export class ChannelCollectorService {
     error: string,
   ): Promise<CollectOneResult> {
     channel.collectFailCount = (channel.collectFailCount ?? 0) + 1;
+    // not_found 가 이어진 횟수. 3회면 gone (다른 실패는 세지 않는다)
+    channel.collectGoneCount = (channel.collectGoneCount ?? 0) + 1;
     channel.collectError = clipCollectError(error);
     channel.lastCollectedAt = new Date();
-    if (channel.collectFailCount >= GONE_AFTER_FAILS) {
+    // 실패 간격 늘리기: 목표 간격 x (1·2·4), 최대 7일. gone 이 되면 4배로 뜸해진다
+    channel.nextCollectAt = nextCollectAtAfterFailure(
+      channel,
+      channel.collectFailCount,
+    );
+    if (channel.collectGoneCount >= GONE_AFTER_FAILS) {
       const alreadyGone = channel.collectStatus === 'gone';
       channel.collectStatus = 'gone';
       await this.channelRepository.save(channel);
@@ -1256,6 +1263,11 @@ export class ChannelCollectorService {
     channel.collectStatus = status;
     channel.collectError = clipCollectError(error);
     channel.lastCollectedAt = new Date();
+    channel.collectFailCount = (channel.collectFailCount ?? 0) + 1;
+    channel.nextCollectAt = nextCollectAtAfterFailure(
+      channel,
+      channel.collectFailCount,
+    );
     await this.channelRepository.save(channel);
   }
 
@@ -1263,6 +1275,7 @@ export class ChannelCollectorService {
     channel.collectStatus = 'invalid';
     channel.collectError = clipCollectError(error);
     channel.lastCollectedAt = new Date();
+    channel.nextCollectAt = nextCollectAtAfterInvalid();
     await this.channelRepository.save(channel);
   }
 
@@ -1270,6 +1283,8 @@ export class ChannelCollectorService {
     channel.collectStatus = 'invite_expired';
     channel.collectError = clipCollectError('invite:expired');
     channel.lastCollectedAt = new Date();
+    // 만료된 초대 링크는 7일 뒤에 다시 확인한다
+    channel.nextCollectAt = nextCollectAtAfterInviteExpired();
     await this.channelRepository.save(channel);
   }
 

@@ -225,7 +225,6 @@ export class ChannelsService implements OnModuleInit {
       submittedBy,
       status: ChannelStatus.PENDING,
       avatarApproved: false,
-      collectTier: 'daily',
       payoutStatus: 'pending',
       payoutSkipReason: null,
       username: usernameFromChannelLink(link),
@@ -360,7 +359,6 @@ export class ChannelsService implements OnModuleInit {
         payoutStatus: 'not_eligible',
         payoutSkipReason: null,
         username: usernameFromChannelLink(link),
-        collectTier: 'daily',
         ...(language ? { language } : {}),
       });
     }
@@ -888,7 +886,6 @@ export class ChannelsService implements OnModuleInit {
     channel.avatarApproved = Boolean(channel.avatarUrl);
     if (isPromoted) channel.isPromoted = true;
     this.applyUsernameFromLink(channel);
-    channel.collectTier = 'daily';
     const saved = await this.channelRepository.save(channel);
     return this.collectPublicPageAfterRegister(saved);
   }

@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -260,7 +261,29 @@ export class Channel {
   @Column({ name: 'posts_7d', type: 'integer', nullable: true })
   posts7d: number | null;
 
-  /** daily: 매일. weekly: 채널 id 요일 버킷으로 매일 1/7 */
+  /**
+   * 다음 수집 예정 시각. NULL 이면 바로 대상. 수집 성공·실패 때마다 갱신한다.
+   * 우선순위 큐(light·full 공통)가 이 칸으로 대상을 뽑는다.
+   */
+  @Index('IDX_channels_next_collect_at')
+  @Column({
+    name: 'next_collect_at',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
+  nextCollectAt: Date | null;
+
+  /**
+   * 글을 못 찾음(not_found)이 이어진 횟수. 3회면 gone.
+   * collect_fail_count 는 모든 실패를 세어 재시도 간격(1·2·4배)에 쓰므로 gone 판단은 이 칸으로 따로 센다.
+   */
+  @Column({ name: 'collect_gone_count', type: 'integer', default: 0 })
+  collectGoneCount: number;
+
+  /**
+   * (사용 중단) 예전 daily/weekly 요일 버킷. next_collect_at 큐로 대체되어 더 이상 읽거나 쓰지 않는다.
+   * 칸은 호환을 위해 남겨 둔다.
+   */
   @Column({
     name: 'collect_tier',
     type: 'varchar',

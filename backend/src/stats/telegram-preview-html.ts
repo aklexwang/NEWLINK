@@ -6,6 +6,7 @@ import {
 } from '../channels/telegram-username';
 import { clipPostExcerpt } from '../channels/channel-language.logic';
 import type { ChannelPostMediaType } from './channel-post.entity';
+import { abbreviatedCountTolerance } from './member-count.logic';
 
 export const TELEGRAM_FETCH_HEADERS = {
   'User-Agent':
@@ -27,6 +28,11 @@ export interface ParsedPreviewPost {
 export interface ParsedTelegramPreview {
   title: string | null;
   memberCount: number | null;
+  /**
+   * memberCount 의 반올림 오차. t.me/s 미리보기는 "40.8K" 처럼 축약해서 보여 주므로
+   * 정확한 값이 아니다. 정확한 숫자면 0.
+   */
+  memberCountTolerance: number;
   usernameFromPosts: string | null;
   posts: ParsedPreviewPost[];
   hasPreview: boolean;
@@ -142,7 +148,9 @@ export function classifyTelegramAccountHtml(
 export function parseTelegramChannelHtml(html: string): ParsedTelegramPreview {
   const $ = load(html);
   const title = textOrNull($('.tgme_channel_info_header_title').first());
-  const memberCount = extractMemberCount($);
+  const memberText = extractMemberCountText($);
+  const memberCount = parseCount(memberText);
+  const memberCountTolerance = abbreviatedCountTolerance(memberText);
   const posts = parsePosts($);
   const usernameFromPosts =
     posts.length > 0 ? extractUsernameFromDataPost($) : null;
@@ -150,7 +158,14 @@ export function parseTelegramChannelHtml(html: string): ParsedTelegramPreview {
     $('.tgme_channel_info').length > 0 ||
     $('.tgme_widget_message[data-post]').length > 0;
 
-  return { title, memberCount, usernameFromPosts, posts, hasPreview };
+  return {
+    title,
+    memberCount,
+    memberCountTolerance: memberCount == null ? 0 : memberCountTolerance,
+    usernameFromPosts,
+    posts,
+    hasPreview,
+  };
 }
 
 /**
@@ -180,15 +195,27 @@ function textOrNull(node: Cheerio<Element>): string | null {
   return text || null;
 }
 
-function extractMemberCount($: CheerioAPI): number | null {
-  let found: number | null = null;
+/** 미리보기 상단의 구독자·회원 수 표시 글자("40.8K" 같은 축약일 수 있다) */
+function extractMemberCountText($: CheerioAPI): string | null {
+  let found: string | null = null;
   $('.tgme_channel_info_counter').each((_, el) => {
     if (found != null) return;
     const type = $(el).find('.counter_type').text().trim().toLowerCase();
     if (!type.includes('subscriber') && !type.includes('member')) return;
-    found = parseCount($(el).find('.counter_value').first().text());
+    const text = $(el).find('.counter_value').first().text().trim();
+    if (parseCount(text) != null) found = text;
   });
   return found;
+}
+
+/**
+ * t.me/<username> 공개 페이지의 정확한 회원 수. 이 페이지는 "9 243 803 subscribers"
+ * 처럼 축약 없는 숫자를 준다. 읽지 못하면 null.
+ */
+export function parseExactMemberCountFromPage(html: string): number | null {
+  const $ = load(html);
+  const extra = textOrNull($('.tgme_page_extra').first());
+  return parseTelegramExtraMemberCount(extra);
 }
 
 function extractUsernameFromDataPost($: CheerioAPI): string | null {

@@ -3,6 +3,7 @@ import {
   getAdminStatsOps,
   getAdminStatsRuns,
   startAdminLightCollect,
+  type AdminCollectBand,
   type AdminStatsOps,
   type AdminStatsRun,
   type AdminStatsRunKind,
@@ -28,6 +29,14 @@ function formatKst(value: string | null | undefined): string {
   if (Number.isNaN(at.getTime())) return '-';
   return at.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 }
+
+/** 수집 구간: 표시 순서 · 이름 · 목표 간격 */
+const QUEUE_BANDS: Array<{ key: AdminCollectBand; label: string; interval: string; rule: string }> = [
+  { key: 'hot', label: '핫', interval: '12시간', rule: '신규 7일 · 회원 1만 이상 · 7일 게시 28 이상' },
+  { key: 'normal', label: '보통', interval: '24시간', rule: '7일 게시 7~27 · 회원 1천 이상 · 그룹' },
+  { key: 'quiet', label: '조용', interval: '48시간', rule: '7일 게시 1~6' },
+  { key: 'dormant', label: '휴면', interval: '72시간', rule: '7일 게시 0 · 회원 1천 미만' },
+];
 
 function kindVariant(kind: AdminStatsRunKind): 'default' | 'secondary' | 'destructive' | 'outline' {
   if (kind === 'completed') return 'default';
@@ -249,6 +258,47 @@ export function AdminCollectOpsPage() {
             </CardHeader>
           </Card>
         </section>
+      )}
+
+      {ops && (
+        <Card className="mt-6 py-0">
+          <CardHeader className="px-4 pt-4">
+            <CardDescription>수집 큐 (next_collect_at 기준)</CardDescription>
+            <CardTitle className="text-sm">
+              전체 {ops.queue.total.toLocaleString('ko-KR')}개 · 지금 밀림 {ops.queue.overdue.toLocaleString('ko-KR')}개 · 다음 24시간 예상 수집 {ops.queue.expected24h.toLocaleString('ko-KR')}건
+            </CardTitle>
+          </CardHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>구간</TableHead>
+                <TableHead>목표 간격</TableHead>
+                <TableHead className="text-right">채널 수</TableHead>
+                <TableHead className="text-right">지금 밀린 수</TableHead>
+                <TableHead className="text-right">다음 24시간 예상</TableHead>
+                <TableHead>기준</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {QUEUE_BANDS.map((band) => {
+                const row = ops.queue.bands[band.key];
+                return (
+                  <TableRow key={band.key}>
+                    <TableCell className="font-medium">{band.label}</TableCell>
+                    <TableCell>{band.interval}</TableCell>
+                    <TableCell className="text-right">{row.count.toLocaleString('ko-KR')}</TableCell>
+                    <TableCell className="text-right">{row.overdue.toLocaleString('ko-KR')}</TableCell>
+                    <TableCell className="text-right">{row.expected24h.toLocaleString('ko-KR')}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{band.rule}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          <p className="px-4 pb-4 text-[11px] text-muted-foreground">
+            밀린 수는 지금 바로 수집 대상인 채널입니다. 예상 수집은 실패 백오프(1·2·4배, 최대 7일)를 반영한 추정치입니다.
+          </p>
+        </Card>
       )}
 
       <Card className="mt-8 py-0">

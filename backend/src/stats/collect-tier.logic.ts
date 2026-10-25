@@ -1,3 +1,8 @@
+/**
+ * (사용 중단) 예전 daily/weekly 요일 버킷 규칙.
+ * 수집 대상은 collect-queue.logic.ts 의 우선순위 큐(next_collect_at)가 정한다. 수집기·등록 경로는 이 파일을 쓰지 않는다.
+ * scripts/bulk-candidates.ts 가 collect_tier 칸을 채우려고 resolveCollectTier 만 아직 가져다 쓰므로 파일은 남겨 둔다.
+ */
 import { KST } from './channel-metrics.math';
 
 export type CollectTier = 'daily' | 'weekly';

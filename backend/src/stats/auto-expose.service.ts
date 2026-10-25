@@ -16,7 +16,6 @@ import {
   LinkType,
   type ChannelLanguage,
 } from '../channels/channel.entity';
-import { resolveCollectTier } from './collect-tier.logic';
 import { detectChannelLanguage } from '../channels/channel-language.logic';
 import { hasIllegalDrugSuspicion } from '../channels/illegal-content.logic';
 import { ChannelsService } from '../channels/channels.service';
@@ -146,11 +145,6 @@ export class AutoExposeService {
         channel.username =
           inspected.username ??
           extractTelegramUsernameFromLink(channel.link);
-        channel.collectTier = resolveCollectTier({
-          memberCount: inspected.memberCount,
-          posts7d: 0,
-          createdAt: channel.createdAt,
-        });
         channel = await this.channelRepository.save(channel);
         await this.afterActivate(channel);
       }
@@ -202,11 +196,6 @@ export class AutoExposeService {
     channel.memberCount = inspected.memberCount;
     channel.username =
       inspected.username ?? extractTelegramUsernameFromLink(channel.link);
-    channel.collectTier = resolveCollectTier({
-      memberCount: inspected.memberCount,
-      posts7d: 0,
-      createdAt: channel.createdAt,
-    });
     channel = await this.channelRepository.save(channel);
     await this.afterActivate(channel, options?.skipCollect === true);
     return true;
@@ -242,11 +231,6 @@ export class AutoExposeService {
     if (inspected.description) channel.description = inspected.description;
     channel.autoRegistered = autoRegistered;
     channel.isVisible = channel.isVisible !== false;
-    channel.collectTier = resolveCollectTier({
-      memberCount: inspected.memberCount,
-      posts7d: channel.posts7d,
-      createdAt: channel.createdAt,
-    });
     const saved = await this.channelRepository.save(channel);
     await this.afterActivate(saved);
     return saved;
