@@ -17,6 +17,7 @@ import { KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT } from '../stats/mtproto-budget.logi
 import { RESOLVE_DAILY_LIMIT_DEFAULT } from '../stats/mtproto-access.logic';
 import { MtprotoState } from '../stats/mtproto-state.entity';
 import { StatsJobService } from '../stats/stats-job.service';
+import { getTmeGate } from '../stats/tme-gate';
 import { StatsRun } from '../stats/stats-run.entity';
 import {
   ADMIN_LIGHT_RUN_BUSY_MESSAGE,
@@ -145,6 +146,8 @@ export class AdminStatsService {
       },
       // AI 분류 호출 현황(서버가 켜진 뒤 센 값. 재시작하면 0 부터 다시 센다)
       categoryAi: this.categoryAi.status(),
+      // 메모리 기준이라 서버가 다시 뜨면 0부터 센다
+      collectGate: getTmeGate().snapshot(),
       running: this.statsJob.isRunning(),
     };
   }

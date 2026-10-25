@@ -9,6 +9,7 @@ import {
   shouldStopBulkAuto,
 } from './public-channel-inspect.logic';
 import { createPublicTelegramFetcher } from './public-telegram-fetch.logic';
+import { TmeGate } from './tme-gate';
 import { parsePublicUsernamePage } from './telegram-preview-html';
 
 describe('공개 페이지 확인', () => {
@@ -103,7 +104,16 @@ describe('공개 페이지 429', () => {
   it('Retry-After 만큼 기다렸다가 다시 요청한다', async () => {
     const slept: number[] = [];
     let calls = 0;
+    // 게이트 쿨다운 대기는 가짜 시계로 건너뛴다
+    let clock = 1_000_000;
+    const gate = new TmeGate({
+      now: () => clock,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+    });
     const fetcher = createPublicTelegramFetcher({
+      gate,
       gapMs: 0,
       sleep: async (ms) => {
         slept.push(ms);

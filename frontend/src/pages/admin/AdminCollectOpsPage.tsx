@@ -196,6 +196,58 @@ export function AdminCollectOpsPage() {
               </p>
             </CardHeader>
           </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>t.me 동시 수 (현재/상한)</CardDescription>
+              <CardTitle>
+                {ops.collectGate.collectLimit}/{ops.collectGate.collectMax}
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground">
+                간격 {(ops.collectGate.gapMs / 1000).toFixed(2)}초
+                {ops.collectGate.lockedToday ? ' · 오늘 429 초과로 1 고정' : ''}
+                {ops.collectGate.coolingRemainingMs > 0
+                  ? ` · 쿨다운 ${Math.ceil(ops.collectGate.coolingRemainingMs / 1000)}초 남음`
+                  : ''}
+              </p>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>오늘 429 (t.me / Bot)</CardDescription>
+              <CardTitle>
+                {ops.collectGate.today.tme429} / {ops.collectGate.today.bot429}
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground">서버 재시작 후 0부터</p>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
+              <CardDescription>
+                {ops.collectGate.run ? '이번 회차' : '지난 회차'} 수집 게이트
+              </CardDescription>
+              {(() => {
+                const gateRun = ops.collectGate.run ?? ops.collectGate.lastRun;
+                if (!gateRun) {
+                  return <CardTitle className="text-sm">기록 없음</CardTitle>;
+                }
+                return (
+                  <>
+                    <CardTitle className="text-sm">
+                      {gateRun.mode} · 최대 동시 {gateRun.peakCollectInflight}
+                    </CardTitle>
+                    <p className="text-[11px] text-muted-foreground">
+                      429 t.me {gateRun.tme429} / Bot {gateRun.bot429} · 쿨다운 합계{' '}
+                      {Math.round(gateRun.cooldownMs / 1000)}초
+                      {gateRun.timeoutBackoffs > 0
+                        ? ` · 타임아웃 감속 ${gateRun.timeoutBackoffs}회`
+                        : ''}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">서버 재시작 후 0부터</p>
+                  </>
+                );
+              })()}
+            </CardHeader>
+          </Card>
         </section>
       )}
 

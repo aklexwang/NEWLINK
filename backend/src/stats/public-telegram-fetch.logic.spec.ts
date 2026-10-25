@@ -1,4 +1,5 @@
 import { createPreviewTelegramFetcher } from './public-telegram-fetch.logic';
+import { TmeGate } from './tme-gate';
 
 function fakeResponse(options: {
   status: number;
@@ -25,7 +26,10 @@ describe('createPreviewTelegramFetcher', () => {
         body: 'too many',
       }),
     ) as unknown as typeof fetch;
-    const fetcher = createPreviewTelegramFetcher({ fetchFn });
+    const fetcher = createPreviewTelegramFetcher({
+      fetchFn,
+      gate: new TmeGate(),
+    });
     const started = Date.now();
     const result = await fetcher.fetchHtml('https://t.me/x');
     expect(Date.now() - started).toBeLessThan(80);
@@ -47,7 +51,10 @@ describe('createPreviewTelegramFetcher', () => {
       inflight -= 1;
       return fakeResponse({ status: 200 });
     }) as unknown as typeof fetch;
-    const fetcher = createPreviewTelegramFetcher({ fetchFn });
+    const fetcher = createPreviewTelegramFetcher({
+      fetchFn,
+      gate: new TmeGate(),
+    });
     const t0 = Date.now();
     await Promise.all(
       [0, 1, 2, 3].map((i) => fetcher.fetchHtml(`https://t.me/u${i}`)),

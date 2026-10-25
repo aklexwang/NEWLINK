@@ -156,7 +156,31 @@ export interface AdminStatsOps {
     stopped: boolean;
     stopReason: string | null;
   };
+  /** t.me 전역 게이트 (메모리 기준, 서버 재시작 후 0부터) */
+  collectGate: {
+    collectLimit: number;
+    collectMax: number;
+    gapMs: number;
+    coolingRemainingMs: number;
+    lockedToday: boolean;
+    today: { ymd: string; tme429: number; bot429: number };
+    active: { collect: number; preview: number; inspect: number };
+    totalMax: number;
+    run: AdminCollectGateRun | null;
+    lastRun: AdminCollectGateRun | null;
+  };
   running: boolean;
+}
+
+export interface AdminCollectGateRun {
+  mode: string;
+  startedAt: string;
+  finishedAt: string | null;
+  peakCollectInflight: number;
+  tme429: number;
+  bot429: number;
+  cooldownMs: number;
+  timeoutBackoffs: number;
 }
 
 export async function getAdminStatsRuns(limit = 30): Promise<AdminStatsRun[]> {

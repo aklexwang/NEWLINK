@@ -30,6 +30,7 @@ import {
   FULL_WAIT_FOR_LIGHT_MS,
   type StatsCollectMode,
 } from './stats-collect.logic';
+import { getTmeGate } from './tme-gate';
 import { StatsRun } from './stats-run.entity';
 import {
   interruptOpenStatsRuns,
@@ -209,9 +210,12 @@ export class StatsJobService implements OnModuleInit {
       }
     }
     const run = await this.beginRun(0, mode);
+    const gate = getTmeGate();
+    gate.beginRun(mode);
     const work =
       mode === 'light' ? this.runLightPipeline() : this.runPipeline();
     void work.finally(() => {
+      gate.endRun();
       void this.finishRun('completed');
     });
     return { started: true, skipped: false, runId: run.id, mode };

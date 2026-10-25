@@ -11,12 +11,15 @@ import {
 } from '../channels/telegram-username';
 import { ChannelEvent, ChannelEventType } from './channel-event.entity';
 import { MtprotoCollectorService } from './mtproto-collector.service';
+import { runCollectPool } from './collect-pool.logic';
+import { getTmeGate, type TmeGate } from './tme-gate';
 import {
   CHANNEL_GAP_MS,
   describeFetchError,
   isBotRateLimited,
   isClassifyFresh,
   parseBotRetryAfterMs,
+  parseRetryAfterMs,
   runFetchRetries,
   shouldRetrySameDayFailed,
   shouldSkipDailyCollect,
@@ -57,6 +60,21 @@ import {
 
 const EXTRA_PAGES = 3;
 const FETCH_TIMEOUT_MS = 12_000;
+/** light 수집 대상 목록 조회에 필요한 칸 */
+export const LIGHT_LIST_COLUMNS = [
+  'id',
+  'link',
+  'username',
+  'linkType',
+  'memberCount',
+  'posts7d',
+  'createdAt',
+  'lastCollectedAt',
+] as const satisfies ReadonlyArray<keyof Channel>;
+
+/** 쿨다운이 이보다 길면 full 수집 요청은 기다리지 않고 429 로 돌려보낸다 */
+const FULL_GATE_MAX_WAIT_MS = 60_000;
+
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const GONE_AFTER_FAILS = 3;
@@ -80,6 +98,13 @@ export class ChannelCollectorService {
 
   /** 봇 API 가 429 를 준 뒤 이 시각까지는 봇 호출을 하지 않는다 (채널 상태도 건드리지 않음) */
   private botBlockedUntil = 0;
+
+  /** 테스트에서 전역 게이트 대신 쓸 게이트 */
+  private gateOverride: TmeGate | null = null;
+
+  private get gate(): TmeGate {
+    return this.gateOverride ?? getTmeGate();
+  }
 
   constructor(
     @InjectRepository(Channel)
@@ -150,9 +175,11 @@ export class ChannelCollectorService {
     }) => void,
     options?: { deadlineMs?: number },
   ): Promise<{ ok: number; fail: number; remaining: number }> {
-    const allActive = await this.channelRepository.find({
+    // 대상 선별에 쓰는 칸만 읽는다 (항목마다 collectOne 이 id 로 전체 행을 다시 읽는다)
+    const allActive = (await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
-    });
+      select: [...LIGHT_LIST_COLUMNS],
+    })) as Channel[];
     const weekday = kstWeekdayIndex();
     const channels = orderChannelsForCollect(
       allActive.filter(
@@ -189,6 +216,27 @@ export class ChannelCollectorService {
     deadlineMs?: number,
     options?: { light?: boolean },
   ): Promise<{ ok: number; fail: number; remaining: number }> {
+    if (options?.light) {
+      // light: 워커 여러 개가 항목을 나눠 가져가고, 실제 동시 요청 수는 전역 게이트가 정한다
+      const gate = this.gate;
+      const result = await runCollectPool({
+        items: channels,
+        workers: gate.collectMax(),
+        handle: async (channel) =>
+          (await this.collectOneSafe(channel, options)).ok,
+        gapMs: () => gate.gapMs(),
+        isBudgetOver: () => isCollectBudgetOver(deadlineMs),
+        coolingRemainingMs: () => gate.coolingRemainingMs(),
+        sleep,
+        onProgress,
+        onBudgetStop: (remaining) =>
+          this.logger.log(
+            `수집 시간 예산이 끝나 다음 채널부터 남깁니다. 남은 ${remaining}건`,
+          ),
+      });
+      return result;
+    }
+
     let ok = 0;
     let fail = 0;
     const total = channels.length;
@@ -358,7 +406,7 @@ export class ChannelCollectorService {
 
     const isGroup = channel.linkType === LinkType.GROUP;
     if (isGroup) {
-      return this.collectViaBot(channel, username);
+      return this.collectGroup(channel, username);
     }
 
     const first = await this.fetchPreviewPage(username);
@@ -517,7 +565,13 @@ export class ChannelCollectorService {
     channel: Channel,
     username: string,
   ): Promise<CollectOneResult> {
-    const first = await this.fetchPreviewPage(username);
+    const first = await this.fetchPreviewPage(username, undefined, {
+      light: true,
+    });
+    // 한도(429)는 채널 문제가 아니다. 상태를 바꾸지 않아 다음 회차에도 앞쪽에 남는다
+    if (first.status === 429) {
+      return { ok: false, reason: 'failed' };
+    }
     if (first.error === 'fetch:timeout') {
       await this.markFailed(channel, 'failed', 'fetch:timeout');
       return { ok: false, reason: 'failed' };
@@ -729,6 +783,48 @@ export class ChannelCollectorService {
     return 'ok';
   }
 
+  /**
+   * 공개 아이디가 있는 그룹: t.me/<username> 공개 페이지에서 제목·인원·소개를 읽는다.
+   * 페이지를 못 읽을 때(한도·타임아웃·빈 응답·형식 불명)만 Bot API 로 넘긴다.
+   * 초대 링크 그룹은 이 경로를 타지 않는다 (collectInvitePreview).
+   */
+  private async collectGroup(
+    channel: Channel,
+    username: string,
+  ): Promise<CollectOneResult> {
+    const page = await this.fetchHtml(`https://t.me/${username}`);
+    if (
+      page.status === 404 ||
+      (page.html && isMissingChannelHtml(page.html))
+    ) {
+      return this.markGoneProgress(channel, 'page:not_found');
+    }
+    if (page.html && page.status < 400 && !isPrivateChannelHtml(page.html)) {
+      const parsed = parsePublicUsernamePage(page.html);
+      if (parsed.reason === 'page:not_found') {
+        return this.markGoneProgress(channel, parsed.reason);
+      }
+      const title = parsed.title?.trim() ?? '';
+      if (
+        (parsed.kind === 'group' || parsed.kind === 'channel') &&
+        title &&
+        !isPlaceholderTitle(title)
+      ) {
+        await this.applySuccessfulCollect(channel, {
+          title,
+          memberCount: parsed.memberCount,
+          username,
+          description: parsed.description,
+          avatarUrl: parsed.avatarUrl,
+          kind: parsed.kind,
+        });
+        await this.upsertTodayMemberCount(channel.id, parsed.memberCount);
+        return { ok: true, mode: 'preview' };
+      }
+    }
+    return this.collectViaBot(channel, username);
+  }
+
   private async collectViaBot(
     channel: Channel,
     username: string,
@@ -752,6 +848,7 @@ export class ChannelCollectorService {
         if (isBotRateLimited(chat.errorCode, chat.description)) {
           const waitMs = parseBotRetryAfterMs(chat.description);
           this.botBlockedUntil = Date.now() + waitMs;
+          this.gate.noteBot429();
           this.logger.warn(
             `봇 API 요청 한도(429). ${Math.round(waitMs / 1000)}초 동안 봇 수집을 건너뜁니다. 채널 상태는 바꾸지 않습니다.`,
           );
@@ -808,12 +905,13 @@ export class ChannelCollectorService {
   private async fetchPreviewPage(
     username: string,
     before?: number,
+    options?: { light?: boolean },
   ): Promise<{ status: number; html: string | null; error?: string }> {
     const url =
       before != null
         ? `https://t.me/s/${username}?before=${before}`
         : `https://t.me/s/${username}`;
-    return this.fetchHtml(url);
+    return this.fetchHtml(url, options);
   }
 
   private async collectInvitePreview(
@@ -855,29 +953,75 @@ export class ChannelCollectorService {
     return { ok: true, mode: 'preview' };
   }
 
-  private async fetchHtml(url: string): Promise<{
+  private async fetchHtml(
+    url: string,
+    options?: { light?: boolean },
+  ): Promise<{
     status: number;
     html: string | null;
     error?: string;
     finalUrl?: string | null;
   }> {
-    return runFetchRetries(
-      async () => {
+    const gate = this.gate;
+    // light 는 1회 시도, 쿨다운 중이면 기다리지 않는다. 429 대응은 게이트(AIMD)가 맡는다
+    const maxWaitMs = options?.light ? 0 : FULL_GATE_MAX_WAIT_MS;
+    const attempt = async () => {
+      const granted = await gate.acquire('collect', { maxWaitMs });
+      if (!granted) {
+        // 전역 쿨다운 중: 요청하지 않고 429 와 같게 돌려준다
+        return {
+          status: 429,
+          retryAfter: null,
+          html: null,
+          finalUrl: null,
+        };
+      }
+      try {
         const res = await fetch(url, {
           headers: TELEGRAM_FETCH_HEADERS,
           redirect: 'follow',
           signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         });
         const html = await res.text();
+        const retryAfter = res.headers.get('retry-after');
+        gate.report({
+          status: res.status,
+          retryAfterMs:
+            res.status === 429 ? parseRetryAfterMs(retryAfter) : undefined,
+        });
         return {
           status: res.status,
-          retryAfter: res.headers.get('retry-after'),
+          retryAfter,
           html,
           finalUrl: res.url,
         };
-      },
-      sleep,
-    );
+      } catch (error) {
+        gate.report({ error: describeFetchError(error) });
+        throw error;
+      } finally {
+        gate.release('collect');
+      }
+    };
+
+    if (options?.light) {
+      try {
+        const result = await attempt();
+        return {
+          status: result.status,
+          html: result.html,
+          finalUrl: result.finalUrl,
+          error: result.status === 429 ? 'fetch:429' : undefined,
+        };
+      } catch (error) {
+        return {
+          status: 0,
+          html: null,
+          finalUrl: null,
+          error: describeFetchError(error),
+        };
+      }
+    }
+    return runFetchRetries(attempt, sleep);
   }
 
   private async botGetChat(
