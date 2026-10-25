@@ -49,6 +49,9 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-subtle: var(--hz-subtle);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
 }
 
 /*
@@ -145,37 +148,6 @@
   border-radius: 20px;
   box-shadow: var(--hz-shadow);
 }
-
-/*
- * 예전 화면(slate·white 직접 지정)을 Horizon 색으로 맞춘다.
- * 새 화면은 토큰(bg-card, text-muted-foreground 등)을 쓰고, 이 덮어쓰기는 예전 화면 정리 전까지의 다리.
- */
-.admin-root .bg-white { background-color: var(--card); }
-.admin-root .bg-slate-50,
-.admin-root .bg-gray-50,
-.admin-root .bg-slate-100,
-.admin-root .bg-gray-100 { background-color: var(--muted); }
-.admin-root .text-slate-900,
-.admin-root .text-slate-800,
-.admin-root .text-gray-900,
-.admin-root .text-gray-800 { color: var(--foreground); }
-.admin-root .text-slate-700,
-.admin-root .text-slate-600,
-.admin-root .text-gray-700,
-.admin-root .text-gray-600 { color: var(--hz-subtle); }
-.admin-root .text-slate-500,
-.admin-root .text-slate-400,
-.admin-root .text-gray-500,
-.admin-root .text-gray-400 { color: var(--muted-foreground); }
-.admin-root .rounded-2xl.bg-white,
-.admin-root .rounded-xl.bg-white { border-radius: 20px; box-shadow: var(--hz-shadow); }
-.admin-root .ring-black\/5,
-.admin-root .ring-black\/10 { --tw-ring-color: var(--border); }
-.admin-root .bg-slate-900 { background-color: var(--primary); }
-.admin-root .bg-blue-600 { background-color: var(--primary); }
-.admin-root .hover\:bg-blue-700:hover { background-color: color-mix(in srgb, var(--primary) 85%, black); }
-.admin-root .text-blue-600 { color: var(--primary); }
-.admin-root.dark .bg-slate-50\/60 { background-color: var(--muted); }
 
 /* Horizon 표: 카드 안쪽 여백, 머리글은 작은 회색 대문자, 줄 구분은 옅게 */
 .admin-root [data-slot="card"] > [data-slot="table-container"] { padding: 0 12px 4px; }

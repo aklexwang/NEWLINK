@@ -21,16 +21,16 @@ export function AdminChannelOpens({ channelId }: { channelId: string }) {
   }, [channelId]);
 
   if (failed) {
-    return <p className="text-[11px] text-slate-400">텔레그램 이동 수를 불러오지 못했습니다.</p>;
+    return <p className="text-[11px] text-muted-foreground">텔레그램 이동 수를 불러오지 못했습니다.</p>;
   }
   if (!summary) {
-    return <p className="text-[11px] text-slate-400">텔레그램 이동 수 불러오는 중…</p>;
+    return <p className="text-[11px] text-muted-foreground">텔레그램 이동 수 불러오는 중…</p>;
   }
 
   const max = Math.max(1, ...summary.daily.map((row) => row.count));
   return (
-    <div className="space-y-1.5 rounded-xl bg-white px-3 py-2 ring-1 ring-black/5">
-      <p className="text-xs text-slate-600">
+    <div className="space-y-1.5 rounded-xl bg-card px-3 py-2 ring-1 ring-border">
+      <p className="text-xs text-subtle">
         텔레그램 이동 · 오늘 <b className="tabular-nums">{summary.today}</b> · 7일{' '}
         <b className="tabular-nums">{summary.last7d}</b> · 30일{' '}
         <b className="tabular-nums">{summary.last30d}</b>
@@ -40,7 +40,7 @@ export function AdminChannelOpens({ channelId }: { channelId: string }) {
           <div
             key={row.date}
             title={`${row.date} · ${row.count}`}
-            className="flex-1 rounded-sm bg-blue-300"
+            className="flex-1 rounded-sm bg-primary/40"
             style={{ height: `${Math.max(row.count > 0 ? 10 : 3, (row.count / max) * 100)}%`, opacity: row.count > 0 ? 1 : 0.35 }}
           />
         ))}

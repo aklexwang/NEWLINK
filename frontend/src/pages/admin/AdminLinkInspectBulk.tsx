@@ -204,23 +204,23 @@ export function AdminLinkInspectBulk() {
         </div>
       )}
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
-        <label className="block text-sm font-medium text-slate-700">링크 붙여넣기</label>
-        <p className="mt-1 text-xs text-slate-500">
+      <section className="rounded-[20px] bg-card p-5 shadow-[var(--hz-shadow)]">
+        <label className="block text-sm font-medium text-subtle">링크 붙여넣기</label>
+        <p className="mt-1 text-xs text-muted-foreground">
           t.me 링크, @아이디, 아이디만. 한 줄에 하나, 최대 500줄. 중복은 빼 둡니다.
         </p>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={10}
-          className="mt-3 w-full rounded-xl bg-slate-50 px-4 py-3 font-mono text-sm outline-none ring-1 ring-black/5 focus:ring-blue-300"
+          className="mt-3 w-full rounded-xl bg-muted px-4 py-3 font-mono text-sm outline-none ring-1 ring-border focus:ring-ring/40"
           placeholder={'https://t.me/example\n@username\nchannelid'}
         />
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="rounded-xl bg-slate-50 px-3 py-2 text-sm outline-none ring-1 ring-black/5"
+            className="rounded-xl bg-muted px-3 py-2 text-sm outline-none ring-1 ring-border"
           >
             <option value="">분류 자동</option>
             {categories.map((item) => (
@@ -233,7 +233,7 @@ export function AdminLinkInspectBulk() {
             type="button"
             disabled={busy || !text.trim()}
             onClick={() => void startInspect()}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
           >
             {busy && job?.status === 'running' ? '확인 중...' : '확인'}
           </button>
@@ -251,9 +251,9 @@ export function AdminLinkInspectBulk() {
       </section>
 
       {job && (
-        <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+        <section className="mt-6 rounded-[20px] bg-card p-5 shadow-[var(--hz-shadow)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-subtle">
               {job.processed}/{job.total} 확인
               {job.status === 'running' ? ' · 진행 중' : ''}
               {job.status === 'interrupted' ? ' · 중단됨' : ''}
@@ -263,7 +263,7 @@ export function AdminLinkInspectBulk() {
               <button
                 type="button"
                 onClick={selectNormals}
-                className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700 ring-1 ring-black/10 hover:bg-slate-50"
+                className="rounded-xl bg-card px-3 py-2 text-sm text-subtle ring-1 ring-border hover:bg-muted"
               >
                 정상만 선택
               </button>
@@ -271,7 +271,7 @@ export function AdminLinkInspectBulk() {
                 type="button"
                 disabled={busy || selected.size === 0}
                 onClick={() => void registerSelected()}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
               >
                 선택 등록 ({selected.size}/{REGISTER_MAX})
               </button>
@@ -281,7 +281,7 @@ export function AdminLinkInspectBulk() {
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-xs text-slate-500">
+                <tr className="border-b border-border text-xs text-muted-foreground">
                   <th className="px-2 py-2 font-medium">선택</th>
                   <th className="px-2 py-2 font-medium">결과</th>
                   <th className="px-2 py-2 font-medium">제목</th>
@@ -294,7 +294,7 @@ export function AdminLinkInspectBulk() {
                 {job.items.map((item) => {
                   const canSelect = isRegistrable(item);
                   return (
-                    <tr key={item.id} className="border-b border-slate-50">
+                    <tr key={item.id} className="border-b border-border">
                       <td className="px-2 py-2">
                         <input
                           type="checkbox"
@@ -309,7 +309,7 @@ export function AdminLinkInspectBulk() {
                       <td className="px-2 py-2">
                         {item.linkType === 'group' ? '그룹' : item.linkType === 'channel' ? '채널' : '-'}
                       </td>
-                      <td className="px-2 py-2 font-mono text-xs text-slate-500">
+                      <td className="px-2 py-2 font-mono text-xs text-muted-foreground">
                         {item.link ?? item.rawInput}
                       </td>
                     </tr>

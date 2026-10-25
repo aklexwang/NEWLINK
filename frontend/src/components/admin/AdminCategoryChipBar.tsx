@@ -17,8 +17,8 @@ export function AdminCategoryChipBar({
   const chipClass = (active: boolean) =>
     `inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition ${
       active
-        ? 'bg-blue-600 text-white shadow-sm'
-        : 'bg-white text-slate-600 ring-1 ring-black/10 hover:bg-slate-50'
+        ? 'bg-primary text-white shadow-sm'
+        : 'bg-card text-subtle ring-1 ring-border hover:bg-muted'
     }`;
 
   const totalCount = counts?.[''];
@@ -28,15 +28,15 @@ export function AdminCategoryChipBar({
   return (
     <div className="mb-4">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">카테고리</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">카테고리</p>
         {counts && (
-          <p className="text-sm text-slate-600">
-            <span className="font-medium text-slate-900">{selectedLabel}</span>
-            <span className="mx-1.5 text-slate-300">·</span>
+          <p className="text-sm text-subtle">
+            <span className="font-medium text-foreground">{selectedLabel}</span>
+            <span className="mx-1.5 text-muted-foreground/70">·</span>
             연결된 링크{' '}
-            <span className="font-semibold tabular-nums text-slate-900">{selectedCount ?? 0}</span>개
+            <span className="font-semibold tabular-nums text-foreground">{selectedCount ?? 0}</span>개
             {totalCount !== undefined && selected && (
-              <span className="ml-1.5 text-xs text-slate-400">(전체 {totalCount}개)</span>
+              <span className="ml-1.5 text-xs text-muted-foreground">(전체 {totalCount}개)</span>
             )}
           </p>
         )}
@@ -45,7 +45,7 @@ export function AdminCategoryChipBar({
         <button type="button" onClick={() => onSelect('')} className={chipClass(selected === '')}>
           전체
           {counts?.[''] !== undefined && (
-            <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums ${selected === '' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums ${selected === '' ? 'bg-white/20 text-white' : 'bg-muted text-subtle'}`}>
               {counts['']}
             </span>
           )}
@@ -62,7 +62,7 @@ export function AdminCategoryChipBar({
             >
               <CategoryIcon emoji={category.emoji} iconUrl={category.iconUrl} size="sm" className="!h-5 !w-5 !text-sm" />
               <span>{category.name}</span>
-              <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums ${active ? 'bg-white/20 text-white' : 'bg-muted text-subtle'}`}>
                 {count}
               </span>
             </button>

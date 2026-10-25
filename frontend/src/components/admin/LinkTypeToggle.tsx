@@ -15,7 +15,7 @@ export function LinkTypeToggle({ value, onChange }: LinkTypeToggleProps) {
           type="button"
           onClick={() => onChange(type)}
           className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${
-            value === type ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-black/10'
+            value === type ? 'bg-primary text-white' : 'bg-card text-subtle ring-1 ring-border'
           }`}
         >
           {linkTypeLabel(type)}

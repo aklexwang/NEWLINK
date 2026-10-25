@@ -31,28 +31,28 @@ function TermList({
   onDelete: (row: SearchTermRow) => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-      <div className="border-b border-black/5 px-4 py-3">
-        <h3 className="text-sm font-bold text-slate-900">
-          {title} <span className="font-normal text-slate-500">({rows.length})</span>
+    <section className="overflow-hidden rounded-[20px] bg-card shadow-[var(--hz-shadow)]">
+      <div className="border-b border-border px-4 py-3">
+        <h3 className="text-sm font-bold text-foreground">
+          {title} <span className="font-normal text-muted-foreground">({rows.length})</span>
         </h3>
-        <p className="mt-0.5 text-xs text-slate-500">{hint}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
       </div>
       {rows.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-slate-400">등록된 단어가 없습니다.</p>
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">등록된 단어가 없습니다.</p>
       ) : (
         <ul>
           {rows.map((row) => (
             <li
               key={row.id}
-              className="flex flex-wrap items-center gap-3 border-b border-black/5 px-4 py-3 last:border-0"
+              className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 last:border-0"
             >
               <div className="min-w-0 flex-1">
-                <p className={`font-medium ${row.enabled ? 'text-slate-900' : 'text-slate-400 line-through'}`}>
+                <p className={`font-medium ${row.enabled ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
                   {row.term}
                 </p>
                 {row.termNormalized !== row.term && (
-                  <p className="text-[11px] text-slate-400">비교용: {row.termNormalized}</p>
+                  <p className="text-[11px] text-muted-foreground">비교용: {row.termNormalized}</p>
                 )}
                 {row.warning && <p className="mt-0.5 text-[11px] text-amber-700">{row.warning}</p>}
               </div>
@@ -63,7 +63,7 @@ function TermList({
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium ring-1 disabled:opacity-50 ${
                   row.enabled
                     ? 'bg-emerald-50 text-emerald-700 ring-emerald-100 hover:bg-emerald-100'
-                    : 'bg-slate-50 text-slate-600 ring-black/10 hover:bg-slate-100'
+                    : 'bg-muted text-subtle ring-border hover:bg-muted'
                 }`}
               >
                 {row.enabled ? '켜짐' : '꺼짐'}
@@ -161,7 +161,7 @@ export function AdminSearchTermsPage() {
   return (
     <>
       <header className="px-4 pt-1 pb-4 md:px-7">
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           금지어가 들어 있는 검색은 결과 없이 &quot;해당 검색어는 허용하지 않습니다.&quot; 안내만 보여줍니다.
           공백·기호·대소문자·전각/반각은 무시하고 비교합니다. (예: 금지어 &quot;마약&quot; → &quot;마.약&quot;, &quot;마 약&quot;도 차단)
         </p>
@@ -169,47 +169,47 @@ export function AdminSearchTermsPage() {
 
       <div className="flex-1 space-y-4 overflow-y-auto p-6">
         {message && (
-          <div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-800 shadow-sm ring-1 ring-black/5">
+          <div className="rounded-xl bg-card px-4 py-3 text-sm text-foreground shadow-[var(--hz-shadow)]">
             {message}
           </div>
         )}
 
         <form
           onSubmit={(event) => void handleAdd(event)}
-          className="flex flex-wrap items-end gap-2 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5"
+          className="flex flex-wrap items-end gap-2 rounded-[20px] bg-card p-4 shadow-[var(--hz-shadow)]"
         >
-          <label className="text-xs text-slate-500">
+          <label className="text-xs text-muted-foreground">
             종류
             <select
               value={kind}
               onChange={(e) => setKind(e.target.value as SearchTermKind)}
-              className="mt-1 block rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-black/10"
+              className="mt-1 block rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-border"
             >
               <option value="block">금지어</option>
               <option value="allow">예외어 (금지어를 포함하지만 허용)</option>
             </select>
           </label>
-          <label className="min-w-[200px] flex-1 text-xs text-slate-500">
+          <label className="min-w-[200px] flex-1 text-xs text-muted-foreground">
             단어 (공백·기호를 뺀 한글·영문·숫자 2자 이상)
             <input
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               maxLength={64}
               placeholder={kind === 'block' ? '예: 마약' : '예: 마약김밥'}
-              className="mt-1 block w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-black/10"
+              className="mt-1 block w-full rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-border"
             />
           </label>
           <button
             type="submit"
             disabled={adding || !term.trim()}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {adding ? '추가 중...' : '추가'}
           </button>
         </form>
 
         {loading ? (
-          <div className="h-32 animate-pulse rounded-2xl bg-white shadow-sm" />
+          <div className="h-32 animate-pulse rounded-[20px] bg-card shadow-[var(--hz-shadow)]" />
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             <TermList

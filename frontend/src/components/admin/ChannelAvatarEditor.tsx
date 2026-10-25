@@ -117,10 +117,10 @@ export function ChannelAvatarEditor({
   };
 
   return (
-    <div className="rounded-xl bg-white p-3 ring-1 ring-black/5">
-      <p className="mb-2 text-xs font-medium text-slate-500">아이콘</p>
+    <div className="rounded-xl bg-card p-3 ring-1 ring-border">
+      <p className="mb-2 text-xs font-medium text-muted-foreground">아이콘</p>
       <div className="flex flex-wrap items-start gap-3">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-2xl ring-1 ring-black/5">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-2xl ring-1 ring-border">
           {showImage ? (
             <img
               src={previewSrc}
@@ -146,7 +146,7 @@ export function ChannelAvatarEditor({
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={uploading}
-              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
             >
               {uploading ? '업로드 중...' : '이미지 업로드'}
             </button>
@@ -154,7 +154,7 @@ export function ChannelAvatarEditor({
               type="button"
               onClick={() => void handleRefreshFromTelegram()}
               disabled={refreshing}
-              className="rounded-lg bg-white px-3 py-1.5 text-xs ring-1 ring-black/10 disabled:opacity-50"
+              className="rounded-lg bg-card px-3 py-1.5 text-xs ring-1 ring-border disabled:opacity-50"
             >
               {refreshing ? '불러오는 중...' : '텔레그램에서 가져오기'}
             </button>
@@ -174,7 +174,7 @@ export function ChannelAvatarEditor({
               value={urlDraft}
               onChange={(e) => setUrlDraft(e.target.value)}
               placeholder="이미지 URL 직접 입력"
-              className="min-w-0 flex-1 rounded-lg bg-slate-50 px-3 py-1.5 text-xs outline-none ring-1 ring-black/10 focus:ring-blue-300"
+              className="min-w-0 flex-1 rounded-lg bg-muted px-3 py-1.5 text-xs outline-none ring-1 ring-border focus:ring-ring/40"
             />
             <button
               type="button"

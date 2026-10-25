@@ -33,7 +33,7 @@ export function AdminOpensPage() {
   return (
     <>
       <header className="px-4 pt-1 pb-4 md:px-7">
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           &quot;텔레그램에서 열기&quot;를 누른 횟수입니다. 같은 사람이 같은 채널을 1시간 안에 다시 누르면 세지 않고,
           봇·관리자는 제외합니다. 이 숫자는 관리자에게만 보입니다.
         </p>
@@ -51,36 +51,36 @@ export function AdminOpensPage() {
               }}
               className={`rounded-full px-4 py-1.5 text-sm font-medium ring-1 ${
                 range === item.id
-                  ? 'bg-slate-900 text-white ring-slate-900'
-                  : 'bg-white text-slate-700 ring-black/10 hover:bg-slate-50'
+                  ? 'bg-primary text-white ring-primary'
+                  : 'bg-card text-subtle ring-border hover:bg-muted'
               }`}
             >
               {item.label}
             </button>
           ))}
           {data && (
-            <span className="ml-2 text-xs text-slate-500">
+            <span className="ml-2 text-xs text-muted-foreground">
               {data.from === data.to ? data.from : `${data.from} ~ ${data.to}`} (KST)
             </span>
           )}
         </div>
 
         {message && (
-          <div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-800 shadow-sm ring-1 ring-black/5">
+          <div className="rounded-xl bg-card px-4 py-3 text-sm text-foreground shadow-[var(--hz-shadow)]">
             {message}
           </div>
         )}
 
         {loading || !data ? (
-          <div className="h-40 animate-pulse rounded-2xl bg-white shadow-sm" />
+          <div className="h-40 animate-pulse rounded-[20px] bg-card shadow-[var(--hz-shadow)]" />
         ) : data.items.length === 0 ? (
-          <div className="rounded-2xl bg-white px-6 py-16 text-center text-sm text-slate-500 shadow-sm ring-1 ring-black/5">
+          <div className="rounded-[20px] bg-card px-6 py-16 text-center text-sm text-muted-foreground shadow-[var(--hz-shadow)]">
             아직 기록이 없습니다.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+          <div className="overflow-hidden rounded-[20px] bg-card shadow-[var(--hz-shadow)]">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-black/5 bg-slate-50 text-xs text-slate-500">
+              <thead className="border-b border-border bg-muted text-xs text-muted-foreground">
                 <tr>
                   <th className="w-14 px-4 py-3 font-medium">순위</th>
                   <th className="px-4 py-3 font-medium">채널·그룹</th>
@@ -92,19 +92,19 @@ export function AdminOpensPage() {
                 {data.items.map((row, index) => {
                   const path = channelDetailPath({ id: row.channelId, username: null, link: row.link });
                   return (
-                    <tr key={row.channelId} className="border-b border-black/5 last:border-0">
-                      <td className="px-4 py-3 tabular-nums text-slate-500">{index + 1}</td>
+                    <tr key={row.channelId} className="border-b border-border last:border-0">
+                      <td className="px-4 py-3 tabular-nums text-muted-foreground">{index + 1}</td>
                       <td className="max-w-[320px] px-4 py-3">
                         {path ? (
-                          <a href={path} className="block truncate font-medium text-blue-700 hover:underline">
+                          <a href={path} className="block truncate font-medium text-primary hover:underline">
                             {row.title}
                           </a>
                         ) : (
-                          <span className="block truncate font-medium text-slate-900">{row.title}</span>
+                          <span className="block truncate font-medium text-foreground">{row.title}</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{row.category}</td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-900">
+                      <td className="px-4 py-3 text-subtle">{row.category}</td>
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">
                         {row.opens.toLocaleString('ko-KR')}
                       </td>
                     </tr>

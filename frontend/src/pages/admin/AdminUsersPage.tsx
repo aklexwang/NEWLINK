@@ -104,7 +104,7 @@ export function AdminUsersPage() {
   return (
     <>
       <header className="px-4 pt-1 pb-4 md:px-7">
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           가입 회원 {registeredCount}명 · 전체 {users.length}명
           {blockedCount > 0 ? ` · 차단 ${blockedCount}명` : ''}
         </p>
@@ -112,7 +112,7 @@ export function AdminUsersPage() {
 
       <div className="flex-1 overflow-y-auto p-6">
         {message && (
-          <div className="mb-4 rounded-xl bg-white px-4 py-3 text-sm text-slate-800 shadow-sm ring-1 ring-black/5">
+          <div className="mb-4 rounded-xl bg-card px-4 py-3 text-sm text-foreground shadow-[var(--hz-shadow)]">
             {message}
           </div>
         )}
@@ -122,20 +122,20 @@ export function AdminUsersPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="ID, 이름, @username, TON 지갑 검색"
-            className="w-full max-w-md rounded-xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-black/5 outline-none focus:ring-blue-300"
+            className="w-full max-w-md rounded-xl bg-card px-4 py-3 text-sm outline-none focus:ring-ring/40 shadow-[var(--hz-shadow)]"
           />
         </div>
 
         {loading ? (
-          <div className="h-32 animate-pulse rounded-2xl bg-white shadow-sm" />
+          <div className="h-32 animate-pulse rounded-[20px] bg-card shadow-[var(--hz-shadow)]" />
         ) : filtered.length === 0 ? (
-          <div className="rounded-2xl bg-white px-6 py-16 text-center text-sm text-slate-500 shadow-sm ring-1 ring-black/5">
+          <div className="rounded-[20px] bg-card px-6 py-16 text-center text-sm text-muted-foreground shadow-[var(--hz-shadow)]">
             등록된 회원이 없습니다.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+          <div className="overflow-hidden rounded-[20px] bg-card shadow-[var(--hz-shadow)]">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-black/5 bg-slate-50 text-xs text-slate-500">
+              <thead className="border-b border-border bg-muted text-xs text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">회원</th>
                   <th className="px-4 py-3 font-medium">Telegram ID</th>
@@ -157,16 +157,16 @@ export function AdminUsersPage() {
                   return (
                     <tr
                       key={user.telegramId}
-                      className={`border-b border-black/5 last:border-0 ${user.isBlocked ? 'bg-red-50/40' : ''}`}
+                      className={`border-b border-border last:border-0 ${user.isBlocked ? 'bg-red-50/40' : ''}`}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
                             {(user.firstName?.[0] ?? user.username?.[0] ?? '?').toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-medium text-slate-900">{user.firstName ?? '-'}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="font-medium text-foreground">{user.firstName ?? '-'}</p>
+                            <p className="text-xs text-muted-foreground">
                               {user.username ? `@${user.username}` : 'username 없음'}
                             </p>
                           </div>
@@ -174,11 +174,11 @@ export function AdminUsersPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-slate-700">{user.telegramId}</span>
+                          <span className="font-mono text-subtle">{user.telegramId}</span>
                           <button
                             type="button"
                             onClick={() => copyText(String(user.telegramId), 'Telegram ID')}
-                            className="text-xs text-blue-600 hover:underline"
+                            className="text-xs text-primary hover:underline"
                           >
                             복사
                           </button>
@@ -189,38 +189,38 @@ export function AdminUsersPage() {
                           <div className="space-y-1.5">
                             <WalletNetworkBadge address={user.tonWalletAddress} showHint={false} />
                             <div className="flex items-start gap-2">
-                              <span className="break-all font-mono text-xs text-slate-600">
+                              <span className="break-all font-mono text-xs text-subtle">
                                 {user.tonWalletAddress}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => copyText(user.tonWalletAddress!, '지갑 주소')}
-                                className="shrink-0 text-xs text-blue-600 hover:underline"
+                                className="shrink-0 text-xs text-primary hover:underline"
                               >
                                 복사
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <span className="text-slate-400">미등록</span>
+                          <span className="text-muted-foreground">미등록</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-4 py-3 text-subtle">
                         {user.walletKind === 'ton'
                           ? 'TON'
                           : user.walletKind === 'usdt_trc20'
                             ? 'USDT TRC-20'
                             : '미등록'}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">{user.submissionCount}</td>
-                      <td className="px-4 py-3 text-slate-700">{user.payoutCount ?? 0}</td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-4 py-3 text-subtle">{user.submissionCount}</td>
+                      <td className="px-4 py-3 text-subtle">{user.payoutCount ?? 0}</td>
+                      <td className="px-4 py-3 text-subtle">
                         {formatPayoutAmount('TON', user.payoutTon ?? 0)}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-4 py-3 text-subtle">
                         {formatPayoutAmount('USDT', user.payoutUsdt ?? 0)}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-4 py-3 text-subtle">
                         {formatPayoutAmount('STARS', user.payoutStars ?? 0)}
                       </td>
                       <td className="px-4 py-3">
@@ -234,13 +234,13 @@ export function AdminUsersPage() {
                               가입완료
                             </span>
                           ) : (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-subtle">
                               미가입
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-500">
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString('ko-KR') : '-'}
                       </td>
                       <td className="px-4 py-3">
@@ -252,7 +252,7 @@ export function AdminUsersPage() {
                             className={`rounded-lg px-3 py-1.5 text-xs font-medium ring-1 disabled:opacity-50 ${
                               user.isBlocked
                                 ? 'bg-amber-50 text-amber-800 ring-amber-100 hover:bg-amber-100'
-                                : 'bg-slate-50 text-slate-700 ring-black/10 hover:bg-slate-100'
+                                : 'bg-muted text-subtle ring-border hover:bg-muted'
                             }`}
                           >
                             {busy ? '처리 중...' : user.isBlocked ? '차단 해제' : '차단'}

@@ -30,16 +30,16 @@ function InsightTable({
   action?: (row: SearchInsightRow) => React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-      <div className="border-b border-black/5 px-4 py-3">
-        <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-        <p className="mt-0.5 text-xs text-slate-500">{hint}</p>
+    <section className="overflow-hidden rounded-[20px] bg-card shadow-[var(--hz-shadow)]">
+      <div className="border-b border-border px-4 py-3">
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
       </div>
       {rows.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-slate-400">데이터가 없습니다.</p>
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">데이터가 없습니다.</p>
       ) : (
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-black/5 bg-slate-50 text-xs text-slate-500">
+          <thead className="border-b border-border bg-muted text-xs text-muted-foreground">
             <tr>
               <th className="px-4 py-2 font-medium">검색어</th>
               <th className="px-4 py-2 text-right font-medium">{countLabel}</th>
@@ -48,9 +48,9 @@ function InsightTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.query} className="border-b border-black/5 last:border-0">
-                <td className="max-w-[260px] truncate px-4 py-2 text-slate-900">{row.sample}</td>
-                <td className="px-4 py-2 text-right tabular-nums text-slate-700">
+              <tr key={row.query} className="border-b border-border last:border-0">
+                <td className="max-w-[260px] truncate px-4 py-2 text-foreground">{row.sample}</td>
+                <td className="px-4 py-2 text-right tabular-nums text-subtle">
                   {countOf(row).toLocaleString('ko-KR')}
                 </td>
                 {action && <td className="px-4 py-2 text-right">{action(row)}</td>}
@@ -102,7 +102,7 @@ export function AdminSearchInsightsPage() {
   return (
     <>
       <header className="px-4 pt-1 pb-4 md:px-7">
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           회원이 확정한 검색만 집계합니다(입력 중 자동완성 제외, 관리자·봇 제외). 회원 ID·IP 는 저장하지 않습니다.
         </p>
       </header>
@@ -119,28 +119,28 @@ export function AdminSearchInsightsPage() {
               }}
               className={`rounded-full px-4 py-1.5 text-sm font-medium ring-1 ${
                 range === item.id
-                  ? 'bg-slate-900 text-white ring-slate-900'
-                  : 'bg-white text-slate-700 ring-black/10 hover:bg-slate-50'
+                  ? 'bg-primary text-white ring-primary'
+                  : 'bg-card text-subtle ring-border hover:bg-muted'
               }`}
             >
               {item.label}
             </button>
           ))}
           {data && (
-            <span className="ml-2 text-xs text-slate-500">
+            <span className="ml-2 text-xs text-muted-foreground">
               {data.from === data.to ? data.from : `${data.from} ~ ${data.to}`} (KST)
             </span>
           )}
         </div>
 
         {message && (
-          <div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-800 shadow-sm ring-1 ring-black/5">
+          <div className="rounded-xl bg-card px-4 py-3 text-sm text-foreground shadow-[var(--hz-shadow)]">
             {message}
           </div>
         )}
 
         {loading || !data ? (
-          <div className="h-40 animate-pulse rounded-2xl bg-white shadow-sm" />
+          <div className="h-40 animate-pulse rounded-[20px] bg-card shadow-[var(--hz-shadow)]" />
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -149,9 +149,9 @@ export function AdminSearchInsightsPage() {
                 { label: '결과 0건', value: data.totals.zeroCount },
                 { label: '금지어로 막힘', value: data.totals.blockedCount },
               ].map((card) => (
-                <div key={card.label} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-                  <p className="text-xs text-slate-500">{card.label}</p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                <div key={card.label} className="rounded-[20px] bg-card p-4 shadow-[var(--hz-shadow)]">
+                  <p className="text-xs text-muted-foreground">{card.label}</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
                     {card.value.toLocaleString('ko-KR')}
                   </p>
                 </div>
@@ -180,7 +180,7 @@ export function AdminSearchInsightsPage() {
                       type="button"
                       disabled={addingQuery === row.query}
                       onClick={() => void handleAddKeyword(row)}
-                      className="whitespace-nowrap rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-100 hover:bg-blue-100 disabled:opacity-50"
+                      className="whitespace-nowrap rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary ring-1 ring-primary/20 hover:bg-primary/15 disabled:opacity-50"
                     >
                       {addingQuery === row.query ? '추가 중...' : '발견 키워드로 추가'}
                     </button>
