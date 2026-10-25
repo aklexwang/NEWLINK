@@ -32,8 +32,7 @@ export function AdminOpensPage() {
 
   return (
     <>
-      <header className="border-b border-black/5 bg-white px-6 py-5">
-        <h2 className="text-xl font-bold text-slate-900">텔레그램 이동 순위</h2>
+      <header className="px-4 pt-1 pb-4 md:px-7">
         <p className="mt-1 text-sm text-slate-500">
           &quot;텔레그램에서 열기&quot;를 누른 횟수입니다. 같은 사람이 같은 채널을 1시간 안에 다시 누르면 세지 않고,
           봇·관리자는 제외합니다. 이 숫자는 관리자에게만 보입니다.

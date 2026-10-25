@@ -179,7 +179,6 @@ export function AdminDiscoveryPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <h2 className="text-xl font-bold">발견</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         서버가 모아 둔 대기열입니다. 이 화면의 새로고침은 조회만 하며 MTProto를 부르지 않습니다.
       </p>

@@ -103,8 +103,7 @@ export function AdminUsersPage() {
 
   return (
     <>
-      <header className="border-b border-black/5 bg-white px-6 py-5">
-        <h2 className="text-xl font-bold text-slate-900">회원 관리</h2>
+      <header className="px-4 pt-1 pb-4 md:px-7">
         <p className="mt-1 text-sm text-slate-500">
           가입 회원 {registeredCount}명 · 전체 {users.length}명
           {blockedCount > 0 ? ` · 차단 ${blockedCount}명` : ''}

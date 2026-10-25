@@ -141,7 +141,6 @@ export function AdminCategoriesPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <h2 className="text-xl font-bold">카테고리 설정</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         이름·아이콘·순서를 관리합니다. 회원 화면 카테고리 목록도 이 순서를 따릅니다.
       </p>

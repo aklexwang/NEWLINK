@@ -25,7 +25,6 @@ export function AdminPendingPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <h2 className="text-xl font-bold">제보·보상</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         승인·지급·이력을 한 화면에서 처리합니다. 새 제보 알림은 그대로 동작합니다.
       </p>

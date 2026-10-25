@@ -101,8 +101,7 @@ export function AdminSearchInsightsPage() {
 
   return (
     <>
-      <header className="border-b border-black/5 bg-white px-6 py-5">
-        <h2 className="text-xl font-bold text-slate-900">검색 인사이트</h2>
+      <header className="px-4 pt-1 pb-4 md:px-7">
         <p className="mt-1 text-sm text-slate-500">
           회원이 확정한 검색만 집계합니다(입력 중 자동완성 제외, 관리자·봇 제외). 회원 ID·IP 는 저장하지 않습니다.
         </p>

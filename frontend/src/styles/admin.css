@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap");
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -50,75 +51,83 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * Horizon UI 스타일 (preview.themewagon.com/horizon-react) 을 shadcn 토큰에 입힌 것.
+ * 브랜드 #4318FF, 배경 #F4F7FE, 글자 네이비 #2B3674, 보조 #A3AED0, 카드 20px 둥글게 + 옅은 그림자.
+ * 회원 화면에는 영향 없음 (.admin-root 범위, 어드민 청크에서만 로드).
+ */
 .admin-root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 1rem;
+  --hz-shadow: 14px 17px 40px 4px rgba(112, 144, 176, 0.08);
+  --hz-brand-gradient: linear-gradient(135deg, #868cff 0%, #4318ff 100%);
+  --background: #f4f7fe;
+  --foreground: #2b3674;
+  --card: #ffffff;
+  --card-foreground: #2b3674;
+  --popover: #ffffff;
+  --popover-foreground: #2b3674;
+  --primary: #4318ff;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f7fe;
+  --secondary-foreground: #2b3674;
+  --muted: #f4f7fe;
+  --muted-foreground: #a3aed0;
+  --accent: #f4f7fe;
+  --accent-foreground: #4318ff;
+  --destructive: #ee5d50;
+  --success: #05cd99;
+  --warning: #ffb547;
+  --border: #e9edf7;
+  --input: #e0e5f2;
+  --ring: #4318ff;
+  --chart-1: #4318ff;
+  --chart-2: #6ad2ff;
+  --chart-3: #05cd99;
+  --chart-4: #ffb547;
+  --chart-5: #ee5d50;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #2b3674;
+  --sidebar-primary: #4318ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f7fe;
+  --sidebar-accent-foreground: #4318ff;
+  --sidebar-border: #e9edf7;
+  --sidebar-ring: #4318ff;
+  --hz-subtle: #707eae;
+  font-family: 'DM Sans', 'Noto Sans KR', system-ui, -apple-system, sans-serif;
   color: var(--foreground);
   background-color: var(--background);
 }
 
 .admin-root.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --hz-shadow: none;
+  --background: #0b1437;
+  --foreground: #ffffff;
+  --card: #111c44;
+  --card-foreground: #ffffff;
+  --popover: #111c44;
+  --popover-foreground: #ffffff;
+  --primary: #7551ff;
+  --primary-foreground: #ffffff;
+  --secondary: #1b254b;
+  --secondary-foreground: #ffffff;
+  --muted: #1b254b;
+  --muted-foreground: #a3aed0;
+  --accent: #1b254b;
+  --accent-foreground: #ffffff;
+  --destructive: #ee5d50;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #7551ff;
+  --sidebar: #111c44;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #7551ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b254b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #7551ff;
+  --hz-subtle: #a3aed0;
 }
 
 .admin-root,
@@ -129,3 +138,52 @@
 .admin-root * {
   outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
 }
+
+/* Horizon 카드 */
+.admin-root [data-slot="card"] {
+  border-width: 0;
+  border-radius: 20px;
+  box-shadow: var(--hz-shadow);
+}
+
+/*
+ * 예전 화면(slate·white 직접 지정)을 Horizon 색으로 맞춘다.
+ * 새 화면은 토큰(bg-card, text-muted-foreground 등)을 쓰고, 이 덮어쓰기는 예전 화면 정리 전까지의 다리.
+ */
+.admin-root .bg-white { background-color: var(--card); }
+.admin-root .bg-slate-50,
+.admin-root .bg-gray-50,
+.admin-root .bg-slate-100,
+.admin-root .bg-gray-100 { background-color: var(--muted); }
+.admin-root .text-slate-900,
+.admin-root .text-slate-800,
+.admin-root .text-gray-900,
+.admin-root .text-gray-800 { color: var(--foreground); }
+.admin-root .text-slate-700,
+.admin-root .text-slate-600,
+.admin-root .text-gray-700,
+.admin-root .text-gray-600 { color: var(--hz-subtle); }
+.admin-root .text-slate-500,
+.admin-root .text-slate-400,
+.admin-root .text-gray-500,
+.admin-root .text-gray-400 { color: var(--muted-foreground); }
+.admin-root .rounded-2xl.bg-white,
+.admin-root .rounded-xl.bg-white { border-radius: 20px; box-shadow: var(--hz-shadow); }
+.admin-root .ring-black\/5,
+.admin-root .ring-black\/10 { --tw-ring-color: var(--border); }
+.admin-root .bg-slate-900 { background-color: var(--primary); }
+.admin-root .bg-blue-600 { background-color: var(--primary); }
+.admin-root .hover\:bg-blue-700:hover { background-color: color-mix(in srgb, var(--primary) 85%, black); }
+.admin-root .text-blue-600 { color: var(--primary); }
+.admin-root.dark .bg-slate-50\/60 { background-color: var(--muted); }
+
+/* Horizon 표: 카드 안쪽 여백, 머리글은 작은 회색 대문자, 줄 구분은 옅게 */
+.admin-root [data-slot="card"] > [data-slot="table-container"] { padding: 0 12px 4px; }
+.admin-root [data-slot="table-head"] {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.admin-root [data-slot="table-row"] { border-color: var(--border); }
+.admin-root [data-slot="table-cell"] { color: var(--foreground); font-weight: 500; }

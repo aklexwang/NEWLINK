@@ -7,7 +7,6 @@ import { AdminLoginScreen } from './AdminLoginScreen';
 import { AdminSidebar, adminPageTitle } from './AdminSidebar';
 import { AdminThemeProvider, useAdminTheme } from './AdminThemeProvider';
 import { Button } from '@/components/admin/ui/button';
-import { Separator } from '@/components/admin/ui/separator';
 import { Sheet, SheetContent } from '@/components/admin/ui/sheet';
 import { TooltipProvider } from '@/components/admin/ui/tooltip';
 import { Toaster } from '@/components/admin/ui/sonner';
@@ -89,7 +88,7 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
-        <header className="flex h-14 items-center gap-2 border-b bg-background px-3">
+        <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 bg-background/80 px-4 pt-5 pb-3 backdrop-blur-xl md:px-7">
           <Button
             type="button"
             variant="ghost"
@@ -100,29 +99,40 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
           >
             <Menu />
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="hidden lg:inline-flex"
-            onClick={toggleCollapsed}
-            aria-label="사이드바 접기"
-          >
-            <PanelLeft />
-          </Button>
-          <Separator orientation="vertical" className="hidden h-6 lg:block" />
-          <p className="text-sm font-semibold">{adminPageTitle(location.pathname)}</p>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-[color:var(--hz-subtle)]">
+              관리자 <span className="mx-1">/</span> {adminPageTitle(location.pathname)}
+            </p>
+            <p className="mt-0.5 truncate text-[26px] leading-tight font-bold md:text-[34px]">
+              {adminPageTitle(location.pathname)}
+            </p>
+          </div>
+          <div className="ml-auto flex items-center gap-1 rounded-full bg-card p-2 shadow-[var(--hz-shadow)]">
             <Button
               type="button"
               variant="ghost"
               size="icon"
+              className="hidden rounded-full text-muted-foreground lg:inline-flex"
+              onClick={toggleCollapsed}
+              aria-label="사이드바 접기"
+            >
+              <PanelLeft />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="rounded-full text-muted-foreground"
               onClick={toggleTheme}
               aria-label={theme === 'dark' ? '라이트 모드' : '다크 모드'}
             >
               {theme === 'dark' ? <Sun /> : <Moon />}
             </Button>
-            <Button type="button" variant="ghost" onClick={logout}>
+            <Button
+              type="button"
+              className="rounded-full bg-[image:var(--hz-brand-gradient)] px-4 text-white"
+              onClick={logout}
+            >
               <LogOut />
               로그아웃
             </Button>

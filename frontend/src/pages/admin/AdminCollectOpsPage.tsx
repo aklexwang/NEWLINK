@@ -118,7 +118,6 @@ export function AdminCollectOpsPage() {
     <div className="flex-1 overflow-y-auto p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">수집 운영</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             최근 실행 기록과 MTProto 상태입니다. full 수동 실행은 없습니다.
           </p>

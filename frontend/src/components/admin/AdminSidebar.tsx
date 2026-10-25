@@ -22,7 +22,6 @@ import {
 } from '../../utils/adminBadges';
 import { isPromotionActive } from '../../utils/promotion';
 import { Badge } from '@/components/admin/ui/badge';
-import { Separator } from '@/components/admin/ui/separator';
 import {
   Tooltip,
   TooltipContent,
@@ -190,30 +189,30 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        'flex h-full min-h-screen flex-col border-r bg-sidebar text-sidebar-foreground',
-        collapsed ? 'w-16' : 'w-60',
+        'flex h-full min-h-screen flex-col bg-sidebar text-sidebar-foreground shadow-[var(--hz-shadow)]',
+        collapsed ? 'w-[76px]' : 'w-[280px]',
       )}
     >
-      <div className={cn('border-b px-3 py-4', collapsed && 'px-2')}>
+      <div className={cn('mx-6 border-b py-8 text-center', collapsed && 'mx-3 py-6')}>
         {collapsed ? (
-          <p className="text-center text-xs font-bold">NL</p>
+          <p className="text-[15px] font-bold tracking-tight">NL</p>
         ) : (
-          <>
-            <p className="text-xs font-medium tracking-wider text-muted-foreground">New Link</p>
-            <h1 className="mt-1 text-lg font-bold">관리자</h1>
-          </>
+          <h1 className="text-[26px] leading-none tracking-tight uppercase">
+            <span className="font-bold">New Link</span>{' '}
+            <span className="font-normal">Admin</span>
+          </h1>
         )}
       </div>
 
-      <nav className="flex flex-1 flex-col gap-3 overflow-y-auto p-2" onClick={() => onNavigate?.()}>
+      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto py-6" onClick={() => onNavigate?.()}>
         {GROUPS.map((group) => (
           <div key={group.title}>
             {!collapsed && (
-              <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              <p className="px-8 pb-2 text-[11px] font-bold tracking-[0.08em] text-muted-foreground uppercase">
                 {group.title}
               </p>
             )}
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-1">
               {group.items.map((item) => {
                 const count = item.badge === 'pending' ? pendingCount : item.badge === 'ads' ? adsCount : 0;
                 const link = (
@@ -221,21 +220,20 @@ export function AdminSidebar({
                     to={item.to}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors',
+                        'group relative flex items-center gap-3 py-2.5 pr-6 pl-8 text-[15px] transition-colors',
                         collapsed && 'justify-center px-0',
                         isActive
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                          : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                          ? 'font-bold text-sidebar-foreground [&_.hz-icon]:text-sidebar-primary after:absolute after:top-1/2 after:right-0 after:h-9 after:w-1 after:-translate-y-1/2 after:rounded-full after:bg-sidebar-primary'
+                          : 'font-medium text-muted-foreground hover:text-sidebar-foreground',
                       )
                     }
                   >
-                    <span className="[&>svg]:size-4">{item.icon}</span>
+                    <span className="hz-icon [&>svg]:size-5">{item.icon}</span>
                     {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
                     {!collapsed && count > 0 && (
                       <Badge
-                        variant="secondary"
                         className={cn(
-                          'h-5 min-w-5 px-1.5',
+                          'h-5 min-w-5 rounded-full bg-sidebar-primary px-1.5 text-sidebar-primary-foreground',
                           item.badge === 'pending' && pulse && 'animate-pulse',
                         )}
                       >
@@ -260,13 +258,13 @@ export function AdminSidebar({
         ))}
       </nav>
 
-      <Separator />
-      <div className="p-2">
+      <div className="p-4">
         <a
           href={getMemberUrl()}
           className={cn(
-            'flex items-center gap-3 rounded-md px-2 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent',
-            collapsed && 'justify-center px-0',
+            'flex items-center justify-center gap-2 rounded-[20px] px-4 py-3 text-sm font-medium text-white shadow-[var(--hz-shadow)]',
+            'bg-[image:var(--hz-brand-gradient)] hover:opacity-95',
+            collapsed && 'px-0',
           )}
         >
           <span>←</span>

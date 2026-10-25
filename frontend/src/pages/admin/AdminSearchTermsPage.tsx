@@ -160,8 +160,7 @@ export function AdminSearchTermsPage() {
 
   return (
     <>
-      <header className="border-b border-black/5 bg-white px-6 py-5">
-        <h2 className="text-xl font-bold text-slate-900">검색 금지어</h2>
+      <header className="px-4 pt-1 pb-4 md:px-7">
         <p className="mt-1 text-sm text-slate-500">
           금지어가 들어 있는 검색은 결과 없이 &quot;해당 검색어는 허용하지 않습니다.&quot; 안내만 보여줍니다.
           공백·기호·대소문자·전각/반각은 무시하고 비교합니다. (예: 금지어 &quot;마약&quot; → &quot;마.약&quot;, &quot;마 약&quot;도 차단)

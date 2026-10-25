@@ -340,10 +340,9 @@ export function AdminLinksManagePage() {
 
   return (
     <>
-      <header className="border-b border-black/5 bg-white px-6 py-5">
+      <header className="px-4 pt-1 pb-4 md:px-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">채널·그룹 관리</h2>
             <p className="mt-1 text-sm text-slate-500">목록은 서버에서 나눠 가져옵니다. 필터는 주소에 남습니다.</p>
           </div>
           <div className="flex flex-wrap gap-2">

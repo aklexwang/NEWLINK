@@ -1,9 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import {
+  Bot,
+  CalendarDays,
+  CalendarPlus,
+  ClipboardList,
+  Eye,
+  EyeOff,
+  Megaphone,
+  Radio,
+  Timer,
+  UserCog,
+  Users,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getAdminDashboard, type AdminDashboard } from '../../api/admin';
 import { AdminMessage } from '../../components/admin/AdminTable';
 import { Badge } from '@/components/admin/ui/badge';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/admin/ui/card';
 import { Skeleton } from '@/components/admin/ui/skeleton';
 import {
   Table,
@@ -16,18 +29,28 @@ function StatCard({
   to,
   label,
   value,
+  icon,
 }: {
   to: string;
   label: string;
   value: number | string;
+  icon?: ReactNode;
 }) {
+  const long = typeof value === 'string' && value.length > 12;
   return (
     <Link to={to} className="block">
-      <Card className="h-full py-4 transition-colors hover:bg-accent/40">
-        <CardHeader className="px-4">
-          <CardDescription>{label}</CardDescription>
-          <CardTitle className="text-2xl">{value}</CardTitle>
-        </CardHeader>
+      <Card className="h-full flex-row items-center gap-4 px-4 py-4 transition-transform hover:-translate-y-0.5 sm:px-5 sm:py-5">
+        {icon && (
+          <span className="hidden size-14 shrink-0 items-center justify-center rounded-full bg-muted text-primary sm:flex [&>svg]:size-6">
+            {icon}
+          </span>
+        )}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+          <p className={long ? 'mt-1 text-[15px] leading-snug font-bold' : 'mt-1 text-2xl font-bold'}>
+            {typeof value === 'number' ? value.toLocaleString('ko-KR') : value}
+          </p>
+        </div>
       </Card>
     </Link>
   );
@@ -49,23 +72,22 @@ export function AdminDashboardPage() {
     : '기록 없음';
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-      <h2 className="text-xl font-bold">대시보드</h2>
-      <p className="mt-1 text-sm text-muted-foreground">숫자를 누르면 해당 조건의 목록으로 갑니다.</p>
+    <div className="flex-1 overflow-y-auto px-4 pb-8 md:px-7">
+      <p className="text-sm text-muted-foreground">숫자를 누르면 해당 조건의 목록으로 갑니다.</p>
       {message && <AdminMessage message={message} />}
       {!data ? (
         <Skeleton className="mt-6 h-32 w-full" />
       ) : (
         <>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard to="/admin/links?type=channel" label="채널" value={data.channelCount} />
-            <StatCard to="/admin/links?type=group" label="그룹" value={data.groupCount} />
-            <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" value={data.memberVisible} />
-            <StatCard to="/admin/links?memberPage=no" label="회원 페이지 숨김" value={data.memberHidden} />
-            <StatCard to="/admin/links?status=pending" label="승인 대기" value={data.pendingCount} />
-            <StatCard to="/admin/links?createdFrom=today" label="오늘 등록" value={data.registered.today.total} />
-            <StatCard to="/admin/links?createdFrom=7d" label="최근 7일 등록" value={data.registered.last7d.total} />
-            <StatCard to="/admin/collect" label="마지막 수집" value={runLabel} />
+          <div className="mt-5 grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
+            <StatCard to="/admin/links?type=channel" label="채널" icon={<Radio />} value={data.channelCount} />
+            <StatCard to="/admin/links?type=group" label="그룹" icon={<Users />} value={data.groupCount} />
+            <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" icon={<Eye />} value={data.memberVisible} />
+            <StatCard to="/admin/links?memberPage=no" label="회원 페이지 숨김" icon={<EyeOff />} value={data.memberHidden} />
+            <StatCard to="/admin/links?status=pending" label="승인 대기" icon={<ClipboardList />} value={data.pendingCount} />
+            <StatCard to="/admin/links?createdFrom=today" label="오늘 등록" icon={<CalendarPlus />} value={data.registered.today.total} />
+            <StatCard to="/admin/links?createdFrom=7d" label="최근 7일 등록" icon={<CalendarDays />} value={data.registered.last7d.total} />
+            <StatCard to="/admin/collect" label="마지막 수집" icon={<Timer />} value={runLabel} />
           </div>
 
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
@@ -77,13 +99,13 @@ export function AdminDashboardPage() {
 
           <section className="mt-8">
             <h3 className="text-sm font-semibold">오늘 / 7일 등록 경로</h3>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <StatCard to="/admin/links?createdFrom=today&source=auto" label="오늘 자동" value={data.registered.today.auto} />
-              <StatCard to="/admin/links?createdFrom=today&source=admin" label="오늘 어드민" value={data.registered.today.admin} />
-              <StatCard to="/admin/links?createdFrom=today&source=report" label="오늘 제보" value={data.registered.today.report} />
-              <StatCard to="/admin/links?createdFrom=7d&source=auto" label="7일 자동" value={data.registered.last7d.auto} />
-              <StatCard to="/admin/links?createdFrom=7d&source=admin" label="7일 어드민" value={data.registered.last7d.admin} />
-              <StatCard to="/admin/links?createdFrom=7d&source=report" label="7일 제보" value={data.registered.last7d.report} />
+            <div className="mt-3 grid grid-cols-2 gap-3 md:gap-5 sm:grid-cols-3">
+              <StatCard to="/admin/links?createdFrom=today&source=auto" label="오늘 자동" icon={<Bot />} value={data.registered.today.auto} />
+              <StatCard to="/admin/links?createdFrom=today&source=admin" label="오늘 어드민" icon={<UserCog />} value={data.registered.today.admin} />
+              <StatCard to="/admin/links?createdFrom=today&source=report" label="오늘 제보" icon={<Megaphone />} value={data.registered.today.report} />
+              <StatCard to="/admin/links?createdFrom=7d&source=auto" label="7일 자동" icon={<Bot />} value={data.registered.last7d.auto} />
+              <StatCard to="/admin/links?createdFrom=7d&source=admin" label="7일 어드민" icon={<UserCog />} value={data.registered.last7d.admin} />
+              <StatCard to="/admin/links?createdFrom=7d&source=report" label="7일 제보" icon={<Megaphone />} value={data.registered.last7d.report} />
             </div>
           </section>
 

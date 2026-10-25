@@ -37,7 +37,10 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>관리자 로그인</CardTitle>
+          <p className="text-[22px] leading-none tracking-tight uppercase">
+            <span className="font-bold">New Link</span> <span className="font-normal">Admin</span>
+          </p>
+          <CardTitle className="mt-3 text-[26px] font-bold">관리자 로그인</CardTitle>
           <CardDescription>아이디와 비밀번호를 입력해 주세요</CardDescription>
         </CardHeader>
         <CardContent>

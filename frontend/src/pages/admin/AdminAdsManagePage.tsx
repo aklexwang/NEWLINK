@@ -216,7 +216,6 @@ export function AdminAdsManagePage() {
     <div className="flex-1 overflow-y-auto p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">광고 관리</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             노출 중 {activeCount}건 · 전체 {promoted.length}건
           </p>
