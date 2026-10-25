@@ -2,7 +2,7 @@
 # - send: Claude 가 보낸 글을 @봇으로 운영자에게 보낸다.
 # - read: 운영자가 봇에 보낸 글을 가져와 Claude 의 공개키로 암호화해 inbox 이슈에 댓글로 남긴다.
 # 공개 저장소라 실행 기록이 보인다: 글 내용은 로그에 찍지 않고(이벤트 파일에서 읽음), 받은 글은 암호화한다.
-# 필요한 비밀값: TELEGRAM_BOT_TOKEN, TELEGRAM_OWNER_CHAT_ID (운영자 텔레그램 숫자 id)
+# 필요한 비밀값: CLAUDE_TG_BOT_TOKEN (서비스 봇과 별개인 Claude 전용 봇), CLAUDE_TG_OWNER_CHAT_ID (운영자 텔레그램 숫자 id)
 name: claude-telegram
 
 on:
@@ -44,15 +44,15 @@ jobs:
 
       - name: 텔레그램
         env:
-          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          OWNER: ${{ secrets.TELEGRAM_OWNER_CHAT_ID }}
+          TOKEN: ${{ secrets.CLAUDE_TG_BOT_TOKEN }}
+          OWNER: ${{ secrets.CLAUDE_TG_OWNER_CHAT_ID }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
           if [ -z "${TOKEN:-}" ] || [ -z "${OWNER:-}" ]; then
-            echo "비밀값 TELEGRAM_BOT_TOKEN / TELEGRAM_OWNER_CHAT_ID 가 없습니다."; exit 1
+            echo "비밀값 CLAUDE_TG_BOT_TOKEN / CLAUDE_TG_OWNER_CHAT_ID 가 없습니다."; exit 1
           fi
           ACTION=$(jq -r '.inputs.action // "read"' "$GITHUB_EVENT_PATH")
           API="https://api.telegram.org/bot${TOKEN}"
