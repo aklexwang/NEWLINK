@@ -7,6 +7,7 @@ import {
   isPendingCategory,
 } from '../channels/auto-expose.logic';
 import { isDefaultPublicLanguage } from '../channels/channel-language.logic';
+import { shouldHideIllegalSuspicion } from '../channels/illegal-content.logic';
 import { isPublicCollectable } from './collect-visibility';
 
 export type WeeklyHeadlineChannel = {
@@ -16,6 +17,9 @@ export type WeeklyHeadlineChannel = {
   isVisible?: boolean | null;
   language?: string | null;
   category?: string | null;
+  title?: string | null;
+  description?: string | null;
+  illegalCleared?: boolean | null;
 };
 
 /** 홈 상위·랭킹과 같이 주간 소식에 올릴 채널인지 */
@@ -25,6 +29,7 @@ export function isWeeklyHeadlineChannel(
   if (channel.status !== ChannelStatus.ACTIVE) return false;
   if (!isPublicCollectable(channel)) return false;
   if (!isDefaultPublicLanguage(channel.language)) return false;
+  if (shouldHideIllegalSuspicion(channel)) return false;
   if (!allowAdultInList(channel.category)) return false;
   if (isPendingCategory(channel.category)) return false;
   return true;

@@ -1,8 +1,4 @@
-import {
-  buildAdminDashboard,
-  sqlBoolLiterals,
-  visibilityReasonSql,
-} from './admin-dashboard.logic';
+import { buildAdminDashboard, sqlBoolLiterals } from './admin-dashboard.logic';
 
 describe('buildAdminDashboard', () => {
   it('유형·노출·등록 경로를 집계한다', () => {
@@ -47,8 +43,8 @@ describe('buildAdminDashboard', () => {
     expect(data.categories[0].count).toBe(1);
   });
 
-  it('숨김 이유 SQL 이 회원 페이지 이유 키를 모두 담는다', () => {
-    const sql = visibilityReasonSql('channel', sqlBoolLiterals('better-sqlite3'));
+  it('숨김 이유 목록이 회원 페이지 이유 키를 모두 담는다 (0건도 줄을 남김)', () => {
+    const data = buildAdminDashboard([]);
     for (const reason of [
       '승인되지 않음',
       '관리자가 숨김',
@@ -62,7 +58,7 @@ describe('buildAdminDashboard', () => {
       '분류대기',
       '성인 카테고리',
     ]) {
-      expect(sql).toContain(reason);
+      expect(data.hiddenReasons[reason]).toBe(0);
     }
     expect(sqlBoolLiterals('postgres')).toEqual({ t: 'TRUE', f: 'FALSE' });
   });

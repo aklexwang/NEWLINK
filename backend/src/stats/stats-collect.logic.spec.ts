@@ -7,6 +7,7 @@ import {
   LIGHT_PIPELINE_STEPS,
   parseStatsCollectMode,
   STATS_CRON_FULL_UTC,
+  shouldMarkLightNoPostsFailed,
   STATS_CRON_LIGHT_UTC,
   statsCronModeFromSchedule,
   statsCronWaitMinutes,
@@ -127,5 +128,18 @@ describe('피드 마지막 게시', () => {
       { postedAt: '2026-10-23T04:10:00.000Z' },
     ]);
     expect(last?.toISOString()).toBe('2026-10-23T05:40:00.000Z');
+  });
+});
+
+describe('light 미리보기에 글이 없을 때', () => {
+  it('이미 수집된 적 있는 채널은 failed 로 덮어쓰지 않는다', () => {
+    expect(
+      shouldMarkLightNoPostsFailed({ firstObservedAt: new Date('2026-10-20T00:00:00Z') }),
+    ).toBe(false);
+  });
+
+  it('한 번도 수집 못 한 채널만 실패 이유를 남긴다', () => {
+    expect(shouldMarkLightNoPostsFailed({ firstObservedAt: null })).toBe(true);
+    expect(shouldMarkLightNoPostsFailed({})).toBe(true);
   });
 });

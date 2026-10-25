@@ -90,6 +90,17 @@ export function isLightCollectTarget(channel: {
   return extractTelegramUsernameFromLink(channel.link) != null;
 }
 
+/**
+ * light(t.me/s 미리보기만 보는 수집)에서 글이 하나도 안 보일 때 "수집 실패"로 기록할지.
+ * 미리보기가 막힌 채널은 full 수집(봇·MTProto)이 따로 처리하므로, 이미 수집된 적 있는
+ * 채널의 상태를 light 가 failed 로 덮어쓰지 않는다. 한 번도 수집 못 한 채널만 이유를 남긴다.
+ */
+export function shouldMarkLightNoPostsFailed(channel: {
+  firstObservedAt?: Date | string | null;
+}): boolean {
+  return channel.firstObservedAt == null || channel.firstObservedAt === '';
+}
+
 /** 피드「마지막 게시」= 수집된 글 postedAt 최댓값. light 미리보기가 이 값을 3시간 안에 갱신한다 */
 export function lastPostAtFromCollectedPosts(
   posts: Array<{ postedAt: Date | string }>,

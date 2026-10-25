@@ -68,6 +68,13 @@ export function AdminDashboardPage() {
             <StatCard to="/admin/collect" label="마지막 수집" value={runLabel} />
           </div>
 
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            회원 페이지 노출 {data.memberVisible} − 같은 링크 중복 {data.memberDuplicateExcess} = 회원 화면 “전체”{' '}
+            {data.memberListTotal}. 노출은 채널을 한 건씩 판정한 수이고(승인됨 · 관리자 노출 · 수집됨 · 한국어 또는
+            광고 · 불법 의심 아님 · 분류대기·성인 카테고리 아님), 회원 “전체”는 여기에 같은 링크를 1개로 합쳐 셉니다.
+            중복이 0이면 두 숫자는 같습니다. 숨김 이유는 아래 표 순서대로 처음 걸리는 한 가지만 셉니다.
+          </p>
+
           <section className="mt-8">
             <h3 className="text-sm font-semibold">오늘 / 7일 등록 경로</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">

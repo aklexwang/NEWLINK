@@ -13,7 +13,9 @@ import { MtprotoCollectorService } from './mtproto-collector.service';
 import {
   CHANNEL_GAP_MS,
   describeFetchError,
+  isBotRateLimited,
   isClassifyFresh,
+  parseBotRetryAfterMs,
   runFetchRetries,
   shouldRetrySameDayFailed,
   shouldSkipDailyCollect,
@@ -26,7 +28,10 @@ import {
 } from './mtproto-collect.logic';
 import { formatKstYmd } from './channel-metrics.math';
 import { isCollectDueToday, kstWeekdayIndex, resolveCollectTier } from './collect-tier.logic';
-import { isLightCollectTarget } from './stats-collect.logic';
+import {
+  isLightCollectTarget,
+  shouldMarkLightNoPostsFailed,
+} from './stats-collect.logic';
 import {
   isCollectBudgetOver,
   orderChannelsForCollect,
@@ -71,6 +76,9 @@ export type CollectOneResult =
 @Injectable()
 export class ChannelCollectorService {
   private readonly logger = new Logger(ChannelCollectorService.name);
+
+  /** 봇 API 가 429 를 준 뒤 이 시각까지는 봇 호출을 하지 않는다 (채널 상태도 건드리지 않음) */
+  private botBlockedUntil = 0;
 
   constructor(
     @InjectRepository(Channel)
@@ -534,7 +542,10 @@ export class ChannelCollectorService {
 
     const parsed = parseTelegramChannelHtml(first.html);
     if (!parsed.hasPreview) {
-      await this.markFailed(channel, 'failed', 'preview:no_posts');
+      // 미리보기가 막힌 채널은 full 수집(봇·MTProto)이 처리한다. 이미 수집된 채널은 failed 로 덮어쓰지 않는다
+      if (shouldMarkLightNoPostsFailed(channel)) {
+        await this.markFailed(channel, 'failed', 'preview:no_posts');
+      }
       return { ok: false, reason: 'failed' };
     }
 
@@ -724,9 +735,22 @@ export class ChannelCollectorService {
       return { ok: false, reason: 'failed' };
     }
 
+    // 한도(429) 대기 중에는 봇을 다시 두드리지 않는다. 채널 문제가 아니므로 상태는 그대로 둔다
+    if (Date.now() < this.botBlockedUntil) {
+      return { ok: false, reason: 'failed' };
+    }
+
     try {
       const chat = await this.botGetChat(token, username);
       if (!chat.ok) {
+        if (isBotRateLimited(chat.errorCode, chat.description)) {
+          const waitMs = parseBotRetryAfterMs(chat.description);
+          this.botBlockedUntil = Date.now() + waitMs;
+          this.logger.warn(
+            `봇 API 요청 한도(429). ${Math.round(waitMs / 1000)}초 동안 봇 수집을 건너뜁니다. 채널 상태는 바꾸지 않습니다.`,
+          );
+          return { ok: false, reason: 'failed' };
+        }
         const botError = formatBotCollectError(
           chat.errorCode,
           chat.description,

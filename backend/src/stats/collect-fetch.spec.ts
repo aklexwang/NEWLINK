@@ -3,7 +3,11 @@ import {
   CLASSIFY_TTL_MS,
   describeFetchError,
   FETCH_RETRY_DELAYS_MS,
+  BOT_BACKOFF_MAX_MS,
+  BOT_BACKOFF_MIN_MS,
+  isBotRateLimited,
   isClassifyFresh,
+  parseBotRetryAfterMs,
   parseRetryAfterMs,
   runFetchRetries,
   shouldRetrySameDayFailed,
@@ -138,5 +142,22 @@ describe('fetch 오류 문구·상태 분류', () => {
       false,
     );
     expect(shouldSkipInviteExpiredRecheck('ok', threeDaysAgo, now)).toBe(false);
+  });
+});
+
+describe('봇 API 요청 한도(429)', () => {
+  it('429 코드나 Too Many Requests 문구면 한도로 본다', () => {
+    expect(isBotRateLimited(429, 'Too Many Requests: retry after 3600')).toBe(true);
+    expect(isBotRateLimited(undefined, 'Too Many Requests: retry after 5')).toBe(true);
+    expect(isBotRateLimited(400, 'Bad Request: chat not found')).toBe(false);
+    expect(isBotRateLimited(undefined, undefined)).toBe(false);
+  });
+
+  it('retry after 초를 밀리초로 바꾸되 최소 30초·최대 1시간으로 자른다', () => {
+    expect(parseBotRetryAfterMs('Too Many Requests: retry after 120')).toBe(120_000);
+    expect(parseBotRetryAfterMs('Too Many Requests: retry after 5')).toBe(BOT_BACKOFF_MIN_MS);
+    expect(parseBotRetryAfterMs('Too Many Requests: retry after 99999')).toBe(BOT_BACKOFF_MAX_MS);
+    expect(parseBotRetryAfterMs('Too Many Requests')).toBe(BOT_BACKOFF_MIN_MS);
+    expect(parseBotRetryAfterMs(undefined)).toBe(BOT_BACKOFF_MIN_MS);
   });
 });

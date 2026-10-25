@@ -25,13 +25,6 @@ const STRONG_DRUG_WORDS = [
 
 const GENERIC_DRUG_WORD = '마약';
 
-/** SQL LIKE 용. 제목은 전부, 소개는 STRONG 만 (마약은 문맥 판별이 필요해 JS 에서만) */
-export const ILLEGAL_TITLE_LIKE_NEEDLES = [
-  GENERIC_DRUG_WORD,
-  ...STRONG_DRUG_WORDS,
-];
-export const ILLEGAL_DESCRIPTION_LIKE_NEEDLES = [...STRONG_DRUG_WORDS];
-
 /** "마약" 바로 뒤에 붙어 음식 이름이 되는 말 (마약김밥, 마약떡볶이 …). "마약류"는 해당 없음 */
 export const FOOD_SUFFIXES = [
   '김밥',
@@ -151,25 +144,12 @@ export function shouldHideIllegalSuspicion(channel: {
 }
 
 /**
- * 대시보드 집계용 근사. 소개글의 "마약" 단독 언급은 문맥 판별이 필요해 빠지고,
- * 제목의 "마약" 은 음식 표현(마약김밥 등)이 하나도 없는 경우만 센다.
- * 어드민 목록 필터는 JS(hasIllegalDrugSuspicion)로 정확히 거른다.
+ * 소개글을 읽어 올지 걸러내는 SQL 조건. 불법 의심 판별(JS)은 소개글에 "마약"이나 강한 단어가
+ * 있을 때만 true 가 될 수 있으므로, 이 조건이 거짓인 소개글은 읽지 않아도 판정이 같다.
+ * (판정 자체는 항상 JS hasIllegalDrugSuspicion 이 한다. SQL 은 읽는 양만 줄인다.)
  */
-export function illegalSuspicionSql(
-  alias: string,
-  bool: { t: string; f: string },
-): string {
-  const quote = (word: string) => word.replace(/'/g, "''");
-  const notFood = FOOD_SUFFIXES.map(
-    (food) => `${alias}.title NOT LIKE '%${quote(GENERIC_DRUG_WORD + food)}%'`,
-  ).join(' AND ');
-  const titleParts = ILLEGAL_TITLE_LIKE_NEEDLES.map((word) =>
-    word === GENERIC_DRUG_WORD
-      ? `(${alias}.title LIKE '%${quote(word)}%' AND ${notFood})`
-      : `${alias}.title LIKE '%${quote(word)}%'`,
-  );
-  const descParts = ILLEGAL_DESCRIPTION_LIKE_NEEDLES.map(
-    (word) => `${alias}.description LIKE '%${quote(word)}%'`,
-  );
-  return `COALESCE(${alias}.illegal_cleared, ${bool.f}) = ${bool.f} AND (${[...titleParts, ...descParts].join(' OR ')})`;
+export function illegalDescriptionPrefilterSql(alias: string): string {
+  return [GENERIC_DRUG_WORD, ...STRONG_DRUG_WORDS]
+    .map((word) => `LOWER(${alias}.description) LIKE '%${word.replace(/'/g, "''")}%'`)
+    .join(' OR ');
 }

@@ -9,8 +9,9 @@ import {
   kstRollingStart,
   registerSourceSql,
   sqlBoolLiterals,
-  visibilityReasonSql,
 } from './admin-dashboard.logic';
+import { summarizeMemberVisibility } from '../stats/member-page-count.logic';
+import { loadMemberPageRows } from '../stats/member-page-rows';
 
 type CountRow = Record<string, unknown>;
 
@@ -26,14 +27,13 @@ export class AdminDashboardService {
   async getDashboard() {
     const driver = String(this.channelRepository.manager.connection.options.type);
     const bool = sqlBoolLiterals(driver);
-    const reasonExpr = visibilityReasonSql('channel', bool);
     const sourceExpr = registerSourceSql('channel', bool);
     const todayStart = kstDayStart();
     const weekStart = kstRollingStart(7);
 
     const [
       linkRows,
-      reasonRows,
+      memberRows,
       pendingCount,
       collectRows,
       languageRows,
@@ -48,12 +48,8 @@ export class AdminDashboardService {
         .addSelect('COUNT(*)', 'cnt')
         .groupBy('channel.linkType')
         .getRawMany<CountRow>(),
-      this.channelRepository
-        .createQueryBuilder('channel')
-        .select(reasonExpr, 'reason')
-        .addSelect('COUNT(*)', 'cnt')
-        .groupBy(reasonExpr)
-        .getRawMany<CountRow>(),
+      // 회원 화면과 같은 판별 함수로 세기 위해 필요한 컬럼만 읽는다 (SQL 근사 아님)
+      loadMemberPageRows(this.channelRepository, { onlyActive: false }),
       this.channelRepository.count({ where: { status: ChannelStatus.PENDING } }),
       this.channelRepository
         .createQueryBuilder('channel')
@@ -107,18 +103,7 @@ export class AdminDashboardService {
       else channelCount += n;
     }
 
-    let memberVisible = 0;
-    let memberHidden = 0;
-    const hiddenReasons: Record<string, number> = {};
-    for (const row of reasonRows) {
-      const n = toCount(row);
-      const reason = String(row.reason ?? '');
-      if (reason === '') memberVisible += n;
-      else {
-        memberHidden += n;
-        hiddenReasons[reason] = n;
-      }
-    }
+    const member = summarizeMemberVisibility(memberRows);
 
     const collectStatus: Record<string, number> = {};
     for (const row of collectRows) {
@@ -143,9 +128,11 @@ export class AdminDashboardService {
     return {
       channelCount,
       groupCount,
-      memberVisible,
-      memberHidden,
-      hiddenReasons,
+      memberVisible: member.visible,
+      memberHidden: member.hidden,
+      memberDuplicateExcess: member.duplicateExcess,
+      memberListTotal: member.listTotal,
+      hiddenReasons: member.hiddenReasons,
       registered: {
         today: fillSourceCounts(todayRows),
         last7d: fillSourceCounts(weekRows),

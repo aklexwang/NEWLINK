@@ -1,9 +1,13 @@
-import { illegalSuspicionSql } from '../channels/illegal-content.logic';
 import { addKstDays, formatKstYmd } from '../stats/channel-metrics.math';
-import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
+import { summarizeMemberVisibility } from '../stats/member-page-count.logic';
 import { classifyRegisterSource } from './admin-list.logic';
 
 export type DashboardChannelRow = {
+  link?: string;
+  recommendCount?: number | null;
+  memberCount?: number | null;
+  avatarApproved?: boolean | null;
+  updatedAt?: Date | string | null;
   linkType?: string | null;
   status?: string | null;
   isVisible?: boolean | null;
@@ -42,27 +46,19 @@ export function buildAdminDashboard(
   const weekStart = kstRollingStart(7, now).getTime();
   const today = emptySourceCounts();
   const last7d = emptySourceCounts();
-  const hiddenReasons: Record<string, number> = {};
   const collectStatus: Record<string, number> = {};
   const language = { ko: 0, foreign: 0, unknown: 0 };
   const categoryMap = new Map<string, number>();
   let channelCount = 0;
   let groupCount = 0;
-  let memberVisible = 0;
-  let memberHidden = 0;
   let pendingCount = 0;
+  // 노출·숨김·이유별 개수는 회원 화면과 같은 판별 함수 한 곳에서만 센다
+  const member = summarizeMemberVisibility(channels);
 
   for (const channel of channels) {
     if (channel.linkType === 'group') groupCount += 1;
     else channelCount += 1;
     if (channel.status === 'pending') pendingCount += 1;
-
-    const vis = describeMemberPageVisibility(channel);
-    if (vis.visible) memberVisible += 1;
-    else {
-      memberHidden += 1;
-      hiddenReasons[vis.reasonKey] = (hiddenReasons[vis.reasonKey] ?? 0) + 1;
-    }
 
     const collectKey = channel.collectStatus || '(없음)';
     collectStatus[collectKey] = (collectStatus[collectKey] ?? 0) + 1;
@@ -94,9 +90,11 @@ export function buildAdminDashboard(
   return {
     channelCount,
     groupCount,
-    memberVisible,
-    memberHidden,
-    hiddenReasons,
+    memberVisible: member.visible,
+    memberHidden: member.hidden,
+    memberDuplicateExcess: member.duplicateExcess,
+    memberListTotal: member.listTotal,
+    hiddenReasons: member.hiddenReasons,
     registered: { today, last7d },
     pendingCount,
     collectStatus,
@@ -115,27 +113,6 @@ export function sqlBoolLiterals(driver: string): { t: string; f: string } {
     return { t: 'TRUE', f: 'FALSE' };
   }
   return { t: '1', f: '0' };
-}
-
-/** describeMemberPageVisibility 와 같은 숨김 이유. alias 는 QueryBuilder 테이블 별칭 */
-export function visibilityReasonSql(
-  alias: string,
-  bool: { t: string; f: string },
-): string {
-  return `CASE
-    WHEN ${alias}.status <> 'active' THEN '승인되지 않음'
-    WHEN COALESCE(${alias}.is_visible, ${bool.t}) = ${bool.f} THEN '관리자가 숨김'
-    WHEN COALESCE(${alias}.collect_status, '') <> 'invite_only' AND ${alias}.first_observed_at IS NULL THEN '아직 수집되지 않음'
-    WHEN ${alias}.collect_status = 'invalid' THEN '채널·그룹 아님'
-    WHEN ${alias}.collect_status = 'gone' THEN '사라진 채널'
-    WHEN ${alias}.collect_status = 'merged' THEN '합쳐진 채널'
-    WHEN ${alias}.collect_status = 'invite_expired' THEN '초대 만료'
-    WHEN ${alias}.language = 'foreign' AND COALESCE(${alias}.is_promoted, ${bool.f}) = ${bool.f} THEN '외국어'
-    WHEN ${illegalSuspicionSql(alias, bool)} THEN '불법 의심(관리자 확인)'
-    WHEN ${alias}.category = '분류대기' THEN '분류대기'
-    WHEN ${alias}.category = '성인' THEN '성인 카테고리'
-    ELSE ''
-  END`;
 }
 
 export function registerSourceSql(

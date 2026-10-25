@@ -19,6 +19,14 @@ import {
 } from '../stats/collect-visibility';
 import { isVisibleOnPublicLists } from './channel-language.logic';
 import {
+  channelLinkKey,
+  dedupeChannelsByLink,
+  normalizeTelegramLink,
+} from './channel-link.logic';
+import { shouldHideIllegalSuspicion } from './illegal-content.logic';
+import { buildMemberRankingCounts } from '../stats/member-page-count.logic';
+import { loadMemberPageRows } from '../stats/member-page-rows';
+import {
   extractTelegramUsernameFromLink,
   isInviteOnlyLink,
   usernameFromChannelLink,
@@ -197,49 +205,12 @@ export class ChannelsService implements OnModuleInit {
   }
 
   normalizeTelegramLink(link: string): string {
-    const trimmed = link.trim();
-    if (trimmed.startsWith('http')) return trimmed.replace(/\/$/, '');
-    if (trimmed.startsWith('t.me/'))
-      return `https://${trimmed.replace(/\/$/, '')}`;
-    if (trimmed.startsWith('@')) return `https://t.me/${trimmed.slice(1)}`;
-    if (trimmed.startsWith('+')) return `https://t.me/${trimmed}`;
-    return `https://t.me/${trimmed}`;
+    return normalizeTelegramLink(link);
   }
 
-  private linkKey(link: string): string {
-    return this.normalizeTelegramLink(link).toLowerCase();
-  }
-
-  private shouldReplaceDuplicate(
-    existing: Channel,
-    candidate: Channel,
-  ): boolean {
-    if (candidate.isPromoted !== existing.isPromoted)
-      return candidate.isPromoted;
-    if (candidate.recommendCount !== existing.recommendCount) {
-      return candidate.recommendCount > existing.recommendCount;
-    }
-    if ((candidate.memberCount ?? 0) !== (existing.memberCount ?? 0)) {
-      return (candidate.memberCount ?? 0) > (existing.memberCount ?? 0);
-    }
-    if (candidate.avatarApproved !== existing.avatarApproved)
-      return candidate.avatarApproved;
-    return (
-      new Date(candidate.updatedAt).getTime() >
-      new Date(existing.updatedAt).getTime()
-    );
-  }
-
+  /** 대시보드와 같은 규칙(channel-link.logic)으로 같은 링크를 1개로 합친다 */
   private dedupeByLink(channels: Channel[]): Channel[] {
-    const byLink = new Map<string, Channel>();
-    for (const channel of channels) {
-      const key = this.linkKey(channel.link);
-      const existing = byLink.get(key);
-      if (!existing || this.shouldReplaceDuplicate(existing, channel)) {
-        byLink.set(key, channel);
-      }
-    }
-    return [...byLink.values()];
+    return dedupeChannelsByLink(channels);
   }
 
   async findByLink(link: string): Promise<Channel | null> {
@@ -547,7 +518,9 @@ export class ChannelsService implements OnModuleInit {
 
     const [allItems] = await qb.getManyAndCount();
     const now = new Date();
-    const deduped = this.dedupeByLink(allItems);
+    const deduped = this.dedupeByLink(allItems).filter(
+      (item) => !shouldHideIllegalSuspicion(item),
+    );
     const activeItems = deduped
       .map((item) => ({
         ...item,
@@ -593,9 +566,11 @@ export class ChannelsService implements OnModuleInit {
       .getMany();
 
     // 회원 목록은 텔레그램 미리보기를 동기 호출하지 않음 (느림). 필요 시 프록시 URL만 붙인다.
-    return this.dedupeByLink(channels).map((channel) =>
-      this.withListAvatar(this.hideOwnerTelegramId(channel)),
-    );
+    return this.dedupeByLink(channels)
+      .filter((channel) => !shouldHideIllegalSuspicion(channel))
+      .map((channel) =>
+        this.withListAvatar(this.hideOwnerTelegramId(channel)),
+      );
   }
 
   private needsAvatarRefresh(channel: Channel): boolean {
@@ -1197,7 +1172,7 @@ export class ChannelsService implements OnModuleInit {
       }
       const other = await this.channelRepository
         .createQueryBuilder('channel')
-        .where('LOWER(channel.link) = :key', { key: this.linkKey(normalized) })
+        .where('LOWER(channel.link) = :key', { key: channelLinkKey(normalized) })
         .andWhere('channel.id <> :id', { id })
         .getOne();
       if (other) {
@@ -1341,6 +1316,7 @@ export class ChannelsService implements OnModuleInit {
     const items = this.dedupeByLink(await qb.getMany())
       .filter(isPublicCollectable)
       .filter(isVisibleOnPublicLists)
+      .filter((c) => !shouldHideIllegalSuspicion(c))
       .filter((c) => allowAdultInList(c.category, category));
     items.sort((a, b) => {
       const memberA = a.memberCount ?? 0;
@@ -1365,36 +1341,11 @@ export class ChannelsService implements OnModuleInit {
   }
 
   async getRankingCounts(): Promise<Record<string, number>> {
-    // 전체 엔티티 대신 집계에 필요한 필드만 로드
-    const channels = this.dedupeByLink(
-      await this.channelRepository.find({
-        where: { status: ChannelStatus.ACTIVE },
-        select: [
-          'id',
-          'link',
-          'category',
-          'firstObservedAt',
-          'collectStatus',
-          'language',
-          'isPromoted',
-          'isVisible',
-        ],
-      }),
-    )
-      .filter(isPublicCollectable)
-      .filter(isVisibleOnPublicLists);
-
-    const counts: Record<string, number> = {
-      all: channels.filter(
-        (c) =>
-          allowAdultInList(c.category) && c.category !== PENDING_CATEGORY,
-      ).length,
-    };
-    for (const channel of channels) {
-      if (channel.category === PENDING_CATEGORY) continue;
-      counts[channel.category] = (counts[channel.category] ?? 0) + 1;
-    }
-    return counts;
+    // 집계에 필요한 컬럼만 읽고, 노출 판정은 어드민 대시보드와 같은 함수로 한다
+    const rows = await loadMemberPageRows(this.channelRepository, {
+      onlyActive: true,
+    });
+    return buildMemberRankingCounts(rows);
   }
 
   private extractUsername(link: string): string | null {

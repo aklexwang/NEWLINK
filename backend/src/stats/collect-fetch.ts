@@ -28,6 +28,32 @@ export function parseRetryAfterMs(
   return FETCH_RETRY_DELAYS_MS[0];
 }
 
+/** 봇 API 가 요청 한도(429)를 걸었을 때 이 시간만큼은 봇 호출을 멈춘다 (최소·최대) */
+export const BOT_BACKOFF_MIN_MS = 30_000;
+export const BOT_BACKOFF_MAX_MS = 60 * 60 * 1000;
+
+/** 텔레그램 봇 API 의 "Too Many Requests: retry after N" 응답인지. 채널 문제가 아니라 호출 한도 문제다 */
+export function isBotRateLimited(
+  errorCode?: number | null,
+  description?: string | null,
+): boolean {
+  return (
+    errorCode === 429 || /too many requests/i.test(description ?? '')
+  );
+}
+
+/** "retry after N"(초)을 밀리초로. 값이 없으면 최소, 너무 길면 최대(1시간)로 자른다 */
+export function parseBotRetryAfterMs(
+  description?: string | null,
+  minMs = BOT_BACKOFF_MIN_MS,
+  maxMs = BOT_BACKOFF_MAX_MS,
+): number {
+  const match = /retry after (\d+)/i.exec(description ?? '');
+  const seconds = match ? Number(match[1]) : NaN;
+  if (!Number.isFinite(seconds) || seconds <= 0) return minMs;
+  return Math.min(Math.max(seconds * 1000, minMs), maxMs);
+}
+
 export function isTimeoutError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const name = 'name' in error ? String(error.name) : '';

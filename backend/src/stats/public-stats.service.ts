@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { isVisibleOnPublicLists } from '../channels/channel-language.logic';
+import { shouldHideIllegalSuspicion } from '../channels/illegal-content.logic';
 import {
   allowAdultInList,
   isPendingCategory,
@@ -372,6 +373,7 @@ export class PublicStatsService {
     channels = this.dedupeByLink(channels)
       .filter(isPublicCollectable)
       .filter(isVisibleOnPublicLists)
+      .filter((c) => !shouldHideIllegalSuspicion(c))
       .filter((c) => allowAdultInList(c.category))
       .filter((c) => !isPendingCategory(c.category));
     if (type === 'channel') {
@@ -536,7 +538,9 @@ export class PublicStatsService {
     let channels = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
-    channels = this.dedupeByLink(channels).filter(isPublicCollectable);
+    channels = this.dedupeByLink(channels)
+      .filter(isPublicCollectable)
+      .filter((c) => !shouldHideIllegalSuspicion(c));
     if (!query.includeForeign) {
       channels = channels.filter(isVisibleOnPublicLists);
     }

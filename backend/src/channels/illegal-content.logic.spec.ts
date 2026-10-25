@@ -1,7 +1,8 @@
+import { DataSource } from 'typeorm';
 import {
   hasIllegalDrugSuspicion,
   ILLEGAL_HIDE_REASON,
-  illegalSuspicionSql,
+  illegalDescriptionPrefilterSql,
   shouldHideIllegalSuspicion,
 } from './illegal-content.logic';
 
@@ -76,12 +77,42 @@ describe('illegal-content.logic', () => {
     expect(ILLEGAL_HIDE_REASON).toBe('불법 의심(관리자 확인)');
   });
 
-  it('SQL 은 제목 전체·소개 강한 단어만 보고 boolean 리터럴을 쓴다', () => {
-    const sql = illegalSuspicionSql('c', { t: 'TRUE', f: 'FALSE' });
-    expect(sql).toContain("c.title LIKE '%마약%'");
-    expect(sql).toContain("c.title NOT LIKE '%마약김밥%'");
-    expect(sql).not.toContain("c.description LIKE '%마약%'");
-    expect(sql).toContain("c.description LIKE '%필로폰%'");
-    expect(sql).toContain('COALESCE(c.illegal_cleared, FALSE) = FALSE');
+  it('소개글 사전 조건(SQL)은 JS 가 불법 의심으로 보는 소개글을 놓치지 않는다', async () => {
+    const dataSource = new DataSource({
+      type: 'better-sqlite3',
+      database: ':memory:',
+    });
+    await dataSource.initialize();
+    try {
+      const descriptions = [
+        '모든 종류의 마약 정보',
+        '마약, 음란물 금지',
+        '마약김밥 맛집 후기',
+        '필로폰 후기 공유',
+        'Cocaine shop',
+        'CANNABIS 판매',
+        '서울 카페 소개',
+        '',
+      ];
+      for (const description of descriptions) {
+        const rows: Array<{ hit: number }> = await dataSource.query(
+          `SELECT CASE WHEN ${illegalDescriptionPrefilterSql('c')} THEN 1 ELSE 0 END AS hit
+           FROM (SELECT ? AS description) c`,
+          [description],
+        );
+        const hit = Number(rows[0].hit) === 1;
+        if (hasIllegalDrugSuspicion('', description)) {
+          expect(hit).toBe(true);
+        }
+      }
+      const plain: Array<{ hit: number }> = await dataSource.query(
+        `SELECT CASE WHEN ${illegalDescriptionPrefilterSql('c')} THEN 1 ELSE 0 END AS hit
+         FROM (SELECT ? AS description) c`,
+        ['서울 카페 소개'],
+      );
+      expect(Number(plain[0].hit)).toBe(0);
+    } finally {
+      await dataSource.destroy();
+    }
   });
 });
