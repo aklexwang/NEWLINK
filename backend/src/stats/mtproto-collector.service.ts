@@ -64,6 +64,15 @@ import {
   type PublicSearchHit,
 } from './mtproto-search.logic';
 import { nextCollectAtAfterSuccess } from './collect-queue.logic';
+import { DiscoveredUsername } from './discovered-username.entity';
+import {
+  matchGroupByTitle,
+  normalizeTelegramChatId,
+  parseLinkedChat,
+  pickChatById,
+  telegramChatIdVariants,
+  type LinkedChatInfo,
+} from './linked-chat.logic';
 import { MtprotoState } from './mtproto-state.entity';
 import {
   extractTmeUsernamesFromHtml,
@@ -105,6 +114,8 @@ type ResolvedPublicChannel = {
   telegramChatId: number | null;
   linkType: LinkType;
   inputChannel: { channelId: unknown; accessHash: unknown };
+  /** 채널이면 연결된 대화방, 그룹이면 부모 채널. 없으면 null */
+  linkedChat: LinkedChatInfo | null;
 };
 
 type HistoryPost = {
@@ -148,6 +159,8 @@ export class MtprotoCollectorService implements OnModuleInit {
     private readonly eventRepository: Repository<ChannelEvent>,
     @InjectRepository(MtprotoState)
     private readonly stateRepository: Repository<MtprotoState>,
+    @InjectRepository(DiscoveredUsername)
+    private readonly discoveredRepository: Repository<DiscoveredUsername>,
   ) {}
 
   async onModuleInit() {
@@ -402,6 +415,7 @@ export class MtprotoCollectorService implements OnModuleInit {
     telegramChatId: number | null;
     inputChannel: { channelId: unknown; accessHash: unknown };
     linkType: LinkType;
+    linkedChat: LinkedChatInfo | null;
     posts: HistoryPost[];
     activity: GroupActivityCounts;
     groupLanguage?: GroupHistorySummary['language'];
@@ -505,15 +519,22 @@ export class MtprotoCollectorService implements OnModuleInit {
         }),
       }),
     )) as {
-      fullChat?: { about?: string; participantsCount?: number };
+      fullChat?: {
+        about?: string;
+        participantsCount?: number;
+        linkedChatId?: unknown;
+      };
       chats?: Array<{
+        id?: unknown;
         date?: number;
         title?: string;
+        username?: string | null;
         megagroup?: boolean;
         broadcast?: boolean;
       }>;
     };
-    const chat = full.chats?.[0];
+    // chats[] 에는 연결된 대화방도 같이 온다. 순서에 기대지 말고 id 로 고른다
+    const chat = pickChatById(full.chats, channelId);
     const isGroup = Boolean(
       hints?.megagroup ?? chat?.megagroup,
     ) && !(hints?.broadcast ?? chat?.broadcast);
@@ -529,6 +550,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       telegramChatId: Number(channelId),
       linkType: isGroup ? LinkType.GROUP : LinkType.CHANNEL,
       inputChannel: { channelId, accessHash: hash },
+      linkedChat: parseLinkedChat(full),
     };
   }
 
@@ -703,6 +725,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       telegramChatId: number | null;
       inputChannel: { channelId: unknown; accessHash: unknown };
       linkType: LinkType;
+      linkedChat?: LinkedChatInfo | null;
       posts: HistoryPost[];
       activity: GroupActivityCounts;
       groupLanguage?: GroupHistorySummary['language'];
@@ -832,7 +855,23 @@ export class MtprotoCollectorService implements OnModuleInit {
     }
     // MTProto 는 정확한 회원 수를 주므로 그대로 저장했다. 다음 수집 시각을 목표 간격만큼 뒤로 민다
     channel.nextCollectAt = nextCollectAtAfterSuccess(channel, now);
+    if (data.linkedChat !== undefined) {
+      const linked = data.linkedChat;
+      channel.linkedChatTelegramId = linked?.telegramChatId ?? null;
+      channel.linkedChatTitle = linked?.title ?? null;
+      channel.linkedChatUsername = linked?.username ?? null;
+      channel.linkedChatCreatedOn = linked?.createdOn ?? null;
+    }
     await this.channelRepository.save(channel);
+    if (data.linkedChat) {
+      try {
+        await this.reconcileLinkedChat(channel, data.linkedChat);
+      } catch (error) {
+        this.logger.warn(
+          `연결 대화방 연결 실패(${channel.id}): ${error instanceof Error ? error.message : error}`,
+        );
+      }
+    }
 
     const isGroup = !savePosts;
     if (data.memberCount != null || isGroup) {
@@ -849,6 +888,82 @@ export class MtprotoCollectorService implements OnModuleInit {
         },
         ['channelId', 'capturedOn'],
       );
+    }
+  }
+
+  /**
+   * 채널(또는 그룹)을 MTProto 로 읽었을 때 나온 연결 상대를 우리 DB 행과 서로 잇는다.
+   * MTProto 요청을 더 쓰지 않는다. 그룹에 가입하지 않는다.
+   * 1) telegram_chat_id 로 같은 행  2) 공개 아이디로 같은 행
+   * 3) (채널 → 비공개 대화방) 초대 링크로만 등록된 그룹 중 제목이 똑같은 것이 딱 하나면 그 행
+   * 못 찾았고 공개 아이디가 있으면 발견 대기열에 넣는다.
+   */
+  private async reconcileLinkedChat(channel: Channel, linked: LinkedChatInfo) {
+    const selfId = normalizeTelegramChatId(channel.telegramChatId);
+    let other = await this.channelRepository
+      .createQueryBuilder('c')
+      .where('c.id <> :self', { self: channel.id })
+      .andWhere('c.telegramChatId IN (:...ids)', {
+        ids: telegramChatIdVariants(linked.telegramChatId),
+      })
+      .getOne();
+    if (!other && linked.username) {
+      other = await this.channelRepository
+        .createQueryBuilder('c')
+        .where('c.id <> :self', { self: channel.id })
+        .andWhere('LOWER(c.username) = :username', { username: linked.username })
+        .getOne();
+    }
+    if (!other && !linked.username && linked.isGroup && channel.linkType === LinkType.CHANNEL) {
+      const candidates = await this.channelRepository
+        .createQueryBuilder('c')
+        .select(['c.id', 'c.title', 'c.link'])
+        .where('c.linkType = :group', { group: LinkType.GROUP })
+        .andWhere('c.telegramChatId IS NULL')
+        .andWhere('(c.link LIKE :plus OR c.link LIKE :joinchat)', {
+          plus: '%/+%',
+          joinchat: '%/joinchat/%',
+        })
+        .getMany();
+      const hit = matchGroupByTitle(candidates, linked.title);
+      if (hit) {
+        other = await this.channelRepository.findOneBy({ id: hit.id });
+      }
+    }
+
+    if (other) {
+      const patch: Partial<Channel> = {};
+      if (normalizeTelegramChatId(other.telegramChatId) == null) {
+        patch.telegramChatId = linked.telegramChatId;
+      }
+      if (selfId != null) {
+        patch.linkedChatTelegramId = selfId;
+        patch.linkedChatTitle = channel.title ?? null;
+        patch.linkedChatUsername = channel.username?.toLowerCase() ?? null;
+        patch.linkedChatCreatedOn = channel.createdOn ?? null;
+      }
+      if (!other.createdOn && linked.createdOn) {
+        patch.createdOn = linked.createdOn;
+      }
+      if (Object.keys(patch).length > 0) {
+        await this.channelRepository.update(other.id, patch);
+      }
+      return;
+    }
+
+    if (linked.username) {
+      const exists = await this.discoveredRepository.findOneBy({
+        username: linked.username,
+      });
+      if (!exists) {
+        await this.discoveredRepository.save({
+          username: linked.username,
+          result: 'queued',
+          checkedAt: new Date(),
+          mentionCount: 1,
+          source: 'linked',
+        });
+      }
     }
   }
 

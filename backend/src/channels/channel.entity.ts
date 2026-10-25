@@ -139,6 +139,27 @@ export class Channel {
   })
   telegramAccessHash: string | null;
 
+  /**
+   * 연결된 대화방(채널 행) 또는 부모 채널(그룹 행)의 텔레그램 id. -100 을 뗀 양수.
+   * MTProto GetFullChannel 의 linkedChatId 로 채운다.
+   */
+  @Column({
+    name: 'linked_chat_telegram_id',
+    type: 'bigint',
+    nullable: true,
+    transformer: bigintNumberTransformer,
+  })
+  linkedChatTelegramId: number | null;
+
+  @Column({ name: 'linked_chat_title', type: 'varchar', length: 255, nullable: true })
+  linkedChatTitle: string | null;
+
+  @Column({ name: 'linked_chat_username', type: 'varchar', length: 64, nullable: true })
+  linkedChatUsername: string | null;
+
+  @Column({ name: 'linked_chat_created_on', type: dateTimeColumnType(), nullable: true })
+  linkedChatCreatedOn: Date | null;
+
   /** 텔레그램 채널·그룹 개설일 (공개 정보) */
   @Column({ name: 'created_on', type: dateTimeColumnType(), nullable: true })
   createdOn: Date | null;

@@ -20,6 +20,7 @@ import {
   DISCOVERY_RECHECK_DAYS,
   DISCOVERY_SOURCE_KEYWORD,
   DISCOVERY_SOURCE_OTHER,
+  DISCOVERY_SOURCE_LINKED,
   DISCOVERY_SOURCE_SNOWBALL,
   isDiscoverySourceChannel,
   mergeDiscoveryQueue,
@@ -386,7 +387,7 @@ export class ChannelDiscoveryService {
       .createQueryBuilder('row')
       .where('row.checked_at >= :start', { start })
       .andWhere('row.source IN (:...sources)', {
-        sources: [DISCOVERY_SOURCE_KEYWORD, DISCOVERY_SOURCE_OTHER],
+        sources: [DISCOVERY_SOURCE_KEYWORD, DISCOVERY_SOURCE_OTHER, DISCOVERY_SOURCE_LINKED],
       })
       .andWhere("row.result <> 'queued'")
       .getCount();

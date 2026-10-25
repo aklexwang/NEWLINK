@@ -16,6 +16,8 @@ export const DISCOVERY_QUEUED_MIN_BUDGET_MS = 5 * 60 * 1000;
 export const DISCOVERY_SOURCE_SNOWBALL = 'snowball';
 export const DISCOVERY_SOURCE_KEYWORD = 'keyword';
 export const DISCOVERY_SOURCE_OTHER = 'other';
+/** 공개 채널의 연결 대화방(MTProto linkedChatId)에서 찾은 공개 그룹 */
+export const DISCOVERY_SOURCE_LINKED = 'linked';
 export const DISCOVERY_DELAY_MS = 1000;
 export const DISCOVERY_LOOKBACK_DAYS = 7;
 export const DISCOVERY_RECHECK_DAYS = 30;
@@ -68,6 +70,7 @@ export function persistDiscoverySource(
     return DISCOVERY_SOURCE_SNOWBALL;
   }
   if (itemSource === DISCOVERY_SOURCE_KEYWORD) return DISCOVERY_SOURCE_KEYWORD;
+  if (itemSource === DISCOVERY_SOURCE_LINKED) return DISCOVERY_SOURCE_LINKED;
   return DISCOVERY_SOURCE_OTHER;
 }
 

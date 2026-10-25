@@ -251,6 +251,7 @@ export function AdminDiscoveryPage() {
           <option value="">출처 전체</option>
           <option value="snowball">snowball</option>
           <option value="keyword">keyword</option>
+          <option value="linked">연결 대화방</option>
           <option value="other">기타</option>
         </select>
         <select
