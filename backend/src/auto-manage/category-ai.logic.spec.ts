@@ -141,13 +141,36 @@ describe('aiSkipReason (호출 조건)', () => {
     expect(aiSkipReason({ ...base, title: '마약김밥 맛집 모음' })).toBeNull();
   });
 
-  it('키워드가 성인 근거를 찾았으면 AI 가 뒤집지 못하게 부르지 않는다', () => {
+  it('방 이름에 성인 근거가 있으면 AI 가 뒤집지 못하게 부르지 않는다', () => {
     expect(
       aiSkipReason({
         ...base,
+        title: '야동방 모음',
         keyword: { category: '성인', confidence: 0.52, score: 1 },
       }),
     ).toBe('adult_keyword');
+  });
+
+  it('소개글에만 성인 낱말이 있으면 키워드 점수가 높아도 AI 에게 묻는다', () => {
+    expect(
+      aiSkipReason({
+        ...base,
+        title: '디비일번가 공지채널',
+        description: '출장안마 DB 조건만남 DB',
+        keyword: { category: '성인', confidence: 0.9, score: 3 },
+      }),
+    ).toBeNull();
+  });
+
+  it('소개글에만 성인 낱말이 있으면 AI 에게 묻는다 (사기꾼 조회 등)', () => {
+    expect(
+      aiSkipReason({
+        ...base,
+        title: '블랙리스트 사기꾼 검색',
+        description: '조건만남 사기 피해 조회',
+        keyword: { category: '성인', confidence: 0.52, score: 1 },
+      }),
+    ).toBeNull();
   });
 
   it('근거 없이 기본값이 성인일 일은 없지만 점수 0 이면 성인 보수 규칙은 적용하지 않는다', () => {

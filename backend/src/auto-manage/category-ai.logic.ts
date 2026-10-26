@@ -1,4 +1,5 @@
 import { ADULT_CATEGORY } from '../channels/auto-expose.logic';
+import { hasAdultTitleEvidence } from '../channels/channel-category-score.logic';
 import { hasIllegalDrugSuspicion } from '../channels/illegal-content.logic';
 import { formatKstYmd } from '../stats/channel-metrics.math';
 
@@ -222,7 +223,8 @@ export type AiSkipReason =
  * - 키가 없으면 키워드만
  * - 키워드 점수가 충분(0.7 이상)하면 AI 불필요
  * - 불법 의심(마약 등) 채널은 AI 에 보내지 않는다
- * - 키워드가 이미 성인 근거를 찾았으면 AI 가 뒤집지 못하게 AI 를 부르지 않는다(성인 보수 규칙)
+ * - 방 이름에 성인 근거가 있으면 AI 가 뒤집지 못하게 AI 를 부르지 않는다(성인 보수 규칙).
+ *   소개글에만 성인 낱말이 있으면 AI 에게 묻는다(사기 조회·DB 판매 같은 오분류 방지).
  */
 export function aiSkipReason(input: {
   /** 전체 재분류: 키워드가 확실해도 AI 에게 묻는다 */
@@ -235,16 +237,27 @@ export function aiSkipReason(input: {
   posts?: string[];
 }): AiSkipReason | null {
   if (!input.configured) return 'no_key';
-  if (!input.force && input.keyword.confidence >= AI_SKIP_KEYWORD_CONFIDENCE) {
+  // 소개글에만 성인 낱말이 걸린 '성인'은 확실하다고 보지 않고 AI 에게 묻는다
+  const adultFromDescOnly =
+    input.keyword.category === ADULT_CATEGORY &&
+    !hasAdultTitleEvidence(input.title);
+  if (
+    !input.force &&
+    !adultFromDescOnly &&
+    input.keyword.confidence >= AI_SKIP_KEYWORD_CONFIDENCE
+  ) {
     return 'confident';
   }
   const text = [input.description, input.snippet, ...(input.posts ?? [])]
     .filter(Boolean)
     .join('\n');
   if (hasIllegalDrugSuspicion(input.title, text)) return 'illegal';
+  // 방 이름에 성인 근거가 있을 때만 AI 를 건너뛴다.
+  // 소개글에만 걸린 경우(예: "조건만남 사기꾼 조회", "출장안마 DB")는 AI 가 판단한다.
   if (
     input.keyword.category === ADULT_CATEGORY &&
-    (input.keyword.score ?? 0) > 0
+    (input.keyword.score ?? 0) > 0 &&
+    hasAdultTitleEvidence(input.title)
   ) {
     return 'adult_keyword';
   }

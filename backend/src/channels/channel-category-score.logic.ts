@@ -46,16 +46,23 @@ export function hitOutsideProhibited(text: string, pattern: RegExp): boolean {
   return false;
 }
 
+const ADULT_PATTERNS: RegExp[] = [
+  /섹스|야동|야설|성인물|포르노|에로물|야한동|유부녀|원나잇|조건만남|출장안마|폰섹|텔레야동|소라넷|야동방/,
+  /\b(sex|porn|porno|xxx|nsfw|onlyfans|hentai)\b/i,
+  /18\s*\+/,
+];
+
+/** 방 이름 자체에 성인 근거가 있는지 (소개글만 걸린 경우와 구분) */
+export function hasAdultTitleEvidence(title: string): boolean {
+  return ADULT_PATTERNS.some((pattern) => hitOutsideProhibited(title, pattern));
+}
+
 const KEYWORD_RULES: KeywordRule[] = [
   {
     category: '성인',
     titleDescOnly: true,
     ignoreProhibited: true,
-    titleDesc: [
-      /섹스|야동|야설|성인물|포르노|에로물|야한동|유부녀|원나잇|조건만남|출장안마|폰섹|텔레야동|소라넷|야동방/,
-      /\b(sex|porn|porno|xxx|nsfw|onlyfans|hentai)\b/i,
-      /18\s*\+/,
-    ],
+    titleDesc: ADULT_PATTERNS,
   },
   {
     category: '카지노',

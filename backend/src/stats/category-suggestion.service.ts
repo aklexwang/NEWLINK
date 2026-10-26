@@ -74,6 +74,43 @@ export class CategorySuggestionService {
     return { moved: ids.length };
   }
 
+  /**
+   * 한 카테고리 안의 방들을 AI 로 다시 확인한다(잘못 들어간 방 고치기). 최대 300개.
+   * 관리자가 직접 고정한 방(category_locked)은 건드리지 않는다.
+   */
+  async reclassifyCategory(name: string): Promise<{
+    total: number;
+    changed: Array<{ title: string; from: string; to: string }>;
+  }> {
+    this.categoryAi.clearCategoryNamesCache();
+    const channels = await this.channelRepository.find({
+      where: {
+        status: ChannelStatus.ACTIVE,
+        categoryLocked: false,
+        category: name,
+      },
+      take: 300,
+    });
+    const changed: Array<{ title: string; from: string; to: string }> = [];
+    for (const channel of channels) {
+      const before = channel.category;
+      const next = await this.channelCategory.classifyOne(channel, {
+        force: true,
+      });
+      if (next.category !== before) {
+        changed.push({ title: channel.title, from: before, to: next.category });
+      }
+    }
+    if (changed.length) {
+      this.publicStats.clearPublicCaches();
+      this.channelsService.clearRankingCountsCache();
+    }
+    this.logger.log(
+      `카테고리 "${name}" AI 재확인: ${changed.length}/${channels.length} 바뀜`,
+    );
+    return { total: channels.length, changed };
+  }
+
   /** 카테고리별 채널 수: 등록된 전체(활성) / 회원 화면에 보이는 수 */
   async categoryCounts(): Promise<
     Record<string, { total: number; visible: number }>

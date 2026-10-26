@@ -72,3 +72,15 @@ export async function getAdminCategoryCounts(): Promise<
   });
   return data;
 }
+
+/** 한 카테고리 안의 방들을 AI 로 다시 확인 (방 하나당 AI 1번) */
+export async function recheckCategoryWithAi(
+  name: string,
+): Promise<{ total: number; changed: Array<{ title: string; from: string; to: string }> }> {
+  const { data } = await apiClient.post(
+    '/admin/reclassify/category',
+    { name },
+    { headers: getAdminAuthHeaders(), timeout: 600_000 },
+  );
+  return data;
+}

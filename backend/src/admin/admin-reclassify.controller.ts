@@ -37,6 +37,15 @@ export class AdminReclassifyController {
     return this.suggestions.moveByName(name);
   }
 
+  /** 한 카테고리 안의 방들을 AI 로 다시 확인 */
+  @Post('category')
+  reclassifyCategory(@Body() body: { name?: unknown }) {
+    const name =
+      typeof body?.name === 'string' ? body.name.trim().slice(0, 50) : '';
+    if (!name) return { total: 0, changed: [] };
+    return this.suggestions.reclassifyCategory(name);
+  }
+
   /** 카테고리별 채널 수(전체 / 회원 화면에 보이는 수) */
   @Get('category-counts')
   categoryCounts() {

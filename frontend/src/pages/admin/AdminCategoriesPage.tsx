@@ -9,7 +9,7 @@ import {
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { AdminReclassifyPanel } from '../../components/admin/AdminReclassifyPanel';
 import { AdminCategorySuggestions } from '../../components/admin/AdminCategorySuggestions';
-import { getAdminCategoryCounts } from '../../api/notifications';
+import { getAdminCategoryCounts, recheckCategoryWithAi } from '../../api/notifications';
 import { CategoryIconPicker } from '../../components/CategoryIconPicker';
 import type { CategoryItem } from '../../types/categoryItem';
 import { Badge } from '@/components/admin/ui/badge';
@@ -159,6 +159,31 @@ export function AdminCategoriesPage() {
     );
   });
 
+  const [recheck, setRecheck] = useState<{
+    name: string;
+    busy: boolean;
+    result?: { total: number; changed: Array<{ title: string; from: string; to: string }> };
+  } | null>(null);
+
+  const handleRecheck = async (name: string) => {
+    const total = counts[name]?.total ?? 0;
+    if (
+      !window.confirm(
+        `"${name}" 카테고리 방 ${total}개를 AI로 다시 확인할까요?\n방 하나에 AI 1번(소액 과금)이고, 잘못 들어간 방은 맞는 카테고리로 옮겨져요.\n직접 고정한 방은 그대로 둬요.`,
+      )
+    )
+      return;
+    setRecheck({ name, busy: true });
+    try {
+      const result = await recheckCategoryWithAi(name);
+      setRecheck({ name, busy: false, result });
+      await loadCategories();
+    } catch {
+      setRecheck(null);
+      setMessage('AI 재확인에 실패했어요. 잠시 뒤 다시 해 주세요.');
+    }
+  };
+
   const handleBulkDelete = async () => {
     const targets = categories.filter((item) => selectedIds.has(item.id));
     if (targets.length === 0) return;
@@ -279,6 +304,34 @@ export function AdminCategoriesPage() {
         <Skeleton className="mt-6 h-32 w-full max-w-3xl" />
       ) : (
         <div className="mt-6 flex max-w-3xl flex-col gap-3">
+          {recheck && (
+            <div className="rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)] ring-2 ring-primary/30">
+              <div className="flex items-center gap-3">
+                <p className="flex-1 text-base font-bold text-foreground">
+                  🤖 "{recheck.name}" AI 재확인
+                  {recheck.busy
+                    ? ' — 확인 중이에요 (방 하나에 몇 초씩 걸려요)…'
+                    : ` — ${recheck.result?.total ?? 0}개 중 ${recheck.result?.changed.length ?? 0}개 옮김`}
+                </p>
+                {!recheck.busy && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setRecheck(null)}>
+                    닫기
+                  </Button>
+                )}
+              </div>
+              {!recheck.busy && (recheck.result?.changed.length ?? 0) > 0 && (
+                <ul className="mt-3 space-y-1 text-sm">
+                  {recheck.result!.changed.map((row) => (
+                    <li key={row.title} className="text-foreground">
+                      {row.title} : <span className="text-subtle">{row.from}</span> →{' '}
+                      <b className="text-primary">{row.to}</b>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-2xl bg-card p-4 shadow-[var(--hz-shadow)]">
             <div className="mr-auto">
               <h3 className="text-base font-bold">등록된 카테고리 ({sortedCategories.length})</h3>
@@ -354,6 +407,15 @@ export function AdminCategoriesPage() {
                     })()}
                   </div>
                   <div className="flex flex-wrap gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={recheck?.busy === true || (counts[item.name]?.total ?? 0) === 0}
+                      onClick={() => void handleRecheck(item.name)}
+                    >
+                      {recheck?.busy && recheck.name === item.name ? 'AI 확인 중…' : 'AI 재확인'}
+                    </Button>
                     <Button type="button" variant="secondary" size="sm" onClick={() => startEdit(item)}>
                       수정
                     </Button>

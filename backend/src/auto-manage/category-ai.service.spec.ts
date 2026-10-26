@@ -198,17 +198,17 @@ describe('CategoryAiService', () => {
       }
     });
 
-    it('키워드가 성인 근거를 찾았으면 AI 를 부르지 않는다', async () => {
+    it('방 이름에 성인 근거가 있으면 AI 를 부르지 않는다', async () => {
       const service = build({ AI_API_KEY: 'k' });
       const input = {
-        title: '우리방',
+        title: '우리 야동방',
         description: '야동',
         allowedCategories: ALLOWED,
       };
       const keyword = service.classifyByKeywords(input, ALLOWED);
       expect(keyword.category).toBe('성인');
-      expect(keyword.confidence).toBeLessThan(0.7);
-      const result = await service.classify(input);
+      // 전체 재분류(force)에서도 방 이름이 성인이면 AI 가 뒤집지 못한다
+      const result = await service.classify(input, { force: true });
       expect(fetchMock).not.toHaveBeenCalled();
       expect(result).toMatchObject({
         category: '성인',
