@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { NewVersionBanner } from './components/NewVersionBanner';
 import { AuthProvider } from './providers/AuthProvider';
 import { ThemeProvider } from './providers/ThemeProvider';
 import { AppToastProvider } from './providers/AppToastProvider';
@@ -58,6 +59,7 @@ export default function App() {
                   <Route path="/my" element={<MyPage />} />
                 </Route>
               </Routes>
+              <NewVersionBanner />
             </AuthProvider>
             </ThemeProvider>
           </TonConnectProvider>
