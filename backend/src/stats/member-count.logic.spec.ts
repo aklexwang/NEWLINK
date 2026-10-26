@@ -1,5 +1,6 @@
 import {
   abbreviatedCountTolerance,
+  needsExactMemberFetch,
   resolveMemberCount,
 } from './member-count.logic';
 import {
@@ -29,7 +30,9 @@ describe('축약 표기의 반올림 오차', () => {
 
 describe('정확한 회원 수 우선 규칙 (resolveMemberCount)', () => {
   it('정확한 값이 오면 항상 그 값으로 갱신한다', () => {
-    expect(resolveMemberCount({ stored: 40_000, observed: 40_892 })).toBe(40_892);
+    expect(resolveMemberCount({ stored: 40_000, observed: 40_892 })).toBe(
+      40_892,
+    );
     expect(
       resolveMemberCount({ stored: 40_892, observed: 40_850, tolerance: 0 }),
     ).toBe(40_850);
@@ -45,7 +48,11 @@ describe('정확한 회원 수 우선 규칙 (resolveMemberCount)', () => {
       resolveMemberCount({ stored: 40_850, observed: 40_900, tolerance: 50 }),
     ).toBe(40_850);
     expect(
-      resolveMemberCount({ stored: 297_720, observed: 298_000, tolerance: 500 }),
+      resolveMemberCount({
+        stored: 297_720,
+        observed: 298_000,
+        tolerance: 500,
+      }),
     ).toBe(297_720);
   });
 
@@ -63,7 +70,11 @@ describe('정확한 회원 수 우선 규칙 (resolveMemberCount)', () => {
       resolveMemberCount({ stored: null, observed: 40_800, tolerance: 50 }),
     ).toBe(40_800);
     expect(
-      resolveMemberCount({ stored: undefined, observed: 40_800, tolerance: 50 }),
+      resolveMemberCount({
+        stored: undefined,
+        observed: 40_800,
+        tolerance: 50,
+      }),
     ).toBe(40_800);
   });
 
@@ -106,7 +117,9 @@ describe('페이지에서 읽는 회원 수 (실제 t.me 형식)', () => {
   });
 
   it('회원 수를 못 읽으면 오차는 0', () => {
-    const parsed = parseTelegramChannelHtml('<div class="tgme_channel_info"></div>');
+    const parsed = parseTelegramChannelHtml(
+      '<div class="tgme_channel_info"></div>',
+    );
     expect(parsed.memberCount).toBeNull();
     expect(parsed.memberCountTolerance).toBe(0);
   });
@@ -133,6 +146,31 @@ describe('페이지에서 읽는 회원 수 (실제 t.me 형식)', () => {
   });
 
   it('인원 표시가 없으면 null', () => {
-    expect(parseExactMemberCountFromPage('<div class="tgme_page_title">x</div>')).toBeNull();
+    expect(
+      parseExactMemberCountFromPage('<div class="tgme_page_title">x</div>'),
+    ).toBeNull();
+  });
+});
+
+describe('needsExactMemberFetch', () => {
+  it('축약값이 저장값 오차 안이면 안 읽는다', () => {
+    expect(
+      needsExactMemberFetch({ stored: 40812, observed: 40800, tolerance: 50 }),
+    ).toBe(false);
+  });
+  it('오차를 벗어나면(실제로 바뀜) 읽는다', () => {
+    expect(
+      needsExactMemberFetch({ stored: 40812, observed: 40900, tolerance: 50 }),
+    ).toBe(true);
+  });
+  it('저장값이 없으면 읽는다', () => {
+    expect(
+      needsExactMemberFetch({ stored: null, observed: 40800, tolerance: 50 }),
+    ).toBe(true);
+  });
+  it('정확한 숫자(tolerance 0)면 안 읽는다', () => {
+    expect(
+      needsExactMemberFetch({ stored: null, observed: 523, tolerance: 0 }),
+    ).toBe(false);
   });
 });

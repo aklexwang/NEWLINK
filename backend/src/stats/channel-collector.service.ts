@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
-import { applyCollectedTitle, isTitleLocked } from '../channels/title-lock.logic';
+import {
+  applyCollectedTitle,
+  isTitleLocked,
+} from '../channels/title-lock.logic';
 import {
   extractTelegramUsernameFromLink,
   isInviteOnlyLink,
@@ -38,7 +41,10 @@ import {
   nextFullWindowAt,
 } from './collect-queue.logic';
 import { collectQueueLimit, selectDueChannels } from './collect-queue.query';
-import { resolveMemberCount } from './member-count.logic';
+import {
+  needsExactMemberFetch,
+  resolveMemberCount,
+} from './member-count.logic';
 import {
   isLightCollectTarget,
   shouldMarkLightNoPostsFailed,
@@ -274,7 +280,9 @@ export class ChannelCollectorService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`채널 수집 실패(${channel.id}): ${message}`);
       try {
-        const fresh = await this.channelRepository.findOneBy({ id: channel.id });
+        const fresh = await this.channelRepository.findOneBy({
+          id: channel.id,
+        });
         if (fresh) {
           await this.markFailed(fresh, 'failed', describeFetchError(error));
         }
@@ -423,7 +431,9 @@ export class ChannelCollectorService {
 
     await this.upsertPosts(channel.id, [...postsById.values()]);
     // 이번에 t.me/<username> 페이지를 읽어 정확한 회원 수를 얻었으면 미리보기의 축약값보다 우선한다
-    const exact = classified.exactMemberCount;
+    const exact =
+      classified.exactMemberCount ??
+      (await this.exactMemberCountIfMoved(channel, username, parsed));
     await this.applySuccessfulCollect(channel, {
       title: parsed.title,
       memberCount: exact ?? parsed.memberCount,
@@ -434,9 +444,7 @@ export class ChannelCollectorService {
   }
 
   /** 등록 직후: t.me 공개 페이지만 보고 first_observed_at 을 채운다 */
-  async collectPublicPageNow(
-    channelInput: Channel,
-  ): Promise<CollectOneResult> {
+  async collectPublicPageNow(channelInput: Channel): Promise<CollectOneResult> {
     const channel = await this.channelRepository.findOneBy({
       id: channelInput.id,
     });
@@ -487,10 +495,7 @@ export class ChannelCollectorService {
       await this.markFailed(channel, 'failed', 'fetch:timeout');
       return { ok: false, reason: 'failed' };
     }
-    if (
-      page.status === 404 ||
-      (page.html && isMissingChannelHtml(page.html))
-    ) {
+    if (page.status === 404 || (page.html && isMissingChannelHtml(page.html))) {
       return this.markGoneProgress(channel, 'page:not_found');
     }
     if (page.status >= 400 || !page.html) {
@@ -536,7 +541,10 @@ export class ChannelCollectorService {
       username,
       description: parsed.description,
       avatarUrl: parsed.avatarUrl,
-      kind: parsed.kind === 'channel' || parsed.kind === 'group' ? parsed.kind : null,
+      kind:
+        parsed.kind === 'channel' || parsed.kind === 'group'
+          ? parsed.kind
+          : null,
     });
     await this.upsertTodayMemberCount(channel.id, parsed.memberCount);
     return { ok: true, mode: 'preview' };
@@ -592,11 +600,17 @@ export class ChannelCollectorService {
     }
 
     await this.upsertPosts(channel.id, parsed.posts);
-    // 미리보기 숫자는 "40.8K" 처럼 축약돼 있다. 저장된 정확한 값과 반올림 오차 안이면 덮어쓰지 않는다
+    // 미리보기 숫자는 "40.8K" 처럼 축약돼 있다. 저장된 정확한 값과 반올림 오차 안이면 덮어쓰지 않고,
+    // 오차를 벗어나 실제로 바뀌었으면 공개 페이지에서 정확한 수를 한 번 더 읽는다
+    const exactNow = await this.exactMemberCountIfMoved(
+      channel,
+      username,
+      parsed,
+    );
     await this.applySuccessfulCollect(channel, {
       title: parsed.title,
-      memberCount: parsed.memberCount,
-      memberCountTolerance: parsed.memberCountTolerance,
+      memberCount: exactNow ?? parsed.memberCount,
+      memberCountTolerance: exactNow != null ? 0 : parsed.memberCountTolerance,
       username: parsed.usernameFromPosts ?? username,
     });
     // 일별 기록에도 지켜진(정확한) 값을 남긴다
@@ -794,10 +808,7 @@ export class ChannelCollectorService {
     username: string,
   ): Promise<CollectOneResult> {
     const page = await this.fetchHtml(`https://t.me/${username}`);
-    if (
-      page.status === 404 ||
-      (page.html && isMissingChannelHtml(page.html))
-    ) {
+    if (page.status === 404 || (page.html && isMissingChannelHtml(page.html))) {
       return this.markGoneProgress(channel, 'page:not_found');
     }
     if (page.html && page.status < 400 && !isPrivateChannelHtml(page.html)) {
@@ -952,6 +963,35 @@ export class ChannelCollectorService {
     });
     await this.upsertMemberSnapshot(channel.id, parsed.memberCount);
     return { ok: true, mode: 'preview' };
+  }
+
+  /**
+   * 미리보기 축약값이 저장된 값의 오차를 벗어났을 때만 t.me/<username> 을 읽어 정확한 회원 수를 돌려준다.
+   * 못 읽으면 null(축약값을 그대로 쓴다). 요청은 전역 t.me 게이트를 그대로 탄다.
+   */
+  private async exactMemberCountIfMoved(
+    channel: Channel,
+    username: string,
+    parsed: { memberCount: number | null; memberCountTolerance: number },
+  ): Promise<number | null> {
+    if (
+      !needsExactMemberFetch({
+        stored: channel.memberCount,
+        observed: parsed.memberCount,
+        tolerance: parsed.memberCountTolerance,
+      })
+    ) {
+      return null;
+    }
+    try {
+      const page = await this.fetchHtml(`https://t.me/${username}`, {
+        light: true,
+      });
+      if (page.status >= 400 || !page.html) return null;
+      return parseExactMemberCountFromPage(page.html);
+    } catch {
+      return null;
+    }
   }
 
   private async fetchHtml(

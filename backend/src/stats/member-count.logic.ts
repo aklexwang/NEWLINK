@@ -18,8 +18,9 @@ export function abbreviatedCountTolerance(
   if (!match) return 0;
   const decimals = (match[2] ?? '').length;
   const suffix = match[3].toUpperCase();
-  const unit = suffix === 'K' ? 1_000 : suffix === 'M' ? 1_000_000 : 1_000_000_000;
-  return (unit / 10 ** decimals) / 2;
+  const unit =
+    suffix === 'K' ? 1_000 : suffix === 'M' ? 1_000_000 : 1_000_000_000;
+  return unit / 10 ** decimals / 2;
 }
 
 /**
@@ -39,8 +40,28 @@ export function resolveMemberCount(input: {
   const observed = input.observed ?? null;
   if (observed == null) return stored;
   const tolerance = input.tolerance ?? 0;
-  if (tolerance > 0 && stored != null && Math.abs(stored - observed) <= tolerance) {
+  if (
+    tolerance > 0 &&
+    stored != null &&
+    Math.abs(stored - observed) <= tolerance
+  ) {
     return stored;
   }
   return observed;
+}
+
+/**
+ * 미리보기 축약값만 받았을 때, t.me/<username> 공개 페이지를 한 번 더 읽어 정확한 수를 얻을지.
+ * - 축약이 아니면(tolerance 0) 필요 없다
+ * - 저장된 값이 없거나, 축약값이 저장된 값의 반올림 오차를 벗어났으면(실제로 바뀜) 읽는다
+ *   → 오차 안이면 저장된 정확한 값을 그대로 쓰므로 요청을 아낀다
+ */
+export function needsExactMemberFetch(input: {
+  stored: number | null | undefined;
+  observed: number | null | undefined;
+  tolerance: number;
+}): boolean {
+  if (input.observed == null || input.tolerance <= 0) return false;
+  if (input.stored == null) return true;
+  return Math.abs(input.stored - input.observed) > input.tolerance;
 }
