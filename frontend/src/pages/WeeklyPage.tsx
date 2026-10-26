@@ -9,6 +9,7 @@ import {
   shiftIsoWeek,
 } from '../utils/isoWeek';
 import { channelDetailPath } from '../utils/channelDetailPath';
+import { ChannelQuickActions } from '../components/ChannelQuickActions';
 
 const EVENT_TITLE: Record<string, string> = {
   title_changed: '제목 변경',
@@ -171,13 +172,22 @@ function WeeklySection({
               </>
             );
             return (
-              <li key={item.id} className="py-2">
-                {path ? (
-                  <Link to={path} className="block">
-                    {inner}
-                  </Link>
-                ) : (
-                  inner
+              <li key={item.id} className="flex items-center gap-2 py-2">
+                <div className="min-w-0 flex-1">
+                  {path ? (
+                    <Link to={path} className="block">
+                      {inner}
+                    </Link>
+                  ) : (
+                    inner
+                  )}
+                </div>
+                {handle && (
+                  <ChannelQuickActions
+                    channelId={item.channelId}
+                    link={`https://t.me/${handle}`}
+                    title={item.channelTitle ?? handle}
+                  />
                 )}
               </li>
             );

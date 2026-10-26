@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trackTelegramOpen } from '../api/opens';
+import { openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import type { Channel } from '../types/channel';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { channelDetailPath } from '../utils/channelDetailPath';
@@ -28,6 +29,7 @@ export function ChannelCard({
   showFavorite = true,
 }: ChannelCardProps) {
   const navigate = useNavigate();
+  const { webApp, isLocalBrowser } = useTelegram();
   const path = channelDetailPath(channel);
   const promoted = channel.isPromoted;
   const description = (channel.description ?? '').trim();
@@ -106,28 +108,33 @@ export function ChannelCard({
       </div>
       </button>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5">
         {showFavorite && onToggleFavorite && (
           <button
             type="button"
             onClick={() => onToggleFavorite(channel.id)}
             aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-            className={`rounded-full px-2.5 py-1.5 text-[16px] leading-none ${
-              favorited ? 'text-amber-500' : 'text-tg-hint'
+            className={`flex h-8 w-8 items-center justify-center rounded-full text-[16px] leading-none ring-1 ring-black/5 active:scale-95 ${
+              favorited ? 'bg-amber-50 text-amber-500' : 'bg-tg-secondary text-tg-hint'
             }`}
           >
             {favorited ? '★' : '☆'}
           </button>
         )}
-        <a
-          href={channel.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => trackTelegramOpen(channel.id)}
-          className="rounded-full bg-tg-open-bg px-4 py-1.5 text-[15px] font-semibold text-tg-open-text"
+        <button
+          type="button"
+          onClick={() => {
+            trackTelegramOpen(channel.id);
+            openTelegramChannel(webApp, isLocalBrowser, channel.link);
+          }}
+          aria-label={`${channel.title} 텔레그램에서 바로가기`}
+          className="flex h-8 items-center gap-1 rounded-full bg-[#2AABEE] px-2.5 text-[12px] font-bold text-white active:scale-95"
         >
-          Open
-        </a>
+          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden>
+            <path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z" />
+          </svg>
+          바로가기
+        </button>
       </div>
     </div>
   );

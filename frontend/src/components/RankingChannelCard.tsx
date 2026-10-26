@@ -10,6 +10,7 @@ import {
   formatMembers,
   resolveMemberDelta,
 } from '../utils/memberDisplay';
+import { ChannelQuickActions } from './ChannelQuickActions';
 import { GradeBadge } from './GradeBadge';
 import { VerifiedBadge } from './VerifiedBadge';
 import { Sparkline } from './Sparkline';
@@ -127,6 +128,7 @@ export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: Ranking
           </div>
         )}
       </div>
+      <ChannelQuickActions channelId={channel.id} link={channel.link} title={channel.title} />
     </div>
   );
 }

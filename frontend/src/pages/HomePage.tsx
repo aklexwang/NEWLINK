@@ -9,6 +9,7 @@ import { PromotedShortcuts } from '../components/PromotedShortcuts';
 import { SearchBar } from '../components/SearchBar';
 import { useCategories } from '../hooks/useCategories';
 import { useMyFavorites } from '../hooks/useMyFavorites';
+import { ChannelQuickActions } from '../components/ChannelQuickActions';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
 import { hapticSuccess, notifyUser, useTelegram } from '../hooks/useTelegram';
 import { channelDetailPath } from '../utils/channelDetailPath';
@@ -670,6 +671,7 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
           {item.activityKind === 'members' ? '인원 수 갱신' : '게시글'} · {formatRelativeKo(item.lastPostAt)}
         </span>
       </span>
+      <ChannelQuickActions channelId={item.id} link={item.link} title={item.title} />
     </div>
   );
 }
