@@ -67,6 +67,11 @@ export interface Channel {
   firstObservedAt?: string | null;
   collectTier?: 'daily' | 'weekly' | null;
   memberCount?: number | null;
+  /** 텔레그램 개설일 (MTProto 로 확인된 것만) */
+  createdOn?: string | null;
+  telegramChatId?: number | string | null;
+  posts7d?: number | null;
+  observedDays?: number | null;
   memberPageVisible?: boolean;
   memberPageHiddenReason?: string;
   memberPageReasonKey?: string;
