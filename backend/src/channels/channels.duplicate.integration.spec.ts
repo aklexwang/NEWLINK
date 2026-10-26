@@ -23,6 +23,7 @@ describe('ChannelsService 중복 판단·제목 고정·회원 노출 (SQLite �
   let dataSource: DataSource;
   let repo: Repository<Channel>;
   let service: ChannelsService;
+  let rewardSettingsRows: Array<{ enabled: boolean }> = [];
   let preview: TelegramPreview;
 
   beforeEach(async () => {
@@ -41,6 +42,7 @@ describe('ChannelsService 중복 판단·제목 고정·회원 노출 (SQLite �
       memberCount: null,
       kind: 'channel',
     };
+    rewardSettingsRows = [];
     service = new ChannelsService(
       repo,
       {} as never,
@@ -55,6 +57,7 @@ describe('ChannelsService 중복 판단·제목 고정·회원 노출 (SQLite �
           throw new Error('테스트에서는 쓰지 않는 서비스');
         },
       } as never,
+      { find: jest.fn(async () => rewardSettingsRows) } as never,
     );
   });
 
@@ -101,6 +104,23 @@ describe('ChannelsService 중복 판단·제목 고정·회원 노출 (SQLite �
       expect(saved.link).toBe('https://t.me/Brand_New');
       expect(saved.username).toBe('brand_new');
       expect(saved.status).toBe(ChannelStatus.PENDING);
+    });
+
+    it('보상이 켜진 때 제보는 지급 대기, 꺼진 때 제보는 대상 아님', async () => {
+      preview.kind = 'channel';
+      rewardSettingsRows = [{ enabled: true }];
+      const on = await service.create(
+        submission('https://t.me/reward_on'),
+        1001,
+      );
+      expect(on.payoutStatus).toBe('pending');
+      rewardSettingsRows = [{ enabled: false }];
+      const off = await service.create(
+        submission('https://t.me/reward_off'),
+        1001,
+      );
+      expect(off.payoutStatus).toBe('not_eligible');
+      expect(off.payoutSkipReason).toBe('보상 꺼진 기간 제보');
     });
 
     it('종류 선택 없이도 접수된다', async () => {

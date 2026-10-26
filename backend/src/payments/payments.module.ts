@@ -13,6 +13,7 @@ import { PaymentsService } from './payments.service';
 import { RewardPayoutService } from './reward-payout.service';
 import { RewardSeedService } from './reward-seed.service';
 import { RewardSettings } from './reward-settings.entity';
+import { RewardToggleLog } from './reward-toggle-log.entity';
 import { RewardsPolicyController } from './rewards-policy.controller';
 import { TonPayment } from './ton-payment.entity';
 import { TonPaymentService } from './ton-payment.service';
@@ -24,6 +25,7 @@ import { TonPaymentService } from './ton-payment.service';
       Channel,
       User,
       RewardSettings,
+      RewardToggleLog,
       PayoutMethod,
       PayoutRecord,
     ]),

@@ -33,7 +33,13 @@ export class AdminRewardsController {
 
   @Patch('settings')
   patchSettings(@Body() dto: RewardSettingsPatchDto) {
-    return this.rewards.setEnabled(dto.enabled);
+    return this.rewards.setEnabled(dto.enabled, 'admin');
+  }
+
+  /** 활성/비활성 바꾼 기록 */
+  @Get('settings/history')
+  settingsHistory() {
+    return this.rewards.toggleHistory(10);
   }
 
   @Get('methods')

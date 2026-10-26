@@ -3,6 +3,7 @@ import {
   initialPayoutStatus,
   isBlockingPayoutStatus,
   submitRequiresWallet,
+  payoutStatusForSubmission,
 } from './payout-status.logic';
 
 describe('initialPayoutStatus', () => {
@@ -100,5 +101,20 @@ describe('submitRequiresWallet', () => {
         ],
       }),
     ).toBe(true);
+  });
+});
+
+describe('payoutStatusForSubmission (제보 시각의 보상 상태)', () => {
+  it('켜져 있으면 지급 대기', () => {
+    expect(payoutStatusForSubmission(true)).toEqual({
+      payoutStatus: 'pending',
+      payoutSkipReason: null,
+    });
+  });
+  it('꺼져 있으면 대상 아님 + 이유', () => {
+    expect(payoutStatusForSubmission(false)).toEqual({
+      payoutStatus: 'not_eligible',
+      payoutSkipReason: '보상 꺼진 기간 제보',
+    });
   });
 });

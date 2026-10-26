@@ -43,3 +43,21 @@ export function submitRequiresWallet(input: {
   );
   return !hasTelegramAccount;
 }
+
+export const REWARD_OFF_SKIP_REASON = '보상 꺼진 기간 제보';
+
+/**
+ * 회원 제보의 첫 지급 상태. 제보한 그 시각에 보상이 켜져 있었는지로 정한다.
+ * 나중에 켜거나 꺼도 이미 들어온 제보는 바뀌지 않는다.
+ */
+export function payoutStatusForSubmission(rewardsEnabled: boolean): {
+  payoutStatus: ChannelPayoutStatus;
+  payoutSkipReason: string | null;
+} {
+  return rewardsEnabled
+    ? { payoutStatus: 'pending', payoutSkipReason: null }
+    : {
+        payoutStatus: 'not_eligible',
+        payoutSkipReason: REWARD_OFF_SKIP_REASON,
+      };
+}

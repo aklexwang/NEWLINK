@@ -1,3 +1,4 @@
+import { RewardSettings } from '../payments/reward-settings.entity';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnalyticsModule } from '../analytics/analytics.module';
@@ -21,6 +22,7 @@ import { ChannelEvent } from '../stats/channel-event.entity';
       ChannelRecommendation,
       ChannelFavorite,
       ChannelEvent,
+      RewardSettings,
     ]),
     UsersModule,
     AnalyticsModule,

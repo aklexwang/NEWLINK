@@ -551,8 +551,24 @@ export async function recordReporterReward(
 export type RewardSettings = {
   id: string;
   enabled: boolean;
+  /** 마지막으로 활성/비활성을 바꾼 시각 */
+  enabledChangedAt?: string | null;
   updatedAt: string;
 };
+
+export type RewardToggleLog = {
+  id: string;
+  enabled: boolean;
+  changedAt: string;
+  changedBy: string | null;
+};
+
+export async function getAdminRewardToggleHistory(): Promise<RewardToggleLog[]> {
+  const { data } = await apiClient.get<RewardToggleLog[]>('/admin/rewards/settings/history', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
 
 export type AdminPayoutMethod = {
   id: string;

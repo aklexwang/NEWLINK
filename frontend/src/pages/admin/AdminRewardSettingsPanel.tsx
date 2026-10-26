@@ -2,14 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   createAdminPayoutMethod,
   getAdminPayoutMethods,
-  getAdminRewardSettings,
   patchAdminPayoutMethod,
-  patchAdminRewardSettings,
   type AdminPayoutMethod,
 } from '../../api/admin';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
 import { Button } from '@/components/admin/ui/button';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Card } from '@/components/admin/ui/card';
 import { Checkbox } from '@/components/admin/ui/checkbox';
 import { Input } from '@/components/admin/ui/input';
 import { Skeleton } from '@/components/admin/ui/skeleton';
@@ -23,7 +21,6 @@ import {
 } from '@/components/admin/ui/table';
 
 export function AdminRewardSettingsPanel() {
-  const [enabled, setEnabled] = useState(true);
   const [methods, setMethods] = useState<AdminPayoutMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -38,12 +35,7 @@ export function AdminRewardSettingsPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [settings, nextMethods] = await Promise.all([
-        getAdminRewardSettings(),
-        getAdminPayoutMethods(),
-      ]);
-      setEnabled(settings.enabled);
-      setMethods(nextMethods);
+      setMethods(await getAdminPayoutMethods());
       setMessage('');
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '보상 설정을 불러오지 못했습니다.'));
@@ -55,15 +47,6 @@ export function AdminRewardSettingsPanel() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const toggleEnabled = async (next: boolean) => {
-    try {
-      const saved = await patchAdminRewardSettings(next);
-      setEnabled(saved.enabled);
-    } catch (error) {
-      setMessage(adminApiErrorMessage(error, '보상 스위치를 바꾸지 못했습니다.'));
-    }
-  };
 
   const addMethod = async () => {
     if (!newCode.trim() || !newLabel.trim()) return;
@@ -86,29 +69,13 @@ export function AdminRewardSettingsPanel() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold">보상 설정</h2>
+      <h2 className="text-xl font-bold">지급 수단</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        끄면 회원 제보 화면의 보상 안내만 숨깁니다. 제보는 계속 받습니다. 서버가 돈을 보내지는
-        않습니다.
+        보상 활성/비활성은 이 화면 맨 위 스위치에서 바꿉니다. 서버가 돈을 보내지는 않습니다.
       </p>
       {message && <p className="mt-3 text-sm text-destructive">{message}</p>}
 
-      {loading ? (
-        <Skeleton className="mt-6 h-24 w-full" />
-      ) : (
-        <Card className="mt-6 py-4">
-          <CardHeader className="px-4">
-            <CardDescription>보상 전체</CardDescription>
-            <CardTitle className="flex items-center gap-3 text-base">
-              <Checkbox
-                checked={enabled}
-                onCheckedChange={(value) => void toggleEnabled(value === true)}
-              />
-              {enabled ? '켜짐' : '꺼짐'}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      )}
+      {loading && <Skeleton className="mt-6 h-24 w-full" />}
 
       <section className="mt-8">
         <h3 className="text-sm font-semibold">지급 수단</h3>

@@ -41,6 +41,7 @@ import { AddLinkedChat1761410000000 } from './migrations/1761410000000-AddLinked
 import { AddMemberDeltas1761420000000 } from './migrations/1761420000000-AddMemberDeltas';
 import { AddCategoryProposals1761430000000 } from './migrations/1761430000000-AddCategoryProposals';
 import { AddCategorySuggestionsAndNotifications1761440000000 } from './migrations/1761440000000-AddCategorySuggestionsAndNotifications';
+import { AddRewardToggleLog1761450000000 } from './migrations/1761450000000-AddRewardToggleLog';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -106,6 +107,7 @@ function truthy(value: string | undefined): boolean {
                 AddMemberDeltas1761420000000,
                 AddCategoryProposals1761430000000,
                 AddCategorySuggestionsAndNotifications1761440000000,
+                AddRewardToggleLog1761450000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -152,6 +154,7 @@ function truthy(value: string | undefined): boolean {
               AddMemberDeltas1761420000000,
               AddCategoryProposals1761430000000,
               AddCategorySuggestionsAndNotifications1761440000000,
+              AddRewardToggleLog1761450000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -194,6 +197,7 @@ function truthy(value: string | undefined): boolean {
             AddMemberDeltas1761420000000,
             AddCategoryProposals1761430000000,
             AddCategorySuggestionsAndNotifications1761440000000,
+            AddRewardToggleLog1761450000000,
           ],
         };
       },

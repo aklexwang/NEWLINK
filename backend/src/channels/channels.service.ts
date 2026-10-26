@@ -55,6 +55,8 @@ import {
   PENDING_CATEGORY,
 } from './auto-expose.logic';
 import { searchRelevance } from './search-relevance.logic';
+import { RewardSettings } from '../payments/reward-settings.entity';
+import { payoutStatusForSubmission } from '../payments/payout-status.logic';
 import { expandSearchKeywords } from './search-synonyms';
 import { kstDayStart, kstRollingStart } from '../admin/admin-dashboard.logic';
 import {
@@ -104,6 +106,8 @@ export class ChannelsService implements OnModuleInit {
     @InjectRepository(ChannelEvent)
     private readonly eventRepository: Repository<ChannelEvent>,
     private readonly moduleRef: ModuleRef,
+    @InjectRepository(RewardSettings)
+    private readonly rewardSettingsRepository: Repository<RewardSettings>,
   ) {}
 
   async onModuleInit() {
@@ -209,6 +213,15 @@ export class ChannelsService implements OnModuleInit {
     });
   }
 
+  /** 지금 보상이 켜져 있는지. 설정이 없으면 켜짐(기본값) */
+  private async rewardsEnabledNow(): Promise<boolean> {
+    const rows = await this.rewardSettingsRepository.find({
+      order: { updatedAt: 'DESC' },
+      take: 1,
+    });
+    return rows[0]?.enabled ?? true;
+  }
+
   async create(dto: CreateChannelDto, submittedBy: number): Promise<Channel> {
     // 제보 링크는 정규화해서 저장하고, 중복 판단도 같은 링크로 한다
     const link = this.normalizeTelegramLink(dto.link);
@@ -224,8 +237,8 @@ export class ChannelsService implements OnModuleInit {
       submittedBy,
       status: ChannelStatus.PENDING,
       avatarApproved: false,
-      payoutStatus: 'pending',
-      payoutSkipReason: null,
+      // 제보한 이 시각에 보상이 켜져 있어야 보상 대상(나중에 켜고 꺼도 바뀌지 않음)
+      ...payoutStatusForSubmission(await this.rewardsEnabledNow()),
       username: usernameFromChannelLink(link),
     });
     const saved = await this.channelRepository.save(channel);

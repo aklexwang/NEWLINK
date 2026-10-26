@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/admin/ui/tabs';
 import { AdminRewardSettingsPanel } from './AdminRewardSettingsPanel';
+import { AdminRewardSwitch } from '../../components/admin/AdminRewardSwitch';
 import { PendingApproveTab } from './pending/PendingApproveTab';
 import { PendingLedgerTab } from './pending/PendingLedgerTab';
 import { PendingPayoutTab } from './pending/PendingPayoutTab';
@@ -9,7 +10,7 @@ const TABS = [
   { value: 'pending', label: '승인 대기' },
   { value: 'payout', label: '지급' },
   { value: 'ledger', label: '지급 이력' },
-  { value: 'settings', label: '수단·설정' },
+  { value: 'settings', label: '지급 수단' },
 ] as const;
 
 type TabValue = (typeof TABS)[number]['value'];
@@ -28,6 +29,9 @@ export function AdminPendingPage() {
       <p className="mt-1 text-sm text-muted-foreground">
         승인·지급·이력을 한 화면에서 처리합니다. 새 제보 알림은 그대로 동작합니다.
       </p>
+      <div className="mt-6">
+        <AdminRewardSwitch />
+      </div>
       <Tabs
         className="mt-6"
         value={tab}

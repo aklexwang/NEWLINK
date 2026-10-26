@@ -40,6 +40,7 @@ function serviceWith(opts?: {
   const svc = new RewardPayoutService(
     { findOneBy: jest.fn(), create: jest.fn(), save: jest.fn() } as never,
     { find: jest.fn().mockResolvedValue([]), findOne: jest.fn() } as never,
+    { insert: jest.fn(), find: jest.fn().mockResolvedValue([]) } as never,
     recordRepository as never,
     channelRepository as never,
     {

@@ -29,6 +29,7 @@ import {
 import { newRewardSettingsRow } from './reward-seed.logic';
 import { telegramIdKey } from '../common/telegram-id';
 import { RewardSettings } from './reward-settings.entity';
+import { RewardToggleLog } from './reward-toggle-log.entity';
 import { TonPaymentService } from './ton-payment.service';
 
 export const DUPLICATE_PAYOUT_MESSAGE = '이미 지급 기록이 있습니다';
@@ -54,6 +55,8 @@ export class RewardPayoutService {
     private readonly settingsRepository: Repository<RewardSettings>,
     @InjectRepository(PayoutMethod)
     private readonly methodRepository: Repository<PayoutMethod>,
+    @InjectRepository(RewardToggleLog)
+    private readonly toggleLogRepository: Repository<RewardToggleLog>,
     @InjectRepository(PayoutRecord)
     private readonly recordRepository: Repository<PayoutRecord>,
     @InjectRepository(Channel)
@@ -89,10 +92,29 @@ export class RewardPayoutService {
     );
   }
 
-  async setEnabled(enabled: boolean) {
+  /** 활성/비활성 바꾸기. 실제로 바뀐 때만 시각과 기록을 남긴다 */
+  async setEnabled(enabled: boolean, changedBy: string | null = null) {
     const row = await this.getSettings();
-    row.enabled = enabled;
+    if (row.enabled !== enabled) {
+      const now = new Date();
+      row.enabled = enabled;
+      row.enabledChangedAt = now;
+      await this.toggleLogRepository.insert({
+        id: randomUUID(),
+        enabled,
+        changedAt: now,
+        changedBy: changedBy?.slice(0, 64) ?? null,
+      });
+    }
     return this.settingsRepository.save(row);
+  }
+
+  /** 최근 활성/비활성 기록 (최신 순) */
+  toggleHistory(limit = 10) {
+    return this.toggleLogRepository.find({
+      order: { changedAt: 'DESC' },
+      take: Math.min(50, Math.max(1, limit)),
+    });
   }
 
   listMethods() {
