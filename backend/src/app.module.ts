@@ -39,6 +39,7 @@ import { AddTitleLocked1761390000000 } from './migrations/1761390000000-AddTitle
 import { AddChannelNextCollectAt1761400000000 } from './migrations/1761400000000-AddChannelNextCollectAt';
 import { AddLinkedChat1761410000000 } from './migrations/1761410000000-AddLinkedChat';
 import { AddMemberDeltas1761420000000 } from './migrations/1761420000000-AddMemberDeltas';
+import { AddCategoryProposals1761430000000 } from './migrations/1761430000000-AddCategoryProposals';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -102,6 +103,7 @@ function truthy(value: string | undefined): boolean {
                 AddChannelNextCollectAt1761400000000,
                 AddLinkedChat1761410000000,
                 AddMemberDeltas1761420000000,
+                AddCategoryProposals1761430000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -146,6 +148,7 @@ function truthy(value: string | undefined): boolean {
               AddChannelNextCollectAt1761400000000,
               AddLinkedChat1761410000000,
               AddMemberDeltas1761420000000,
+              AddCategoryProposals1761430000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -186,6 +189,7 @@ function truthy(value: string | undefined): boolean {
             AddChannelNextCollectAt1761400000000,
             AddLinkedChat1761410000000,
             AddMemberDeltas1761420000000,
+            AddCategoryProposals1761430000000,
           ],
         };
       },

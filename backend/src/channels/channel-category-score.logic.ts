@@ -10,12 +10,47 @@ type KeywordRule = {
   titleDesc: RegExp[];
   posts?: RegExp[];
   titleDescOnly?: boolean;
+  /** 소개글에서 "야동 금지" 같은 규칙 문장 속 단어는 근거로 치지 않는다 */
+  ignoreProhibited?: boolean;
 };
+
+/**
+ * 규칙·금지 문장으로 보는 말. 홍보방 소개글의 "야동·19금 홍보 금지", "도박 홍보 불가" 등.
+ * 이 말이 단어 앞뒤 가까이에 있으면 그 단어는 채널 주제가 아니라 금지 목록이다.
+ */
+export const PROHIBIT_NEAR_RE =
+  /금지|불가|불허|사절|차단|강퇴|추방|퇴장|퇴출|제재|제한|빼고|금함|일절|절대|안\s*됩니다|안\s*됨|하지\s*마|올리지|ㄴㄴ|❌|🚫|⛔|\bno\b|not\s+allowed|prohibited|banned/i;
+
+/** 규칙 문장이 아닌 곳에서 pattern 이 한 번이라도 나오면 true */
+export function hitOutsideProhibited(text: string, pattern: RegExp): boolean {
+  if (!text) return false;
+  const flags = pattern.flags.includes('g')
+    ? pattern.flags
+    : `${pattern.flags}g`;
+  const re = new RegExp(pattern.source, flags);
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    // 같은 줄 안에서 앞 20자·뒤 25자만 본다
+    const lineStart = text.lastIndexOf('\n', start) + 1;
+    const nl = text.indexOf('\n', end);
+    const lineEnd = nl < 0 ? text.length : nl;
+    const around = text.slice(
+      Math.max(lineStart, start - 20),
+      Math.min(lineEnd, end + 25),
+    );
+    if (!PROHIBIT_NEAR_RE.test(around)) return true;
+    if (match[0].length === 0) re.lastIndex += 1;
+  }
+  return false;
+}
 
 const KEYWORD_RULES: KeywordRule[] = [
   {
     category: '성인',
     titleDescOnly: true,
+    ignoreProhibited: true,
     titleDesc: [
       /섹스|야동|야설|성인물|포르노|에로물|야한동|유부녀|원나잇|조건만남|출장안마|폰섹|텔레야동|소라넷|야동방/,
       /\b(sex|porn|porno|xxx|nsfw|onlyfans|hentai)\b/i,
@@ -25,6 +60,7 @@ const KEYWORD_RULES: KeywordRule[] = [
   {
     category: '카지노',
     titleDescOnly: true,
+    ignoreProhibited: true,
     titleDesc: [
       /카지노|바카라|스포츠토토|도박|\b(casino|baccarat|betting)\b/i,
       /토토(?!로)/,
@@ -90,7 +126,9 @@ const KEYWORD_RULES: KeywordRule[] = [
   },
   {
     category: '엔터테인먼트',
-    titleDesc: [/연예|예능|영화|드라마|유머|meme|entertainment|웹툰|웹튠|만화/i],
+    titleDesc: [
+      /연예|예능|영화|드라마|유머|meme|entertainment|웹툰|웹튠|만화/i,
+    ],
     posts: [/연예|예능|영화|드라마|유머|웹툰|만화/i],
   },
   {
@@ -186,17 +224,16 @@ export function scoreKeywordCategory(
   const topic = (input.topicHint ?? '').trim();
   const allowed = input.allowedCategories;
 
-  let bestCategory = allowed.includes('기타')
-    ? '기타'
-    : (allowed[0] ?? '기타');
+  let bestCategory = allowed.includes('기타') ? '기타' : (allowed[0] ?? '기타');
   let bestScore = 0;
 
   for (const rule of KEYWORD_RULES) {
     if (!allowed.includes(rule.category)) continue;
     let score = 0;
     for (const pattern of rule.titleDesc) {
-      if (hitOnce(title, pattern)) score += TITLE_SCORE;
-      if (hitOnce(description, pattern)) score += DESCRIPTION_SCORE;
+      const hit = rule.ignoreProhibited ? hitOutsideProhibited : hitOnce;
+      if (hit(title, pattern)) score += TITLE_SCORE;
+      if (hit(description, pattern)) score += DESCRIPTION_SCORE;
     }
     if (!rule.titleDescOnly) {
       const postPatterns = rule.posts ?? rule.titleDesc;

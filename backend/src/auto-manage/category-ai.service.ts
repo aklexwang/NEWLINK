@@ -90,8 +90,18 @@ export class CategoryAiService {
     };
   }
 
+  /** 전체 재분류처럼 하루 상한과 따로 세는 예산을 만든다 */
+  createBudget(limit: number): AiDailyBudget {
+    return new AiDailyBudget(limit);
+  }
+
+  /**
+   * force: 키워드가 확실해도 AI 에게 다시 묻는다(전체 재분류용). 불법 의심·성인 키워드 보수 규칙은 그대로.
+   * budget: 하루 상한 대신 쓸 예산.
+   */
   async classify(
     input: CategoryClassifyInput,
+    options: { force?: boolean; budget?: AiDailyBudget } = {},
   ): Promise<CategoryClassifyResult> {
     const allowed =
       input.allowedCategories.length > 0
@@ -101,6 +111,7 @@ export class CategoryAiService {
     const config = this.config();
 
     const skip = aiSkipReason({
+      force: options.force === true,
       configured: config !== null,
       keyword: fallback,
       title: input.title,
@@ -112,8 +123,9 @@ export class CategoryAiService {
       return { ...fallback, skipReason: skip ?? 'no_key' };
     }
 
-    this.budget.setLimit(this.dailyLimit());
-    const outcome = await this.askAi(config, input, allowed);
+    const budget = options.budget ?? this.budget;
+    if (!options.budget) this.budget.setLimit(this.dailyLimit());
+    const outcome = await this.askAi(config, input, allowed, budget);
     if (outcome.verdict) {
       return {
         category: outcome.verdict.category,
@@ -154,19 +166,32 @@ export class CategoryAiService {
     config: AiConfig,
     input: CategoryClassifyInput,
     allowedCategories: string[],
+    budget: AiDailyBudget = this.budget,
   ): Promise<{ verdict: AiVerdict | null; skipReason: AiSkipReason }> {
     for (let attempt = 0; attempt <= AI_RETRY_COUNT; attempt += 1) {
-      if (!this.budget.tryAcquire()) {
-        return { verdict: null, skipReason: this.budget.snapshot().stopReason ? 'stopped' : 'limit' };
+      if (!budget.tryAcquire()) {
+        return {
+          verdict: null,
+          skipReason: budget.snapshot().stopReason ? 'stopped' : 'limit',
+        };
       }
       try {
-        const content = await this.requestCompletion(config, input, allowedCategories);
+        const content = await this.requestCompletion(
+          config,
+          input,
+          allowedCategories,
+        );
         const verdict = parseAiVerdict(content, allowedCategories);
         if (verdict) return { verdict, skipReason: 'error' };
-        this.logger.warn('AI 응답을 읽지 못했습니다(형식 오류 또는 목록 밖 카테고리).');
+        this.logger.warn(
+          'AI 응답을 읽지 못했습니다(형식 오류 또는 목록 밖 카테고리).',
+        );
       } catch (error) {
-        if (error instanceof AiHttpError && shouldStopAiForToday(error.status)) {
-          this.budget.stopToday(`HTTP ${error.status}`);
+        if (
+          error instanceof AiHttpError &&
+          shouldStopAiForToday(error.status)
+        ) {
+          budget.stopToday(`HTTP ${error.status}`);
           this.logger.warn(
             `AI 호출 오류 HTTP ${error.status}: 오늘은 AI 분류를 멈추고 키워드 결과를 씁니다.`,
           );
@@ -189,10 +214,14 @@ export class CategoryAiService {
       'You classify Telegram channels/groups into exactly one category.',
       'Reply with JSON only: {"category":"<one>","confidence":0.0-1.0,"reason":"short"}',
       `Choose ONLY from this list, copy the name exactly: ${allowedCategories.join(', ')}`,
-      'Adult/sexual content (sex, porn, 야동, 섹스, 18+, NSFW, etc.) MUST be 성인 when that category is allowed.',
-      'Gambling (casino, 카지노, 토토, betting) MUST be 카지노 when that category is allowed.',
+      'Judge by what the channel mainly PUBLISHES or what members mainly DO there, not by single words.',
+      '성인 = the main content itself is sexual/porn (야동, 섹스, 18+ media, 조건만남). It MUST be 성인 then.',
+      '카지노 = the main content is gambling (casino, 바카라, 토토, betting tips/sites).',
+      '홍보 = promotion/ad rooms where members post their own channels, ads, 총판 (홍보방, 자유홍보, 무한홍보, 홍보 모음). Use 홍보 even if some ads are for adult or gambling, unless the room is clearly dedicated to porn or gambling.',
+      'Rule lines like "야동 금지", "19금 홍보 금지", "도박 홍보 불가", "no porn" list what is BANNED. They are NOT evidence for 성인 or 카지노.',
+      '커뮤니티 = chat/discussion groups about a general or mixed topic. 뉴스 = news/headlines. 경제 = stocks, investing, macro. 암호화폐 = coins, tokens, exchanges, USDT/TON.',
       'Do not use 기술/게임/구인구직 for adult titles just because of words like game, AI, or job in snippets.',
-      'If unsure, use 기타 and lower confidence.',
+      'confidence: 0.9+ only when the main topic is obvious; 0.5-0.7 when mixed. If unsure, use 기타 with low confidence.',
     ].join('\n');
 
     const response = await fetch(`${config.baseUrl}/chat/completions`, {

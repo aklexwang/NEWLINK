@@ -102,3 +102,42 @@ describe('scoreKeywordCategory', () => {
     expect(confidenceFromScore(0)).toBe(0.2);
   });
 });
+
+describe('규칙 문장 속 성인·도박 단어', () => {
+  it('홍보방 소개글의 "야동·19금 홍보 금지" 는 성인 근거가 아니다', () => {
+    const r = scoreKeywordCategory({
+      title: '🔥파이리 자유홍보방🔥',
+      description:
+        '자유롭게 홍보하세요\n⛔ 야동, 섹스, 18+ 홍보 금지 ⛔\n도박 홍보 불가',
+      allowedCategories: allowed,
+    });
+    expect(r.category).toBe('홍보');
+  });
+
+  it('금지 문장이 없으면 그대로 성인', () => {
+    const r = scoreKeywordCategory({
+      title: '무료 야동방',
+      description: '매일 야동 업로드',
+      allowedCategories: allowed,
+    });
+    expect(r.category).toBe('성인');
+  });
+
+  it('다른 줄의 금지 문장은 영향을 주지 않는다', () => {
+    const r = scoreKeywordCategory({
+      title: '채널',
+      description: '섹스 영상 공유\n\n욕설 금지',
+      allowedCategories: allowed,
+    });
+    expect(r.category).toBe('성인');
+  });
+
+  it('제목의 "도박 금지" 도 카지노 근거가 아니다', () => {
+    const r = scoreKeywordCategory({
+      title: '코인 정보방 (도박 금지)',
+      description: '비트코인 시황',
+      allowedCategories: allowed,
+    });
+    expect(r.category).toBe('암호화폐');
+  });
+});

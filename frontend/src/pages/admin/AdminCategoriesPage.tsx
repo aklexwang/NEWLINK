@@ -7,6 +7,7 @@ import {
   updateCategory,
 } from '../../api/admin';
 import { CategoryIcon } from '../../components/CategoryIcon';
+import { AdminReclassifyPanel } from '../../components/admin/AdminReclassifyPanel';
 import { CategoryIconPicker } from '../../components/CategoryIconPicker';
 import type { CategoryItem } from '../../types/categoryItem';
 import { Badge } from '@/components/admin/ui/badge';
@@ -145,6 +146,10 @@ export function AdminCategoriesPage() {
         이름·아이콘·순서를 관리합니다. 회원 화면 카테고리 목록도 이 순서를 따릅니다.
       </p>
       {message && <p className="mt-3 text-sm text-foreground">{message}</p>}
+
+      <div className="mt-6 max-w-5xl">
+        <AdminReclassifyPanel />
+      </div>
 
       {loading ? (
         <Skeleton className="mt-6 h-32 w-full max-w-3xl" />

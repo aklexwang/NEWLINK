@@ -30,7 +30,10 @@ export interface AiConfig {
   legacy: boolean;
 }
 
-const PROVIDER_DEFAULTS: Record<AiProvider, { model: string; baseUrl: string }> = {
+const PROVIDER_DEFAULTS: Record<
+  AiProvider,
+  { model: string; baseUrl: string }
+> = {
   deepseek: { model: 'deepseek-chat', baseUrl: 'https://api.deepseek.com' },
   openai: { model: 'gpt-4o-mini', baseUrl: 'https://api.openai.com/v1' },
 };
@@ -69,7 +72,10 @@ export function resolveAiConfig(get: EnvGetter): AiConfig | null {
       provider,
       apiKey: aiKey,
       model: clean(get('AI_MODEL')) || defaults.model,
-      baseUrl: (clean(get('AI_BASE_URL')) || defaults.baseUrl).replace(/\/+$/, ''),
+      baseUrl: (clean(get('AI_BASE_URL')) || defaults.baseUrl).replace(
+        /\/+$/,
+        '',
+      ),
       dailyLimit,
       legacy: false,
     };
@@ -82,7 +88,10 @@ export function resolveAiConfig(get: EnvGetter): AiConfig | null {
       provider: 'openai',
       apiKey: legacyKey,
       model: clean(get('OPENAI_MODEL')) || defaults.model,
-      baseUrl: (clean(get('OPENAI_BASE_URL')) || defaults.baseUrl).replace(/\/+$/, ''),
+      baseUrl: (clean(get('OPENAI_BASE_URL')) || defaults.baseUrl).replace(
+        /\/+$/,
+        '',
+      ),
       dailyLimit,
       legacy: true,
     };
@@ -123,7 +132,11 @@ export function buildAiUserPrompt(
   };
 
   push('title', collapse(input.title) || '(none)');
-  push('description', collapse([input.description, input.snippet].filter(Boolean).join(' ')) || '(none)');
+  push(
+    'description',
+    collapse([input.description, input.snippet].filter(Boolean).join(' ')) ||
+      '(none)',
+  );
   const topic = collapse(input.topicHint);
   if (topic) push('topicHint', topic);
   const posts = (input.posts ?? []).map(collapse).filter(Boolean).slice(0, 20);
@@ -154,7 +167,8 @@ export function parseAiVerdict(
   } catch {
     return null;
   }
-  const category = typeof parsed.category === 'string' ? parsed.category.trim() : '';
+  const category =
+    typeof parsed.category === 'string' ? parsed.category.trim() : '';
   if (!category || !allowedCategories.includes(category)) return null;
   const rawConfidence = Number(parsed.confidence);
   const confidence = Number.isFinite(rawConfidence)
@@ -184,6 +198,8 @@ export type AiSkipReason =
  * - 키워드가 이미 성인 근거를 찾았으면 AI 가 뒤집지 못하게 AI 를 부르지 않는다(성인 보수 규칙)
  */
 export function aiSkipReason(input: {
+  /** 전체 재분류: 키워드가 확실해도 AI 에게 묻는다 */
+  force?: boolean;
   configured: boolean;
   keyword: { category: string; confidence: number; score?: number };
   title: string;
@@ -192,12 +208,17 @@ export function aiSkipReason(input: {
   posts?: string[];
 }): AiSkipReason | null {
   if (!input.configured) return 'no_key';
-  if (input.keyword.confidence >= AI_SKIP_KEYWORD_CONFIDENCE) return 'confident';
+  if (!input.force && input.keyword.confidence >= AI_SKIP_KEYWORD_CONFIDENCE) {
+    return 'confident';
+  }
   const text = [input.description, input.snippet, ...(input.posts ?? [])]
     .filter(Boolean)
     .join('\n');
   if (hasIllegalDrugSuspicion(input.title, text)) return 'illegal';
-  if (input.keyword.category === ADULT_CATEGORY && (input.keyword.score ?? 0) > 0) {
+  if (
+    input.keyword.category === ADULT_CATEGORY &&
+    (input.keyword.score ?? 0) > 0
+  ) {
     return 'adult_keyword';
   }
   return null;
@@ -205,7 +226,13 @@ export function aiSkipReason(input: {
 
 /** 이 상태 코드면 오늘은 AI 를 더 부르지 않는다(과금·인증·서버 문제는 재시도로 안 풀림) */
 export function shouldStopAiForToday(status: number): boolean {
-  return status === 429 || status >= 500 || status === 401 || status === 402 || status === 403;
+  return (
+    status === 429 ||
+    status >= 500 ||
+    status === 401 ||
+    status === 402 ||
+    status === 403
+  );
 }
 
 export type AiBudgetSnapshot = {

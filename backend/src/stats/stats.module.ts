@@ -11,6 +11,8 @@ import { ChannelScore } from './channel-score.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import { AutoExposeService } from './auto-expose.service';
 import { ChannelCategoryService } from './channel-category.service';
+import { CategoryProposal } from './category-proposal.entity';
+import { CategoryReclassifyService } from './category-reclassify.service';
 import { ChannelCollectorService } from './channel-collector.service';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelDiscoveryService } from './channel-discovery.service';
@@ -45,6 +47,7 @@ import { StatsService } from './stats.service';
       DiscoveryKeyword,
       StatsRun,
       MtprotoState,
+      CategoryProposal,
     ]),
   ],
   controllers: [
@@ -62,6 +65,7 @@ import { StatsService } from './stats.service';
     ChannelLanguageService,
     CategoryAiService,
     ChannelCategoryService,
+    CategoryReclassifyService,
     AutoExposeService,
     ChannelMetricsService,
     StatsJobService,
@@ -76,6 +80,7 @@ import { StatsService } from './stats.service';
     PublicStatsService,
     AutoExposeService,
     ChannelCategoryService,
+    CategoryReclassifyService,
     ChannelLanguageService,
     CategoryAiService,
     ChannelDiscoveryService,

@@ -12,6 +12,7 @@ import { StatsModule } from '../stats/stats.module';
 import { StatsRun } from '../stats/stats-run.entity';
 import { UsersModule } from '../users/users.module';
 import { AdminCategoriesController } from './admin-categories.controller';
+import { AdminReclassifyController } from './admin-reclassify.controller';
 import { AdminCollectService } from './admin-collect.service';
 import { AdminController } from './admin.controller';
 import { AdminDashboardController } from './admin-dashboard.controller';
@@ -55,6 +56,7 @@ import { AdminUsersController } from './admin-users.controller';
     AdminController,
     AdminPromotionsController,
     AdminCategoriesController,
+    AdminReclassifyController,
     AdminUsersController,
     AdminSearchController,
     AdminOpensController,
