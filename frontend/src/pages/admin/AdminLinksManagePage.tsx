@@ -224,6 +224,8 @@ export function AdminLinksManagePage() {
       setChannels((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated } : item)));
       const note = (updated as { collectNote?: string | null }).collectNote;
       setMessage(note ? `수집이 끝났습니다 · ${note}` : '수집이 끝났습니다.');
+      // 목록 아래쪽에서 누르면 맨 위 안내가 안 보이므로 버튼 옆에도 보여 준다
+      setSaveHint((prev) => ({ ...prev, [id]: note ? `수집 끝 · ${note}` : '수집 끝' }));
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '수집에 실패했습니다.'));
     } finally {
