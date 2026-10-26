@@ -65,7 +65,7 @@ export class RankingService {
 
     return {
       source,
-      label: 'New Link 등록 채널·그룹 · 회원 수 순',
+      label: 'TellLink 등록 채널·그룹 · 회원 수 순',
       hint: '어드민에서 등록·승인된 채널과 그룹이 카테고리별로 표시됩니다.',
     };
   }

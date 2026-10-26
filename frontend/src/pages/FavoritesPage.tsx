@@ -142,6 +142,7 @@ export function FavoritesPage() {
         categoryEmojis={searchCategories}
         onRecommend={handleRecommend}
         onToggleFavorite={handleToggleFavorite}
+        removeMode
         sectionTitle={selectedCategory ? selectedCategory : '전체'}
         emptyMessage={
           selectedCategory

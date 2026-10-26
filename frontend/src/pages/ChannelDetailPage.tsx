@@ -264,10 +264,10 @@ export function ChannelDetailPage() {
   useEffect(() => {
     const previous = document.title;
     if (notFound) {
-      document.title = '채널을 찾을 수 없습니다 - NEWLINK';
+      document.title = '채널을 찾을 수 없습니다 - TellLink';
     } else if (detail) {
       const members = formatMemberNumber(detail.memberCount ?? 0) ?? '0명';
-      document.title = `${detail.title} 텔레그램 채널 · 회원 ${members} - NEWLINK`;
+      document.title = `${detail.title} 텔레그램 채널 · 회원 ${members} - TellLink`;
     }
     return () => {
       document.title = previous;
@@ -342,7 +342,7 @@ export function ChannelDetailPage() {
         link: detail?.link,
       }) ?? '/';
     const url = `${getSiteOrigin()}${path}`;
-    const title = detail?.title ?? 'NEWLINK 채널';
+    const title = detail?.title ?? 'TellLink 채널';
     try {
       if (navigator.share) {
         await navigator.share({ title, url });

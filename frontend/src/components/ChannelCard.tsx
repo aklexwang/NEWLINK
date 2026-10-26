@@ -37,6 +37,8 @@ interface ChannelCardProps {
   onRecommend?: (id: string) => void;
   onToggleFavorite?: (id: string) => void;
   showFavorite?: boolean;
+  /** 즐겨찾기 목록: 별 대신 [해제] 버튼 */
+  removeMode?: boolean;
 }
 
 function InfoCell({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
@@ -72,6 +74,7 @@ export function ChannelCard({
   favorited = false,
   onToggleFavorite,
   showFavorite = true,
+  removeMode = false,
 }: ChannelCardProps) {
   const navigate = useNavigate();
   const { webApp, isLocalBrowser } = useTelegram();
@@ -196,21 +199,25 @@ export function ChannelCard({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
-          {showFavorite && onToggleFavorite && (
+          {showFavorite && onToggleFavorite && removeMode && (
             <button
               type="button"
               onClick={() => onToggleFavorite(channel.id)}
-              aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-              className={`flex h-9 w-9 items-center justify-center rounded-full text-[17px] leading-none ring-1 ring-nl-line active:scale-95 ${
-                favorited ? 'bg-amber-50 text-amber-500' : 'bg-nl-card text-nl-muted'
-              }`}
+              aria-label="즐겨찾기 해제"
+              className="h-9 rounded-full px-3 text-[13px] font-semibold text-nl-muted ring-1 ring-nl-line active:scale-95"
             >
-              <span
-                className={`leading-none transition ${favorited ? '' : 'opacity-40 grayscale'}`}
-                aria-hidden
-              >
-                ⭐
-              </span>
+              해제
+            </button>
+          )}
+          {/* 즐겨찾기 안 한 방만 노란 별. 이미 즐겨찾기한 방은 별을 숨긴다 */}
+          {showFavorite && onToggleFavorite && !removeMode && !favorited && (
+            <button
+              type="button"
+              onClick={() => onToggleFavorite(channel.id)}
+              aria-label="즐겨찾기 추가"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-nl-card text-[17px] leading-none ring-1 ring-nl-line active:scale-95"
+            >
+              <span aria-hidden>⭐</span>
             </button>
           )}
           <button

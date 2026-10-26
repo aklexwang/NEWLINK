@@ -30,7 +30,7 @@ import {
 import { cn } from '@/components/admin/lib/utils';
 
 const POLL_MS = 15_000;
-const DEFAULT_DOC_TITLE = 'New Link 관리자';
+const DEFAULT_DOC_TITLE = 'TellLink 관리자';
 
 type NavItem = {
   to: string;
@@ -198,7 +198,7 @@ export function AdminSidebar({
           <p className="text-[15px] font-bold tracking-tight">NL</p>
         ) : (
           <h1 className="text-[26px] leading-none tracking-tight uppercase">
-            <span className="font-bold">New Link</span>{' '}
+            <span className="font-bold">TellLink</span>{' '}
             <span className="font-normal">Admin</span>
           </h1>
         )}

@@ -21,6 +21,8 @@ interface ChannelListProps {
   onToggleFavorite?: (id: string) => void;
   sectionTitle: string;
   emptyMessage: string;
+  /** 즐겨찾기 목록이면 별 대신 [해제] */
+  removeMode?: boolean;
 }
 
 function getCategoryMeta(categoryEmojis: CategoryChip[], category: string) {
@@ -41,6 +43,7 @@ export function ChannelList({
   onToggleFavorite,
   sectionTitle,
   emptyMessage,
+  removeMode = false,
 }: ChannelListProps) {
   // 카드마다 순위·추이·글 수를 보여 주려고 목록 전체 요약을 한 번에 불러온다
   const idsKey = useMemo(() => channels.map((c) => c.id).slice(0, 30).join(','), [channels]);
@@ -100,6 +103,7 @@ export function ChannelList({
                 onRecommend={onRecommend}
                 onToggleFavorite={onToggleFavorite}
                 showFavorite={Boolean(onToggleFavorite)}
+                removeMode={removeMode}
               />
             );
           })}

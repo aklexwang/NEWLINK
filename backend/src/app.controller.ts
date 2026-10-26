@@ -5,7 +5,7 @@ export class AppController {
   @Get()
   getRoot() {
     return {
-      name: 'NEWLINK API',
+      name: 'TellLink API',
       status: 'ok',
       endpoints: {
         search: 'GET /api/channels/search',
