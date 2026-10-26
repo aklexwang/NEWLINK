@@ -79,9 +79,10 @@ const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const GONE_AFTER_FAILS = 3;
 
 export type CollectOneResult =
-  | { ok: true; mode: 'preview' | 'bot' | 'mtproto' }
+  | { ok: true; mode: 'preview' | 'bot' | 'mtproto'; note?: string }
   | {
       ok: false;
+      note?: string;
       reason:
         | 'gone'
         | 'private'
@@ -448,12 +449,21 @@ export class ChannelCollectorService {
    * 아니면 공개 초대 페이지(제목·사진·회원 수)만 읽는다. 정기 수집·관리자 "지금 수집" 공통.
    */
   private async collectInviteChannel(channel: Channel): Promise<CollectOneResult> {
+    let note: string;
     if (this.mtproto.canCollectInvite(channel)) {
       const viaMember = await this.mtproto.collectInviteAndSave(channel);
-      if (viaMember.ok) return viaMember;
+      if (viaMember.ok) return { ...viaMember, note: 'MTProto · 서버 계정이 회원이라 글 정보까지 읽음' };
+      note =
+        viaMember.reason === 'not_member'
+          ? '서버 계정이 이 방 회원이 아니라 공개 초대 페이지만 읽음'
+          : `MTProto 실패(${viaMember.reason}${this.mtproto.lastErrorCode() ? `: ${this.mtproto.lastErrorCode()}` : ''}) → 공개 초대 페이지만 읽음`;
+    } else {
+      note = 'MTProto 를 쓸 수 없어(꺼짐·중단·한도) 공개 초대 페이지만 읽음';
     }
-    return this.collectInvitePreview(channel);
+    const preview = await this.collectInvitePreview(channel);
+    return { ...preview, note };
   }
+
 
   /** 등록 직후: t.me 공개 페이지만 보고 first_observed_at 을 채운다 */
   async collectPublicPageNow(channelInput: Channel): Promise<CollectOneResult> {

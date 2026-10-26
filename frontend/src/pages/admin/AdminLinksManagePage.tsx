@@ -222,7 +222,8 @@ export function AdminLinksManagePage() {
     try {
       const updated = await collectAdminChannel(id);
       setChannels((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated } : item)));
-      setMessage('수집이 끝났습니다.');
+      const note = (updated as { collectNote?: string | null }).collectNote;
+      setMessage(note ? `수집이 끝났습니다 · ${note}` : '수집이 끝났습니다.');
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '수집에 실패했습니다.'));
     } finally {

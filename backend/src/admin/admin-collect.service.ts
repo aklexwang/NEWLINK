@@ -43,8 +43,10 @@ export class AdminCollectService {
     await this.assertPipelineIdle();
     const channel = await this.channelsService.findById(id);
     this.assertCooldown(channel.id);
+    let note: string | undefined;
     try {
-      await this.collector.collectPublicPageNow(channel);
+      const result = await this.collector.collectPublicPageNow(channel);
+      note = result.note;
       const collected = await this.channelsService.findById(channel.id);
       await this.languages.classifyOne(collected);
       await this.metrics.computeOne(collected.id);
@@ -55,7 +57,9 @@ export class AdminCollectService {
     } finally {
       this.lastCollectAt.set(channel.id, Date.now());
     }
-    return this.channelsService.findById(channel.id);
+    const fresh = await this.channelsService.findById(channel.id);
+    // 어떤 방법으로 읽었는지 관리자에게 알려 준다(초대 링크 방 MTProto 확인용)
+    return Object.assign(fresh, { collectNote: note ?? null });
   }
 
   async collectMany(ids: string[]) {

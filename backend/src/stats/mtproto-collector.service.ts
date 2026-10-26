@@ -304,6 +304,10 @@ export class MtprotoCollectorService implements OnModuleInit {
    * 초대 링크(@아이디 없는) 방: 수집 계정이 "이미 회원"일 때만 글 정보까지 읽는다.
    * 가입(ImportChatInvite)은 절대 하지 않는다. 회원이 아니면 not_member → 공개 초대 페이지로 넘긴다.
    */
+  lastErrorCode(): string | null {
+    return this.lastError ?? null;
+  }
+
   canCollectInvite(channel: Channel): boolean {
     if (!this.canUseMtproto()) return false;
     if (channel.collectStatus === 'invite_expired') return false;
