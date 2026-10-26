@@ -3,12 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
-import { Channel, LinkType } from '../channels/channel.entity';
+import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { clipPostExcerpt } from '../channels/channel-language.logic';
 import {
   applyCollectedTitle,
   isTitleLocked,
 } from '../channels/title-lock.logic';
+import { pickKeepChannel } from '../channels/merge-duplicate-channels.logic';
 import {
   extractTelegramUsernameFromLink,
   inviteHashFromLink,
@@ -269,6 +270,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       const stored = await this.loadStoredAccess(channel.id);
       const data = await this.readPublicChannel(username, stored, channel.id);
       await this.persist(channel, data);
+      await this.mergeSameTelegramChat(channel);
       return { ok: true, mode: 'mtproto' };
     } catch (error) {
       if (error instanceof FloodWaitTooLongError) {
@@ -358,6 +360,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       }
       const history = await this.fetchHistory(resolved);
       await this.persist(channel, { ...resolved, ...history });
+      await this.mergeSameTelegramChat(channel);
       return { ok: true, mode: 'mtproto' };
     } catch (error) {
       if (error instanceof FloodWaitTooLongError)
@@ -376,6 +379,66 @@ export class MtprotoCollectorService implements OnModuleInit {
       }
       this.logger.warn(`MTProto 초대 링크 수집 실패: ${code}`);
       return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /**
+   * 같은 텔레그램 방(같은 텔레그램 ID)이 서로 다른 링크로 여러 번 등록된 경우 하나만 남긴다.
+   * 초대 링크는 방마다 여러 개라 링크로는 같은 방인지 알 수 없어, 텔레그램 ID 를 안 뒤에 합친다.
+   * 남길 행: 인증 > 광고 > 즐겨찾기·추천 > 먼저 등록. 나머지는 merged(숨김)로 두고 기록만 남긴다(지우지 않음).
+   */
+  private async mergeSameTelegramChat(channel: Channel): Promise<void> {
+    try {
+      if (channel.telegramChatId == null) return;
+      const rows = await this.channelRepository.find({
+        where: {
+          telegramChatId: channel.telegramChatId,
+          status: ChannelStatus.ACTIVE,
+        },
+      });
+      const live = rows.filter((row) => row.collectStatus !== 'merged');
+      if (live.length < 2) return;
+      const favorites = await this.channelRepository.manager
+        .createQueryBuilder()
+        .select('f.channel_id', 'id')
+        .addSelect('COUNT(*)', 'n')
+        .from('channel_favorites', 'f')
+        .where('f.channel_id IN (:...ids)', { ids: live.map((row) => row.id) })
+        .groupBy('f.channel_id')
+        .getRawMany<{ id: string; n: string | number }>();
+      const favById = new Map(
+        favorites.map((row) => [String(row.id), Number(row.n) || 0]),
+      );
+      const keep = pickKeepChannel(
+        live.map((row) => ({
+          id: row.id,
+          title: row.title,
+          isVerified: Boolean(row.isVerified),
+          isPromoted: Boolean(row.isPromoted),
+          favoriteCount: favById.get(row.id) ?? 0,
+          recommendCount: row.recommendCount ?? 0,
+          postCount: 0,
+          createdAt: row.createdAt,
+        })),
+      );
+      for (const row of live) {
+        if (row.id === keep.id) continue;
+        await this.channelRepository.update(row.id, {
+          collectStatus: 'merged',
+        });
+        await this.eventRepository.save({
+          channelId: row.id,
+          type: 'merged_into',
+          before: row.link,
+          after: keep.id,
+          occurredAt: new Date(),
+        });
+        this.logger.log(`같은 텔레그램 방 합침: ${row.id} → ${keep.id}`);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `같은 텔레그램 방 합치기 실패: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
