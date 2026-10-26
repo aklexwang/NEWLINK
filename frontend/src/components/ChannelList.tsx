@@ -62,7 +62,7 @@ export function ChannelList({
       {channels.length === 0 ? (
         <p className="px-4 pb-8 pt-2 text-center text-sm text-tg-hint">{emptyMessage}</p>
       ) : (
-        <div>
+        <div className="space-y-3 px-4">
           {channels.map((channel) => {
             const meta = getCategoryMeta(categoryEmojis, channel.category);
             return (
