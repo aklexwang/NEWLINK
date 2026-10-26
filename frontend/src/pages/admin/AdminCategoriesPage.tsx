@@ -150,9 +150,9 @@ export function AdminCategoriesPage() {
     .map((item) => item.id);
 
   // 등록된 방이 많은 카테고리부터 (분류대기는 맨 위)
-  const sortedCategories = [...categories].sort((a, b) => {
-    if (a.name === '분류대기') return -1;
-    if (b.name === '분류대기') return 1;
+  // 분류대기는 시스템 칸이라 목록에서 감추고 위에 숫자만 보여 준다
+  const pendingTotal = counts['분류대기']?.total ?? 0;
+  const sortedCategories = [...categories].filter((item) => item.name !== '분류대기').sort((a, b) => {
     return (
       (counts[b.name]?.total ?? 0) - (counts[a.name]?.total ?? 0) ||
       a.name.localeCompare(b.name, 'ko')
@@ -280,7 +280,14 @@ export function AdminCategoriesPage() {
       ) : (
         <div className="mt-6 flex max-w-3xl flex-col gap-3">
           <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-2xl bg-card p-4 shadow-[var(--hz-shadow)]">
-            <h3 className="mr-auto text-base font-bold">등록된 카테고리 ({categories.length})</h3>
+            <div className="mr-auto">
+              <h3 className="text-base font-bold">등록된 카테고리 ({sortedCategories.length})</h3>
+              {pendingTotal > 0 && (
+                <p className="mt-0.5 text-xs text-subtle">
+                  ⏳ 분류대기 {pendingTotal.toLocaleString()}개 — 매주 월요일 새벽 AI가 자동으로 카테고리를 정해요
+                </p>
+              )}
+            </div>
             <Button
               type="button"
               variant="outline"
