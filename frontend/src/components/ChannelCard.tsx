@@ -350,15 +350,6 @@ export function ChannelCard({
               </p>
             </div>
           </div>
-          {path && (
-            <button
-              type="button"
-              onClick={openDetail}
-              className="mt-3 w-full rounded-xl bg-nl-card py-2.5 text-[13px] font-semibold text-nl-accent ring-1 ring-nl-line"
-            >
-              통계·순위 자세히 보기 →
-            </button>
-          )}
         </div>
       )}
     </article>
