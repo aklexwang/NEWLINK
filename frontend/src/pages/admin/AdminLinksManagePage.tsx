@@ -31,6 +31,8 @@ import type { Channel, PendingChannel } from '../../types/channel';
 import type { CategoryItem } from '../../types/categoryItem';
 import { refreshAdminBadges } from '../../utils/adminBadges';
 import { linkTypeBadgeClass, linkTypeLabel } from '../../utils/linkType';
+import { AdminDatePicker } from '../../components/admin/AdminDatePicker';
+import { todayKstYmd } from '../../utils/ymd';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
 import { isInviteLink } from '../../utils/channelDetailPath';
 import {
@@ -706,7 +708,7 @@ export function AdminLinksManagePage() {
                       )}
                       {channel.isPromoted && <AdClientDetail channel={channel} />}
                       <div className="flex flex-wrap gap-2">
-                        <input type="date" value={promoteDates[channel.id] ?? defaultPromoteDateInput()} onChange={(e) => setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))} className="h-11 rounded-xl bg-background px-3.5 text-[15px] text-foreground ring-1 ring-border" />
+                        <AdminDatePicker className="min-w-[230px]" clearable={false} min={todayKstYmd()} value={promoteDates[channel.id] ?? defaultPromoteDateInput()} onChange={(value) => setPromoteDates((prev) => ({ ...prev, [channel.id]: value }))} />
                         <button type="button" onClick={(e) => handleAddToAds(channel, e)} className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white">
                           {channel.isPromoted ? '광고 기간 변경' : '광고 추가하기'}
                         </button>

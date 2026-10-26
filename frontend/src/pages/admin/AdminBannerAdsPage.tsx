@@ -10,6 +10,7 @@ import {
   type AdminBanner,
   type BannerForm,
 } from '../../api/ads';
+import { AdminDatePicker } from '../../components/admin/AdminDatePicker';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { AdminAdsManagePage } from './AdminAdsManagePage';
@@ -126,14 +127,21 @@ function BannerEditor({
           누르면 이동할 텔레그램 링크
           <input value={link} onChange={(e) => setLink(e.target.value)} className={inputClass} placeholder="https://t.me/아이디 또는 초대 링크" />
         </label>
-        <label className="block text-sm font-medium text-subtle">
+        <div className="block text-sm font-medium text-subtle">
           시작일 (비우면 바로)
-          <input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} className={inputClass} />
-        </label>
-        <label className="block text-sm font-medium text-subtle">
+          <AdminDatePicker className="mt-1.5" value={startsOn} onChange={setStartsOn} placeholder="바로 시작" />
+        </div>
+        <div className="block text-sm font-medium text-subtle">
           종료일 (이 날까지 노출, 비우면 계속)
-          <input type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} className={inputClass} />
-        </label>
+          <AdminDatePicker
+            className="mt-1.5"
+            value={endsOn}
+            onChange={setEndsOn}
+            placeholder="계속 노출"
+            min={startsOn || undefined}
+            quickBase={startsOn || undefined}
+          />
+        </div>
         <label className="block text-sm font-medium text-subtle">
           순서 (작을수록 먼저)
           <input type="number" min={0} max={999} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className={inputClass} />
