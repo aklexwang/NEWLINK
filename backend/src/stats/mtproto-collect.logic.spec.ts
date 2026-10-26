@@ -34,17 +34,20 @@ describe('FloodWait 대기', () => {
   it('한 번 기다린 뒤 재시도합니다', async () => {
     const slept: number[] = [];
     let calls = 0;
-    const result = await retryAfterFloodWait(async () => {
-      calls += 1;
-      if (calls === 1) {
-        const error = new Error('FLOOD_WAIT_2');
-        (error as Error & { seconds: number }).seconds = 2;
-        throw error;
-      }
-      return 'ok';
-    }, async (ms) => {
-      slept.push(ms);
-    });
+    const result = await retryAfterFloodWait(
+      async () => {
+        calls += 1;
+        if (calls === 1) {
+          const error = new Error('FLOOD_WAIT_2');
+          (error as Error & { seconds: number }).seconds = 2;
+          throw error;
+        }
+        return 'ok';
+      },
+      async (ms) => {
+        slept.push(ms);
+      },
+    );
     expect(result).toBe('ok');
     expect(calls).toBe(2);
     expect(slept).toEqual([2000]);

@@ -2,9 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  ChannelImportCandidate,
-} from '../auto-manage/channel-import-candidate.entity';
+import { ChannelImportCandidate } from '../auto-manage/channel-import-candidate.entity';
 import { Channel, ChannelStatus } from '../channels/channel.entity';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
 import { DISCOVERY_SOURCE_KEYWORD } from './channel-discovery.logic';
@@ -81,11 +79,7 @@ export class KeywordSearchService {
           queuedThis += 1;
         }
       }
-      await this.keywords.recordSearch(
-        keywords[i].id,
-        foundThis,
-        queuedThis,
-      );
+      await this.keywords.recordSearch(keywords[i].id, foundThis, queuedThis);
     }
 
     this.logger.log(

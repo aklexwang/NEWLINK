@@ -14,9 +14,9 @@ describe('수집 시간 예산', () => {
     expect(collectBudgetMinutes('light')).toBe(25);
     expect(collectBudgetMinutes('full')).toBe(70);
     expect(collectBudgetMs('light')).toBe(25 * 60_000);
-    expect(collectBudgetMinutes('light', { COLLECT_LIGHT_BUDGET_MIN: '10' })).toBe(
-      10,
-    );
+    expect(
+      collectBudgetMinutes('light', { COLLECT_LIGHT_BUDGET_MIN: '10' }),
+    ).toBe(10);
     expect(DISCOVERY_BUDGET_MIN_DEFAULT).toBe(15);
     expect(VERIFY_RECHECK_BUDGET_MIN_DEFAULT).toBe(5);
     expect(phaseBudgetMinutes('8', 15)).toBe(8);

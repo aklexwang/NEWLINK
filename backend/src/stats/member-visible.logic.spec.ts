@@ -82,7 +82,11 @@ describe('회원 노출 규칙 통일', () => {
   });
 
   it('상세 페이지용 대표는 노출 가능한 행 → 가장 좋은 행 순서다', () => {
-    const pendingLike = ch({ id: 'a', category: '분류대기', memberCount: 9999 });
+    const pendingLike = ch({
+      id: 'a',
+      category: '분류대기',
+      memberCount: 9999,
+    });
     const visibleSmall = ch({ id: 'b', memberCount: 10 });
     const visibleBig = ch({ id: 'c', memberCount: 500 });
     expect(pickBestMemberRow([pendingLike, visibleSmall, visibleBig])?.id).toBe(
@@ -124,7 +128,10 @@ describe('사이트맵 선택', () => {
 
   it('username 이 없는 행은 넣지 않는다', () => {
     expect(
-      selectSitemapEntries([ch({ username: null }), ch({ username: '  ' })] as never[]),
+      selectSitemapEntries([
+        ch({ username: null }),
+        ch({ username: '  ' }),
+      ] as never[]),
     ).toHaveLength(0);
   });
 });

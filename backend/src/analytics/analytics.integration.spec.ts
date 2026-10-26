@@ -252,11 +252,14 @@ describe('analytics (SQLite 메모리 DB)', () => {
 
     it('인사이트: 인기·0건·막힌 검색어와 합계를 돌려준다', async () => {
       const send = (query: string, resultCount: number, blocked = false) =>
-        logService.recordFromRequest(fakeReq({ ip: `10.0.0.${Math.random()}` }), {
-          query,
-          resultCount,
-          blocked,
-        });
+        logService.recordFromRequest(
+          fakeReq({ ip: `10.0.0.${Math.random()}` }),
+          {
+            query,
+            resultCount,
+            blocked,
+          },
+        );
       await send('코인', 5);
       await send('코인', 5);
       await send('없는검색어', 0);
@@ -268,7 +271,10 @@ describe('analytics (SQLite 메모리 DB)', () => {
         zeroCount: 1,
         blockedCount: 1,
       });
-      expect(result.popular[0]).toMatchObject({ query: '코인', searchCount: 2 });
+      expect(result.popular[0]).toMatchObject({
+        query: '코인',
+        searchCount: 2,
+      });
       expect(result.popular.map((r) => r.query)).not.toContain('마약');
       expect(result.zero.map((r) => r.query)).toEqual(['없는검색어']);
       expect(result.blocked.map((r) => r.query)).toEqual(['마약']);
@@ -336,7 +342,9 @@ describe('analytics (SQLite 메모리 DB)', () => {
         ),
       );
       expect(results.filter((r) => r.counted)).toHaveLength(1);
-      expect((await dailyRepo.findOneByOrFail({ channelId })).openCount).toBe(1);
+      expect((await dailyRepo.findOneByOrFail({ channelId })).openCount).toBe(
+        1,
+      );
     });
 
     it('날짜가 바뀌면(KST) 새 날짜 행에 센다', async () => {
@@ -498,11 +506,41 @@ describe('analytics (SQLite 메모리 DB)', () => {
       const old = '2026-07-01'; // 116일 전
       const recentDay = '2026-09-20'; // 35일 전
       await statRepo.insert([
-        { statDate: old, queryNormalized: 'once', searchCount: 1, zeroCount: 0, blockedCount: 0 },
-        { statDate: old, queryNormalized: 'twice', searchCount: 2, zeroCount: 0, blockedCount: 0 },
-        { statDate: old, queryNormalized: 'blocked-once', searchCount: 1, zeroCount: 0, blockedCount: 1 },
-        { statDate: old, queryNormalized: 'zero-once', searchCount: 1, zeroCount: 1, blockedCount: 0 },
-        { statDate: recentDay, queryNormalized: 'once', searchCount: 1, zeroCount: 0, blockedCount: 0 },
+        {
+          statDate: old,
+          queryNormalized: 'once',
+          searchCount: 1,
+          zeroCount: 0,
+          blockedCount: 0,
+        },
+        {
+          statDate: old,
+          queryNormalized: 'twice',
+          searchCount: 2,
+          zeroCount: 0,
+          blockedCount: 0,
+        },
+        {
+          statDate: old,
+          queryNormalized: 'blocked-once',
+          searchCount: 1,
+          zeroCount: 0,
+          blockedCount: 1,
+        },
+        {
+          statDate: old,
+          queryNormalized: 'zero-once',
+          searchCount: 1,
+          zeroCount: 1,
+          blockedCount: 0,
+        },
+        {
+          statDate: recentDay,
+          queryNormalized: 'once',
+          searchCount: 1,
+          zeroCount: 0,
+          blockedCount: 0,
+        },
       ]);
 
       const result = await retention.cleanup(NOW);
@@ -520,19 +558,35 @@ describe('analytics (SQLite 메모리 DB)', () => {
 
     it('이동 임시 표는 48시간 뒤, 삭제된 채널의 일별 이동 수는 고아로 지운다', async () => {
       await recentRepo.insert([
-        { channelId, visitorHash: 'old', lastCountedAt: new Date(NOW.getTime() - 49 * 3_600_000) },
-        { channelId, visitorHash: 'fresh', lastCountedAt: new Date(NOW.getTime() - 47 * 3_600_000) },
+        {
+          channelId,
+          visitorHash: 'old',
+          lastCountedAt: new Date(NOW.getTime() - 49 * 3_600_000),
+        },
+        {
+          channelId,
+          visitorHash: 'fresh',
+          lastCountedAt: new Date(NOW.getTime() - 47 * 3_600_000),
+        },
       ]);
       await dailyRepo.insert([
         { channelId, openDate: '2026-10-24', openCount: 3 },
-        { channelId: '00000000-0000-4000-8000-0000000000aa', openDate: '2026-10-24', openCount: 9 },
+        {
+          channelId: '00000000-0000-4000-8000-0000000000aa',
+          openDate: '2026-10-24',
+          openCount: 9,
+        },
       ]);
 
       const result = await retention.cleanup(NOW);
       expect(result.openRecent).toBe(1);
       expect(result.openDailyOrphans).toBe(1);
-      expect((await recentRepo.find()).map((row) => row.visitorHash)).toEqual(['fresh']);
-      expect((await dailyRepo.find()).map((row) => row.channelId)).toEqual([channelId]);
+      expect((await recentRepo.find()).map((row) => row.visitorHash)).toEqual([
+        'fresh',
+      ]);
+      expect((await dailyRepo.find()).map((row) => row.channelId)).toEqual([
+        channelId,
+      ]);
     });
 
     it('runOnce 는 오류를 던지지 않고 동시 실행을 막는다', async () => {

@@ -39,7 +39,9 @@ describe('회원 검색 API 의 금지어 판정', () => {
   it('검색어를 직접 받는 회원 컨트롤러는 searchTerms.check 를 호출한다', () => {
     const offenders = controllers
       .filter((file) => SEARCH_PARAM.test(readFileSync(file, 'utf8')))
-      .filter((file) => !/searchTerms\.check\(/.test(readFileSync(file, 'utf8')))
+      .filter(
+        (file) => !/searchTerms\.check\(/.test(readFileSync(file, 'utf8')),
+      )
       .map((file) => relative(SRC, file));
     expect(offenders).toEqual([]);
   });

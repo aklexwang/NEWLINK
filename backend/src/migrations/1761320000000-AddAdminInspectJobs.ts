@@ -99,7 +99,12 @@ export class AddAdminInspectJobs1761320000000 implements MigrationInterface {
             isNullable: false,
           },
           { name: 'line_no', type: 'integer', isNullable: false },
-          { name: 'raw_input', type: 'varchar', length: '512', isNullable: false },
+          {
+            name: 'raw_input',
+            type: 'varchar',
+            length: '512',
+            isNullable: false,
+          },
           { name: 'link', type: 'varchar', length: '512', isNullable: true },
           {
             name: 'username',

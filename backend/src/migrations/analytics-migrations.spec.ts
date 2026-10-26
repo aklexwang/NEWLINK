@@ -74,9 +74,7 @@ describe.each(cases)('$label up/down/up', (testCase) => {
     await migration.up(runner);
     for (const table of testCase.tables) {
       expect(await runner.hasTable(table)).toBe(true);
-      const rows = (await dataSource.query(
-        `SELECT COUNT(*) AS n FROM ${table}`,
-      )) as Array<{ n: number }>;
+      const rows = await dataSource.query(`SELECT COUNT(*) AS n FROM ${table}`);
       expect(Number(rows[0].n)).toBe(0);
     }
     await runner.release();
@@ -120,12 +118,10 @@ describe('제약 조건', () => {
     await dataSource.query(
       "INSERT INTO search_logs (id, query_normalized, query_raw, searched_on, created_at) VALUES ('l', 'x', 'x', '2026-01-01', '2026-01-01')",
     );
-    const term = (await dataSource.query(
-      'SELECT enabled FROM search_terms',
-    )) as Array<{ enabled: number }>;
-    const log = (await dataSource.query(
+    const term = await dataSource.query('SELECT enabled FROM search_terms');
+    const log = await dataSource.query(
       'SELECT blocked, result_count FROM search_logs',
-    )) as Array<{ blocked: number; result_count: number }>;
+    );
     expect(Number(term[0].enabled)).toBe(1);
     expect(Number(log[0].blocked)).toBe(0);
     expect(Number(log[0].result_count)).toBe(0);

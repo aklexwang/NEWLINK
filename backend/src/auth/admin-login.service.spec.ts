@@ -33,7 +33,9 @@ describe('관리자 로그인', () => {
     };
     const config = {
       get: (key: string, defaultValue?: string) =>
-        Object.prototype.hasOwnProperty.call(values, key) ? values[key] : defaultValue,
+        Object.prototype.hasOwnProperty.call(values, key)
+          ? values[key]
+          : defaultValue,
       getOrThrow: (key: string) => {
         if (!Object.prototype.hasOwnProperty.call(values, key)) {
           throw new Error(key);
@@ -56,31 +58,27 @@ describe('관리자 로그인', () => {
   it('아이디와 비밀번호가 맞으면 12시간짜리 관리자 JWT 를 발급한다', async () => {
     const { service, jwtService, jwtAuth } = createService();
     const result = await service.login(USERNAME, PASSWORD, '203.0.113.8');
-    const decoded = jwtService.decode(result.accessToken) as {
-      role: string;
-      aud: string;
-      sub: string;
-      exp: number;
-      iat: number;
-    };
+    const decoded = jwtService.decode(result.accessToken);
 
     expect(decoded.role).toBe('admin');
     expect(decoded.aud).toBe(ADMIN_JWT_AUDIENCE);
     expect(decoded.sub).toBe(USERNAME);
     expect(decoded.exp - decoded.iat).toBe(12 * 60 * 60);
     expect(jwtAuth.verifyAdmin(result.accessToken).role).toBe('admin');
-    expect(() => jwtAuth.verify(result.accessToken)).toThrow(UnauthorizedException);
+    expect(() => jwtAuth.verify(result.accessToken)).toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('아이디나 비밀번호가 틀리면 같은 오류를 낸다', async () => {
     const { service } = createService();
 
-    await expect(service.login('other', PASSWORD, '203.0.113.9')).rejects.toThrow(
-      ADMIN_LOGIN_INVALID_MESSAGE,
-    );
-    await expect(service.login(USERNAME, 'wrong-password', '203.0.113.10')).rejects.toThrow(
-      ADMIN_LOGIN_INVALID_MESSAGE,
-    );
+    await expect(
+      service.login('other', PASSWORD, '203.0.113.9'),
+    ).rejects.toThrow(ADMIN_LOGIN_INVALID_MESSAGE);
+    await expect(
+      service.login(USERNAME, 'wrong-password', '203.0.113.10'),
+    ).rejects.toThrow(ADMIN_LOGIN_INVALID_MESSAGE);
   });
 
   it('같은 IP 에서 5번 실패하면 15분 동안 로그인을 막는다', async () => {
@@ -90,9 +88,9 @@ describe('관리자 로그인', () => {
     const ip = '198.51.100.20';
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      await expect(service.login(USERNAME, 'wrong-password', ip)).rejects.toThrow(
-        ADMIN_LOGIN_INVALID_MESSAGE,
-      );
+      await expect(
+        service.login(USERNAME, 'wrong-password', ip),
+      ).rejects.toThrow(ADMIN_LOGIN_INVALID_MESSAGE);
     }
 
     try {

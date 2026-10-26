@@ -18,9 +18,7 @@ export function clampAdminPage(raw: string | number | undefined): number {
   return Math.floor(n);
 }
 
-export function clampAdminPageSize(
-  raw: string | number | undefined,
-): number {
+export function clampAdminPageSize(raw: string | number | undefined): number {
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 1) return ADMIN_LIST_DEFAULT_PAGE_SIZE;
   return Math.min(Math.floor(n), ADMIN_LIST_MAX_PAGE_SIZE);
@@ -114,6 +112,7 @@ export function paginateItems<T>(
 
 function time(value: Date | string | null | undefined): number {
   if (value == null) return 0;
-  const at = value instanceof Date ? value.getTime() : Date.parse(String(value));
+  const at =
+    value instanceof Date ? value.getTime() : Date.parse(String(value));
   return Number.isFinite(at) ? at : 0;
 }

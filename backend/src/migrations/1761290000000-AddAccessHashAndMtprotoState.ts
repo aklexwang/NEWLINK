@@ -1,9 +1,4 @@
-import {
-  MigrationInterface,
-  QueryRunner,
-  Table,
-  TableColumn,
-} from 'typeorm';
+import { MigrationInterface, QueryRunner, Table, TableColumn } from 'typeorm';
 
 function isSqlite(queryRunner: QueryRunner): boolean {
   const type = queryRunner.connection.options.type;
@@ -14,9 +9,7 @@ function datetimeType(sqlite: boolean): string {
   return sqlite ? 'datetime' : 'timestamp';
 }
 
-export class AddAccessHashAndMtprotoState1761290000000
-  implements MigrationInterface
-{
+export class AddAccessHashAndMtprotoState1761290000000 implements MigrationInterface {
   name = 'AddAccessHashAndMtprotoState1761290000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

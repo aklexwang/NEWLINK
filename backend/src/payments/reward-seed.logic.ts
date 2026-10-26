@@ -55,7 +55,9 @@ export function shouldCopyTonPayment(
   return Boolean(paymentId) && !seenSourceIds.has(paymentId as string);
 }
 
-export function shouldGapFillRewardChannel(existingLedgerCount: number): boolean {
+export function shouldGapFillRewardChannel(
+  existingLedgerCount: number,
+): boolean {
   return existingLedgerCount === 0;
 }
 

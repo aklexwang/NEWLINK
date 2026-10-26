@@ -112,9 +112,7 @@ const AUTH_FATAL_CODES = [
 
 export function isMtprotoMethodAllowed(method: string): boolean {
   const name = normalizeMethodName(method);
-  if (
-    (MTPROTO_FORBIDDEN_METHODS as readonly string[]).includes(name)
-  ) {
+  if ((MTPROTO_FORBIDDEN_METHODS as readonly string[]).includes(name)) {
     return false;
   }
   return (MTPROTO_ALLOWED_METHODS as readonly string[]).includes(name);

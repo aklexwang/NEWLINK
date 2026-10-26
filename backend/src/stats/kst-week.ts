@@ -70,7 +70,5 @@ export function isAfterIsoWeek(
   todayYmd: string,
 ): boolean {
   const current = currentIsoWeek(todayYmd);
-  return (
-    year > current.year || (year === current.year && week > current.week)
-  );
+  return year > current.year || (year === current.year && week > current.week);
 }

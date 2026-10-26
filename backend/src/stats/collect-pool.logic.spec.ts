@@ -122,8 +122,11 @@ describe('runCollectPool', () => {
   });
 
   it('진행 상황을 항목마다 알린다', async () => {
-    const progress: Array<{ processed: number; total: number; failed: number }> =
-      [];
+    const progress: Array<{
+      processed: number;
+      total: number;
+      failed: number;
+    }> = [];
     await runCollectPool({
       items: ['a', 'b'],
       workers: 1,

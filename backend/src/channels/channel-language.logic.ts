@@ -106,18 +106,21 @@ export function hangulRatio(text: string): number {
 function nonemptyExcerpts(
   excerpts: Array<string | null | undefined> | undefined,
 ): string[] {
-  return (excerpts ?? [])
-    .map((part) => (part ?? '').trim())
-    .filter(Boolean);
+  return (excerpts ?? []).map((part) => (part ?? '').trim()).filter(Boolean);
 }
 
-export function hasDistinctForeignScript(text: string | null | undefined): boolean {
+export function hasDistinctForeignScript(
+  text: string | null | undefined,
+): boolean {
   return detectDistinctForeignScript(text ?? '') != null;
 }
 
 function detectDistinctForeignScript(
   text: string,
-): Extract<LanguageDetectReason, 'cyrillic' | 'arabic' | 'thai' | 'other_script'> | null {
+): Extract<
+  LanguageDetectReason,
+  'cyrillic' | 'arabic' | 'thai' | 'other_script'
+> | null {
   let best: {
     reason: Extract<
       LanguageDetectReason,

@@ -271,7 +271,10 @@ export class AdminController {
   }
 
   @Patch(':id/approve')
-  approve(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ApproveChannelDto) {
+  approve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApproveChannelDto,
+  ) {
     return this.channelsService.approve(id, dto.isPromoted ?? false);
   }
 
@@ -281,7 +284,10 @@ export class AdminController {
   }
 
   @Patch(':id/promote')
-  promote(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PromoteChannelDto) {
+  promote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PromoteChannelDto,
+  ) {
     return this.channelsService.promote(id, {
       durationDays: dto.durationDays,
       promotedUntil: dto.promotedUntil
@@ -294,7 +300,10 @@ export class AdminController {
   }
 
   @Post(':id/reward')
-  async recordReward(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordRewardDto) {
+  async recordReward(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RecordRewardDto,
+  ) {
     const result = await this.rewardPayout.recordChannelPayout(id, {
       amountTon: dto.amountTon,
       amount: dto.amount,
@@ -324,29 +333,29 @@ export class AdminController {
     return this.channelsService.updateAdmin(
       id,
       {
-      title: dto.title,
-      titleLocked: dto.titleLocked,
-      category: dto.category,
-      linkType: dto.linkType,
-      status: dto.status,
-      isPromoted: dto.isPromoted,
-      promotedUntil:
-        dto.promotedUntil === undefined
-          ? undefined
-          : dto.promotedUntil
-            ? new Date(dto.promotedUntil)
-            : null,
-      promotionClientTelegramId: dto.promotionClientTelegramId,
-      promotionClientName: dto.promotionClientName,
-      promotionTonAmount: dto.promotionTonAmount,
-      avatarUrl: dto.avatarUrl,
-      avatarApproved: dto.avatarApproved,
-      language: dto.language,
-      languageLocked: dto.languageLocked,
-      link: dto.link,
-      isVisible: dto.isVisible,
-      categoryLocked: dto.categoryLocked,
-      illegalCleared: dto.illegalCleared,
+        title: dto.title,
+        titleLocked: dto.titleLocked,
+        category: dto.category,
+        linkType: dto.linkType,
+        status: dto.status,
+        isPromoted: dto.isPromoted,
+        promotedUntil:
+          dto.promotedUntil === undefined
+            ? undefined
+            : dto.promotedUntil
+              ? new Date(dto.promotedUntil)
+              : null,
+        promotionClientTelegramId: dto.promotionClientTelegramId,
+        promotionClientName: dto.promotionClientName,
+        promotionTonAmount: dto.promotionTonAmount,
+        avatarUrl: dto.avatarUrl,
+        avatarApproved: dto.avatarApproved,
+        language: dto.language,
+        languageLocked: dto.languageLocked,
+        link: dto.link,
+        isVisible: dto.isVisible,
+        categoryLocked: dto.categoryLocked,
+        illegalCleared: dto.illegalCleared,
       },
       user.id,
     );

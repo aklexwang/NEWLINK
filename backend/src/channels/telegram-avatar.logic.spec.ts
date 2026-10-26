@@ -18,18 +18,20 @@ describe('telegram-avatar.logic', () => {
         'https://api.telegram.org/file/botSECRET/photos/file.jpg',
       ),
     ).toBeNull();
-    expect(stripUnsafeAvatarUrl('https://cdn4.telegram-cdn.org/file/a.jpg')).toBe(
-      'https://cdn4.telegram-cdn.org/file/a.jpg',
-    );
+    expect(
+      stripUnsafeAvatarUrl('https://cdn4.telegram-cdn.org/file/a.jpg'),
+    ).toBe('https://cdn4.telegram-cdn.org/file/a.jpg');
   });
 
   it('아바타 입력은 t.me·telegram.me 만 받고 evilt.me 를 막는다', () => {
     expect(parseTelegramAvatarPageLink('https://t.me/NewsKorea').ok).toBe(true);
-    expect(parseTelegramAvatarPageLink('https://telegram.me/NewsKorea').ok).toBe(
-      true,
-    );
+    expect(
+      parseTelegramAvatarPageLink('https://telegram.me/NewsKorea').ok,
+    ).toBe(true);
     expect(parseTelegramAvatarPageLink('https://evilt.me/x').ok).toBe(false);
-    expect(parseTelegramAvatarPageLink('https://t.me.evil.com/x').ok).toBe(false);
+    expect(parseTelegramAvatarPageLink('https://t.me.evil.com/x').ok).toBe(
+      false,
+    );
     expect(parseTelegramAvatarPageLink(undefined, 'NewsKorea').ok).toBe(true);
   });
 
@@ -42,9 +44,10 @@ describe('telegram-avatar.logic', () => {
 
   it('제보 링크는 t.me / telegram.me 만 받는다', () => {
     expect(isTelegramSubmitLink('https://t.me/NewsKorea')).toBe(true);
-    expect(isTelegramSubmitLink('https://www.telegram.me/NewsKorea')).toBe(true);
+    expect(isTelegramSubmitLink('https://www.telegram.me/NewsKorea')).toBe(
+      true,
+    );
     expect(isTelegramSubmitLink('https://evilt.me/x')).toBe(false);
     expect(isTelegramSubmitLink('https://example.com/foo')).toBe(false);
   });
 });
-

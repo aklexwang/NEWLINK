@@ -68,10 +68,16 @@ export function parseTelegramAvatarPageLink(
     try {
       const parsed = new URL(rawLink);
       if (!/^https?:$/i.test(parsed.protocol)) {
-        return { ok: false, message: 't.me 또는 telegram.me 링크만 허용합니다.' };
+        return {
+          ok: false,
+          message: 't.me 또는 telegram.me 링크만 허용합니다.',
+        };
       }
       if (!isAllowedTelegramPageHost(parsed.hostname)) {
-        return { ok: false, message: 't.me 또는 telegram.me 링크만 허용합니다.' };
+        return {
+          ok: false,
+          message: 't.me 또는 telegram.me 링크만 허용합니다.',
+        };
       }
       return { ok: true, link: parsed.toString() };
     } catch {

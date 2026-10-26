@@ -26,7 +26,7 @@ describe('AddChannelNextCollectAt1761400000000', () => {
   });
 
   async function rows<T>(sql: string): Promise<T[]> {
-    return (await dataSource.query(sql)) as T[];
+    return await dataSource.query(sql);
   }
 
   async function indexNames(): Promise<string[]> {
@@ -59,7 +59,9 @@ describe('AddChannelNextCollectAt1761400000000', () => {
 
     await migration.down(runner);
     expect(await runner.hasColumn('channels', 'next_collect_at')).toBe(false);
-    expect(await runner.hasColumn('channels', 'collect_gone_count')).toBe(false);
+    expect(await runner.hasColumn('channels', 'collect_gone_count')).toBe(
+      false,
+    );
     expect(await indexNames()).toEqual([]);
     // 원래 칸과 데이터는 그대로
     const afterDown = await rows<{ f: number }>(

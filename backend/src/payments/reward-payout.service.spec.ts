@@ -1,5 +1,8 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
-import { DUPLICATE_PAYOUT_MESSAGE, RewardPayoutService } from './reward-payout.service';
+import {
+  DUPLICATE_PAYOUT_MESSAGE,
+  RewardPayoutService,
+} from './reward-payout.service';
 
 function serviceWith(opts?: {
   records?: Array<Record<string, unknown>>;
@@ -7,13 +10,15 @@ function serviceWith(opts?: {
 }) {
   const records = opts?.records ?? [];
   const recordRepository = {
-    find: jest.fn().mockImplementation(async (args?: { where?: { status?: unknown } }) => {
-      const status = args?.where?.status;
-      if (typeof status === 'string') {
-        return records.filter((row) => row.status === status);
-      }
-      return records;
-    }),
+    find: jest
+      .fn()
+      .mockImplementation(async (args?: { where?: { status?: unknown } }) => {
+        const status = args?.where?.status;
+        if (typeof status === 'string') {
+          return records.filter((row) => row.status === status);
+        }
+        return records;
+      }),
     findOneBy: jest.fn().mockImplementation(async (where: { id?: string }) => {
       return records.find((row) => row.id === where.id) ?? null;
     }),
@@ -121,7 +126,9 @@ describe('수단별 지급', () => {
 
   it('sending 확정은 TX가 필요하다', async () => {
     const { svc } = serviceWith({
-      records: [{ id: 'rec-1', channelId: 'ch-1', status: 'sending', amount: 1 }],
+      records: [
+        { id: 'rec-1', channelId: 'ch-1', status: 'sending', amount: 1 },
+      ],
     });
     await expect(svc.confirmRecord('rec-1', '')).rejects.toBeInstanceOf(
       BadRequestException,

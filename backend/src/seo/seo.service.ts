@@ -10,7 +10,10 @@ import {
   sitemapPageCount,
   SITEMAP_PAGE_SIZE,
 } from './sitemap-xml';
-import { selectSitemapEntries, type SitemapEntry } from './sitemap-select.logic';
+import {
+  selectSitemapEntries,
+  type SitemapEntry,
+} from './sitemap-select.logic';
 
 const DEFAULT_SITE = 'https://global-spay.com';
 /** 노출 판정이 무거워 크롤러가 여러 페이지를 연달아 받을 때 한 번만 계산한다 */

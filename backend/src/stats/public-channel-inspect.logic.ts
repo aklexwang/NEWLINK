@@ -75,10 +75,7 @@ export function publicInspectDecision(
   if (language === 'foreign') {
     return { result: 'not_korean', language, linkType, kind };
   }
-  if (
-    page.memberCount == null ||
-    page.memberCount < AUTO_EXPOSE_MIN_MEMBERS
-  ) {
+  if (page.memberCount == null || page.memberCount < AUTO_EXPOSE_MIN_MEMBERS) {
     return { result: 'too_small', language, linkType, kind };
   }
   if (language !== 'ko') {
@@ -217,7 +214,8 @@ export function classifyTmeHref(
 ): TmeHrefClass {
   const extracted = extractTelegramUsernameFromLink(raw);
   if (extracted) {
-    if (!isDiscoverableUsername(extracted, selfUsername)) return { kind: 'skip' };
+    if (!isDiscoverableUsername(extracted, selfUsername))
+      return { kind: 'skip' };
     return { kind: 'username', username: extracted };
   }
   if (isInviteOnlyLink(raw)) return { kind: 'skip' };

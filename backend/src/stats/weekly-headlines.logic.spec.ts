@@ -35,13 +35,13 @@ describe('isWeeklyHeadlineChannel', () => {
     expect(isWeeklyHeadlineChannel(ch({ language: 'foreign' }))).toBe(false);
     expect(isWeeklyHeadlineChannel(ch({ isVisible: false }))).toBe(false);
     expect(isWeeklyHeadlineChannel(ch({ status: 'pending' }))).toBe(false);
-    expect(
-      isWeeklyHeadlineChannel(ch({ collectStatus: 'invalid' })),
-    ).toBe(false);
+    expect(isWeeklyHeadlineChannel(ch({ collectStatus: 'invalid' }))).toBe(
+      false,
+    );
     expect(isWeeklyHeadlineChannel(ch({ collectStatus: 'gone' }))).toBe(false);
-    expect(
-      isWeeklyHeadlineChannel(ch({ collectStatus: 'merged' })),
-    ).toBe(false);
+    expect(isWeeklyHeadlineChannel(ch({ collectStatus: 'merged' }))).toBe(
+      false,
+    );
     expect(
       isWeeklyHeadlineChannel(ch({ collectStatus: 'invite_expired' })),
     ).toBe(false);

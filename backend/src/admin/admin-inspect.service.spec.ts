@@ -114,9 +114,11 @@ function buildService(overrides?: {
 describe('AdminInspectService 부팅', () => {
   it('status=running 인 job 을 interrupted 로 바꾼다', async () => {
     const jobRepository = {
-      find: jest.fn().mockResolvedValue([
-        { id: 'job-running', status: 'running', finishedAt: null },
-      ]),
+      find: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'job-running', status: 'running', finishedAt: null },
+        ]),
       update: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
     };
@@ -147,9 +149,7 @@ describe('AdminInspectService 부팅', () => {
       status: 200,
       finalUrl: 'https://t.me/+uI8tNLAF57MzMThk',
     });
-    const view = await service.inspectOne(
-      'https://t.me/+uI8tNLAF57MzMThk',
-    );
+    const view = await service.inspectOne('https://t.me/+uI8tNLAF57MzMThk');
     expect(view.result).toBe('ok');
     expect(view.resultCaption).toBe('정상');
     expect(view.linkType).toBe('group');
@@ -333,4 +333,5 @@ describe('AdminInspectService 부팅', () => {
     expect(createByAdmin).toHaveBeenLastCalledWith(expect.anything(), {
       reactivateRejected: true,
     });
-  });});
+  });
+});

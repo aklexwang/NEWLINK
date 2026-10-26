@@ -34,10 +34,7 @@ describe('수집 큐 뽑기 (selectDueChannels)', () => {
     await dataSource.destroy();
   });
 
-  async function add(
-    id: string,
-    extra: Partial<Channel> = {},
-  ): Promise<void> {
+  async function add(id: string, extra: Partial<Channel> = {}): Promise<void> {
     await repo.insert({
       id,
       title: `제목 ${id}`,
@@ -72,13 +69,7 @@ describe('수집 큐 뽑기 (selectDueChannels)', () => {
     await add('never-b', { lastCollectedAt: ago(2 * DAY) });
     await add('never-a'); // 한 번도 수집 안 한 채널이 가장 먼저
 
-    expect(await ids()).toEqual([
-      'never-a',
-      'never-b',
-      'early',
-      'mid',
-      'late',
-    ]);
+    expect(await ids()).toEqual(['never-a', 'never-b', 'early', 'mid', 'late']);
   });
 
   it('LIMIT 만큼만 뽑는다 (가장 밀린 것부터)', async () => {

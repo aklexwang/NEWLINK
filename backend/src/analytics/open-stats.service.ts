@@ -40,7 +40,12 @@ export class OpenStatsService {
     range: AnalyticsRange,
     limit = 50,
     now: Date = new Date(),
-  ): Promise<{ range: AnalyticsRange; from: string; to: string; items: OpenRankingRow[] }> {
+  ): Promise<{
+    range: AnalyticsRange;
+    from: string;
+    to: string;
+    items: OpenRankingRow[];
+  }> {
     const { from, to } = analyticsRangeDates(range, now);
     const safeLimit = Math.min(Math.max(Math.floor(limit) || 50, 1), 200);
 

@@ -81,9 +81,9 @@ describe('수집 겹침', () => {
     expect(
       decideCollectOverlap({ requested: 'full', running: 'full' }),
     ).toEqual({ action: 'skip_busy' });
-    expect(
-      decideCollectOverlap({ requested: 'full', running: null }),
-    ).toEqual({ action: 'start' });
+    expect(decideCollectOverlap({ requested: 'full', running: null })).toEqual({
+      action: 'start',
+    });
   });
 });
 
@@ -134,7 +134,9 @@ describe('피드 마지막 게시', () => {
 describe('light 미리보기에 글이 없을 때', () => {
   it('이미 수집된 적 있는 채널은 failed 로 덮어쓰지 않는다', () => {
     expect(
-      shouldMarkLightNoPostsFailed({ firstObservedAt: new Date('2026-10-20T00:00:00Z') }),
+      shouldMarkLightNoPostsFailed({
+        firstObservedAt: new Date('2026-10-20T00:00:00Z'),
+      }),
     ).toBe(false);
   });
 

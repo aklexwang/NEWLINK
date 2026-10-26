@@ -172,7 +172,9 @@ export function parseTelegramChannelHtml(html: string): ParsedTelegramPreview {
  * 소개글처럼 줄바꿈이 뜻을 갖는 글을 정리한다. 줄 안의 공백은 하나로 줄이되
  * 줄바꿈은 남기고, 연속된 빈 줄은 한 줄로 합친다.
  */
-export function normalizeMultilineText(raw: string | null | undefined): string | null {
+export function normalizeMultilineText(
+  raw: string | null | undefined,
+): string | null {
   const text = (raw ?? '')
     .replace(/\r\n?/g, '\n')
     .split('\n')
@@ -248,7 +250,8 @@ function parsePosts($: CheerioAPI): ParsedPreviewPost[] {
         .first()
         .attr('href') ?? null;
     const forwardedFrom = forwardedHref?.trim() || null;
-    const selfUsername = dataPost.split('/')[0]?.replace(/^@/, '').trim() || null;
+    const selfUsername =
+      dataPost.split('/')[0]?.replace(/^@/, '').trim() || null;
     const mentionedUsernames = extractTmeUsernamesFromHtml(
       node.html() ?? '',
       selfUsername,
@@ -322,7 +325,9 @@ export function joinMentionedUsernames(names: string[]): string | null {
   return unique.length > 0 ? unique.join(',') : null;
 }
 
-export function splitMentionedUsernames(raw: string | null | undefined): string[] {
+export function splitMentionedUsernames(
+  raw: string | null | undefined,
+): string[] {
   if (!raw?.trim()) return [];
   return raw
     .split(/[,;\s]+/)
@@ -373,7 +378,9 @@ export type ParsedPublicUsernamePage = {
 };
 
 /** t.me/{username} 공개 페이지. 채널/그룹 구분·제목·소개·인원 */
-export function parsePublicUsernamePage(html: string): ParsedPublicUsernamePage {
+export function parsePublicUsernamePage(
+  html: string,
+): ParsedPublicUsernamePage {
   const classified = classifyTelegramAccountHtml(html);
   const $ = load(html);
   const title =
@@ -383,7 +390,9 @@ export function parsePublicUsernamePage(html: string): ParsedPublicUsernamePage 
     null;
   const description =
     multilineTextOrNull($('.tgme_page_description').first()) ||
-    normalizeMultilineText($('meta[property="og:description"]').attr('content')) ||
+    normalizeMultilineText(
+      $('meta[property="og:description"]').attr('content'),
+    ) ||
     null;
   const extra = textOrNull($('.tgme_page_extra').first());
   const memberCount = parseTelegramExtraMemberCount(extra);
@@ -453,7 +462,9 @@ export function parseInviteLinkHtml(
   const extra = textOrNull($('.tgme_page_extra').first());
   const description =
     multilineTextOrNull($('.tgme_page_description').first()) ||
-    normalizeMultilineText($('meta[property="og:description"]').attr('content')) ||
+    normalizeMultilineText(
+      $('meta[property="og:description"]').attr('content'),
+    ) ||
     null;
   const rawAvatar =
     $('meta[property="og:image"]').attr('content')?.trim() ||

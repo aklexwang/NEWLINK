@@ -3,10 +3,7 @@ export function isSqliteDriver(type: string): boolean {
 }
 
 /** TypeORM TableColumn default. SQLite 는 0/1, Postgres 는 false/true 리터럴. */
-export function migrationBoolDefault(
-  sqlite: boolean,
-  value: boolean,
-): string {
+export function migrationBoolDefault(sqlite: boolean, value: boolean): string {
   if (sqlite) return value ? '1' : '0';
   return value ? 'true' : 'false';
 }

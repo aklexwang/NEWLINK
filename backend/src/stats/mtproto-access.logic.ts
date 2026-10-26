@@ -27,13 +27,18 @@ export function canReuseStoredAccess(channel: {
   telegramChatId?: number | null;
   telegramAccessHash?: string | null;
 }): boolean {
-  if (channel.telegramChatId == null || !Number.isFinite(channel.telegramChatId)) {
+  if (
+    channel.telegramChatId == null ||
+    !Number.isFinite(channel.telegramChatId)
+  ) {
     return false;
   }
   return serializeAccessHash(channel.telegramAccessHash) != null;
 }
 
-export function isStoredAccessInvalid(code: string | null | undefined): boolean {
+export function isStoredAccessInvalid(
+  code: string | null | undefined,
+): boolean {
   return INVALID_STORED_ACCESS_CODES.has((code ?? '').trim());
 }
 
@@ -45,9 +50,7 @@ export function canSpendResolve(
 }
 
 export function isResolveOrSearchMethod(method: string): boolean {
-  return (
-    method === 'contacts.ResolveUsername' || method === 'contacts.Search'
-  );
+  return method === 'contacts.ResolveUsername' || method === 'contacts.Search';
 }
 
 export function mtprotoCallGapMs(input: {

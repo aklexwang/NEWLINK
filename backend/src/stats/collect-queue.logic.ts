@@ -56,7 +56,8 @@ export interface CollectBandInput {
 
 function toMs(value: Date | string | null | undefined): number | null {
   if (value == null || value === '') return null;
-  const at = value instanceof Date ? value.getTime() : Date.parse(String(value));
+  const at =
+    value instanceof Date ? value.getTime() : Date.parse(String(value));
   return Number.isFinite(at) ? at : null;
 }
 
@@ -105,7 +106,9 @@ export function collectIntervalMs(
  * 실패가 이어질 때 목표 간격에 곱하는 수. 실패 횟수(collect_fail_count, 이번 실패 포함) 기준:
  * 1회 → 1배, 2회 → 2배, 3회 이상 → 4배.
  */
-export function failureBackoffMultiplier(failCount: number | null | undefined): number {
+export function failureBackoffMultiplier(
+  failCount: number | null | undefined,
+): number {
   const n = Math.max(0, Math.floor(Number(failCount) || 0));
   if (n <= 1) return 1;
   if (n === 2) return 2;
@@ -154,7 +157,8 @@ export function nextFullWindowAt(now = new Date()): Date {
     0,
   );
   const targetUtc = target - KST_OFFSET_MS;
-  const next = targetUtc > now.getTime() ? targetUtc : targetUtc + 24 * 60 * 60 * 1000;
+  const next =
+    targetUtc > now.getTime() ? targetUtc : targetUtc + 24 * 60 * 60 * 1000;
   return new Date(next);
 }
 
@@ -206,7 +210,10 @@ function effectiveIntervalMs(row: CollectQueueRow, now: Date): number {
   const base = collectIntervalMs(row, now);
   const status = row.collectStatus ?? 'ok';
   if (status === 'ok') return base;
-  return Math.min(base * failureBackoffMultiplier(row.collectFailCount), FAIL_BACKOFF_MAX_MS);
+  return Math.min(
+    base * failureBackoffMultiplier(row.collectFailCount),
+    FAIL_BACKOFF_MAX_MS,
+  );
 }
 
 /**
@@ -218,7 +225,10 @@ export function summarizeCollectQueue(
   now = new Date(),
 ): CollectQueueSummary {
   const bands = Object.fromEntries(
-    COLLECT_BANDS.map((band) => [band, { count: 0, overdue: 0, expected24h: 0 }]),
+    COLLECT_BANDS.map((band) => [
+      band,
+      { count: 0, overdue: 0, expected24h: 0 },
+    ]),
   ) as Record<CollectBand, CollectBandSummary>;
   let total = 0;
   let overdue = 0;
@@ -233,7 +243,9 @@ export function summarizeCollectQueue(
 
     const skipInvite = shouldSkipInviteExpiredRecheck(
       row.collectStatus,
-      row.lastCollectedAt == null ? null : new Date(toMs(row.lastCollectedAt) ?? NaN),
+      row.lastCollectedAt == null
+        ? null
+        : new Date(toMs(row.lastCollectedAt) ?? NaN),
       now.getTime(),
     );
     const nextAt = toMs(row.nextCollectAt);

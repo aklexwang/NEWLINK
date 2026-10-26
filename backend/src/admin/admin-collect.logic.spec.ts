@@ -20,7 +20,9 @@ describe('admin-collect.logic', () => {
   it('일괄 수집은 최대 20개다', () => {
     expect(assertBulkCollectSize(['a', 'a', 'b'])).toEqual(['a', 'b']);
     expect(() =>
-      assertBulkCollectSize(Array.from({ length: ADMIN_COLLECT_BULK_MAX + 1 }, (_, i) => String(i))),
+      assertBulkCollectSize(
+        Array.from({ length: ADMIN_COLLECT_BULK_MAX + 1 }, (_, i) => String(i)),
+      ),
     ).toThrow(/최대 20개/);
   });
 
@@ -53,9 +55,7 @@ describe('admin-collect.logic', () => {
         now,
       ),
     ).toBe(false);
-    expect(
-      shouldBlockAdminCollect(true, [], now),
-    ).toBe(true);
+    expect(shouldBlockAdminCollect(true, [], now)).toBe(true);
     expect(
       shouldBlockAdminCollect(
         false,

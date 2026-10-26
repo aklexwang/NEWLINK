@@ -10,7 +10,9 @@ describe('initialPayoutStatus', () => {
     expect(initialPayoutStatus({ submittedBy: 12 })).toBe('pending');
     expect(initialPayoutStatus({ submittedBy: '12' })).toBe('pending');
     expect(initialPayoutStatus({ submittedBy: null })).toBe('not_eligible');
-    expect(initialPayoutStatus({ submittedBy: undefined })).toBe('not_eligible');
+    expect(initialPayoutStatus({ submittedBy: undefined })).toBe(
+      'not_eligible',
+    );
     expect(initialPayoutStatus({ submittedBy: '' })).toBe('not_eligible');
   });
 });
@@ -71,9 +73,7 @@ describe('submitRequiresWallet', () => {
     expect(
       submitRequiresWallet({
         rewardsEnabled: false,
-        methods: [
-          { enabled: true, destinationKind: 'wallet_address' },
-        ],
+        methods: [{ enabled: true, destinationKind: 'wallet_address' }],
       }),
     ).toBe(false);
   });

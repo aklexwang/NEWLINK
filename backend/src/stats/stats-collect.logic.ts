@@ -37,9 +37,7 @@ export const STATS_CRON_LIGHT_UTC = [
   '5 15 * * *',
 ] as const;
 
-export function parseStatsCollectMode(
-  raw?: string | null,
-): StatsCollectMode {
+export function parseStatsCollectMode(raw?: string | null): StatsCollectMode {
   return (raw ?? '').trim().toLowerCase() === 'light' ? 'light' : 'full';
 }
 
@@ -108,9 +106,7 @@ export function lastPostAtFromCollectedPosts(
   let latest: Date | null = null;
   for (const post of posts) {
     const at =
-      post.postedAt instanceof Date
-        ? post.postedAt
-        : new Date(post.postedAt);
+      post.postedAt instanceof Date ? post.postedAt : new Date(post.postedAt);
     if (Number.isNaN(at.getTime())) continue;
     if (!latest || at.getTime() > latest.getTime()) latest = at;
   }

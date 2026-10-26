@@ -62,11 +62,17 @@ const GROUP_HTML = `
 <div class="tgme_page_extra">1 234 members, 12 online</div>
 <div class="tgme_page_description">첫 줄<br>둘째 줄</div>`;
 
-function fakeResponse(status: number, body = '<html></html>', retryAfter?: string) {
+function fakeResponse(
+  status: number,
+  body = '<html></html>',
+  retryAfter?: string,
+) {
   return {
     status,
     url: 'https://t.me/x',
-    headers: new Headers(retryAfter ? { 'retry-after': retryAfter } : undefined),
+    headers: new Headers(
+      retryAfter ? { 'retry-after': retryAfter } : undefined,
+    ),
     text: async () => body,
   } as unknown as Response;
 }
@@ -148,7 +154,8 @@ describe('그룹 수집: 공개 페이지 우선, Bot 은 폴백', () => {
       username: null,
     });
     target.channelRepository.findOneBy = jest.fn(
-      async ({ id }: { id: string }) => (id === 'g1' ? publicGroup : inviteGroup),
+      async ({ id }: { id: string }) =>
+        id === 'g1' ? publicGroup : inviteGroup,
     );
 
     await target.collectOne(publicGroup);
@@ -190,9 +197,24 @@ describe('light 수집', () => {
   it('큐에서 light 대상만 뽑고, 채널만 오늘 대상으로 고른다', async () => {
     const { target } = build();
     const rows = [
-      channel({ id: 'a', linkType: LinkType.CHANNEL, username: 'a_ch', link: 'https://t.me/a_ch' }),
-      channel({ id: 'b', linkType: LinkType.CHANNEL, username: 'b_ch', link: 'https://t.me/b_ch' }),
-      channel({ id: 'g', linkType: LinkType.GROUP, username: 'g_gr', link: 'https://t.me/g_gr' }),
+      channel({
+        id: 'a',
+        linkType: LinkType.CHANNEL,
+        username: 'a_ch',
+        link: 'https://t.me/a_ch',
+      }),
+      channel({
+        id: 'b',
+        linkType: LinkType.CHANNEL,
+        username: 'b_ch',
+        link: 'https://t.me/b_ch',
+      }),
+      channel({
+        id: 'g',
+        linkType: LinkType.GROUP,
+        username: 'g_gr',
+        link: 'https://t.me/g_gr',
+      }),
     ];
     const pick = jest
       .spyOn(queueQuery, 'selectDueChannels')
@@ -219,7 +241,9 @@ describe('light 수집', () => {
       .spyOn(global, 'fetch')
       .mockResolvedValue(fakeResponse(429, 'slow', '7'));
     try {
-      const first = await target.fetchHtml('https://t.me/s/a_ch', { light: true });
+      const first = await target.fetchHtml('https://t.me/s/a_ch', {
+        light: true,
+      });
       expect(first.status).toBe(429);
       expect(first.error).toBe('fetch:429');
       expect(spy).toHaveBeenCalledTimes(1);
@@ -228,7 +252,9 @@ describe('light 수집', () => {
       expect(cooling).toBeLessThanOrEqual(TME_COOLDOWN_MIN_MS);
       expect(gate.collectLimit()).toBe(1);
 
-      const second = await target.fetchHtml('https://t.me/s/b_ch', { light: true });
+      const second = await target.fetchHtml('https://t.me/s/b_ch', {
+        light: true,
+      });
       expect(second.status).toBe(429);
       expect(spy).toHaveBeenCalledTimes(1);
       expect(gate.snapshot().active.collect).toBe(0);

@@ -38,10 +38,7 @@ export function visitorHash(
   const salt = createHmac('sha256', secret)
     .update(`visitor:${kstDate}`)
     .digest();
-  return createHmac('sha256', salt)
-    .update(identity)
-    .digest('hex')
-    .slice(0, 32);
+  return createHmac('sha256', salt).update(identity).digest('hex').slice(0, 32);
 }
 
 /** 고정 창(window) 방식 요청 제한. 메모리에만 저장하며 서버가 여러 대면 대마다 따로 센다. */

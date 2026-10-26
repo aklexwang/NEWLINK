@@ -17,12 +17,9 @@ describe('AddCategoryProposals1761430000000', () => {
       await dataSource.query(
         "INSERT INTO category_proposals (id, batch_id, channel_id, before_category, after_category, source) VALUES ('p', 'b', 'c', '성인', '홍보', 'ai')",
       );
-      const [row] = (await dataSource.query(
+      const [row] = await dataSource.query(
         'SELECT status, created_at FROM category_proposals',
-      )) as Array<{
-        status: string;
-        created_at: string;
-      }>;
+      );
       expect(row.status).toBe('pending');
       expect(row.created_at).toBeTruthy();
       await migration.down(runner);

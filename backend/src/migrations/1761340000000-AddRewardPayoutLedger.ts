@@ -280,7 +280,10 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
   }
 
   private async backfill(queryRunner: QueryRunner, sqlite: boolean) {
-    const tonPaymentsCount = await this.countIfTable(queryRunner, 'ton_payments');
+    const tonPaymentsCount = await this.countIfTable(
+      queryRunner,
+      'ton_payments',
+    );
     const rewardChannelCount = await this.countQuery(
       queryRunner,
       `SELECT COUNT(*) AS n FROM channels WHERE reward_ton_amount IS NOT NULL AND reward_ton_amount > 0`,
@@ -300,7 +303,9 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
         const kind = classifyWalletKind(
           String(user.ton_wallet_address ?? user.tonWalletAddress ?? ''),
         );
-        await this.exec(queryRunner, sqlite,
+        await this.exec(
+          queryRunner,
+          sqlite,
           `UPDATE users SET wallet_kind = ? WHERE CAST(telegram_id AS TEXT) = ?`,
           [kind, String(user.telegram_id ?? user.telegramId ?? '')],
         );
@@ -312,15 +317,21 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
         `SELECT id, reward_ton_amount, submitted_by, status, payout_status FROM channels`,
       )) as Array<Record<string, unknown>>;
       for (const channel of channels) {
-        if (String(channel.payout_status ?? channel.payoutStatus) === 'skipped') {
+        if (
+          String(channel.payout_status ?? channel.payoutStatus) === 'skipped'
+        ) {
           continue;
         }
         const next = backfillPayoutStatus({
-          rewardTonAmount: Number(channel.reward_ton_amount ?? channel.rewardTonAmount ?? 0),
+          rewardTonAmount: Number(
+            channel.reward_ton_amount ?? channel.rewardTonAmount ?? 0,
+          ),
           submittedBy: channel.submitted_by ?? channel.submittedBy,
           status: String(channel.status ?? ''),
         });
-        await this.exec(queryRunner, sqlite,
+        await this.exec(
+          queryRunner,
+          sqlite,
           `UPDATE channels SET payout_status = ? WHERE id = ?`,
           [next, String(channel.id)],
         );
@@ -347,7 +358,9 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
           cols.has('method') && row.method === 'tonconnect'
             ? 'tonconnect'
             : 'external';
-        await this.exec(queryRunner, sqlite,
+        await this.exec(
+          queryRunner,
+          sqlite,
           `INSERT INTO payout_records (
             id, channel_id, telegram_id, username, method_id, destination_kind,
             currency, amount, wallet_address, send_method, status, tx_or_memo,
@@ -357,13 +370,11 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
             randomUUID(),
             cols.has('channel_id') ? String(row.channel_id ?? '') : '',
             cols.has('telegram_id') ? (row.telegram_id ?? null) : null,
-            cols.has('reporter_name')
-              ? ((row.reporter_name as string | null) ?? null)
-              : null,
+            cols.has('reporter_name') ? (row.reporter_name ?? null) : null,
             Number(cols.has('amount') ? row.amount : 0) || 0,
-            cols.has('wallet') ? ((row.wallet as string | null) ?? null) : null,
+            cols.has('wallet') ? (row.wallet ?? null) : null,
             sendMethod,
-            cols.has('memo') ? ((row.memo as string | null) ?? null) : null,
+            cols.has('memo') ? (row.memo ?? null) : null,
             paymentId,
             cols.has('paid_at') ? (row.paid_at ?? now) : now,
             now,
@@ -391,7 +402,9 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
       )) as Array<{ n: number | string }>;
       if (Number(existing[0]?.n ?? 0) > 0) continue;
       const paidAt = channel.reward_paid_at ?? channel.rewardPaidAt ?? now;
-      await this.exec(queryRunner, sqlite,
+      await this.exec(
+        queryRunner,
+        sqlite,
         `INSERT INTO payout_records (
           id, channel_id, telegram_id, username, method_id, destination_kind,
           currency, amount, wallet_address, send_method, status, tx_or_memo,
@@ -402,7 +415,7 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
           channelId,
           channel.submitted_by ?? channel.submittedBy ?? null,
           Number(channel.reward_ton_amount ?? channel.rewardTonAmount) || 0,
-          (channel.reward_wallet ?? channel.rewardWallet ?? null) as string | null,
+          channel.reward_wallet ?? channel.rewardWallet ?? null,
           paidAt,
           now,
           paidAt,

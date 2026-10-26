@@ -48,7 +48,10 @@ export class TelegramAuthGuard implements CanActivate {
     }
 
     const authorization = request.headers.authorization;
-    if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) {
+    if (
+      typeof authorization === 'string' &&
+      authorization.startsWith('Bearer ')
+    ) {
       const token = authorization.slice('Bearer '.length).trim();
       if (token) {
         const admin = this.jwtAuthService.tryVerifyAdmin(token);
@@ -57,7 +60,10 @@ export class TelegramAuthGuard implements CanActivate {
             throw new UnauthorizedException('JWT 토큰이 유효하지 않습니다.');
           }
           request.adminSession = true;
-          request.telegramInitData = this.buildConfiguredAdmin('Admin', 'admin-jwt');
+          request.telegramInitData = this.buildConfiguredAdmin(
+            'Admin',
+            'admin-jwt',
+          );
           return true;
         }
 
@@ -102,7 +108,10 @@ export class TelegramAuthGuard implements CanActivate {
     return this.configService.get('DEV_ADMIN_BYPASS') === 'true';
   }
 
-  private buildConfiguredAdmin(firstName: string, hash: string): TelegramInitData {
+  private buildConfiguredAdmin(
+    firstName: string,
+    hash: string,
+  ): TelegramInitData {
     const raw =
       this.configService.get<string>('TELEGRAM_ADMIN_IDS', '123456789') ||
       '123456789';

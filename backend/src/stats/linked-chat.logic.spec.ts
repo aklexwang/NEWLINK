@@ -14,7 +14,9 @@ describe('연결된 대화방 판별', () => {
     expect(normalizeTelegramChatId(BigInt(1234567890))).toBe(1234567890);
     expect(normalizeTelegramChatId(null)).toBeNull();
     expect(normalizeTelegramChatId('abc')).toBeNull();
-    expect(telegramChatIdVariants(1234567890)).toEqual([1234567890, -1001234567890]);
+    expect(telegramChatIdVariants(1234567890)).toEqual([
+      1234567890, -1001234567890,
+    ]);
   });
 
   it('GetFullChannel 결과에서 비공개 대화방 정보를 꺼낸다', () => {
@@ -22,7 +24,12 @@ describe('연결된 대화방 판별', () => {
       fullChat: { linkedChatId: BigInt(222) },
       chats: [
         { id: 111, title: '테더천국 소식채널', broadcast: true },
-        { id: 222, title: '테더천국 장외거래 소통방', megagroup: true, date: 1768230000 },
+        {
+          id: 222,
+          title: '테더천국 장외거래 소통방',
+          megagroup: true,
+          date: 1768230000,
+        },
       ],
     });
     expect(linked).toEqual({
@@ -38,7 +45,9 @@ describe('연결된 대화방 판별', () => {
     expect(parseLinkedChat({ fullChat: {}, chats: [] })).toBeNull();
     const linked = parseLinkedChat({
       fullChat: { linkedChatId: 333 },
-      chats: [{ id: 333, title: '공개방', username: 'OpenRoom', megagroup: true }],
+      chats: [
+        { id: 333, title: '공개방', username: 'OpenRoom', megagroup: true },
+      ],
     });
     expect(linked?.username).toBe('openroom');
   });
@@ -59,7 +68,10 @@ describe('연결된 대화방 판별', () => {
     ];
     expect(matchGroupByTitle(rows, '테더천국 장외거래 소통방')?.id).toBe('a');
     expect(
-      matchGroupByTitle([...rows, { id: 'c', title: '테더천국 장외거래소통방' }], '테더천국 장외거래 소통방'),
+      matchGroupByTitle(
+        [...rows, { id: 'c', title: '테더천국 장외거래소통방' }],
+        '테더천국 장외거래 소통방',
+      ),
     ).toBeNull();
     expect(matchGroupByTitle(rows, null)).toBeNull();
     expect(normalizeChatTitle(' A b-C ')).toBe('abc');

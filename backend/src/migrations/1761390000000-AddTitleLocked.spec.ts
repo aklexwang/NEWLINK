@@ -29,9 +29,7 @@ describe('AddTitleLocked1761390000000', () => {
     await migration.up(runner);
     await migration.up(runner);
     expect(await runner.hasColumn('channels', 'title_locked')).toBe(true);
-    let rows = (await dataSource.query(
-      'SELECT title_locked AS v FROM channels',
-    )) as Array<{ v: number }>;
+    let rows = await dataSource.query('SELECT title_locked AS v FROM channels');
     expect(Number(rows[0].v)).toBe(0);
 
     await migration.down(runner);
@@ -39,9 +37,7 @@ describe('AddTitleLocked1761390000000', () => {
 
     await migration.up(runner);
     expect(await runner.hasColumn('channels', 'title_locked')).toBe(true);
-    rows = (await dataSource.query(
-      'SELECT title_locked AS v FROM channels',
-    )) as Array<{ v: number }>;
+    rows = await dataSource.query('SELECT title_locked AS v FROM channels');
     expect(Number(rows[0].v)).toBe(0);
 
     await runner.release();

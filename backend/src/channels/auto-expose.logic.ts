@@ -36,7 +36,10 @@ export function canAutoExpose(input: AutoExposeCheckInput): AutoExposeCheck {
   if (input.hasActiveUsername) {
     return { ok: false, reason: 'duplicate_username' };
   }
-  if (input.memberCount == null || input.memberCount < AUTO_EXPOSE_MIN_MEMBERS) {
+  if (
+    input.memberCount == null ||
+    input.memberCount < AUTO_EXPOSE_MIN_MEMBERS
+  ) {
     return { ok: false, reason: 'members' };
   }
   return { ok: true, reason: 'ok' };

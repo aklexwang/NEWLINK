@@ -62,7 +62,10 @@ export class SearchLogService {
   }
 
   /** 판단 없이 바로 기록한다(테스트·내부용). */
-  async record(input: SearchRecordInput, now: Date = new Date()): Promise<boolean> {
+  async record(
+    input: SearchRecordInput,
+    now: Date = new Date(),
+  ): Promise<boolean> {
     const text = buildSearchLogText(input.query);
     if (!text) return false;
     const searchedOn = formatKstYmd(now);
@@ -104,10 +107,13 @@ export class SearchLogService {
           zeroCount: () => (zero ? 'zero_count + 1' : 'zero_count'),
           blockedCount: () => (blocked ? 'blocked_count + 1' : 'blocked_count'),
         })
-        .where('stat_date = :statDate AND query_normalized = :queryNormalized', {
-          statDate,
-          queryNormalized,
-        })
+        .where(
+          'stat_date = :statDate AND query_normalized = :queryNormalized',
+          {
+            statDate,
+            queryNormalized,
+          },
+        )
         .execute();
       return result.affected ?? 0;
     };

@@ -16,9 +16,7 @@ import { isTelegramSubmitLink } from '../telegram-avatar.logic';
 import { LinkType } from '../channel.entity';
 
 @ValidatorConstraint({ name: 'telegramSubmitLink', async: false })
-export class TelegramSubmitLinkConstraint
-  implements ValidatorConstraintInterface
-{
+export class TelegramSubmitLinkConstraint implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
     return typeof value === 'string' && isTelegramSubmitLink(value);
   }

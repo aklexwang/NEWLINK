@@ -107,7 +107,9 @@ export class ChannelsController {
     await this.usersService.assertActiveByTelegramId(user.id);
     const rows = await this.channelsService.findBySubmitter(user.id);
     try {
-      const rewards = this.moduleRef.get(RewardPayoutService, { strict: false });
+      const rewards = this.moduleRef.get(RewardPayoutService, {
+        strict: false,
+      });
       return rewards.attachMemberRewards(rows);
     } catch {
       return rows;
@@ -170,7 +172,9 @@ export class ChannelsController {
 
   private async shouldRequireWallet(): Promise<boolean> {
     try {
-      const rewards = this.moduleRef.get(RewardPayoutService, { strict: false });
+      const rewards = this.moduleRef.get(RewardPayoutService, {
+        strict: false,
+      });
       const policy = await rewards.getPublicPolicy();
       return policy.requireWallet;
     } catch {

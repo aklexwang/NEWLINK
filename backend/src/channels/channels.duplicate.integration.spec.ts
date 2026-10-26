@@ -146,9 +146,9 @@ describe('ChannelsService 중복 판단·제목 고정·회원 노출 (SQLite �
       await expect(
         service.create(submission('https://t.me/DUP_ONE'), 1),
       ).rejects.toThrow('이미 등록되었거나 심사 중인 채널입니다');
-      await expect(
-        service.create(submission('@pend_one'), 1),
-      ).rejects.toThrow('이미 등록되었거나 심사 중인 채널입니다');
+      await expect(service.create(submission('@pend_one'), 1)).rejects.toThrow(
+        '이미 등록되었거나 심사 중인 채널입니다',
+      );
     });
 
     it('REJECTED 만 있으면 회원 제보를 막는다', async () => {
@@ -387,11 +387,34 @@ describe('ChannelsService 중복 판단·제목 고정·회원 노출 (SQLite �
 
   describe('3. 회원 검색 노출 규칙', () => {
     it('외국어·불법 의심·사라짐·합쳐짐은 검색에서 빠지고 정상 채널만 나온다', async () => {
-      await seed({ title: '정상 뉴스', link: 'https://t.me/ok_one', username: 'ok_one' });
-      await seed({ title: '외국어', link: 'https://t.me/fo_one', username: 'fo_one', language: 'foreign' });
-      await seed({ title: '마약 정보방', link: 'https://t.me/il_one', username: 'il_one' });
-      await seed({ title: '사라짐', link: 'https://t.me/go_one', username: 'go_one', collectStatus: 'gone' });
-      await seed({ title: '합쳐짐', link: 'https://t.me/me_one', username: 'me_one', collectStatus: 'merged' });
+      await seed({
+        title: '정상 뉴스',
+        link: 'https://t.me/ok_one',
+        username: 'ok_one',
+      });
+      await seed({
+        title: '외국어',
+        link: 'https://t.me/fo_one',
+        username: 'fo_one',
+        language: 'foreign',
+      });
+      await seed({
+        title: '마약 정보방',
+        link: 'https://t.me/il_one',
+        username: 'il_one',
+      });
+      await seed({
+        title: '사라짐',
+        link: 'https://t.me/go_one',
+        username: 'go_one',
+        collectStatus: 'gone',
+      });
+      await seed({
+        title: '합쳐짐',
+        link: 'https://t.me/me_one',
+        username: 'me_one',
+        collectStatus: 'merged',
+      });
       const result = await service.search({ page: 1, limit: 20 });
       expect(result.items.map((item) => item.title)).toEqual(['정상 뉴스']);
       expect(result.total).toBe(1);

@@ -95,9 +95,9 @@ export function summarizeMemberVisibility(
  * 회원 화면 카테고리별 개수(all 포함). 승인된 채널만, 같은 링크는 대표 1개.
  * all 은 회원 목록에 실제로 나오는 채널 수이고, 성인 카테고리 칩 숫자만 별도로 센다.
  */
-export function buildMemberRankingCounts<T extends MemberPageRow & { link: string }>(
-  rows: T[],
-): Record<string, number> {
+export function buildMemberRankingCounts<
+  T extends MemberPageRow & { link: string },
+>(rows: T[]): Record<string, number> {
   const winners = dedupeChannelsByLink(rows.filter(isActiveRow), {
     prefer: (row) => isMemberVisible(row, ADULT_CATEGORY),
   });

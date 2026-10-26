@@ -24,9 +24,9 @@ describe('admin-list.logic', () => {
     expect(parseAdminListSort('members_desc')).toBe('members_desc');
     expect(parseAdminListSort('promo_order')).toBe('promo_order');
     expect(parseAdminListSort('nope')).toBe('created_desc');
-    expect(classifyRegisterSource({ autoRegistered: true, submittedBy: null })).toBe(
-      'auto',
-    );
+    expect(
+      classifyRegisterSource({ autoRegistered: true, submittedBy: null }),
+    ).toBe('auto');
     expect(
       classifyRegisterSource({ autoRegistered: false, submittedBy: 12 }),
     ).toBe('report');
@@ -44,7 +44,10 @@ describe('admin-list.logic', () => {
       language: 'ko',
     };
     expect(
-      matchesMemberPageFilter(hidden, { memberPage: 'no', hideReason: '아직 수집되지 않음' }),
+      matchesMemberPageFilter(hidden, {
+        memberPage: 'no',
+        hideReason: '아직 수집되지 않음',
+      }),
     ).toBe(true);
     expect(matchesMemberPageFilter(hidden, { memberPage: 'yes' })).toBe(false);
 
@@ -65,10 +68,34 @@ describe('admin-list.logic', () => {
 
   it('숨김 이유 필터 후 total과 페이지 수가 일치한다', () => {
     const rows = [
-      { status: 'active', isVisible: true, firstObservedAt: null, category: '뉴스', language: 'ko' },
-      { status: 'active', isVisible: true, firstObservedAt: null, category: '뉴스', language: 'ko' },
-      { status: 'active', isVisible: true, firstObservedAt: null, category: '뉴스', language: 'ko' },
-      { status: 'pending', isVisible: true, firstObservedAt: null, category: '뉴스', language: 'ko' },
+      {
+        status: 'active',
+        isVisible: true,
+        firstObservedAt: null,
+        category: '뉴스',
+        language: 'ko',
+      },
+      {
+        status: 'active',
+        isVisible: true,
+        firstObservedAt: null,
+        category: '뉴스',
+        language: 'ko',
+      },
+      {
+        status: 'active',
+        isVisible: true,
+        firstObservedAt: null,
+        category: '뉴스',
+        language: 'ko',
+      },
+      {
+        status: 'pending',
+        isVisible: true,
+        firstObservedAt: null,
+        category: '뉴스',
+        language: 'ko',
+      },
       {
         status: 'active',
         isVisible: true,

@@ -29,12 +29,10 @@ describe('AddIllegalCleared1761350000000', () => {
     await migration.up(runner);
 
     expect(await runner.hasColumn('channels', 'illegal_cleared')).toBe(true);
-    expect(await runner.hasColumn('channels', 'illegal_cleared_at')).toBe(
-      true,
-    );
-    const rows = (await dataSource.query(
+    expect(await runner.hasColumn('channels', 'illegal_cleared_at')).toBe(true);
+    const rows = await dataSource.query(
       'SELECT illegal_cleared AS c, illegal_cleared_at AS at FROM channels',
-    )) as Array<{ c: number; at: string | null }>;
+    );
     expect(Number(rows[0].c)).toBe(0);
     expect(rows[0].at).toBeNull();
 

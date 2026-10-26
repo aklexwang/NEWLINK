@@ -85,7 +85,10 @@ describe('수집 성공 후 next_collect_at', () => {
     const target = build(3);
     const row = channel({ memberCount: 100 });
     const before = Date.now();
-    await target.applySuccessfulCollect(row, { title: '조용', memberCount: 100 });
+    await target.applySuccessfulCollect(row, {
+      title: '조용',
+      memberCount: 100,
+    });
     expect(row.posts7d).toBe(3);
     expect(hoursAhead(row, before)).toBe(48);
   });
@@ -253,7 +256,9 @@ describe('정확한 회원 수 우선 (full)', () => {
       status: 200,
       html: PREVIEW_HTML('40.8K'),
     }));
-    target.fetchOlderPagesIfNeeded = jest.fn(async (_u: string, first: unknown) => first);
+    target.fetchOlderPagesIfNeeded = jest.fn(
+      async (_u: string, first: unknown) => first,
+    );
     const row = channel({ memberCount: 40_000 });
     target.channelRepository.findOneBy = jest.fn(async () => row);
 
@@ -274,7 +279,9 @@ describe('정확한 회원 수 우선 (full)', () => {
       status: 200,
       html: PREVIEW_HTML('40.9K'),
     }));
-    target.fetchOlderPagesIfNeeded = jest.fn(async (_u: string, first: unknown) => first);
+    target.fetchOlderPagesIfNeeded = jest.fn(
+      async (_u: string, first: unknown) => first,
+    );
     const row = channel({ memberCount: 40_892 });
     target.channelRepository.findOneBy = jest.fn(async () => row);
 

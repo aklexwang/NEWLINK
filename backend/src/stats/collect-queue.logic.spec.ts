@@ -41,8 +41,12 @@ describe('수집 구간(목표 간격) 분류', () => {
         NOW,
       ),
     ).toBe('dormant');
-    expect(resolveCollectBand({ ...base, memberCount: 10_000 }, NOW)).toBe('hot');
-    expect(resolveCollectBand({ ...base, memberCount: 9_999 }, NOW)).toBe('normal');
+    expect(resolveCollectBand({ ...base, memberCount: 10_000 }, NOW)).toBe(
+      'hot',
+    );
+    expect(resolveCollectBand({ ...base, memberCount: 9_999 }, NOW)).toBe(
+      'normal',
+    );
     expect(resolveCollectBand({ ...base, posts7d: 28 }, NOW)).toBe('hot');
     expect(resolveCollectBand({ ...base, posts7d: 27 }, NOW)).toBe('normal');
   });
@@ -51,11 +55,19 @@ describe('수집 구간(목표 간격) 분류', () => {
     const base = { memberCount: 50, posts7d: 0, createdAt: OLD };
     expect(resolveCollectBand({ ...base, posts7d: 7 }, NOW)).toBe('normal');
     expect(resolveCollectBand({ ...base, posts7d: 6 }, NOW)).toBe('quiet');
-    expect(resolveCollectBand({ ...base, memberCount: 1_000 }, NOW)).toBe('normal');
-    expect(resolveCollectBand({ ...base, memberCount: 999 }, NOW)).toBe('dormant');
+    expect(resolveCollectBand({ ...base, memberCount: 1_000 }, NOW)).toBe(
+      'normal',
+    );
+    expect(resolveCollectBand({ ...base, memberCount: 999 }, NOW)).toBe(
+      'dormant',
+    );
     // 그룹은 게시가 0이고 작아도 보통
-    expect(resolveCollectBand({ ...base, linkType: 'group' }, NOW)).toBe('normal');
-    expect(resolveCollectBand({ ...base, linkType: 'channel' }, NOW)).toBe('dormant');
+    expect(resolveCollectBand({ ...base, linkType: 'group' }, NOW)).toBe(
+      'normal',
+    );
+    expect(resolveCollectBand({ ...base, linkType: 'channel' }, NOW)).toBe(
+      'dormant',
+    );
   });
 
   it('조용: 게시 1~6 / 휴면: 게시 0 이고 1천 미만', () => {
@@ -107,7 +119,8 @@ describe('다음 수집 시각 · 실패 백오프', () => {
 
   it('실패 간격은 최대 7일', () => {
     const wait =
-      nextCollectAtAfterFailure(dormantChannel, 5, NOW).getTime() - NOW.getTime();
+      nextCollectAtAfterFailure(dormantChannel, 5, NOW).getTime() -
+      NOW.getTime();
     // 72h x 4 = 12일 → 7일로 잘린다
     expect(wait).toBe(FAIL_BACKOFF_MAX_MS);
     expect(FAIL_BACKOFF_MAX_MS).toBe(7 * DAY);
@@ -123,7 +136,9 @@ describe('다음 수집 시각 · 실패 백오프', () => {
     expect(nextCollectAtAfterInviteExpired(NOW).getTime()).toBe(
       NOW.getTime() + 7 * DAY,
     );
-    expect(nextCollectAtAfterInvalid(NOW).getTime()).toBe(NOW.getTime() + 7 * DAY);
+    expect(nextCollectAtAfterInvalid(NOW).getTime()).toBe(
+      NOW.getTime() + 7 * DAY,
+    );
   });
 
   it('NULL 이거나 지났으면 바로 대상', () => {
@@ -169,15 +184,32 @@ describe('수집 운영 요약', () => {
         nextCollectAt: new Date(NOW.getTime() + 30 * HOUR),
       },
       // 병합된 채널은 수집하지 않으니 센 적 없다
-      { memberCount: 99_999, posts7d: 0, createdAt: OLD, collectStatus: 'merged' },
+      {
+        memberCount: 99_999,
+        posts7d: 0,
+        createdAt: OLD,
+        collectStatus: 'merged',
+      },
     ];
     const summary = summarizeCollectQueue(rows, NOW);
 
     expect(summary.total).toBe(5);
     expect(summary.bands.hot).toEqual({ count: 2, overdue: 1, expected24h: 4 });
-    expect(summary.bands.normal).toEqual({ count: 1, overdue: 1, expected24h: 1 });
-    expect(summary.bands.quiet).toEqual({ count: 1, overdue: 0, expected24h: 1 });
-    expect(summary.bands.dormant).toEqual({ count: 1, overdue: 0, expected24h: 0 });
+    expect(summary.bands.normal).toEqual({
+      count: 1,
+      overdue: 1,
+      expected24h: 1,
+    });
+    expect(summary.bands.quiet).toEqual({
+      count: 1,
+      overdue: 0,
+      expected24h: 1,
+    });
+    expect(summary.bands.dormant).toEqual({
+      count: 1,
+      overdue: 0,
+      expected24h: 0,
+    });
     expect(summary.overdue).toBe(2);
     expect(summary.expected24h).toBe(6);
   });

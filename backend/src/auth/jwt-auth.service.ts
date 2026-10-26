@@ -82,7 +82,11 @@ export class JwtAuthService {
       throw new UnauthorizedException('JWT 토큰이 유효하지 않습니다.');
     }
 
-    if (payload.role !== 'admin' || typeof payload.sub !== 'string' || !payload.sub) {
+    if (
+      payload.role !== 'admin' ||
+      typeof payload.sub !== 'string' ||
+      !payload.sub
+    ) {
       throw new UnauthorizedException('JWT 토큰이 유효하지 않습니다.');
     }
 

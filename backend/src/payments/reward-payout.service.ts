@@ -145,9 +145,9 @@ export class RewardPayoutService {
     return this.methodRepository.save(row);
   }
 
-  async attachMemberRewards<T extends { id: string; rewardTonAmount?: number | null }>(
-    channels: T[],
-  ): Promise<Array<T & { rewardStarsAmount: number }>> {
+  async attachMemberRewards<
+    T extends { id: string; rewardTonAmount?: number | null },
+  >(channels: T[]): Promise<Array<T & { rewardStarsAmount: number }>> {
     if (channels.length === 0) return [];
     const records = await this.recordRepository.find({
       where: {
@@ -184,7 +184,9 @@ export class RewardPayoutService {
     const sendMethod = this.resolveSendMethod(input, currency);
     const amount = this.resolveAmount(input, currency);
     const now = new Date();
-    const reporter = await this.usersService.getReporterOrNull(channel.submittedBy);
+    const reporter = await this.usersService.getReporterOrNull(
+      channel.submittedBy,
+    );
     const record = this.recordRepository.create({
       id: randomUUID(),
       channelId: channel.id,
@@ -197,8 +199,7 @@ export class RewardPayoutService {
         currency === 'STARS' ? 'telegram_account' : 'wallet_address',
       currency,
       amount,
-      walletAddress:
-        currency === 'STARS' ? null : input.wallet?.trim() || null,
+      walletAddress: currency === 'STARS' ? null : input.wallet?.trim() || null,
       sendMethod,
       status: phase === 'sending' ? 'sending' : 'paid',
       txOrMemo: input.memo?.trim() || null,
@@ -213,7 +214,10 @@ export class RewardPayoutService {
     if (record.status === 'paid') {
       await this.dualWritePaid(channel, record, input);
     }
-    return { channel: await this.reloadChannel(channel.id), payoutRecord: record };
+    return {
+      channel: await this.reloadChannel(channel.id),
+      payoutRecord: record,
+    };
   }
 
   private async finishExisting(
@@ -222,7 +226,9 @@ export class RewardPayoutService {
     phase: 'sending' | 'paid' | 'failed',
     input: RecordPayoutInput,
   ) {
-    const record = await this.recordRepository.findOneBy({ id: payoutRecordId });
+    const record = await this.recordRepository.findOneBy({
+      id: payoutRecordId,
+    });
     if (!record || record.channelId !== channel.id) {
       throw new NotFoundException('지급 기록을 찾을 수 없습니다.');
     }
@@ -242,12 +248,18 @@ export class RewardPayoutService {
     record.paidAt = now;
     await this.recordRepository.save(record);
     await this.dualWritePaid(channel, record, input);
-    return { channel: await this.reloadChannel(channel.id), payoutRecord: record };
+    return {
+      channel: await this.reloadChannel(channel.id),
+      payoutRecord: record,
+    };
   }
 
   private async assertNoBlocking(channelId: string, force: boolean) {
     const rows = await this.recordRepository.find({
-      where: { channelId, status: In(['paid', 'sending'] as PayoutRecordStatus[]) },
+      where: {
+        channelId,
+        status: In(['paid', 'sending'] as PayoutRecordStatus[]),
+      },
     });
     if (rows.some((row) => isBlockingPayoutStatus(row.status)) && !force) {
       throw new ConflictException(DUPLICATE_PAYOUT_MESSAGE);
@@ -303,8 +315,7 @@ export class RewardPayoutService {
         channelId: channel.id,
         amount: record.amount,
         wallet: record.walletAddress || '',
-        method:
-          record.sendMethod === 'tonconnect' ? 'tonconnect' : 'external',
+        method: record.sendMethod === 'tonconnect' ? 'tonconnect' : 'external',
         memo: record.txOrMemo,
         telegramId: channel.submittedBy ?? null,
         channelTitle: channel.title,
@@ -335,7 +346,9 @@ export class RewardPayoutService {
     const items = await Promise.all(
       channels.map(async (channel) => ({
         ...channel,
-        reporter: await this.usersService.getReporterOrNull(channel.submittedBy),
+        reporter: await this.usersService.getReporterOrNull(
+          channel.submittedBy,
+        ),
       })),
     );
     return {
@@ -391,7 +404,9 @@ export class RewardPayoutService {
       ids.length > 0
         ? await this.channelRepository.find({ where: { id: In(ids) } })
         : [];
-    const titles = new Map(channels.map((channel) => [channel.id, channel.title]));
+    const titles = new Map(
+      channels.map((channel) => [channel.id, channel.title]),
+    );
     return filtered.map((row) => ({
       ...row,
       channelTitle: titles.get(row.channelId) ?? null,
@@ -466,7 +481,9 @@ export class RewardPayoutService {
     const record = await this.recordRepository.findOneBy({ id });
     if (!record) throw new NotFoundException('지급 기록을 찾을 수 없습니다.');
     if (record.status !== 'sending') {
-      throw new BadRequestException('확인이 필요한 지급만 실패 처리할 수 있습니다.');
+      throw new BadRequestException(
+        '확인이 필요한 지급만 실패 처리할 수 있습니다.',
+      );
     }
     const channel = await this.channelRepository.findOneBy({
       id: record.channelId,
@@ -478,7 +495,9 @@ export class RewardPayoutService {
   }
 
   async paidTotalsByTelegramId(): Promise<Record<string, UserPayoutTotals>> {
-    const rows = await this.recordRepository.find({ where: { status: 'paid' } });
+    const rows = await this.recordRepository.find({
+      where: { status: 'paid' },
+    });
     const map: Record<string, UserPayoutTotals> = {};
     for (const row of rows) {
       const key = telegramIdKey(row.telegramId);

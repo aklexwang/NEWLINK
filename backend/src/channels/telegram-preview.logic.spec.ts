@@ -49,9 +49,10 @@ describe('resolvePreviewRequestUrl', () => {
     expect(resolvePreviewRequestUrl('https://telegram.me/NewsKorea')).toBe(
       'https://telegram.me/NewsKorea',
     );
-    expect(resolvePreviewRequestUrl('@NewsKorea')).toBe('https://t.me/NewsKorea');
+    expect(resolvePreviewRequestUrl('@NewsKorea')).toBe(
+      'https://t.me/NewsKorea',
+    );
     expect(resolvePreviewRequestUrl('https://evilt.me/x')).toBeNull();
     expect(resolvePreviewRequestUrl('https://example.com/t.me/x')).toBeNull();
   });
 });
-

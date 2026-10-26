@@ -141,7 +141,10 @@ export class ChannelVerifyService {
       checked += 1;
       if (decision === 'unverify') unverified += 1;
       if (decision === 'retry') retried += 1;
-      if (i < channels.length - 1 && !isCollectBudgetOver(options?.deadlineMs)) {
+      if (
+        i < channels.length - 1 &&
+        !isCollectBudgetOver(options?.deadlineMs)
+      ) {
         await sleep(VERIFY_RECHECK_GAP_MS);
       }
     }

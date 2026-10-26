@@ -539,7 +539,7 @@ export class PublicStatsService {
     const last = slice[slice.length - 1];
     const nextCursor =
       slice.length === limit && last?.lastPostAt
-        ? `${(last.lastPostAt as Date).toISOString()}::${last.channel.id}`
+        ? `${last.lastPostAt.toISOString()}::${last.channel.id}`
         : null;
 
     const data = {

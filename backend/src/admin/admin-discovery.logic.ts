@@ -47,7 +47,9 @@ export function discoveryResultLabel(
   return result ?? '-';
 }
 
-export function discoverySourceLabel(source: string | null | undefined): string {
+export function discoverySourceLabel(
+  source: string | null | undefined,
+): string {
   if (source === 'snowball') return 'snowball';
   if (source === 'keyword') return 'keyword';
   if (source === 'linked') return '연결 대화방';
@@ -66,12 +68,17 @@ export function assertDiscoveryUsernames(usernames: string[]): string[] {
     throw new Error('항목을 선택해 주세요.');
   }
   if (unique.length > DISCOVERY_REGISTER_MAX) {
-    throw new Error(`한 번에 최대 ${DISCOVERY_REGISTER_MAX}개만 처리할 수 있습니다.`);
+    throw new Error(
+      `한 번에 최대 ${DISCOVERY_REGISTER_MAX}개만 처리할 수 있습니다.`,
+    );
   }
   return unique;
 }
 
-export function discoveryQueueSkip(page: number, pageSize = DISCOVERY_QUEUE_PAGE_SIZE) {
+export function discoveryQueueSkip(
+  page: number,
+  pageSize = DISCOVERY_QUEUE_PAGE_SIZE,
+) {
   const safe = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
   return { page: safe, skip: (safe - 1) * pageSize, take: pageSize };
 }

@@ -5,7 +5,10 @@ import { In, IsNull, Repository } from 'typeorm';
 import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
 import { Channel, LinkType } from '../channels/channel.entity';
 import { clipPostExcerpt } from '../channels/channel-language.logic';
-import { applyCollectedTitle, isTitleLocked } from '../channels/title-lock.logic';
+import {
+  applyCollectedTitle,
+  isTitleLocked,
+} from '../channels/title-lock.logic';
 import {
   extractTelegramUsernameFromLink,
   isInviteOnlyLink,
@@ -172,9 +175,7 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   isEnabled(): boolean {
-    const raw = (
-      this.configService.get<string>('MTPROTO_ENABLED') ?? ''
-    )
+    const raw = (this.configService.get<string>('MTPROTO_ENABLED') ?? '')
       .trim()
       .toLowerCase();
     return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
@@ -226,7 +227,9 @@ export class MtprotoCollectorService implements OnModuleInit {
       if (!(this.lastError ?? '').startsWith('flood_wait')) {
         this.lastError = 'flood_wait';
       }
-      this.logger.warn('FloodWait가 끝나기 전이라 MTProto를 건너뛰고 t.me 로 수집합니다.');
+      this.logger.warn(
+        'FloodWait가 끝나기 전이라 MTProto를 건너뛰고 t.me 로 수집합니다.',
+      );
       return;
     }
     if (
@@ -388,7 +391,8 @@ export class MtprotoCollectorService implements OnModuleInit {
         createdOn: data.createdOn?.toISOString() ?? null,
         recentPosts: data.posts.length,
         avgViews,
-        forwardedPosts: data.posts.filter((p) => Boolean(p.forwardedFrom)).length,
+        forwardedPosts: data.posts.filter((p) => Boolean(p.forwardedFrom))
+          .length,
         editedPosts: data.posts.filter((p) => p.isEdited).length,
       };
     } catch (error) {
@@ -444,8 +448,8 @@ export class MtprotoCollectorService implements OnModuleInit {
         return await this.fetchFullFromInput(
           Api,
           username,
-          stored.telegramChatId as number,
-          stored.telegramAccessHash as string,
+          stored.telegramChatId,
+          stored.telegramAccessHash,
         );
       } catch (error) {
         const code = mtprotoErrorCode(error);
@@ -535,9 +539,9 @@ export class MtprotoCollectorService implements OnModuleInit {
     };
     // chats[] 에는 연결된 대화방도 같이 온다. 순서에 기대지 말고 id 로 고른다
     const chat = pickChatById(full.chats, channelId);
-    const isGroup = Boolean(
-      hints?.megagroup ?? chat?.megagroup,
-    ) && !(hints?.broadcast ?? chat?.broadcast);
+    const isGroup =
+      Boolean(hints?.megagroup ?? chat?.megagroup) &&
+      !(hints?.broadcast ?? chat?.broadcast);
     return {
       username,
       title: hints?.title?.trim() || chat?.title?.trim() || null,
@@ -554,9 +558,7 @@ export class MtprotoCollectorService implements OnModuleInit {
     };
   }
 
-  private async fetchHistory(
-    resolved: ResolvedPublicChannel,
-  ): Promise<{
+  private async fetchHistory(resolved: ResolvedPublicChannel): Promise<{
     posts: HistoryPost[];
     activity: GroupActivityCounts;
     groupLanguage?: GroupHistorySummary['language'];
@@ -577,11 +579,7 @@ export class MtprotoCollectorService implements OnModuleInit {
         1,
         unixSecondsAgo(GROUP_ACTIVITY_WEEK_MS, nowMs),
       );
-      const recent = await this.getHistory(
-        resolved,
-        MTPROTO_HISTORY_LIMIT,
-        0,
-      );
+      const recent = await this.getHistory(resolved, MTPROTO_HISTORY_LIMIT, 0);
       const summary = summarizeGroupHistory(recent, {
         title: resolved.title,
         description: resolved.description,
@@ -610,11 +608,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       };
     }
 
-    const messages = await this.getHistory(
-      resolved,
-      MTPROTO_HISTORY_LIMIT,
-      0,
-    );
+    const messages = await this.getHistory(resolved, MTPROTO_HISTORY_LIMIT, 0);
     const posts: HistoryPost[] = [];
     for (const raw of messages) {
       const parsed = this.parseHistoryMessage(raw, resolved.username);
@@ -850,7 +844,9 @@ export class MtprotoCollectorService implements OnModuleInit {
       if (!channel.languageLocked) {
         if (data.groupLanguage) channel.language = data.groupLanguage;
         channel.languageHangulRatio =
-          data.hangulRatio === undefined ? channel.languageHangulRatio : data.hangulRatio;
+          data.hangulRatio === undefined
+            ? channel.languageHangulRatio
+            : data.hangulRatio;
       }
     }
     // MTProto 는 정확한 회원 수를 주므로 그대로 저장했다. 다음 수집 시각을 목표 간격만큼 뒤로 민다
@@ -911,10 +907,17 @@ export class MtprotoCollectorService implements OnModuleInit {
       other = await this.channelRepository
         .createQueryBuilder('c')
         .where('c.id <> :self', { self: channel.id })
-        .andWhere('LOWER(c.username) = :username', { username: linked.username })
+        .andWhere('LOWER(c.username) = :username', {
+          username: linked.username,
+        })
         .getOne();
     }
-    if (!other && !linked.username && linked.isGroup && channel.linkType === LinkType.CHANNEL) {
+    if (
+      !other &&
+      !linked.username &&
+      linked.isGroup &&
+      channel.linkType === LinkType.CHANNEL
+    ) {
       const candidates = await this.channelRepository
         .createQueryBuilder('c')
         .select(['c.id', 'c.title', 'c.link'])
@@ -1101,10 +1104,7 @@ export class MtprotoCollectorService implements OnModuleInit {
   private async refreshFloodWaitFromDb() {
     const row = await this.stateRepository.findOne({ where: { id: 1 } });
     this.floodWaitUntil = row?.floodWaitUntil ?? null;
-    if (
-      this.floodWaitUntil &&
-      !isFloodWaitBlocking(this.floodWaitUntil)
-    ) {
+    if (this.floodWaitUntil && !isFloodWaitBlocking(this.floodWaitUntil)) {
       this.floodWaitUntil = null;
       await this.stateRepository.save({
         id: 1,
@@ -1151,8 +1151,9 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   private async connect(): Promise<boolean> {
-    const apiIdRaw = (this.configService.get<string>('TELEGRAM_API_ID') ?? '')
-      .trim();
+    const apiIdRaw = (
+      this.configService.get<string>('TELEGRAM_API_ID') ?? ''
+    ).trim();
     const apiHash = (
       this.configService.get<string>('TELEGRAM_API_HASH') ?? ''
     ).trim();

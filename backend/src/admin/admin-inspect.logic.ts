@@ -176,7 +176,12 @@ export const ADMIN_INSPECT_REGISTER_BLOCKED = new Set<AdminInspectItemResult>([
 
 export function interruptRunningInspectJobs<
   T extends { status: string; finishedAt?: Date | string | null },
->(jobs: T[], now: Date): Array<T & { status: 'interrupted'; endedReason: 'interrupted'; finishedAt: Date }> {
+>(
+  jobs: T[],
+  now: Date,
+): Array<
+  T & { status: 'interrupted'; endedReason: 'interrupted'; finishedAt: Date }
+> {
   return jobs
     .filter((job) => job.status === 'running')
     .map((job) => ({
@@ -223,7 +228,9 @@ export function assertRegisterManySize(ids: string[]): string[] {
     throw new Error('등록할 항목을 선택해 주세요.');
   }
   if (unique.length > ADMIN_REGISTER_MANY_MAX) {
-    throw new Error(`한 번에 최대 ${ADMIN_REGISTER_MANY_MAX}개만 등록할 수 있습니다.`);
+    throw new Error(
+      `한 번에 최대 ${ADMIN_REGISTER_MANY_MAX}개만 등록할 수 있습니다.`,
+    );
   }
   return unique;
 }
@@ -251,7 +258,9 @@ function fromPublicDecision(
   };
 }
 
-function emptyInspect(result: AdminInspectItemResult): AdminInspectPageClassified {
+function emptyInspect(
+  result: AdminInspectItemResult,
+): AdminInspectPageClassified {
   return {
     result,
     title: null,

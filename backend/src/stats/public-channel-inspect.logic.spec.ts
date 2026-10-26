@@ -118,7 +118,7 @@ describe('공개 페이지 429', () => {
       sleep: async (ms) => {
         slept.push(ms);
       },
-      fetchFn: (async () => {
+      fetchFn: async () => {
         calls += 1;
         if (calls === 1) {
           return {
@@ -136,7 +136,7 @@ describe('공개 페이지 429', () => {
           headers: new Headers(),
           text: async () => 'ok',
         } as Response;
-      }) as typeof fetch,
+      },
     });
     const result = await fetcher.fetchHtml('https://t.me/news');
     expect(calls).toBe(2);
@@ -168,12 +168,23 @@ describe('t.me 링크 분류', () => {
 describe('대량 도구 인자', () => {
   it('파일에서 username 을 읽고 auto 중단 조건을 계산한다', () => {
     expect(
-      parseUsernameListText('# 주석\n@News_KR\nhttps://t.me/other_ch\nnews_kr\n'),
+      parseUsernameListText(
+        '# 주석\n@News_KR\nhttps://t.me/other_ch\nnews_kr\n',
+      ),
     ).toEqual(['news_kr', 'other_ch']);
-    expect(parseBulkCandidatesArgs(['auto', '--dry-run', '--limit', '40', '--max-hours', '2']).mode).toBe(
-      'auto',
+    expect(
+      parseBulkCandidatesArgs([
+        'auto',
+        '--dry-run',
+        '--limit',
+        '40',
+        '--max-hours',
+        '2',
+      ]).mode,
+    ).toBe('auto');
+    expect(parseBulkCandidatesArgs(['verify', '--file', 'a.txt']).file).toBe(
+      'a.txt',
     );
-    expect(parseBulkCandidatesArgs(['verify', '--file', 'a.txt']).file).toBe('a.txt');
     expect(
       shouldStopBulkAuto({
         newCandidatesThisRound: 19,
@@ -210,9 +221,9 @@ describe('언어 미확인 분리', () => {
   });
 
   it('언어 미확인이어도 인원이 모자라면 too_small 이 먼저다', () => {
-    expect(
-      publicInspectDecision({ ...english, memberCount: 50 }).result,
-    ).toBe('too_small');
+    expect(publicInspectDecision({ ...english, memberCount: 50 }).result).toBe(
+      'too_small',
+    );
   });
 
   it('최근 글까지 외국어로 확인되면 not_korean 이다', () => {

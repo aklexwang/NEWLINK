@@ -160,7 +160,8 @@ export function mergeDiscoveryQueue(
   const out: DiscoveryQueueItem[] = [];
   const seen = new Set<string>();
   for (const item of mentions) {
-    if (known.has(item.username) || recentlyChecked.has(item.username)) continue;
+    if (known.has(item.username) || recentlyChecked.has(item.username))
+      continue;
     if (!shouldQueueSnowballCandidate(item.mentionCount)) {
       continue;
     }

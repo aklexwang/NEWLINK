@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { UsersService } from '../users/users.service';
 import { AdminLoginService } from './admin-login.service';
@@ -25,7 +34,11 @@ export class AuthController {
   @Post('admin-login')
   @HttpCode(HttpStatus.OK)
   adminLogin(@Body() dto: AdminLoginDto, @Req() req: Request) {
-    return this.adminLoginService.login(dto.username, dto.password, clientIp(req));
+    return this.adminLoginService.login(
+      dto.username,
+      dto.password,
+      clientIp(req),
+    );
   }
 
   @Get('telegram-login-config')

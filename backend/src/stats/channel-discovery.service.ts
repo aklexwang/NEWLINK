@@ -74,7 +74,9 @@ export class ChannelDiscoveryService {
 
   private readonly publicFetch = createPublicTelegramFetcher();
 
-  async discover(options?: { deadlineMs?: number }): Promise<DiscoveryRunResult> {
+  async discover(options?: {
+    deadlineMs?: number;
+  }): Promise<DiscoveryRunResult> {
     const lookback = new Date(
       Date.now() - DISCOVERY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
     );
@@ -154,13 +156,13 @@ export class ChannelDiscoveryService {
       }
     };
 
-    await inspectBatch(mentions, snowballRemain, mentionDeadlineMs, '눈덩이 발견');
     await inspectBatch(
-      queued,
-      queuedRemain,
-      queuedDeadlineMs,
-      '대기열 검사',
+      mentions,
+      snowballRemain,
+      mentionDeadlineMs,
+      '눈덩이 발견',
     );
+    await inspectBatch(queued, queuedRemain, queuedDeadlineMs, '대기열 검사');
 
     this.logger.log(
       `발견 끝: 검사 ${checked} / 추가 ${added} (언급 ${mentions.length}, 대기 ${queued.length})`,
@@ -189,7 +191,9 @@ export class ChannelDiscoveryService {
             kind: preview.kind,
             language: preview.decision.language,
             linkType:
-              preview.decision.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL,
+              preview.decision.linkType === 'group'
+                ? LinkType.GROUP
+                : LinkType.CHANNEL,
             avatarUrl: preview.avatarUrl,
           },
           { skipCollect: true },
@@ -202,7 +206,9 @@ export class ChannelDiscoveryService {
             members: preview.members ?? DISCOVERY_MIN_MEMBERS,
             avatarUrl: preview.avatarUrl,
             linkType:
-              preview.decision.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL,
+              preview.decision.linkType === 'group'
+                ? LinkType.GROUP
+                : LinkType.CHANNEL,
           });
         }
         result = 'added';
@@ -387,7 +393,11 @@ export class ChannelDiscoveryService {
       .createQueryBuilder('row')
       .where('row.checked_at >= :start', { start })
       .andWhere('row.source IN (:...sources)', {
-        sources: [DISCOVERY_SOURCE_KEYWORD, DISCOVERY_SOURCE_OTHER, DISCOVERY_SOURCE_LINKED],
+        sources: [
+          DISCOVERY_SOURCE_KEYWORD,
+          DISCOVERY_SOURCE_OTHER,
+          DISCOVERY_SOURCE_LINKED,
+        ],
       })
       .andWhere("row.result <> 'queued'")
       .getCount();

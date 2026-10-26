@@ -25,7 +25,9 @@ export class AdminDashboardService {
   ) {}
 
   async getDashboard() {
-    const driver = String(this.channelRepository.manager.connection.options.type);
+    const driver = String(
+      this.channelRepository.manager.connection.options.type,
+    );
     const bool = sqlBoolLiterals(driver);
     const sourceExpr = registerSourceSql('channel', bool);
     const todayStart = kstDayStart();
@@ -50,7 +52,9 @@ export class AdminDashboardService {
         .getRawMany<CountRow>(),
       // 회원 화면과 같은 판별 함수로 세기 위해 필요한 컬럼만 읽는다 (SQL 근사 아님)
       loadMemberPageRows(this.channelRepository, { onlyActive: false }),
-      this.channelRepository.count({ where: { status: ChannelStatus.PENDING } }),
+      this.channelRepository.count({
+        where: { status: ChannelStatus.PENDING },
+      }),
       this.channelRepository
         .createQueryBuilder('channel')
         .select(`COALESCE(channel.collect_status, '(없음)')`, 'name')
@@ -149,7 +153,9 @@ export class AdminDashboardService {
             processed: run.processed,
             total: run.total,
             remaining: Math.max(0, (run.total ?? 0) - (run.processed ?? 0)),
-            status: run.finishedAt ? (run.endedReason ?? 'completed') : 'running',
+            status: run.finishedAt
+              ? (run.endedReason ?? 'completed')
+              : 'running',
           }
         : null,
     };

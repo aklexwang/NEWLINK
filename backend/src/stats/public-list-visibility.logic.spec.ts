@@ -92,7 +92,9 @@ describe('describeMemberPageVisibility', () => {
       title: '필로폰 정보',
       description: '',
     };
-    expect(describeMemberPageVisibility({ ...base, illegalCleared: false })).toEqual({
+    expect(
+      describeMemberPageVisibility({ ...base, illegalCleared: false }),
+    ).toEqual({
       visible: false,
       reason: '불법 의심(관리자 확인)',
       reasonKey: '불법 의심(관리자 확인)',

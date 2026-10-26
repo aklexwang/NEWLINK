@@ -117,7 +117,10 @@ export class TmeGate {
   constructor(options: TmeGateOptions = {}) {
     this.now = options.now ?? Date.now;
     this.sleep = options.sleep ?? defaultSleep;
-    this.maxCollect = Math.max(1, Math.floor(options.collectMax ?? TME_COLLECT_MAX_DEFAULT));
+    this.maxCollect = Math.max(
+      1,
+      Math.floor(options.collectMax ?? TME_COLLECT_MAX_DEFAULT),
+    );
     this.totalMaxValue = Math.max(TME_TOTAL_MIN, this.maxCollect + 2);
     this.limit = Math.min(TME_COLLECT_START_LIMIT, this.maxCollect);
     this.lastAdjustAt = this.now();
@@ -263,8 +266,11 @@ export class TmeGate {
   }
 
   private canStart(kind: TmeGateKind): boolean {
-    const total = this.active.collect + this.active.preview + this.active.inspect;
-    return total < this.totalMaxValue && this.active[kind] < this.kindLimit(kind);
+    const total =
+      this.active.collect + this.active.preview + this.active.inspect;
+    return (
+      total < this.totalMaxValue && this.active[kind] < this.kindLimit(kind)
+    );
   }
 
   private wake(): void {

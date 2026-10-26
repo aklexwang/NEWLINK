@@ -197,8 +197,7 @@ export class AdminInspectService implements OnModuleInit {
         description: existing.description,
         avatarUrl: existing.avatarUrl,
         memberCount: existing.memberCount,
-        linkType:
-          existing.linkType === LinkType.GROUP ? 'group' : 'channel',
+        linkType: existing.linkType === LinkType.GROUP ? 'group' : 'channel',
         language: existing.language ?? null,
         existing,
       });
@@ -274,7 +273,8 @@ export class AdminInspectService implements OnModuleInit {
       link: viewed.link,
       linkType,
       category: data.category,
-      description: data.description?.trim() || viewed.description || viewed.title,
+      description:
+        data.description?.trim() || viewed.description || viewed.title,
       isPromoted: data.isPromoted,
       // 검사로 판별한 언어를 그대로 저장한다
       language: toChannelLanguage(viewed.language),
@@ -503,9 +503,7 @@ export class AdminInspectService implements OnModuleInit {
       first.result !== 'invalid_format' &&
       first.result !== 'invite_or_private';
     if (!needsFeed || !username) return first;
-    const feed = await this.publicFetch.fetchHtml(
-      `https://t.me/s/${username}`,
-    );
+    const feed = await this.publicFetch.fetchHtml(`https://t.me/s/${username}`);
     if (!feed.html) return first;
     const excerpts = excerptsFromPreviewPosts(
       parseTelegramChannelHtml(feed.html).posts,

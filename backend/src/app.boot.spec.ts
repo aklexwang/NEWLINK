@@ -104,13 +104,18 @@ describe('AppModule 부팅 - 검색 금지어·이동 기록', () => {
       .set('User-Agent', HUMAN_UA)
       .expect(204); // 같은 사람 1시간 안 재클릭: 204 이지만 세지 않는다
 
-    const rows = await created.get(DataSource).getRepository(ChannelOpenDaily).find();
+    const rows = await created
+      .get(DataSource)
+      .getRepository(ChannelOpenDaily)
+      .find();
     expect(rows).toHaveLength(1);
     expect(rows[0].openCount).toBe(1);
   }, 30_000);
 
   it('키가 없으면 정상 부팅하고 이동 기록만 건너뛰며 경고는 한 번만 남긴다', async () => {
-    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
     const created = await bootWith('');
     const channelId = await seedChannel(created);
 
@@ -121,9 +126,14 @@ describe('AppModule 부팅 - 검색 금지어·이동 기록', () => {
         .expect(204);
     }
     // 서버는 계속 정상 동작한다
-    await request(created.getHttpServer()).get('/api/channels/search?q=테스트').expect(200);
+    await request(created.getHttpServer())
+      .get('/api/channels/search?q=테스트')
+      .expect(200);
 
-    const rows = await created.get(DataSource).getRepository(ChannelOpenDaily).find();
+    const rows = await created
+      .get(DataSource)
+      .getRepository(ChannelOpenDaily)
+      .find();
     expect(rows).toHaveLength(0);
     const keyWarnings = warn.mock.calls.filter((call) =>
       String(call[0]).includes('ANALYTICS_HASH_SECRET'),
@@ -170,7 +180,9 @@ describe('AppModule 부팅 - 검색 금지어·이동 기록', () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
     const stats = await created
       .get(DataSource)
-      .query('SELECT search_count AS n, blocked_count AS b FROM search_daily_stats');
+      .query(
+        'SELECT search_count AS n, blocked_count AS b FROM search_daily_stats',
+      );
     expect(stats).toHaveLength(1);
     expect(Number(stats[0].n)).toBe(1);
     expect(Number(stats[0].b)).toBe(1);

@@ -125,7 +125,9 @@ export class UsersService {
   }
 
   async findByTelegramIds(ids: Array<number | string>): Promise<User[]> {
-    const keys = [...new Set(ids.map((id) => telegramIdKey(id)).filter(Boolean))];
+    const keys = [
+      ...new Set(ids.map((id) => telegramIdKey(id)).filter(Boolean)),
+    ];
     if (keys.length === 0) return [];
     return this.userRepository
       .createQueryBuilder('user')

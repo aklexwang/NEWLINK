@@ -226,9 +226,9 @@ describe('플레이스홀더 제목·수집 오류 문구', () => {
     expect(formatBotCollectError(400, 'Bad Request: chat not found')).toBe(
       'bot:400:Bad Request: chat not found',
     );
-    expect(formatBotCollectError(429, 'Too Many Requests: retry after 12')).toBe(
-      'bot:429:Too Many Requests: retry after 12',
-    );
+    expect(
+      formatBotCollectError(429, 'Too Many Requests: retry after 12'),
+    ).toBe('bot:429:Too Many Requests: retry after 12');
   });
 
   it('collect_error 는 255자를 넘기지 않는다', () => {
@@ -301,7 +301,9 @@ describe('소개글 줄바꿈 보존', () => {
   });
 
   it('원본의 실제 줄바꿈도 살리고 줄 안 공백은 하나로 줄인다', () => {
-    const parsed = parsePublicUsernamePage(page('첫째   줄\n둘째 줄\r\n\r\n\r\n\r\n셋째 줄  '));
+    const parsed = parsePublicUsernamePage(
+      page('첫째   줄\n둘째 줄\r\n\r\n\r\n\r\n셋째 줄  '),
+    );
     expect(parsed.description).toBe('첫째 줄\n둘째 줄\n\n셋째 줄');
   });
 

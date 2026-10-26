@@ -5,9 +5,7 @@ function isSqlite(queryRunner: QueryRunner): boolean {
   return type === 'sqlite' || type === 'better-sqlite3';
 }
 
-export class AddMtprotoCollectColumns1761220000000
-  implements MigrationInterface
-{
+export class AddMtprotoCollectColumns1761220000000 implements MigrationInterface {
   name = 'AddMtprotoCollectColumns1761220000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -43,7 +43,12 @@ export class PayoutRecord {
   @Column({ type: 'real' })
   amount: number;
 
-  @Column({ name: 'wallet_address', type: 'varchar', length: 256, nullable: true })
+  @Column({
+    name: 'wallet_address',
+    type: 'varchar',
+    length: 256,
+    nullable: true,
+  })
   walletAddress: string | null;
 
   @Column({ name: 'send_method', type: 'varchar', length: 32 })

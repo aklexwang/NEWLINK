@@ -10,7 +10,9 @@ const BOOT_DELAY_MS = 2 * 60 * 1000;
  * (기존 통계 크론 03:00 / 월요일 04:00 과 겹치지 않는다.)
  */
 @Injectable()
-export class AnalyticsRetentionScheduler implements OnModuleInit, OnModuleDestroy {
+export class AnalyticsRetentionScheduler
+  implements OnModuleInit, OnModuleDestroy
+{
   private bootTimer: NodeJS.Timeout | null = null;
 
   constructor(private readonly retention: AnalyticsRetentionService) {}

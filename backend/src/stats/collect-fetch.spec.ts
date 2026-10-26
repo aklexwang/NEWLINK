@@ -113,9 +113,9 @@ describe('fetch 오류 문구·상태 분류', () => {
     expect(shouldRetrySameDayFailed('failed', '2026-10-20', '2026-10-20')).toBe(
       true,
     );
-    expect(shouldRetrySameDayFailed('invite_only', '2026-10-20', '2026-10-20')).toBe(
-      false,
-    );
+    expect(
+      shouldRetrySameDayFailed('invite_only', '2026-10-20', '2026-10-20'),
+    ).toBe(false);
     expect(shouldRetrySameDayFailed('failed', '2026-10-19', '2026-10-20')).toBe(
       false,
     );
@@ -135,28 +135,38 @@ describe('fetch 오류 문구·상태 분류', () => {
     const now = Date.parse('2026-10-22T12:00:00+09:00');
     const threeDaysAgo = new Date(now - 3 * 24 * 60 * 60 * 1000);
     const eightDaysAgo = new Date(now - 8 * 24 * 60 * 60 * 1000);
-    expect(shouldSkipInviteExpiredRecheck('invite_expired', threeDaysAgo, now)).toBe(
-      true,
-    );
-    expect(shouldSkipInviteExpiredRecheck('invite_expired', eightDaysAgo, now)).toBe(
-      false,
-    );
+    expect(
+      shouldSkipInviteExpiredRecheck('invite_expired', threeDaysAgo, now),
+    ).toBe(true);
+    expect(
+      shouldSkipInviteExpiredRecheck('invite_expired', eightDaysAgo, now),
+    ).toBe(false);
     expect(shouldSkipInviteExpiredRecheck('ok', threeDaysAgo, now)).toBe(false);
   });
 });
 
 describe('봇 API 요청 한도(429)', () => {
   it('429 코드나 Too Many Requests 문구면 한도로 본다', () => {
-    expect(isBotRateLimited(429, 'Too Many Requests: retry after 3600')).toBe(true);
-    expect(isBotRateLimited(undefined, 'Too Many Requests: retry after 5')).toBe(true);
+    expect(isBotRateLimited(429, 'Too Many Requests: retry after 3600')).toBe(
+      true,
+    );
+    expect(
+      isBotRateLimited(undefined, 'Too Many Requests: retry after 5'),
+    ).toBe(true);
     expect(isBotRateLimited(400, 'Bad Request: chat not found')).toBe(false);
     expect(isBotRateLimited(undefined, undefined)).toBe(false);
   });
 
   it('retry after 초를 밀리초로 바꾸되 최소 30초·최대 1시간으로 자른다', () => {
-    expect(parseBotRetryAfterMs('Too Many Requests: retry after 120')).toBe(120_000);
-    expect(parseBotRetryAfterMs('Too Many Requests: retry after 5')).toBe(BOT_BACKOFF_MIN_MS);
-    expect(parseBotRetryAfterMs('Too Many Requests: retry after 99999')).toBe(BOT_BACKOFF_MAX_MS);
+    expect(parseBotRetryAfterMs('Too Many Requests: retry after 120')).toBe(
+      120_000,
+    );
+    expect(parseBotRetryAfterMs('Too Many Requests: retry after 5')).toBe(
+      BOT_BACKOFF_MIN_MS,
+    );
+    expect(parseBotRetryAfterMs('Too Many Requests: retry after 99999')).toBe(
+      BOT_BACKOFF_MAX_MS,
+    );
     expect(parseBotRetryAfterMs('Too Many Requests')).toBe(BOT_BACKOFF_MIN_MS);
     expect(parseBotRetryAfterMs(undefined)).toBe(BOT_BACKOFF_MIN_MS);
   });

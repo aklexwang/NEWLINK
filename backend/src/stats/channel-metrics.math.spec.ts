@@ -177,7 +177,9 @@ describe('growthFromSnapshots', () => {
 });
 
 describe('회원 증감 수(명)', () => {
-  const { memberDeltaFromSnapshots } = jest.requireActual('./channel-metrics.math');
+  const { memberDeltaFromSnapshots } = jest.requireActual(
+    './channel-metrics.math',
+  );
   const snaps = [
     { capturedOn: '2026-10-19', memberCount: 1000 },
     { capturedOn: '2026-10-25', memberCount: 1100 },

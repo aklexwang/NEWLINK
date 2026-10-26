@@ -212,28 +212,10 @@ export class ChannelMetricsService {
     const todaySnap = snapshots.find((s) => s.capturedOn === today);
 
     if (isGroup) {
-      const activity7d =
-        todaySnap?.activity7d ??
-        channel.posts7d ??
-        0;
-      const growth24h = growthFromSnapshots(
-        snapshots,
-        today,
-        memberCount,
-        1,
-      );
-      const growth7d = growthFromSnapshots(
-        snapshots,
-        today,
-        memberCount,
-        7,
-      );
-      const growth30d = growthFromSnapshots(
-        snapshots,
-        today,
-        memberCount,
-        30,
-      );
+      const activity7d = todaySnap?.activity7d ?? channel.posts7d ?? 0;
+      const growth24h = growthFromSnapshots(snapshots, today, memberCount, 1);
+      const growth7d = growthFromSnapshots(snapshots, today, memberCount, 7);
+      const growth30d = growthFromSnapshots(snapshots, today, memberCount, 30);
       return {
         channel,
         medianViews7d: null,
@@ -273,24 +255,9 @@ export class ChannelMetricsService {
         ? null
         : medianViews7d / memberCount;
 
-    const growth24h = growthFromSnapshots(
-      snapshots,
-      today,
-      memberCount,
-      1,
-    );
-    const growth7d = growthFromSnapshots(
-      snapshots,
-      today,
-      memberCount,
-      7,
-    );
-    const growth30d = growthFromSnapshots(
-      snapshots,
-      today,
-      memberCount,
-      30,
-    );
+    const growth24h = growthFromSnapshots(snapshots, today, memberCount, 1);
+    const growth7d = growthFromSnapshots(snapshots, today, memberCount, 7);
+    const growth30d = growthFromSnapshots(snapshots, today, memberCount, 30);
 
     const observedDays = countObservedDays(channel.firstObservedAt, today);
     const recentViews = posts

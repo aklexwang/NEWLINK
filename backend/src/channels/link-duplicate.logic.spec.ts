@@ -93,9 +93,9 @@ describe('pickDuplicate', () => {
     const rows = [row({ id: 'i', link: 'https://t.me/+AbCdEf' })];
     expect(pickDuplicate(rows, 'https://t.me/+AbCdEf')?.channel.id).toBe('i');
     expect(pickDuplicate(rows, 'https://t.me/+abcdef')).toBeNull();
-    expect(pickDuplicate(rows, 'https://t.me/joinchat/AbCdEf')?.channel.id).toBe(
-      'i',
-    );
+    expect(
+      pickDuplicate(rows, 'https://t.me/joinchat/AbCdEf')?.channel.id,
+    ).toBe('i');
   });
 
   it('초대 링크로 등록된 방이 나중에 username 을 얻었으면 공개 링크도 중복이다', () => {
@@ -128,7 +128,12 @@ describe('dedupeChannelsByLink (가장 좋은 행)', () => {
 
   it('ACTIVE 행이 승인 전 행보다 대표가 된다', () => {
     const winners = dedupeChannelsByLink([
-      { ...base, link: 'https://t.me/Same_One', status: 'pending', memberCount: 999 },
+      {
+        ...base,
+        link: 'https://t.me/Same_One',
+        status: 'pending',
+        memberCount: 999,
+      },
       { ...base, link: 'https://t.me/same_one/', status: 'active' },
     ]);
     expect(winners).toHaveLength(1);
@@ -138,7 +143,12 @@ describe('dedupeChannelsByLink (가장 좋은 행)', () => {
   it('prefer 가 true 인 행을 먼저 대표로 삼는다', () => {
     const winners = dedupeChannelsByLink(
       [
-        { ...base, link: 'https://t.me/same_one', memberCount: 500, tag: 'hidden' },
+        {
+          ...base,
+          link: 'https://t.me/same_one',
+          memberCount: 500,
+          tag: 'hidden',
+        },
         { ...base, link: 'https://t.me/Same_One', tag: 'visible' },
       ],
       { prefer: (c) => c.tag === 'visible' },

@@ -85,7 +85,9 @@ export class TelegramOpenService {
     channelId: string,
     now: Date,
   ): Promise<OpenRecordResult> {
-    const secret = (this.config.get<string>('ANALYTICS_HASH_SECRET') ?? '').trim();
+    const secret = (
+      this.config.get<string>('ANALYTICS_HASH_SECRET') ?? ''
+    ).trim();
     if (!secret) {
       if (!this.warnedMissingSecret) {
         this.warnedMissingSecret = true;

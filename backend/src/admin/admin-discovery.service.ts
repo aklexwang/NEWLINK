@@ -42,11 +42,7 @@ export class AdminDiscoveryService {
     private readonly channelRepository: Repository<Channel>,
   ) {}
 
-  async listQueue(input: {
-    filter?: string;
-    source?: string;
-    page?: number;
-  }) {
+  async listQueue(input: { filter?: string; source?: string; page?: number }) {
     const filter = parseDiscoveryQueueFilter(input.filter);
     const { page, skip, take } = discoveryQueueSkip(Number(input.page ?? 1));
     const qb = this.discoveredRepository
@@ -179,7 +175,12 @@ export class AdminDiscoveryService {
 
   async updateKeyword(
     id: string,
-    patch: { enabled?: boolean; sort?: number; word?: string; category?: string },
+    patch: {
+      enabled?: boolean;
+      sort?: number;
+      word?: string;
+      category?: string;
+    },
   ) {
     const row = await this.keywordRepository.findOneBy({ id });
     if (!row) throw new NotFoundException('키워드를 찾을 수 없습니다.');
@@ -198,7 +199,8 @@ export class AdminDiscoveryService {
 
   async deleteKeyword(id: string) {
     const result = await this.keywordRepository.delete(id);
-    if (!result.affected) throw new NotFoundException('키워드를 찾을 수 없습니다.');
+    if (!result.affected)
+      throw new NotFoundException('키워드를 찾을 수 없습니다.');
     return { ok: true };
   }
 
@@ -259,7 +261,10 @@ export class AdminDiscoveryService {
   }
 
   private async loadExtras(usernames: string[]) {
-    const map = new Map<string, { title: string | null; memberCount: number | null }>();
+    const map = new Map<
+      string,
+      { title: string | null; memberCount: number | null }
+    >();
     if (usernames.length === 0) return map;
     const channels = await this.channelRepository.find({
       where: { username: In(usernames) },

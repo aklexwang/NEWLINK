@@ -46,6 +46,11 @@ export class AdminInspectItem {
   @Column({ type: 'varchar', length: 20, nullable: true })
   language: string | null;
 
-  @Column({ name: 'registered_channel_id', type: 'varchar', length: 36, nullable: true })
+  @Column({
+    name: 'registered_channel_id',
+    type: 'varchar',
+    length: 36,
+    nullable: true,
+  })
   registeredChannelId: string | null;
 }

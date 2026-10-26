@@ -175,7 +175,10 @@ describe('mergeDiscoveryQueue', () => {
       new Set(),
       new Set(),
     );
-    expect(queue.map((item) => item.username)).toEqual(['adchan', 'from_search']);
+    expect(queue.map((item) => item.username)).toEqual([
+      'adchan',
+      'from_search',
+    ]);
   });
 
   it('source 가 비어 있는 queued 는 other 로 둔다', () => {

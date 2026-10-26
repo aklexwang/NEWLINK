@@ -122,7 +122,8 @@ export class SearchTermsService {
 
   async remove(id: string): Promise<{ ok: true }> {
     const result = await this.repository.delete({ id });
-    if (!result.affected) throw new NotFoundException('단어를 찾을 수 없습니다.');
+    if (!result.affected)
+      throw new NotFoundException('단어를 찾을 수 없습니다.');
     this.invalidateCache();
     return { ok: true };
   }

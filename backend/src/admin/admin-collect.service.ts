@@ -104,9 +104,7 @@ export class AdminCollectService {
     const last = this.lastCollectAt.get(id);
     if (!canAdminCollectNow(last, now)) {
       const sec = remainingCollectCooldownSec(last, now);
-      throw new BadRequestException(
-        `${sec}초 뒤에 다시 수집할 수 있습니다.`,
-      );
+      throw new BadRequestException(`${sec}초 뒤에 다시 수집할 수 있습니다.`);
     }
   }
 }

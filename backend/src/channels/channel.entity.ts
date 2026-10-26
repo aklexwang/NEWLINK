@@ -151,13 +151,27 @@ export class Channel {
   })
   linkedChatTelegramId: number | null;
 
-  @Column({ name: 'linked_chat_title', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'linked_chat_title',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   linkedChatTitle: string | null;
 
-  @Column({ name: 'linked_chat_username', type: 'varchar', length: 64, nullable: true })
+  @Column({
+    name: 'linked_chat_username',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
   linkedChatUsername: string | null;
 
-  @Column({ name: 'linked_chat_created_on', type: dateTimeColumnType(), nullable: true })
+  @Column({
+    name: 'linked_chat_created_on',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
   linkedChatCreatedOn: Date | null;
 
   /** 텔레그램 채널·그룹 개설일 (공개 정보) */
@@ -251,7 +265,12 @@ export class Channel {
   categoryConfidence: number | null;
 
   /** 목록에 맞는 카테고리가 없을 때 AI 가 제안한 새 이름. 맞는 카테고리로 분류되면 비운다 */
-  @Column({ name: 'suggested_category', type: 'varchar', length: 50, nullable: true })
+  @Column({
+    name: 'suggested_category',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
   suggestedCategory: string | null;
 
   /** 조건 통과로 승인 없이 등록됨 */

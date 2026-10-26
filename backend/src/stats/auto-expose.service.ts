@@ -143,8 +143,7 @@ export class AutoExposeService {
         channel.language = inspected.language;
         channel.memberCount = inspected.memberCount;
         channel.username =
-          inspected.username ??
-          extractTelegramUsernameFromLink(channel.link);
+          inspected.username ?? extractTelegramUsernameFromLink(channel.link);
         channel = await this.channelRepository.save(channel);
         await this.afterActivate(channel);
       }
@@ -153,7 +152,8 @@ export class AutoExposeService {
       candidate.status = ImportCandidateStatus.PUBLISHED;
       candidate.publishedChannelId = channel.id;
       candidate.publishedAt = new Date();
-      candidate.participantsCount = inspected.memberCount ?? candidate.participantsCount;
+      candidate.participantsCount =
+        inspected.memberCount ?? candidate.participantsCount;
       await this.candidateRepository.save(candidate);
       return true;
     } catch (error) {
@@ -251,5 +251,4 @@ export class AutoExposeService {
       await this.categoryService.classifyOne(fresh);
     }
   }
-
 }

@@ -44,7 +44,8 @@ function usernameOf(raw: unknown): string | null {
 function titleOf(raw: unknown, fallback: string): string {
   if (!raw || typeof raw !== 'object') return fallback;
   const rec = raw as { title?: unknown };
-  if (typeof rec.title === 'string' && rec.title.trim()) return rec.title.trim();
+  if (typeof rec.title === 'string' && rec.title.trim())
+    return rec.title.trim();
   return fallback;
 }
 

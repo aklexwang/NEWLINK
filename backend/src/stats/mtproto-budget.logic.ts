@@ -60,7 +60,8 @@ export function splitRemainingAfterCollect(input: {
   keywordCost?: number;
 }): MtprotoPhaseSplit {
   const remaining = Math.max(0, Math.floor(input.remaining));
-  const discoveryInspectCap = input.discoveryInspectCap ?? DISCOVERY_MAX_PER_DAY;
+  const discoveryInspectCap =
+    input.discoveryInspectCap ?? DISCOVERY_MAX_PER_DAY;
   const discoveryCost = input.discoveryCost ?? MTPROTO_INSPECT_COST;
   const keywordSearchCap =
     input.keywordSearchCap ?? KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT;

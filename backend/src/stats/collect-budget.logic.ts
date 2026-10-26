@@ -70,13 +70,16 @@ export function sliceRankingPage<T>(
   offset: number | undefined,
   limit: number | undefined,
 ): T[] {
-  const off = Number.isFinite(offset) ? Math.max(0, Math.floor(Number(offset))) : 0;
+  const off = Number.isFinite(offset)
+    ? Math.max(0, Math.floor(Number(offset)))
+    : 0;
   const lim = Math.min(Math.max(Number(limit) || 50, 1), 100);
   return items.slice(off, off + lim);
 }
 
 function collectTime(value: Date | string | null | undefined): number {
   if (value == null || value === '') return 0;
-  const at = value instanceof Date ? value.getTime() : Date.parse(String(value));
+  const at =
+    value instanceof Date ? value.getTime() : Date.parse(String(value));
   return Number.isFinite(at) ? at : 0;
 }

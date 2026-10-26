@@ -104,7 +104,8 @@ export function buildAdminDashboard(
 }
 
 function time(value: Date | string): number {
-  const at = value instanceof Date ? value.getTime() : Date.parse(String(value));
+  const at =
+    value instanceof Date ? value.getTime() : Date.parse(String(value));
   return Number.isFinite(at) ? at : 0;
 }
 

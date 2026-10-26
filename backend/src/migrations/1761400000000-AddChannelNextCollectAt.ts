@@ -17,9 +17,7 @@ export const NEXT_COLLECT_AT_INDEX = 'IDX_channels_next_collect_at';
  * - collect_gone_count: not_found 연속 횟수(gone 3회 규칙). collect_fail_count 는 이제 모든 실패를
  *   세어 재시도 간격(1·2·4배)에 쓰므로, gone 판단용 횟수를 따로 둔다.
  */
-export class AddChannelNextCollectAt1761400000000
-  implements MigrationInterface
-{
+export class AddChannelNextCollectAt1761400000000 implements MigrationInterface {
   name = 'AddChannelNextCollectAt1761400000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

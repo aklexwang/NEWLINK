@@ -37,9 +37,7 @@ export function isBotRateLimited(
   errorCode?: number | null,
   description?: string | null,
 ): boolean {
-  return (
-    errorCode === 429 || /too many requests/i.test(description ?? '')
-  );
+  return errorCode === 429 || /too many requests/i.test(description ?? '');
 }
 
 /** "retry after N"(초)을 밀리초로. 값이 없으면 최소, 너무 길면 최대(1시간)로 자른다 */
@@ -72,7 +70,8 @@ export function extractNetworkCode(error: unknown): string | null {
   for (let i = 0; i < 5 && current && typeof current === 'object'; i += 1) {
     const rec = current as { code?: unknown; cause?: unknown; errno?: unknown };
     if (typeof rec.code === 'string' && rec.code.trim()) return rec.code.trim();
-    if (typeof rec.errno === 'string' && rec.errno.trim()) return rec.errno.trim();
+    if (typeof rec.errno === 'string' && rec.errno.trim())
+      return rec.errno.trim();
     current = rec.cause;
   }
   const message = error instanceof Error ? error.message : String(error ?? '');

@@ -263,7 +263,8 @@ describe('TmeGate 하루 429 상한', () => {
     }
     expect(gate.collectLimit()).toBe(3);
     // 하루 중 429 가 31번 → 감소가 겹쳐도 잠금은 1
-    for (let i = 0; i <= TME_DAILY_429_LOCK; i += 1) gate.report({ status: 429 });
+    for (let i = 0; i <= TME_DAILY_429_LOCK; i += 1)
+      gate.report({ status: 429 });
     expect(gate.collectLimit()).toBe(1);
   });
 
@@ -271,7 +272,8 @@ describe('TmeGate 하루 429 상한', () => {
     const { gate, advance } = makeGate(3);
     gate.report({ status: 429 });
     gate.noteBot429();
-    for (let i = 0; i < TME_DAILY_429_LOCK; i += 1) gate.report({ status: 429 });
+    for (let i = 0; i < TME_DAILY_429_LOCK; i += 1)
+      gate.report({ status: 429 });
     expect(gate.snapshot().lockedToday).toBe(true);
 
     advance(24 * 60 * 60 * 1000);

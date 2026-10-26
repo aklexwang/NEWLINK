@@ -1,5 +1,6 @@
 export const ADMIN_LIGHT_RUN_BUSY_MESSAGE = '이미 수집이 돌고 있습니다';
-export const ADMIN_LIGHT_RUN_ONLY_MESSAGE = 'light 수집만 수동으로 시작할 수 있습니다.';
+export const ADMIN_LIGHT_RUN_ONLY_MESSAGE =
+  'light 수집만 수동으로 시작할 수 있습니다.';
 
 export type AdminStatsRunKind =
   | 'running'
@@ -54,13 +55,16 @@ export function floodWaitSeconds(
   return Math.max(0, Math.round((end - start) / 1000));
 }
 
-export function parseAdminStatsRunMode(raw: string | undefined): 'light' | null {
+export function parseAdminStatsRunMode(
+  raw: string | undefined,
+): 'light' | null {
   if ((raw ?? '').trim().toLowerCase() === 'light') return 'light';
   return null;
 }
 
 function toTime(value: Date | string | null | undefined): number | null {
   if (value == null || value === '') return null;
-  const at = value instanceof Date ? value.getTime() : Date.parse(String(value));
+  const at =
+    value instanceof Date ? value.getTime() : Date.parse(String(value));
   return Number.isFinite(at) ? at : null;
 }

@@ -21,7 +21,11 @@ export class DiscoveryKeyword {
   @Column({ name: 'created_at', type: dateTimeColumnType() })
   createdAt: Date;
 
-  @Column({ name: 'last_searched_at', type: dateTimeColumnType(), nullable: true })
+  @Column({
+    name: 'last_searched_at',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
   lastSearchedAt: Date | null;
 
   @Column({ name: 'last_found_count', type: 'integer', nullable: true })

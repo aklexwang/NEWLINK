@@ -49,18 +49,12 @@ describe('수집 운영 기록 표시', () => {
 
   it('걸린 시간과 FLOOD_WAIT 초를 계산한다', () => {
     expect(
-      durationMs(
-        '2026-10-24T00:00:00.000Z',
-        '2026-10-24T00:01:05.000Z',
-      ),
+      durationMs('2026-10-24T00:00:00.000Z', '2026-10-24T00:01:05.000Z'),
     ).toBe(65_000);
     expect(formatDurationKo(65_000)).toBe('1분 5초');
     expect(formatDurationKo(3_600_000)).toBe('1시간 0분');
     expect(
-      floodWaitSeconds(
-        '2026-10-24T00:00:00.000Z',
-        '2026-10-24T00:00:12.000Z',
-      ),
+      floodWaitSeconds('2026-10-24T00:00:00.000Z', '2026-10-24T00:00:12.000Z'),
     ).toBe(12);
     expect(parseAdminStatsRunMode('light')).toBe('light');
     expect(parseAdminStatsRunMode('full')).toBeNull();

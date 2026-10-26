@@ -43,7 +43,9 @@ export function newStatsRunInsert(input: {
   };
 }
 
-export function interruptOpenStatsRuns<T extends { finishedAt: Date | string | null }>(
+export function interruptOpenStatsRuns<
+  T extends { finishedAt: Date | string | null },
+>(
   runs: T[],
   now: Date,
   endedReason: StatsRunEndedReason = 'interrupted',

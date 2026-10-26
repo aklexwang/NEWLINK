@@ -23,12 +23,12 @@ describe('초대 링크 분류', () => {
   });
 
   it('비어 있는 username 만 link 에서 채운다', () => {
-    expect(
-      usernameToFillFromLink(null, 'https://t.me/chasul_trader'),
-    ).toBe('chasul_trader');
-    expect(
-      usernameToFillFromLink('  ', 'https://t.me/chasul_trader'),
-    ).toBe('chasul_trader');
+    expect(usernameToFillFromLink(null, 'https://t.me/chasul_trader')).toBe(
+      'chasul_trader',
+    );
+    expect(usernameToFillFromLink('  ', 'https://t.me/chasul_trader')).toBe(
+      'chasul_trader',
+    );
     expect(
       usernameToFillFromLink('kept', 'https://t.me/chasul_trader'),
     ).toBeNull();

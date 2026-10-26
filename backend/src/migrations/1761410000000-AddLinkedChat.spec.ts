@@ -5,12 +5,17 @@ describe('AddLinkedChat1761410000000', () => {
   let dataSource: DataSource;
 
   beforeEach(async () => {
-    dataSource = new DataSource({ type: 'better-sqlite3', database: ':memory:' });
+    dataSource = new DataSource({
+      type: 'better-sqlite3',
+      database: ':memory:',
+    });
     await dataSource.initialize();
     await dataSource.query(
-      "CREATE TABLE channels (id varchar(36) PRIMARY KEY, title varchar(255) NOT NULL)",
+      'CREATE TABLE channels (id varchar(36) PRIMARY KEY, title varchar(255) NOT NULL)',
     );
-    await dataSource.query("INSERT INTO channels (id, title) VALUES ('a', '채널')");
+    await dataSource.query(
+      "INSERT INTO channels (id, title) VALUES ('a', '채널')",
+    );
   });
 
   afterEach(async () => {
@@ -18,7 +23,7 @@ describe('AddLinkedChat1761410000000', () => {
   });
 
   async function columns(): Promise<string[]> {
-    const rows = (await dataSource.query('PRAGMA table_info(channels)')) as Array<{ name: string }>;
+    const rows = await dataSource.query('PRAGMA table_info(channels)');
     return rows.map((row) => row.name);
   }
 
@@ -36,7 +41,7 @@ describe('AddLinkedChat1761410000000', () => {
           'linked_chat_created_on',
         ]),
       );
-      const [row] = (await dataSource.query('SELECT * FROM channels')) as Array<Record<string, unknown>>;
+      const [row] = await dataSource.query('SELECT * FROM channels');
       expect(row.linked_chat_telegram_id).toBeNull();
       await migration.down(runner);
       expect(await columns()).not.toContain('linked_chat_title');

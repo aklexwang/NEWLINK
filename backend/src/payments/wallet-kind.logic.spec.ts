@@ -2,15 +2,15 @@ import { classifyWalletKind } from './wallet-kind.logic';
 
 describe('classifyWalletKind', () => {
   it('EQ·UQ·kQ·0:·-1: 는 ton 이다', () => {
-    expect(classifyWalletKind('EQabcdefghijklmnopqrstuvwxyz0123456789-_ABCDEF')).toBe(
-      'ton',
-    );
-    expect(classifyWalletKind('UQabcdefghijklmnopqrstuvwxyz0123456789-_ABCDEF')).toBe(
-      'ton',
-    );
-    expect(classifyWalletKind('kQabcdefghijklmnopqrstuvwxyz0123456789-_ABCDEF')).toBe(
-      'ton',
-    );
+    expect(
+      classifyWalletKind('EQabcdefghijklmnopqrstuvwxyz0123456789-_ABCDEF'),
+    ).toBe('ton');
+    expect(
+      classifyWalletKind('UQabcdefghijklmnopqrstuvwxyz0123456789-_ABCDEF'),
+    ).toBe('ton');
+    expect(
+      classifyWalletKind('kQabcdefghijklmnopqrstuvwxyz0123456789-_ABCDEF'),
+    ).toBe('ton');
     expect(
       classifyWalletKind(
         '0:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',

@@ -2,7 +2,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { dateTimeColumnType } from '../common/db-types';
 
 /** 검색 금지어·예외어 (어드민 설정) */
-@Index('uq_search_terms_kind_norm', ['kind', 'termNormalized'], { unique: true })
+@Index('uq_search_terms_kind_norm', ['kind', 'termNormalized'], {
+  unique: true,
+})
 @Entity('search_terms')
 export class SearchTerm {
   @PrimaryColumn({ type: 'varchar', length: 36 })

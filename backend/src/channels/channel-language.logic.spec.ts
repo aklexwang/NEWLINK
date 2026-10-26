@@ -90,7 +90,11 @@ describe('detectChannelLanguage', () => {
       detectChannelLanguage({
         title: 'Daily Brief',
         description: 'Market news',
-        excerpts: ['Hello world update', 'More english text here', 'Third post'],
+        excerpts: [
+          'Hello world update',
+          'More english text here',
+          'Third post',
+        ],
       }),
     ).toBe('unknown');
   });
@@ -179,9 +183,9 @@ describe('isVisibleOnPublicLists', () => {
   });
 
   it('어드민이 직접 등록한 미확인 언어는 숨기지 않는다', () => {
-    expect(isAdminDirectRegistered({ autoRegistered: false, submittedBy: null })).toBe(
-      true,
-    );
+    expect(
+      isAdminDirectRegistered({ autoRegistered: false, submittedBy: null }),
+    ).toBe(true);
     expect(
       isVisibleOnPublicLists({
         language: 'unknown',

@@ -55,7 +55,9 @@ describe('RequestActorService', () => {
   });
 
   it('회원 JWT 는 회원 ID, 관리자 ID 의 회원 JWT 는 관리자', () => {
-    const member = service.resolve(req({ authorization: 'Bearer member-token' }));
+    const member = service.resolve(
+      req({ authorization: 'Bearer member-token' }),
+    );
     expect(member).toMatchObject({ isAdmin: false, memberId: 777 });
     const staff = service.resolve(req({ authorization: 'Bearer staff-token' }));
     expect(staff).toMatchObject({ isAdmin: true, memberId: 111 });

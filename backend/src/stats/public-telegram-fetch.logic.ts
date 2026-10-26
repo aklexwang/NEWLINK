@@ -1,7 +1,4 @@
-import {
-  describeFetchError,
-  parseRetryAfterMs,
-} from './collect-fetch';
+import { describeFetchError, parseRetryAfterMs } from './collect-fetch';
 import { TELEGRAM_FETCH_HEADERS } from './telegram-preview-html';
 import { PUBLIC_INSPECT_GAP_MS } from './public-channel-inspect.logic';
 import { getTmeGate, type TmeGate } from './tme-gate';

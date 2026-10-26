@@ -62,7 +62,10 @@ export async function selectDueChannels(
   return qb
     .orderBy('(CASE WHEN c.nextCollectAt IS NULL THEN 0 ELSE 1 END)', 'ASC')
     .addOrderBy('c.nextCollectAt', 'ASC')
-    .addOrderBy('(CASE WHEN c.lastCollectedAt IS NULL THEN 0 ELSE 1 END)', 'ASC')
+    .addOrderBy(
+      '(CASE WHEN c.lastCollectedAt IS NULL THEN 0 ELSE 1 END)',
+      'ASC',
+    )
     .addOrderBy('c.lastCollectedAt', 'ASC')
     .addOrderBy('c.id', 'ASC')
     .limit(limit)

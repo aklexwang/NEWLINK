@@ -8,7 +8,10 @@ import {
 } from '../channels/illegal-content.logic';
 import { ChannelStatus } from '../channels/channel.entity';
 import { isVisibleOnPublicLists } from '../channels/channel-language.logic';
-import { HIDDEN_COLLECT_STATUSES, isPublicCollectable } from './collect-visibility';
+import {
+  HIDDEN_COLLECT_STATUSES,
+  isPublicCollectable,
+} from './collect-visibility';
 
 const HIDDEN_COLLECT = new Set<string>(HIDDEN_COLLECT_STATUSES);
 
@@ -96,7 +99,7 @@ export function describeMemberPageVisibility(channel: {
       firstObservedAt:
         channel.firstObservedAt instanceof Date ||
         channel.firstObservedAt == null
-          ? (channel.firstObservedAt as Date | null)
+          ? channel.firstObservedAt
           : new Date(String(channel.firstObservedAt)),
       collectStatus: collectStatus as never,
       isVisible: channel.isVisible,

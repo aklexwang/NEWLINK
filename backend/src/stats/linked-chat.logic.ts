@@ -34,7 +34,9 @@ export function normalizeTelegramChatId(
   if (raw == null) return null;
   const text = String(raw).trim();
   if (!/^-?\d+$/.test(text)) return null;
-  const stripped = text.startsWith('-100') ? text.slice(4) : text.replace(/^-/, '');
+  const stripped = text.startsWith('-100')
+    ? text.slice(4)
+    : text.replace(/^-/, '');
   const n = Number(stripped);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
@@ -52,7 +54,11 @@ function chatUsername(chat: RawChat): string | null {
 }
 
 function unixToDate(seconds: number | undefined): Date | null {
-  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) {
+  if (
+    typeof seconds !== 'number' ||
+    !Number.isFinite(seconds) ||
+    seconds <= 0
+  ) {
     return null;
   }
   return new Date(seconds * 1000);
@@ -77,7 +83,9 @@ export function parseLinkedChat(full: {
   fullChat?: { linkedChatId?: unknown } | null;
   chats?: RawChat[];
 }): LinkedChatInfo | null {
-  const linkedId = normalizeTelegramChatId(full.fullChat?.linkedChatId as never);
+  const linkedId = normalizeTelegramChatId(
+    full.fullChat?.linkedChatId as never,
+  );
   if (linkedId == null) return null;
   const chat = (full.chats ?? []).find(
     (item) => normalizeTelegramChatId(item.id as never) === linkedId,
@@ -109,6 +117,8 @@ export function matchGroupByTitle<T extends { title: string | null }>(
 ): T | null {
   const want = normalizeChatTitle(linkedTitle);
   if (want.length < 2) return null;
-  const hits = candidates.filter((row) => normalizeChatTitle(row.title) === want);
+  const hits = candidates.filter(
+    (row) => normalizeChatTitle(row.title) === want,
+  );
   return hits.length === 1 ? hits[0] : null;
 }

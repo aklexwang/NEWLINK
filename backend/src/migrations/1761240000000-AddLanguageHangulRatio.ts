@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class AddLanguageHangulRatio1761240000000
-  implements MigrationInterface
-{
+export class AddLanguageHangulRatio1761240000000 implements MigrationInterface {
   name = 'AddLanguageHangulRatio1761240000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

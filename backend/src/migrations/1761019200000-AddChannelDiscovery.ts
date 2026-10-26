@@ -16,7 +16,9 @@ export class AddChannelDiscovery1761019200000 implements MigrationInterface {
     const sqlite = isSqlite(queryRunner);
     const dt = datetimeType(sqlite);
 
-    if (!(await queryRunner.hasColumn('channel_posts', 'mentioned_usernames'))) {
+    if (
+      !(await queryRunner.hasColumn('channel_posts', 'mentioned_usernames'))
+    ) {
       await queryRunner.addColumn(
         'channel_posts',
         new TableColumn({

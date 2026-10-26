@@ -7,7 +7,8 @@ import {
 export function normalizeTelegramLink(link: string): string {
   const trimmed = link.trim();
   if (trimmed.startsWith('http')) return trimmed.replace(/\/$/, '');
-  if (trimmed.startsWith('t.me/')) return `https://${trimmed.replace(/\/$/, '')}`;
+  if (trimmed.startsWith('t.me/'))
+    return `https://${trimmed.replace(/\/$/, '')}`;
   if (trimmed.startsWith('@')) return `https://t.me/${trimmed.slice(1)}`;
   if (trimmed.startsWith('+')) return `https://t.me/${trimmed}`;
   return `https://t.me/${trimmed}`;
@@ -18,11 +19,15 @@ export function channelLinkKey(link: string): string {
 }
 
 /** 초대 링크(t.me/+해시, joinchat/해시)의 해시. 대소문자를 그대로 둔다 */
-export function extractInviteHash(link: string | null | undefined): string | null {
+export function extractInviteHash(
+  link: string | null | undefined,
+): string | null {
   if (!link?.trim() || !isInviteOnlyLink(link)) return null;
   const match = link
     .trim()
-    .match(/(?:t\.me|telegram\.me|telegram\.dog)\/(?:\+|joinchat\/)([A-Za-z0-9_-]+)/i);
+    .match(
+      /(?:t\.me|telegram\.me|telegram\.dog)\/(?:\+|joinchat\/)([A-Za-z0-9_-]+)/i,
+    );
   return match ? match[1] : null;
 }
 
@@ -69,9 +74,11 @@ export function shouldReplaceDuplicate(
   candidate: DuplicateCandidate,
 ): boolean {
   const candidateActive = isActiveStatus(candidate.status);
-  if (candidateActive !== isActiveStatus(existing.status)) return candidateActive;
+  if (candidateActive !== isActiveStatus(existing.status))
+    return candidateActive;
   const candidatePromoted = Boolean(candidate.isPromoted);
-  if (candidatePromoted !== Boolean(existing.isPromoted)) return candidatePromoted;
+  if (candidatePromoted !== Boolean(existing.isPromoted))
+    return candidatePromoted;
   const candidateRecommend = candidate.recommendCount ?? 0;
   const existingRecommend = existing.recommendCount ?? 0;
   if (candidateRecommend !== existingRecommend) {
@@ -83,7 +90,8 @@ export function shouldReplaceDuplicate(
     return candidateMembers > existingMembers;
   }
   const candidateAvatar = Boolean(candidate.avatarApproved);
-  if (candidateAvatar !== Boolean(existing.avatarApproved)) return candidateAvatar;
+  if (candidateAvatar !== Boolean(existing.avatarApproved))
+    return candidateAvatar;
   return timeOf(candidate.updatedAt) > timeOf(existing.updatedAt);
 }
 

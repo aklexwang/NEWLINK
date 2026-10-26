@@ -56,7 +56,9 @@ describe('uuid PK 기본값', () => {
 
   it('discovered_usernames 는 username PK 라 uuid 기본값이 필요 없다', () => {
     const entity = readSrc('stats/discovered-username.entity.ts');
-    const migration = readSrc('migrations/1761019200000-AddChannelDiscovery.ts');
+    const migration = readSrc(
+      'migrations/1761019200000-AddChannelDiscovery.ts',
+    );
     expect(entity).toContain("@Entity('discovered_usernames')");
     expect(entity).toContain('@PrimaryColumn');
     expect(entity).not.toContain('PrimaryGeneratedColumn');

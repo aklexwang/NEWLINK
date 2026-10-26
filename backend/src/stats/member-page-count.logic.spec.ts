@@ -1,5 +1,8 @@
 import { buildAdminDashboard } from '../admin/admin-dashboard.logic';
-import { allowAdultInList, isPendingCategory } from '../channels/auto-expose.logic';
+import {
+  allowAdultInList,
+  isPendingCategory,
+} from '../channels/auto-expose.logic';
 import { isVisibleOnPublicLists } from '../channels/channel-language.logic';
 import { dedupeChannelsByLink } from '../channels/channel-link.logic';
 import { shouldHideIllegalSuspicion } from '../channels/illegal-content.logic';
@@ -65,10 +68,17 @@ function sampleChannels(): Row[] {
     row({ link: 'https://t.me/Same_Link', recommendCount: 5 }),
     row({ link: 'https://t.me/same_link/', recommendCount: 1 }),
     // 대표 후보가 숨김(외국어)이어도 같은 링크에 노출 가능한 행이 있으면 그 행이 대표가 된다
-    row({ link: 'https://t.me/dup_hidden', language: 'foreign', recommendCount: 9 }),
+    row({
+      link: 'https://t.me/dup_hidden',
+      language: 'foreign',
+      recommendCount: 9,
+    }),
     row({ link: 'https://t.me/dup_hidden/', recommendCount: 1 }),
     row({ title: '마약 정보방' }),
-    row({ title: '자유홍보방', description: '홍보 가능, 마약 음식 아님 사기꾼 차단 마약 금지' }),
+    row({
+      title: '자유홍보방',
+      description: '홍보 가능, 마약 음식 아님 사기꾼 차단 마약 금지',
+    }),
     row({ title: '마약김밥 맛집', category: '맛집' }),
     row({ title: '정보방', description: '필로폰 후기 공유' }),
     row({ title: '마약 정보', illegalCleared: true }),
@@ -95,9 +105,12 @@ describe('member-page-count.logic', () => {
     for (const reason of MEMBER_PAGE_REASON_ORDER) {
       expect(summary.hiddenReasons).toHaveProperty([reason]);
     }
-    expect(Object.keys(summary.hiddenReasons).slice(0, MEMBER_PAGE_REASON_ORDER.length)).toEqual([
-      ...MEMBER_PAGE_REASON_ORDER,
-    ]);
+    expect(
+      Object.keys(summary.hiddenReasons).slice(
+        0,
+        MEMBER_PAGE_REASON_ORDER.length,
+      ),
+    ).toEqual([...MEMBER_PAGE_REASON_ORDER]);
   });
 
   it('불법 의심은 제목 마약·강한 단어만 숨기고 음식·규칙 문구·풀기 처리는 노출한다', () => {
@@ -135,7 +148,9 @@ describe('member-page-count.logic', () => {
     // 회원 "전체" 숫자 = 대시보드 노출 − 같은 링크 중복
     expect(memberCounts.all).toBe(reference);
     expect(dashboard.memberListTotal).toBe(reference);
-    expect(dashboard.memberVisible - dashboard.memberDuplicateExcess).toBe(reference);
+    expect(dashboard.memberVisible - dashboard.memberDuplicateExcess).toBe(
+      reference,
+    );
     expect(dashboard.memberVisible + dashboard.memberHidden).toBe(rows.length);
     expect(
       Object.values(dashboard.hiddenReasons).reduce((a, b) => a + b, 0),
