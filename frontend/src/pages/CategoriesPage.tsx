@@ -12,8 +12,8 @@ import type { RankingSort } from '../types/stats';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 
 const SORT_CHIPS: { id: RankingSort; label: string }[] = [
-  { id: 'score', label: '종합' },
   { id: 'members', label: '회원 수' },
+  { id: 'score', label: '종합' },
   { id: 'viewRate', label: '조회율' },
   { id: 'rising', label: '급상승' },
   { id: 'growth24h', label: '24시간' },
@@ -27,7 +27,8 @@ const SORT_IDS = new Set(SORT_CHIPS.map((c) => c.id));
 
 function parseSort(raw: string | null): RankingSort {
   if (raw && SORT_IDS.has(raw as RankingSort)) return raw as RankingSort;
-  return 'score';
+  // 기본: 회원 많은 순
+  return 'members';
 }
 
 function parseType(raw: string | null): 'channel' | 'group' | undefined {
@@ -102,7 +103,7 @@ export function CategoriesPage() {
               setAdultOpen(true);
               return;
             }
-            patchParams({ category: id });
+            patchParams({ category: id, sort: 'members' });
           }}
         />
       )}
@@ -137,7 +138,7 @@ export function CategoriesPage() {
         onCancel={() => setAdultOpen(false)}
         onConfirm={() => {
           setAdultOpen(false);
-          patchParams({ category: '성인' });
+          patchParams({ category: '성인', sort: 'members' });
         }}
       />
 
