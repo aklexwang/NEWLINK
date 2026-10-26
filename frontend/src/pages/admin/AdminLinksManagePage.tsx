@@ -697,8 +697,8 @@ export function AdminLinksManagePage() {
                     />
                   </section>
 
-                  {/* 광고 */}
-                  {channel.status === 'active' && (
+                  {/* 광고: 지금 광고 중인 방만 */}
+                  {channel.status === 'active' && isPromotionActive(channel.isPromoted, channel.promotedUntil) && (
                     <section className="space-y-3 rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
                       <h3 className="text-base font-bold text-foreground">홈 광고</h3>
                       {isPromotionActive(channel.isPromoted, channel.promotedUntil) && channel.promotedUntil && (
