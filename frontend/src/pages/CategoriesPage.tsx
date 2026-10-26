@@ -168,7 +168,7 @@ export function CategoriesPage() {
         ) : error ? (
           <p className="px-4 py-8 text-center text-sm text-tg-hint">{error}</p>
         ) : (
-          <div className="divide-y divide-black/[0.06] pb-4 dark:divide-white/10">
+          <div className="flex flex-col gap-3 px-4 pt-1 pb-6">
             {channels.map((channel, index) => (
               <RankingChannelCard
                 key={channel.id}
