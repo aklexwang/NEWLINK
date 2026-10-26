@@ -14,6 +14,9 @@ export type AdminRankAd = {
   isActive: boolean;
   memo: string | null;
   clicks: number;
+  paidUsdt: number | null;
+  paidOn: string | null;
+  daysLeft: number | null;
   state: RankAdState;
   createdAt: string;
   channel: {
@@ -39,6 +42,9 @@ export type RankAdForm = {
   endsOn?: string;
   isActive?: boolean;
   memo?: string;
+  /** 받은 USDT (비우면 없음) */
+  paidUsdt?: string;
+  paidOn?: string;
 };
 
 export async function getAdminRankAds(): Promise<AdminRankAd[]> {

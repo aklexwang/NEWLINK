@@ -48,6 +48,14 @@ export class AdBanner {
   @Column({ type: 'integer', default: 0 })
   clicks: number;
 
+  /** 받은 광고비 (USDT) */
+  @Column({ name: 'paid_usdt', type: 'real', nullable: true })
+  paidUsdt: number | null;
+
+  /** 광고비 받은 날 'YYYY-MM-DD' (KST) */
+  @Column({ name: 'paid_on', type: 'varchar', length: 10, nullable: true })
+  paidOn: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: dateTimeColumnType() })
   createdAt: Date;
 

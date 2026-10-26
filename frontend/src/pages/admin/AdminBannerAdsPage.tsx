@@ -10,6 +10,7 @@ import {
   type AdminBanner,
   type BannerForm,
 } from '../../api/ads';
+import { AdPaymentChips, AdPaymentFields } from '../../components/admin/AdPayment';
 import { AdminDatePicker } from '../../components/admin/AdminDatePicker';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
@@ -40,6 +41,8 @@ function BannerEditor({
   const [endsOn, setEndsOn] = useState(kstDateInput(banner?.endsAt ?? null, true));
   const [sortOrder, setSortOrder] = useState(String(banner?.sortOrder ?? 0));
   const [isActive, setIsActive] = useState(banner?.isActive ?? true);
+  const [paidUsdt, setPaidUsdt] = useState(banner?.paidUsdt != null ? String(banner.paidUsdt) : '');
+  const [paidOn, setPaidOn] = useState(banner?.paidOn ?? '');
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(
     banner ? resolveMediaUrl(banner.imageUrl) : null,
@@ -81,6 +84,8 @@ function BannerEditor({
         endsOn,
         sortOrder: Number(sortOrder) || 0,
         isActive,
+        paidUsdt,
+        paidOn,
         image,
       };
       if (banner) await updateAdminBanner(banner.id, form);
@@ -141,6 +146,7 @@ function BannerEditor({
             quickBase={startsOn || undefined}
           />
         </div>
+        <AdPaymentFields usdt={paidUsdt} onUsdt={setPaidUsdt} paidOn={paidOn} onPaidOn={setPaidOn} />
         <label className="block text-sm font-medium text-subtle">
           순서 (작을수록 먼저)
           <input type="number" min={0} max={999} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className={inputClass} />
@@ -283,6 +289,14 @@ export function AdminBannerAdsPage() {
                       </span>
                     </p>
                     <p className="mt-1 truncate text-sm text-primary">{banner.link}</p>
+                    <p className="mt-1.5">
+                      <AdPaymentChips
+                        paidUsdt={banner.paidUsdt}
+                        paidOn={banner.paidOn}
+                        daysLeft={banner.daysLeft}
+                        live={banner.isActive}
+                      />
+                    </p>
                     <p className="mt-1 text-sm text-subtle">
                       순서 {banner.sortOrder} · 클릭 {banner.clicks.toLocaleString()}회 ·{' '}
                       {kstDateInput(banner.startsAt, false) || '처음부터'} ~ {kstDateInput(banner.endsAt, true) || '계속'}

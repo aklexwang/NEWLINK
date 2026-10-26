@@ -125,6 +125,46 @@ export class TelegramAdminNotifyService {
     );
   }
 
+  /** 관리자들에게 HTML 글 하나 보내기 (토큰·관리자 ID 없으면 조용히 건너뜀) */
+  async notifyText(html: string): Promise<void> {
+    const token = (
+      this.configService.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
+    ).trim();
+    if (!token || token.includes('placeholder') || token.includes('your_bot')) {
+      return;
+    }
+    const adminIds = (
+      this.configService.get<string>('TELEGRAM_ADMIN_IDS') ?? ''
+    )
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    await Promise.all(
+      adminIds.map(async (chatId) => {
+        try {
+          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: html,
+              parse_mode: 'HTML',
+              disable_web_page_preview: true,
+            }),
+          });
+        } catch (error) {
+          this.logger.warn(
+            `관리자 알림 실패: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }),
+    );
+  }
+
+  escapeHtml(value: string): string {
+    return this.escape(value);
+  }
+
   private escape(value: string): string {
     return value
       .replace(/&/g, '&amp;')

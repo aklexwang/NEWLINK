@@ -17,6 +17,7 @@ import {
   parseRotateSeconds,
   sniffImageMime,
 } from './ad-banner.logic';
+import { applyPayment, daysLeft } from './ad-payment.logic';
 
 export type BannerInput = {
   title?: unknown;
@@ -25,6 +26,8 @@ export type BannerInput = {
   endsOn?: unknown;
   sortOrder?: unknown;
   isActive?: unknown;
+  paidUsdt?: unknown;
+  paidOn?: unknown;
 };
 
 function toBool(value: unknown, fallback: boolean): boolean {
@@ -117,6 +120,9 @@ export class AdsService {
         sortOrder: row.sortOrder,
         isActive: row.isActive,
         clicks: row.clicks,
+        paidUsdt: row.paidUsdt,
+        paidOn: row.paidOn,
+        daysLeft: daysLeft(row.endsAt, now),
         live: isBannerLive(row, now),
         createdAt: row.createdAt,
       })),
@@ -163,6 +169,7 @@ export class AdsService {
     if (input.isActive !== undefined || creating) {
       row.isActive = toBool(input.isActive, true);
     }
+    applyPayment(row, input);
   }
 
   async create(

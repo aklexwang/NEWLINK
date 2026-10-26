@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Channel } from '../channels/channel.entity';
 import { isBannerLive, kstDateBoundary } from './ad-banner.logic';
+import { applyPayment, daysLeft } from './ad-payment.logic';
 import { RankAd } from './rank-ad.entity';
 import {
   parseRankAdScope,
@@ -24,6 +25,8 @@ export type RankAdInput = {
   endsOn?: unknown;
   isActive?: unknown;
   memo?: unknown;
+  paidUsdt?: unknown;
+  paidOn?: unknown;
 };
 
 const UUID_RE =
@@ -82,6 +85,9 @@ export class RankAdsService {
         isActive: row.isActive,
         memo: row.memo,
         clicks: row.clicks,
+        paidUsdt: row.paidUsdt,
+        paidOn: row.paidOn,
+        daysLeft: daysLeft(row.endsAt, now),
         state: rankAdState(row, now),
         createdAt: row.createdAt,
         channel: ch
@@ -145,6 +151,7 @@ export class RankAdsService {
       const memo = typeof input.memo === 'string' ? input.memo.trim() : '';
       row.memo = memo ? memo.slice(0, 200) : null;
     }
+    applyPayment(row, input);
   }
 
   /** 같은 자리·같은 방 기간 겹침 막기 */
@@ -185,6 +192,8 @@ export class RankAdsService {
       isActive: true,
       memo: null,
       clicks: 0,
+      paidUsdt: null,
+      paidOn: null,
     } as Partial<RankAd>;
     if (!row.scope) throw new BadRequestException('광고 종류를 골라 주세요.');
     if (input.slot === undefined)

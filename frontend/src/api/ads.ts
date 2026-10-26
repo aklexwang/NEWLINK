@@ -9,6 +9,11 @@ export type AdminBanner = PublicBanner & {
   sortOrder: number;
   isActive: boolean;
   clicks: number;
+  /** 받은 광고비(USDT)·받은 날 */
+  paidUsdt: number | null;
+  paidOn: string | null;
+  /** 마지막 노출일까지 남은 날 (끝없으면 null) */
+  daysLeft: number | null;
   live: boolean;
   createdAt: string;
 };
@@ -46,6 +51,8 @@ export type BannerForm = {
   endsOn?: string;
   sortOrder?: number;
   isActive?: boolean;
+  paidUsdt?: string;
+  paidOn?: string;
   image?: File | null;
 };
 
@@ -57,6 +64,8 @@ function toFormData(form: BannerForm): FormData {
   if (form.endsOn !== undefined) data.append('endsOn', form.endsOn);
   if (form.sortOrder !== undefined) data.append('sortOrder', String(form.sortOrder));
   if (form.isActive !== undefined) data.append('isActive', String(form.isActive));
+  if (form.paidUsdt !== undefined) data.append('paidUsdt', form.paidUsdt);
+  if (form.paidOn !== undefined) data.append('paidOn', form.paidOn);
   if (form.image) data.append('image', form.image);
   return data;
 }

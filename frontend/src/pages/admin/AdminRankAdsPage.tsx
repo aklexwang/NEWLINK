@@ -9,6 +9,7 @@ import {
   type RankAdScope,
   type RankAdState,
 } from '../../api/rankAds';
+import { AdPaymentChips, AdPaymentFields } from '../../components/admin/AdPayment';
 import { AdminDatePicker } from '../../components/admin/AdminDatePicker';
 import type { Channel } from '../../types/channel';
 import type { CategoryItem } from '../../types/categoryItem';
@@ -154,6 +155,8 @@ function RankAdEditor({
   const [endsOn, setEndsOn] = useState(isoToKstYmd(ad?.endsAt ?? null, true));
   const [memo, setMemo] = useState(ad?.memo ?? '');
   const [isActive, setIsActive] = useState(ad?.isActive ?? true);
+  const [paidUsdt, setPaidUsdt] = useState(ad?.paidUsdt != null ? String(ad.paidUsdt) : '');
+  const [paidOn, setPaidOn] = useState(ad?.paidOn ?? '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -174,6 +177,8 @@ function RankAdEditor({
         endsOn,
         memo,
         isActive,
+        paidUsdt,
+        paidOn,
       };
       if (ad) await updateAdminRankAd(ad.id, form);
       else await createAdminRankAd(form);
@@ -228,6 +233,7 @@ function RankAdEditor({
             quickBase={startsOn || undefined}
           />
         </div>
+        <AdPaymentFields usdt={paidUsdt} onUsdt={setPaidUsdt} paidOn={paidOn} onPaidOn={setPaidOn} />
         <label className="block text-sm font-medium text-subtle">
           광고주·메모 (관리용)
           <input value={memo} onChange={(e) => setMemo(e.target.value)} className={inputClass} placeholder="예: @광고주 · 30일 · 50 TON" />
@@ -279,6 +285,16 @@ function AdLine({
           {isoToKstYmd(ad.startsAt) || '처음부터'} ~ {isoToKstYmd(ad.endsAt, true) || '계속'} · 클릭{' '}
           {ad.clicks.toLocaleString()}회{ad.memo ? ` · ${ad.memo}` : ''}
         </p>
+        {!readOnly && (
+          <p className="mt-1.5">
+            <AdPaymentChips
+              paidUsdt={ad.paidUsdt}
+              paidOn={ad.paidOn}
+              daysLeft={ad.daysLeft}
+              live={ad.state === 'live' || ad.state === 'scheduled'}
+            />
+          </p>
+        )}
       </div>
       {!readOnly && (
         <>
