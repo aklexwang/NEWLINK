@@ -102,8 +102,10 @@ export function ChannelCard({
   const createdOn = formatKoDate(channel.createdOn);
   const isGroup = channel.linkType === 'group';
   // @아이디가 없는 초대 링크 방: 텔레그램이 바깥에 글을 보여 주지 않는다
-  const isPrivate =
+  const isInviteOnly =
     isInviteLink(channel.link) || (!handle && !extractTelegramUsername(channel.link ?? ''));
+  // 수집 계정이 회원이라 글을 읽은 비공개 방은 숫자를 그대로 보여 준다
+  const isPrivate = isInviteOnly && !(summary && summary.collectedPosts > 0);
 
   const openDetail = () => {
     if (path) navigate(path);

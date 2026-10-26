@@ -52,7 +52,10 @@ function build() {
     findOneBy: jest.fn(),
   };
   target.configService = { get: jest.fn(() => 'test-token') };
-  target.mtproto = { canCollect: jest.fn(() => false) };
+  target.mtproto = {
+    canCollect: jest.fn(() => false),
+    canCollectInvite: jest.fn(() => false),
+  };
   target.upsertTodayMemberCount = jest.fn(async () => undefined);
   return { service, target, gate };
 }

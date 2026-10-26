@@ -11,6 +11,7 @@ import {
 } from '../channels/title-lock.logic';
 import {
   extractTelegramUsernameFromLink,
+  inviteHashFromLink,
   isInviteOnlyLink,
 } from '../channels/telegram-username';
 import { formatKstYmd } from './channel-metrics.math';
@@ -54,6 +55,7 @@ import {
   isFloodWaitBlocking,
   isResolveOrSearchMethod,
   isStoredAccessInvalid,
+  memberChatFromInvite,
   mtprotoCallGapMs,
   RESOLVE_DAILY_LIMIT_DEFAULT,
   serializeAccessHash,
@@ -93,7 +95,10 @@ export type MtprotoPublicStatus = {
 
 export type MtprotoCollectResult =
   | { ok: true; mode: 'mtproto' }
-  | { ok: false; reason: 'disabled' | 'skipped' | 'failed' | 'invalid' };
+  | {
+      ok: false;
+      reason: 'disabled' | 'skipped' | 'failed' | 'invalid' | 'not_member';
+    };
 
 export type MtprotoTestSummary = {
   ok: boolean;
@@ -289,6 +294,87 @@ export class MtprotoCollectorService implements OnModuleInit {
         return { ok: false, reason: 'invalid' };
       }
       this.logger.warn(`MTProto 수집 실패(${username}): ${code}`);
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /**
+   * 초대 링크(@아이디 없는) 방: 수집 계정이 "이미 회원"일 때만 글 정보까지 읽는다.
+   * 가입(ImportChatInvite)은 절대 하지 않는다. 회원이 아니면 not_member → 공개 초대 페이지로 넘긴다.
+   */
+  canCollectInvite(channel: Channel): boolean {
+    if (!this.canUseMtproto()) return false;
+    if (channel.collectStatus === 'invite_expired') return false;
+    return (
+      isInviteOnlyLink(channel.link) && inviteHashFromLink(channel.link) != null
+    );
+  }
+
+  async collectInviteAndSave(channel: Channel): Promise<MtprotoCollectResult> {
+    if (!this.canCollectInvite(channel))
+      return { ok: false, reason: 'skipped' };
+    const hash = inviteHashFromLink(channel.link) as string;
+    try {
+      const Api = await this.api();
+      const stored = await this.loadStoredAccess(channel.id);
+      let resolved: ResolvedPublicChannel | null = null;
+      if (stored && canReuseStoredAccess(stored)) {
+        try {
+          resolved = await this.fetchFullFromInput(
+            Api,
+            '',
+            stored.telegramChatId,
+            stored.telegramAccessHash,
+          );
+        } catch (error) {
+          if (!isStoredAccessInvalid(mtprotoErrorCode(error))) throw error;
+          await this.channelRepository.update(channel.id, {
+            telegramAccessHash: null,
+          });
+        }
+      }
+      if (!resolved) {
+        if (!canSpendResolve(this.resolvesToday, this.resolveDailyLimit())) {
+          return { ok: false, reason: 'skipped' };
+        }
+        const invite = await this.call(
+          'messages.CheckChatInvite',
+          new Api.messages.CheckChatInvite({ hash }),
+        );
+        const chat = memberChatFromInvite(invite);
+        if (!chat) return { ok: false, reason: 'not_member' };
+        resolved = await this.fetchFullFromInput(
+          Api,
+          '',
+          chat.id,
+          chat.accessHash,
+          {
+            title: chat.title,
+            date: chat.date,
+            megagroup: chat.megagroup,
+            broadcast: chat.broadcast,
+          },
+        );
+      }
+      const history = await this.fetchHistory(resolved);
+      await this.persist(channel, { ...resolved, ...history });
+      return { ok: true, mode: 'mtproto' };
+    } catch (error) {
+      if (error instanceof FloodWaitTooLongError)
+        return { ok: false, reason: 'disabled' };
+      if (isMtprotoTimeoutError(error)) return { ok: false, reason: 'failed' };
+      if (isMtprotoAuthFatal(error)) {
+        await this.stopForAuth(error);
+        return { ok: false, reason: 'failed' };
+      }
+      const code = mtprotoErrorCode(error);
+      if (code === 'RESOLVE_DAILY_LIMIT')
+        return { ok: false, reason: 'skipped' };
+      this.lastError = code;
+      if (code === 'INVITE_HASH_EXPIRED' || code === 'INVITE_HASH_INVALID') {
+        return { ok: false, reason: 'invalid' };
+      }
+      this.logger.warn(`MTProto 초대 링크 수집 실패: ${code}`);
       return { ok: false, reason: 'failed' };
     }
   }
@@ -817,7 +903,8 @@ export class MtprotoCollectorService implements OnModuleInit {
     }
     // 제목 고정이면 수집 제목으로 덮어쓰지 않는다(소개글은 계속 갱신)
     applyCollectedTitle(channel, nextTitle);
-    channel.username = data.username;
+    // 초대 링크 방은 @아이디가 없다(빈 값으로 덮지 않음)
+    if (data.username) channel.username = data.username;
     if (data.memberCount != null) channel.memberCount = data.memberCount;
     if (data.description) channel.description = data.description;
     if (data.telegramChatId != null)

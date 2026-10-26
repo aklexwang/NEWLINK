@@ -370,6 +370,11 @@ export class ChannelCollectorService {
     }
 
     if (isInviteOnlyLink(channel.link)) {
+      // 수집 계정이 이미 회원인 초대 링크 방이면 글 정보까지 읽는다(가입은 하지 않음)
+      if (this.mtproto.canCollectInvite(channel)) {
+        const viaMember = await this.mtproto.collectInviteAndSave(channel);
+        if (viaMember.ok) return viaMember;
+      }
       return this.collectInvitePreview(channel);
     }
 

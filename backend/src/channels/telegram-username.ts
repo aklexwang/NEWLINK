@@ -128,3 +128,14 @@ export function isDiscoverableUsername(
   if (self && u === self) return false;
   return true;
 }
+
+/** 초대 링크의 해시. t.me/+AbC_12 → "AbC_12", t.me/joinchat/AbC → "AbC". 아니면 null */
+export function inviteHashFromLink(
+  link: string | null | undefined,
+): string | null {
+  const raw = (link ?? '').trim();
+  const match =
+    raw.match(/(?:t\.me|telegram\.me|telegram\.dog)\/\+([A-Za-z0-9_-]{6,})/i) ??
+    raw.match(/\/joinchat\/([A-Za-z0-9_-]{6,})/i);
+  return match ? match[1] : null;
+}

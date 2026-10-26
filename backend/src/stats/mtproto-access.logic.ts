@@ -51,7 +51,47 @@ export function canSpendResolve(
 }
 
 export function isResolveOrSearchMethod(method: string): boolean {
-  return method === 'contacts.ResolveUsername' || method === 'contacts.Search';
+  return (
+    method === 'contacts.ResolveUsername' ||
+    method === 'contacts.Search' ||
+    // 초대 링크 확인도 찾기와 같은 무게로 아껴 쓴다
+    method === 'messages.CheckChatInvite'
+  );
+}
+
+/**
+ * CheckChatInvite 결과에서 "이미 회원인 방"만 꺼낸다(가입은 하지 않는다).
+ * ChatInviteAlready / ChatInvitePeek → chat, ChatInvite(회원 아님) → null
+ */
+export function memberChatFromInvite(result: unknown): {
+  id: unknown;
+  accessHash: unknown;
+  title?: string;
+  date?: number;
+  megagroup?: boolean;
+  broadcast?: boolean;
+} | null {
+  if (!result || typeof result !== 'object') return null;
+  const r = result as { className?: string; chat?: Record<string, unknown> };
+  if (r.className !== 'ChatInviteAlready' && r.className !== 'ChatInvitePeek')
+    return null;
+  const chat = r.chat;
+  if (
+    !chat ||
+    chat.className !== 'Channel' ||
+    chat.accessHash == null ||
+    chat.id == null
+  ) {
+    return null;
+  }
+  return {
+    id: chat.id,
+    accessHash: chat.accessHash,
+    title: typeof chat.title === 'string' ? chat.title : undefined,
+    date: typeof chat.date === 'number' ? chat.date : undefined,
+    megagroup: chat.megagroup === true,
+    broadcast: chat.broadcast === true,
+  };
 }
 
 export function mtprotoCallGapMs(input: {
