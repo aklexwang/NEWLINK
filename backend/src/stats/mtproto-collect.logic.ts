@@ -86,13 +86,14 @@ export const MTPROTO_ALLOWED_METHODS = [
   'contacts.Search',
   'channels.GetFullChannel',
   'messages.GetHistory',
+  // 초대 링크 방에 "이미 회원인지" 확인만 한다(가입하지 않음). 10월 26일 사용자 결정
+  'messages.CheckChatInvite',
 ] as const;
 
 /** 어떤 경로로도 호출하면 안 되는 메서드 */
 export const MTPROTO_FORBIDDEN_METHODS = [
   'channels.JoinChannel',
   'messages.ImportChatInvite',
-  'messages.CheckChatInvite',
   'channels.GetParticipants',
   'channels.GetParticipant',
   'contacts.GetContacts',

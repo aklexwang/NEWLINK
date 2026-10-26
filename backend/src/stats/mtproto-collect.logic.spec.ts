@@ -220,6 +220,9 @@ describe('가입 API 를 호출하지 않는지', () => {
     expect(isMtprotoMethodAllowed('channels.JoinChannel')).toBe(false);
     expect(isMtprotoMethodAllowed('channels.GetParticipants')).toBe(false);
     expect(isMtprotoMethodAllowed('contacts.ResolveUsername')).toBe(true);
+    // 초대 링크는 확인만 허용, 가입(ImportChatInvite)은 계속 금지
+    expect(isMtprotoMethodAllowed('messages.CheckChatInvite')).toBe(true);
+    expect(isMtprotoMethodAllowed('messages.ImportChatInvite')).toBe(false);
     expect(isMtprotoMethodAllowed('contacts.Search')).toBe(true);
     expect(isMtprotoMethodAllowed('messages.GetHistory')).toBe(true);
   });
