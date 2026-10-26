@@ -352,6 +352,16 @@ export function AdminLinksManagePage() {
   const drawerChannel = expandedId ? (channels.find((item) => item.id === expandedId) ?? null) : null;
   const categoryOptions = categories.map((c) => c.name);
 
+  const moveCategory = async (channel: { id: string; title: string; category: string }, next: string) => {
+    try {
+      await updateAdminChannel(channel.id, { category: next, categoryLocked: true });
+      setMessage(`"${channel.title}" 카테고리를 ${channel.category} → ${next}(으)로 옮겼어요. (고정됨)`);
+      await load();
+    } catch (error) {
+      setMessage(adminApiErrorMessage(error, '카테고리를 옮기지 못했습니다.'));
+    }
+  };
+
   return (
     <>
       <header className="px-4 pt-1 pb-4 md:px-7">
@@ -493,7 +503,7 @@ export function AdminLinksManagePage() {
                   <AdminTh className="w-24">카테고리</AdminTh>
                   <AdminTh className="w-16">언어</AdminTh>
                   <AdminTh className="w-16">상태</AdminTh>
-                  <AdminTh className="w-36">회원 페이지 노출</AdminTh>
+                  <AdminTh className="w-40">카테고리 수정</AdminTh>
                   <AdminTh className="w-12">👍</AdminTh>
                   <AdminTh>광고 의뢰</AdminTh>
                   <AdminTh className="w-24">광고</AdminTh>
@@ -533,13 +543,31 @@ export function AdminLinksManagePage() {
                           <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClass[channel.status]}`}>{statusLabel[channel.status]}</span>
                         </AdminTd>
                         <AdminTd>
-                          {channel.memberPageVisible ? (
-                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-800">예</span>
-                          ) : (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-                              아니오 · {channel.memberPageReasonKey || channel.memberPageHiddenReason || '숨김'}
-                            </span>
-                          )}
+                          {/* 목록에서 바로 카테고리 옮기기 (옮긴 방은 AI 가 다시 바꾸지 않게 고정) */}
+                          <select
+                            value=""
+                            title={
+                              channel.memberPageVisible
+                                ? '회원 화면에 보이는 중'
+                                : `회원 화면 숨김 · ${channel.memberPageReasonKey || channel.memberPageHiddenReason || '숨김'}`
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              if (!next || next === channel.category) return;
+                              void moveCategory(channel, next);
+                            }}
+                            className="h-8 cursor-pointer rounded-lg bg-primary/10 px-2.5 text-[12px] font-semibold text-primary outline-none ring-1 ring-primary/30 hover:bg-primary/15"
+                          >
+                            <option value="">카테고리 이동 ▾</option>
+                            {categoryOptions
+                              .filter((name) => name !== channel.category)
+                              .map((name) => (
+                                <option key={name} value={name}>
+                                  → {name}
+                                </option>
+                              ))}
+                          </select>
                         </AdminTd>
                         <AdminTd>{channel.recommendCount}</AdminTd>
                         <AdminTd>{channel.isPromoted ? <AdClientCells channel={channel} /> : <span className="text-xs text-muted-foreground">-</span>}</AdminTd>
