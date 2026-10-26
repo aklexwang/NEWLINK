@@ -124,6 +124,53 @@ export function AdminCategoriesPage() {
     await loadCategories();
   };
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  // 분류대기는 시스템이 쓰는 칸이라 지우지 않는다
+  const deletable = categories.filter((item) => item.name !== '분류대기');
+  const emptyIds = deletable
+    .filter((item) => (counts[item.name]?.total ?? 0) === 0)
+    .map((item) => item.id);
+
+  const handleBulkDelete = async () => {
+    const targets = categories.filter((item) => selectedIds.has(item.id));
+    if (targets.length === 0) return;
+    const withRooms = targets.filter((item) => (counts[item.name]?.total ?? 0) > 0);
+    const lines = [
+      `카테고리 ${targets.length}개를 삭제할까요?`,
+      '',
+      targets.map((item) => item.name).join(', '),
+    ];
+    if (withRooms.length > 0) {
+      lines.push(
+        '',
+        `⚠ 이 중 ${withRooms.length}개(${withRooms.map((item) => item.name).join(', ')})에는 방이 있어요.`,
+        '삭제해도 방은 지워지지 않지만 카테고리 이름만 남아요. 먼저 다른 카테고리로 옮기는 걸 권해요.',
+      );
+    }
+    if (!window.confirm(lines.join('\n'))) return;
+    setSaving(true);
+    let done = 0;
+    for (const item of targets) {
+      try {
+        await deleteCategory(item.id);
+        done += 1;
+      } catch {
+        /* 하나 실패해도 나머지는 계속 */
+      }
+    }
+    setSaving(false);
+    setSelectedIds(new Set());
+    setMessage(`카테고리 ${done}개를 삭제했어요.${done < targets.length ? ` (${targets.length - done}개 실패)` : ''}`);
+    await loadCategories();
+  };
+
   const handleDeleteCategory = async (id: string) => {
     if (!window.confirm('이 카테고리를 삭제할까요?')) return;
     await deleteCategory(id);
@@ -192,13 +239,50 @@ export function AdminCategoriesPage() {
             </CardContent>
           </Card>
 
-          <h3 className="mt-4 text-sm font-semibold">등록된 카테고리 ({categories.length})</h3>
+          <div className="sticky top-0 z-10 mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-card p-4 shadow-[var(--hz-shadow)]">
+            <h3 className="mr-auto text-base font-bold">등록된 카테고리 ({categories.length})</h3>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={emptyIds.length === 0}
+              onClick={() => setSelectedIds(new Set(emptyIds))}
+            >
+              방 0개 모두 선택 ({emptyIds.length})
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                setSelectedIds((prev) =>
+                  prev.size === deletable.length ? new Set() : new Set(deletable.map((item) => item.id)),
+                )
+              }
+            >
+              {selectedIds.size === deletable.length && deletable.length > 0 ? '선택 해제' : '전체 선택'}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={saving || selectedIds.size === 0}
+              onClick={() => void handleBulkDelete()}
+            >
+              선택 삭제 ({selectedIds.size})
+            </Button>
+          </div>
           {categories.length === 0 ? (
             <p className="text-sm text-muted-foreground">등록된 카테고리가 없습니다.</p>
           ) : (
             categories.map((item, index) => (
               <Card key={item.id}>
                 <CardContent className="flex flex-wrap items-center gap-3 pt-6">
+                  <input
+                    type="checkbox"
+                    aria-label={`${item.name} 선택`}
+                    className="h-5 w-5 cursor-pointer accent-[var(--hz-primary,#4318ff)] disabled:cursor-not-allowed disabled:opacity-30"
+                    disabled={item.name === '분류대기'}
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleSelected(item.id)}
+                  />
                   <CategoryIcon emoji={item.emoji} iconUrl={item.iconUrl} size="md" />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{item.name}</p>
