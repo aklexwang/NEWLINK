@@ -138,6 +138,16 @@ export function AdminCategoriesPage() {
     .filter((item) => (counts[item.name]?.total ?? 0) === 0)
     .map((item) => item.id);
 
+  // 등록된 방이 많은 카테고리부터 (분류대기는 맨 위)
+  const sortedCategories = [...categories].sort((a, b) => {
+    if (a.name === '분류대기') return -1;
+    if (b.name === '분류대기') return 1;
+    return (
+      (counts[b.name]?.total ?? 0) - (counts[a.name]?.total ?? 0) ||
+      a.name.localeCompare(b.name, 'ko')
+    );
+  });
+
   const handleBulkDelete = async () => {
     const targets = categories.filter((item) => selectedIds.has(item.id));
     if (targets.length === 0) return;
@@ -176,23 +186,6 @@ export function AdminCategoriesPage() {
     await deleteCategory(id);
     setMessage('카테고리가 삭제되었습니다.');
     await loadCategories();
-  };
-
-  const handleMove = async (index: number, dir: -1 | 1) => {
-    const next = index + dir;
-    if (next < 0 || next >= categories.length) return;
-    const current = categories[index];
-    const neighbor = categories[next];
-    setSaving(true);
-    try {
-      await updateCategory(current.id, { sortOrder: neighbor.sortOrder });
-      await updateCategory(neighbor.id, { sortOrder: current.sortOrder });
-      await loadCategories();
-    } catch {
-      setMessage('순서를 바꾸지 못했습니다.');
-    } finally {
-      setSaving(false);
-    }
   };
 
   return (
@@ -272,7 +265,7 @@ export function AdminCategoriesPage() {
           {categories.length === 0 ? (
             <p className="text-sm text-muted-foreground">등록된 카테고리가 없습니다.</p>
           ) : (
-            categories.map((item, index) => (
+            sortedCategories.map((item) => (
               <Card key={item.id}>
                 <CardContent className="flex flex-wrap items-center gap-3 pt-6">
                   <input
@@ -287,7 +280,7 @@ export function AdminCategoriesPage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{item.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      순서 {item.sortOrder} · {item.isActive ? '활성' : '비활성'}
+                      {item.isActive ? '활성' : '비활성'}
                     </p>
                     {(() => {
                       const c = counts[item.name] ?? { total: 0, visible: 0 };
@@ -307,24 +300,6 @@ export function AdminCategoriesPage() {
                     })()}
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={saving || index === 0}
-                      onClick={() => void handleMove(index, -1)}
-                    >
-                      위
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={saving || index === categories.length - 1}
-                      onClick={() => void handleMove(index, 1)}
-                    >
-                      아래
-                    </Button>
                     <Button type="button" variant="secondary" size="sm" onClick={() => startEdit(item)}>
                       수정
                     </Button>
