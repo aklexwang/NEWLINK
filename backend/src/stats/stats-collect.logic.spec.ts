@@ -11,6 +11,7 @@ import {
   STATS_CRON_LIGHT_UTC,
   statsCronModeFromSchedule,
   statsCronWaitMinutes,
+  startedRecently,
 } from './stats-collect.logic';
 
 describe('수집 모드 단계', () => {
@@ -143,5 +144,39 @@ describe('light 미리보기에 글이 없을 때', () => {
   it('한 번도 수집 못 한 채널만 실패 이유를 남긴다', () => {
     expect(shouldMarkLightNoPostsFailed({ firstObservedAt: null })).toBe(true);
     expect(shouldMarkLightNoPostsFailed({})).toBe(true);
+  });
+});
+
+describe('startedRecently (서버 일정·GitHub 예비 겹침 방지)', () => {
+  const now = Date.parse('2026-10-26T03:30:00Z');
+  it('light 는 1시간 안이면 건너뛴다', () => {
+    expect(
+      startedRecently({
+        mode: 'light',
+        lastStartedAtMs: now - 25 * 60_000,
+        nowMs: now,
+      }),
+    ).toBe(true);
+    expect(
+      startedRecently({
+        mode: 'light',
+        lastStartedAtMs: now - 61 * 60_000,
+        nowMs: now,
+      }),
+    ).toBe(false);
+  });
+  it('full 은 6시간 안이면 건너뛴다', () => {
+    expect(
+      startedRecently({
+        mode: 'full',
+        lastStartedAtMs: now - 2 * 3600_000,
+        nowMs: now,
+      }),
+    ).toBe(true);
+  });
+  it('기록이 없으면 건너뛰지 않는다', () => {
+    expect(
+      startedRecently({ mode: 'light', lastStartedAtMs: null, nowMs: now }),
+    ).toBe(false);
   });
 });

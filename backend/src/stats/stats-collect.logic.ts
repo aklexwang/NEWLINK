@@ -112,3 +112,22 @@ export function lastPostAtFromCollectedPosts(
   }
   return latest;
 }
+
+/** 서버 안 일정(KST). full 은 새벽 3시 handleNightlyCron 이 따로 돈다 */
+export const SERVER_LIGHT_CRON_KST = '5 0,6,9,12,15,18,21 * * *';
+
+/** 같은 모드가 이 시간 안에 이미 시작됐으면 GitHub 예비 실행 등 두 번째 요청은 건너뛴다 */
+export const RECENT_RUN_WINDOW_MS: Record<StatsCollectMode, number> = {
+  light: 60 * 60 * 1000,
+  full: 6 * 60 * 60 * 1000,
+};
+
+export function startedRecently(input: {
+  mode: StatsCollectMode;
+  lastStartedAtMs: number | null | undefined;
+  nowMs: number;
+}): boolean {
+  if (input.lastStartedAtMs == null) return false;
+  const elapsed = input.nowMs - input.lastStartedAtMs;
+  return elapsed >= 0 && elapsed < RECENT_RUN_WINDOW_MS[input.mode];
+}

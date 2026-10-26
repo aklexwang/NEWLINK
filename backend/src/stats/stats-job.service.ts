@@ -29,6 +29,8 @@ import {
 import {
   decideCollectOverlap,
   FULL_WAIT_FOR_LIGHT_MS,
+  SERVER_LIGHT_CRON_KST,
+  startedRecently,
   type StatsCollectMode,
 } from './stats-collect.logic';
 import { getTmeGate } from './tme-gate';
@@ -76,6 +78,11 @@ export class StatsJobService implements OnModuleInit {
   private readonly logger = new Logger(StatsJobService.name);
   private currentRunId: string | null = null;
   private currentRunMode: StatsCollectMode | null = null;
+  /** 모드별 마지막 시작 시각(ms). 서버 일정과 GitHub 예비 실행이 겹치지 않게 쓴다 */
+  private lastStartedAt: Record<StatsCollectMode, number | null> = {
+    light: null,
+    full: null,
+  };
   private lastRunPublic: StatsJobStatus['lastRun'] = null;
   private status: Omit<StatsJobStatus, 'mtproto' | 'lastRun'> = {
     running: false,
@@ -150,7 +157,7 @@ export class StatsJobService implements OnModuleInit {
     if (envFalsy(this.configService.get<string>('STATS_CRON_ENABLED'))) {
       return;
     }
-    const result = await this.startPipeline('full');
+    const result = await this.startPipeline('full', { skipIfRecent: true });
     if (!result.started) {
       this.logger.warn('통계 크론을 건너뜁니다. 이미 실행 중입니다.');
     }
@@ -232,12 +239,48 @@ export class StatsJobService implements OnModuleInit {
     return { started: true, startedAt };
   }
 
-  async startPipeline(mode: StatsCollectMode = 'full'): Promise<{
+  /**
+   * 3시간마다 light (KST 00·06·09·12·15·18·21시 5분). 서버가 잠들지 않으니 서버가 직접 시작하고,
+   * GitHub Actions 일정은 예비로 남긴다(빠지거나 늦게 와도 수집이 돈다).
+   */
+  @Cron(SERVER_LIGHT_CRON_KST, { timeZone: 'Asia/Seoul' })
+  async handleLightCron() {
+    if (envFalsy(this.configService.get<string>('STATS_CRON_ENABLED'))) {
+      return;
+    }
+    const result = await this.startPipeline('light', { skipIfRecent: true });
+    if (!result.started) {
+      this.logger.log(`서버 light 일정 건너뜀 (${result.reason ?? 'busy'})`);
+    }
+  }
+
+  async startPipeline(
+    mode: StatsCollectMode = 'full',
+    options: { skipIfRecent?: boolean } = {},
+  ): Promise<{
     started: boolean;
     skipped: boolean;
     runId: string | null;
     mode: StatsCollectMode;
+    reason?: 'recent';
   }> {
+    if (
+      options.skipIfRecent &&
+      !this.status.running &&
+      startedRecently({
+        mode,
+        lastStartedAtMs: this.lastStartedAt[mode],
+        nowMs: Date.now(),
+      })
+    ) {
+      return {
+        started: false,
+        skipped: true,
+        runId: this.currentRunId,
+        mode,
+        reason: 'recent',
+      };
+    }
     if (this.status.running) {
       const decision = decideCollectOverlap({
         requested: mode,
@@ -271,6 +314,7 @@ export class StatsJobService implements OnModuleInit {
       }
     }
     const run = await this.beginRun(0, mode);
+    this.lastStartedAt[mode] = Date.now();
     const gate = getTmeGate();
     gate.beginRun(mode);
     const work =

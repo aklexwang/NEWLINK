@@ -36,14 +36,17 @@ export class InternalStatsController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const mode = parseStatsCollectMode(modeRaw);
-    const result = await this.statsJobService.startPipeline(mode);
+    // GitHub 일정은 예비: 서버 일정이 최근에 같은 모드를 이미 시작했으면 건너뛴다
+    const result = await this.statsJobService.startPipeline(mode, {
+      skipIfRecent: true,
+    });
     if (result.skipped) {
       throw new HttpException(
         {
           accepted: false,
           skipped: true,
           started: false,
-          reason: 'busy',
+          reason: result.reason ?? 'busy',
           runId: result.runId,
           mode: result.mode,
         },
