@@ -304,8 +304,14 @@ export class MtprotoCollectorService implements OnModuleInit {
    * 초대 링크(@아이디 없는) 방: 수집 계정이 "이미 회원"일 때만 글 정보까지 읽는다.
    * 가입(ImportChatInvite)은 절대 하지 않는다. 회원이 아니면 not_member → 공개 초대 페이지로 넘긴다.
    */
+  /** 텔레그램 코드가 없을 때 오류 문장 앞부분. 세션 문자열은 넣지 않는다 */
+  private lastErrorDetail: string | null = null;
+
   lastErrorCode(): string | null {
-    return this.lastError ?? null;
+    if (!this.lastError) return null;
+    return this.lastErrorDetail
+      ? `${this.lastError} · ${this.lastErrorDetail}`
+      : this.lastError;
   }
 
   canCollectInvite(channel: Channel): boolean {
@@ -378,10 +384,16 @@ export class MtprotoCollectorService implements OnModuleInit {
       if (code === 'RESOLVE_DAILY_LIMIT')
         return { ok: false, reason: 'skipped' };
       this.lastError = code;
+      this.lastErrorDetail =
+        code === 'mtproto_error' && error instanceof Error
+          ? error.message.replace(/[A-Za-z0-9+/=]{40,}/g, '…').slice(0, 160)
+          : null;
       if (code === 'INVITE_HASH_EXPIRED' || code === 'INVITE_HASH_INVALID') {
         return { ok: false, reason: 'invalid' };
       }
-      this.logger.warn(`MTProto 초대 링크 수집 실패: ${code}`);
+      this.logger.warn(
+        `MTProto 초대 링크 수집 실패: ${code}${this.lastErrorDetail ? ` (${this.lastErrorDetail})` : ''}`,
+      );
       return { ok: false, reason: 'failed' };
     }
   }
