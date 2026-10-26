@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } fro
 import { useNavigate } from 'react-router-dom';
 import { trackTelegramOpen } from '../api/opens';
 import { openTelegramChannel, useTelegram } from '../hooks/useTelegram';
+import type { ChannelSummary } from '../api/stats';
 import type { Channel } from '../types/channel';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { channelDetailPath } from '../utils/channelDetailPath';
@@ -12,12 +13,23 @@ import {
   formatSince,
 } from '../utils/channelSummary';
 import { linkTypeBadgeClass, linkTypeLabel } from '../utils/linkType';
-import { formatMemberNumber } from '../utils/memberDisplay';
+import { formatPercent } from '../utils/formatCount';
+import {
+  deltaTone,
+  formatDeltaLine,
+  formatMemberNumber,
+  formatNumber,
+  resolveMemberDelta,
+} from '../utils/memberDisplay';
+import { GradeBadge } from './GradeBadge';
+import { Sparkline } from './Sparkline';
 import { CategoryIcon } from './CategoryIcon';
 import { VerifiedBadge } from './VerifiedBadge';
 
 interface ChannelCardProps {
   channel: Channel;
+  /** 순위·추이·글 수 요약. 불러오는 중이면 없음 */
+  summary?: ChannelSummary;
   emoji: string;
   iconUrl?: string | null;
   recommended?: boolean;
@@ -43,8 +55,18 @@ function InfoCell({ label, value, mono }: { label: string; value: string; mono?:
  * 한 줄 요약(개설일·회원 수·연락처) + [자세히 보기]로 펼치는 정보 + 즐겨찾기·바로가기.
  * 소개글 전체는 보여주지 않는다(상세 화면에서 본다).
  */
+function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="min-w-0 text-center">
+      <p className="text-[10px] text-nl-muted">{label}</p>
+      <p className={`mt-0.5 truncate text-[14px] font-bold tabular-nums ${tone ?? 'text-tg-text'}`}>{value}</p>
+    </div>
+  );
+}
+
 export function ChannelCard({
   channel,
+  summary,
   emoji,
   iconUrl,
   favorited = false,
@@ -90,6 +112,25 @@ export function ChannelCard({
   };
 
   const createdShort = createdOn ? createdOn.replace(/년 |월 /g, '.').replace('일', '') : null;
+  const delta = resolveMemberDelta(
+    summary?.memberDelta7d ?? null,
+    channel.memberCount,
+    summary?.growth7d ?? null,
+  );
+  const deltaLine = formatDeltaLine('7일', delta);
+  const tone = deltaTone(delta);
+  const collectedMonth = (() => {
+    const at = channel.lastCollectedAt ? new Date(channel.lastCollectedAt) : null;
+    if (!at || !Number.isFinite(at.getTime())) return null;
+    const kst = new Date(at.getTime() + 9 * 3600_000);
+    return `${kst.getUTCFullYear()}년 ${kst.getUTCMonth() + 1}월 집계`;
+  })();
+  const contentLine = [
+    !isGroup && summary?.postsApprox ? `게시글 약 ${formatNumber(summary.postsApprox)}` : null,
+    summary && summary.photos > 0 ? `사진 ${formatNumber(summary.photos)}` : null,
+    summary && summary.videos > 0 ? `영상 ${formatNumber(summary.videos)}` : null,
+    summary && summary.mentions > 0 ? `언급 ${formatNumber(summary.mentions)}방` : null,
+  ].filter(Boolean);
 
   return (
     <article className="overflow-hidden rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line">
@@ -136,6 +177,14 @@ export function ChannelCard({
                 {channel.title}
               </p>
               {channel.isVerified && <VerifiedBadge size="sm" />}
+              <GradeBadge
+                grade={summary?.grade ?? null}
+                size="sm"
+                channelId={channel.id}
+                linkType={channel.linkType}
+                score={summary?.score ?? null}
+                observedDays={summary?.observedDays ?? null}
+              />
             </div>
             {handle && <p className="truncate text-[12px] text-nl-muted">@{handle}</p>}
           </div>
@@ -171,9 +220,6 @@ export function ChannelCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3 text-[12px]">
-        <span className="rounded-full bg-nl-bg px-2.5 py-1 font-semibold text-tg-text">
-          {members ? `회원 ${members}` : '회원 수 미집계'}
-        </span>
         {createdShort && (
           <span className="rounded-full bg-nl-bg px-2.5 py-1 text-nl-muted">개설 {createdShort}</span>
         )}
@@ -190,6 +236,49 @@ export function ChannelCard({
             <span className="truncate font-semibold">@{contact.handle}</span>
           </button>
         ))}
+      </div>
+
+      <div className="mx-4 mb-3 rounded-2xl bg-nl-bg px-3 py-2.5">
+        <div className="grid grid-cols-4 gap-1">
+          <Metric label={isGroup ? '멤버' : '회원'} value={formatNumber(channel.memberCount) || '-'} />
+          <Metric
+            label="조회"
+            value={isGroup ? '-' : formatNumber(summary?.medianViews7d ?? null) || '-'}
+          />
+          <Metric label="조회율" value={isGroup ? '-' : formatPercent(summary?.viewRate ?? null)} />
+          <Metric
+            label="전체 순위"
+            value={summary?.rank ? `${formatNumber(summary.rank)}위` : '-'}
+            tone="text-nl-accent"
+          />
+        </div>
+        <div className="mt-2 flex items-center gap-2 border-t border-nl-line pt-2">
+          <div className="min-w-0 flex-1 text-[11px] leading-relaxed text-nl-muted">
+            {(contentLine.length > 0 || deltaLine) && (
+              <p className="truncate">
+                {contentLine.join(' · ')}
+                {deltaLine && (
+                  <span
+                    className={`${contentLine.length > 0 ? 'ml-1.5' : ''} font-semibold ${
+                      tone === 'up' ? 'text-emerald-600' : tone === 'down' ? 'text-red-500' : ''
+                    }`}
+                  >
+                    {deltaLine}
+                  </span>
+                )}
+              </p>
+            )}
+            <p className="truncate">
+              {[collectedMonth, `데이터 ${dataReliability(summary?.observedDays ?? channel.observedDays)}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end">
+            <Sparkline values={summary?.sparkline14 ?? []} />
+            <span className="text-[9px] text-nl-muted">최근 2주</span>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5 border-t border-nl-line px-4 py-2.5">

@@ -25,6 +25,12 @@ export class PublicStatsController {
     return this.publicStatsService.getWeekly(query.week);
   }
 
+  /** 목록 카드 요약 (ids=쉼표로 구분, 최대 30개) */
+  @Get('summaries')
+  summaries(@Query('ids') ids: string) {
+    return this.publicStatsService.channelSummaries(ids ?? '');
+  }
+
   @Get('compare')
   compare(@Query() query: CompareStatsQueryDto) {
     return this.publicStatsService.compare(query.ids);

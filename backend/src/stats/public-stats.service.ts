@@ -109,6 +109,26 @@ const WEEKLY_EVENT_TYPES: ChannelEventType[] = [
   'rank_up',
 ];
 
+export type ChannelSummary = {
+  id: string;
+  rank: number | null;
+  rankTotal: number;
+  score: number | null;
+  grade: string | null;
+  medianViews7d: number | null;
+  viewRate: number | null;
+  memberDelta7d: number | null;
+  growth7d: number | null;
+  posts7d: number | null;
+  postsApprox: number | null;
+  collectedPosts: number;
+  photos: number;
+  videos: number;
+  mentions: number;
+  observedDays: number | null;
+  sparkline14: (number | null)[];
+};
+
 @Injectable()
 export class PublicStatsService {
   private homeCache: { expiresAt: number; data: unknown } | null = null;
@@ -602,6 +622,136 @@ export class PublicStatsService {
     return u || null;
   }
 
+  private summaryCache = new Map<
+    string,
+    { at: number; value: ChannelSummary }
+  >();
+
+  /**
+   * 목록 카드용 요약(검색·즐겨찾기). 순위·14일 추이·조회·글/사진/영상·언급 수.
+   * 카드마다 상세를 부르지 않게 한 번에 최대 30개, 5분 캐시.
+   */
+  async channelSummaries(idsRaw: string): Promise<ChannelSummary[]> {
+    const ids = parseCompareIds(idsRaw).slice(0, 30);
+    if (ids.length === 0) return [];
+    const now = Date.now();
+    const fresh: ChannelSummary[] = [];
+    const missing: string[] = [];
+    for (const id of ids) {
+      const hit = this.summaryCache.get(id);
+      if (hit && now - hit.at < 5 * 60_000) fresh.push(hit.value);
+      else missing.push(id);
+    }
+    if (missing.length > 0) {
+      const built = await this.buildSummaries(missing);
+      for (const item of built) {
+        this.summaryCache.set(item.id, { at: now, value: item });
+        fresh.push(item);
+      }
+      if (this.summaryCache.size > 5000) this.summaryCache.clear();
+    }
+    const order = new Map(ids.map((id, index) => [id, index]));
+    return fresh.sort(
+      (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
+    );
+  }
+
+  private async buildSummaries(ids: string[]): Promise<ChannelSummary[]> {
+    const today = formatKstYmd();
+    const pool = await this.loadRankingPool();
+    const listable = (c: Channel) =>
+      isPublicCollectable(c) &&
+      !pool.illegalIds.has(c.id) &&
+      isVisibleOnPublicLists(c) &&
+      allowAdultInList(c.category) &&
+      !isPendingCategory(c.category);
+    const ranked = dedupeChannelsByLink([...pool.rows], { prefer: listable })
+      .filter(listable)
+      .sort((a, b) => this.compareRanking(a, b, 'score'));
+    const rankById = new Map(ranked.map((c, index) => [c.id, index + 1]));
+    const poolById = new Map(pool.rows.map((c) => [c.id, c]));
+    const channels = ids
+      .map((id) => poolById.get(id))
+      .filter((c): c is Channel => Boolean(c));
+    if (channels.length === 0) return [];
+
+    const spark = await this.sparkline14(
+      channels.map((c) => c.id),
+      today,
+    );
+    const postRows = await this.postRepository
+      .createQueryBuilder('post')
+      .select('post.channel_id', 'channelId')
+      .addSelect('COUNT(*)', 'total')
+      .addSelect(
+        "SUM(CASE WHEN post.media_type = 'photo' THEN 1 ELSE 0 END)",
+        'photos',
+      )
+      .addSelect(
+        "SUM(CASE WHEN post.media_type = 'video' THEN 1 ELSE 0 END)",
+        'videos',
+      )
+      .addSelect('MAX(post.message_id)', 'maxMessageId')
+      .where('post.channel_id IN (:...ids)', { ids: channels.map((c) => c.id) })
+      .groupBy('post.channel_id')
+      .getRawMany<Record<string, unknown>>();
+    const postsById = new Map(
+      postRows.map((row) => [
+        asText(row.channelId),
+        {
+          collected: Number(row.total) || 0,
+          photos: Number(row.photos) || 0,
+          videos: Number(row.videos) || 0,
+          maxMessageId: Number(row.maxMessageId) || null,
+        },
+      ]),
+    );
+
+    const result: ChannelSummary[] = [];
+    for (const channel of channels) {
+      const posts = postsById.get(channel.id);
+      const handle = (channel.username ?? '').replace(/^@/, '').toLowerCase();
+      let mentions = 0;
+      if (handle.length >= 4) {
+        const pattern = `%${handle}%`;
+        const row = await this.postRepository
+          .createQueryBuilder('post')
+          .select('COUNT(DISTINCT post.channel_id)', 'count')
+          .where('post.channel_id <> :id', { id: channel.id })
+          .andWhere(
+            '(LOWER(post.mentioned_usernames) LIKE :pattern OR LOWER(post.forwarded_from) LIKE :pattern)',
+            { pattern },
+          )
+          .getRawOne<{ count: string | number }>();
+        mentions = Number(row?.count) || 0;
+      }
+      result.push({
+        id: channel.id,
+        rank: rankById.get(channel.id) ?? null,
+        rankTotal: ranked.length,
+        score: channel.score,
+        grade: channel.grade,
+        medianViews7d: channel.medianViews7d,
+        viewRate: channel.viewRate,
+        memberDelta7d: channel.memberDelta7d ?? null,
+        growth7d: channel.growth7d,
+        posts7d: channel.posts7d,
+        // 채널 글 번호는 1부터 늘어나므로 가장 큰 번호 ≈ 지금까지 올린 글 수(지운 글 포함, "약")
+        postsApprox:
+          channel.linkType === LinkType.GROUP
+            ? null
+            : (posts?.maxMessageId ?? null),
+        collectedPosts: posts?.collected ?? 0,
+        photos: posts?.photos ?? 0,
+        videos: posts?.videos ?? 0,
+        mentions,
+        observedDays: channel.observedDays,
+        sparkline14: spark.get(channel.id) ?? [],
+      });
+    }
+    return result;
+  }
+
   async compare(idsRaw: string) {
     const ids = parseCompareIds(idsRaw);
     if (ids.length < 1) {
@@ -900,7 +1050,7 @@ export class PublicStatsService {
     if (ids.length === 0) return result;
     const start = addKstDays(today, -13);
     const snaps = await this.snapshotRepository.find({
-      where: { channelId: In(ids) },
+      where: { channelId: In(ids), capturedOn: MoreThanOrEqual(start) },
     });
     const byChannel = new Map<string, Map<string, number>>();
     for (const snap of snaps) {

@@ -145,3 +145,34 @@ export async function getCompareStats(ids: string[]): Promise<CompareStats> {
   });
   return data;
 }
+
+/** 목록 카드 요약 (검색·즐겨찾기) */
+export interface ChannelSummary {
+  id: string;
+  rank: number | null;
+  rankTotal: number;
+  score: number | null;
+  grade: string | null;
+  medianViews7d: number | null;
+  viewRate: number | null;
+  memberDelta7d: number | null;
+  growth7d: number | null;
+  posts7d: number | null;
+  /** 지금까지 올린 글 수 추정(가장 큰 글 번호). 그룹은 null */
+  postsApprox: number | null;
+  collectedPosts: number;
+  photos: number;
+  videos: number;
+  /** 이 채널을 언급·전달한 다른 방 수 */
+  mentions: number;
+  observedDays: number | null;
+  sparkline14: (number | null)[];
+}
+
+export async function getChannelSummaries(ids: string[]): Promise<ChannelSummary[]> {
+  if (ids.length === 0) return [];
+  const { data } = await apiClient.get<ChannelSummary[]>('/stats/summaries', {
+    params: { ids: ids.slice(0, 30).join(',') },
+  });
+  return data;
+}

@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from 'react';
+import { getChannelSummaries, type ChannelSummary } from '../api/stats';
 import type { Channel } from '../types/channel';
 import { ChannelCard } from './ChannelCard';
 import { SectionHeader } from './SectionHeader';
@@ -40,6 +42,27 @@ export function ChannelList({
   sectionTitle,
   emptyMessage,
 }: ChannelListProps) {
+  // 카드마다 순위·추이·글 수를 보여 주려고 목록 전체 요약을 한 번에 불러온다
+  const idsKey = useMemo(() => channels.map((c) => c.id).slice(0, 30).join(','), [channels]);
+  const [summaries, setSummaries] = useState<Map<string, ChannelSummary>>(new Map());
+  useEffect(() => {
+    if (!idsKey) return;
+    let cancelled = false;
+    getChannelSummaries(idsKey.split(','))
+      .then((items) => {
+        if (cancelled) return;
+        setSummaries((prev) => {
+          const next = new Map(prev);
+          for (const item of items) next.set(item.id, item);
+          return next;
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [idsKey]);
+
   if (isLoading) {
     return (
       <div className="px-4 py-2">
@@ -69,6 +92,7 @@ export function ChannelList({
               <ChannelCard
                 key={channel.id}
                 channel={channel}
+                summary={summaries.get(channel.id)}
                 emoji={meta.emoji}
                 iconUrl={meta.iconUrl}
                 recommended={recommendedIds.has(channel.id)}
