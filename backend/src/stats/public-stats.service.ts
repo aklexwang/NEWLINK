@@ -380,6 +380,7 @@ export class PublicStatsService {
   }
 
   clearPublicCaches() {
+    this.summaryCache.clear();
     this.homeCache = null;
     this.feedCache.clear();
     this.rankingPool = null;

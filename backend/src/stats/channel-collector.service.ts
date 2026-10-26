@@ -370,12 +370,7 @@ export class ChannelCollectorService {
     }
 
     if (isInviteOnlyLink(channel.link)) {
-      // 수집 계정이 이미 회원인 초대 링크 방이면 글 정보까지 읽는다(가입은 하지 않음)
-      if (this.mtproto.canCollectInvite(channel)) {
-        const viaMember = await this.mtproto.collectInviteAndSave(channel);
-        if (viaMember.ok) return viaMember;
-      }
-      return this.collectInvitePreview(channel);
+      return this.collectInviteChannel(channel);
     }
 
     if (this.mtproto.canCollect(channel)) {
@@ -448,6 +443,18 @@ export class ChannelCollectorService {
     return { ok: true, mode: 'preview' };
   }
 
+  /**
+   * 초대 링크 방. 수집 계정이 이미 회원이면 MTProto 로 글 정보까지 읽고(가입은 하지 않음),
+   * 아니면 공개 초대 페이지(제목·사진·회원 수)만 읽는다. 정기 수집·관리자 "지금 수집" 공통.
+   */
+  private async collectInviteChannel(channel: Channel): Promise<CollectOneResult> {
+    if (this.mtproto.canCollectInvite(channel)) {
+      const viaMember = await this.mtproto.collectInviteAndSave(channel);
+      if (viaMember.ok) return viaMember;
+    }
+    return this.collectInvitePreview(channel);
+  }
+
   /** 등록 직후: t.me 공개 페이지만 보고 first_observed_at 을 채운다 */
   async collectPublicPageNow(channelInput: Channel): Promise<CollectOneResult> {
     const channel = await this.channelRepository.findOneBy({
@@ -457,7 +464,7 @@ export class ChannelCollectorService {
       return { ok: false, reason: 'failed' };
     }
     if (isInviteOnlyLink(channel.link)) {
-      return this.collectInvitePreview(channel);
+      return this.collectInviteChannel(channel);
     }
     const username = this.resolveUsername(channel);
     if (!username) {
