@@ -61,13 +61,18 @@ function toFormData(form: BannerForm): FormData {
   return data;
 }
 
+/** 기본 JSON 헤더를 쓰면 axios가 FormData를 JSON으로 바꿔 파일이 빠진다 → multipart로 명시. */
+function multipartHeaders() {
+  return { ...getAdminAuthHeaders(), 'Content-Type': 'multipart/form-data' };
+}
+
 export async function createAdminBanner(form: BannerForm): Promise<void> {
-  await apiClient.post('/admin/ad-banners', toFormData(form), { headers: getAdminAuthHeaders() });
+  await apiClient.post('/admin/ad-banners', toFormData(form), { headers: multipartHeaders() });
 }
 
 export async function updateAdminBanner(id: string, form: BannerForm): Promise<void> {
   await apiClient.patch(`/admin/ad-banners/${id}`, toFormData(form), {
-    headers: getAdminAuthHeaders(),
+    headers: multipartHeaders(),
   });
 }
 
