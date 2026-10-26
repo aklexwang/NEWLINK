@@ -84,7 +84,7 @@ export function CategoriesPage() {
       </header>
 
       {categoriesLoading ? (
-        <div className="border-b border-black/[0.06] bg-white px-4 py-3 dark:bg-nl-card">
+        <div className="border-b border-nl-line bg-tg-bg px-4 py-3">
           <div className="h-16 animate-pulse rounded-2xl bg-tg-secondary" />
         </div>
       ) : categories.length === 0 ? (
@@ -104,7 +104,7 @@ export function CategoriesPage() {
       )}
 
       <div className="px-4 pt-3">
-        <div className="flex rounded-full bg-tg-secondary p-0.5">
+        <div className="flex rounded-full bg-black/[0.05] p-0.5 dark:bg-white/[0.05]">
           {(
             [
               { id: '', label: '전체' },
@@ -119,7 +119,7 @@ export function CategoriesPage() {
                 type="button"
                 onClick={() => patchParams({ type: item.id })}
                 className={`flex-1 rounded-full py-1.5 text-[13px] font-semibold ${
-                  active ? 'bg-white text-tg-text shadow-sm dark:bg-nl-elev' : 'text-tg-hint'
+                  active ? 'bg-nl-card text-tg-text shadow-sm ring-1 ring-nl-line dark:bg-nl-elev dark:ring-white/10' : 'text-tg-hint'
                 }`}
               >
                 {item.label}
@@ -146,7 +146,7 @@ export function CategoriesPage() {
               type="button"
               onClick={() => patchParams({ sort: chip.id })}
               className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ${
-                active ? 'bg-tg-open-bg text-tg-open-text' : 'bg-tg-secondary text-tg-hint'
+                active ? 'bg-nl-accent/15 text-nl-accent ring-1 ring-nl-accent/30' : 'bg-tg-secondary text-tg-hint'
               }`}
             >
               {chip.label}

@@ -58,7 +58,7 @@ export function RankingCategoryPicker({
           </p>
         </div>
         <span
-          className={`shrink-0 rounded-full bg-tg-open-bg px-3 py-1.5 text-xs font-medium text-tg-link transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`shrink-0 rounded-full bg-nl-accent/15 px-3 py-1.5 text-xs font-medium text-nl-accent transition-transform ${open ? 'rotate-180' : ''}`}
         >
           ▼
         </span>

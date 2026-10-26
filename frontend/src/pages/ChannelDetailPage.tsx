@@ -583,7 +583,7 @@ export function ChannelDetailPage() {
 
       <section className="mt-4 px-4">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex rounded-full bg-tg-secondary p-0.5">
+          <div className="flex rounded-full bg-black/[0.05] p-0.5 dark:bg-white/[0.05]">
             <ChartTab active={chartTab === 'members'} onClick={() => setChartTab('members')}>
               회원 추이
             </ChartTab>
@@ -816,7 +816,7 @@ function ChartTab({
       type="button"
       onClick={onClick}
       className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
-        active ? 'bg-white text-tg-text shadow-sm' : 'text-tg-hint'
+        active ? 'bg-nl-card text-tg-text shadow-sm ring-1 ring-nl-line dark:bg-nl-elev dark:ring-white/10' : 'text-tg-hint'
       }`}
     >
       {children}

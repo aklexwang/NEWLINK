@@ -42,7 +42,7 @@ export function CategorySelect({ categories, selected, onSelect }: CategorySelec
   if (!selectedCategory) return null;
 
   return (
-    <div className="relative z-30 border-b border-black/[0.06] bg-white px-4 py-3">
+    <div className="relative z-30 border-b border-nl-line bg-tg-bg px-4 py-3">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}

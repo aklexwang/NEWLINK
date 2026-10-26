@@ -4,6 +4,9 @@
 @source not "./admin";
 @source not "./styles/admin.css";
 
+/* 회원 화면 다크 모드는 html.dark 클래스로 켠다 → dark: 도 같은 기준 */
+@custom-variant dark (&:where(html.dark, html.dark *));
+
 :root,
 html.light {
   --nl-bg: #eef0f4;
