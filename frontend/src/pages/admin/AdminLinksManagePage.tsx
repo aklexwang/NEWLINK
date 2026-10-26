@@ -561,171 +561,191 @@ export function AdminLinksManagePage() {
         {drawerChannel && (() => {
           const channel = drawerChannel;
           const draft = drafts[channel.id] ?? draftFromChannel(channel);
+          const setDraft = (patch: Partial<Draft>) =>
+            setDrafts((prev) => ({ ...prev, [channel.id]: { ...draft, ...patch } }));
+          const inputClass =
+            'mt-1.5 h-11 w-full rounded-xl bg-card px-3.5 text-[15px] text-foreground ring-1 ring-border outline-none focus:ring-2 focus:ring-primary/50';
+          const checkClass = 'flex items-center gap-2.5 text-sm text-foreground';
+          const showIllegal =
+            channel.memberPageReasonKey === '불법 의심(관리자 확인)' ||
+            draft.illegalCleared ||
+            Boolean(channel.illegalCleared);
           return (
             <div className="fixed inset-0 z-40 flex justify-end" role="dialog" aria-modal="true" aria-label={`${channel.title} 편집`}>
-              <button type="button" aria-label="닫기" className="absolute inset-0 bg-black/30" onClick={() => setExpandedId(null)} />
-              <aside className="relative flex h-full w-full max-w-[560px] flex-col bg-background shadow-2xl">
-                <div className="flex items-center gap-3 border-b border-border px-5 py-4">
-                  <ChannelAvatar channel={channel} />
+              <button type="button" aria-label="닫기" className="absolute inset-0 bg-black/40" onClick={() => setExpandedId(null)} />
+              <aside className="relative flex h-full w-full max-w-[600px] flex-col bg-background shadow-2xl">
+                {/* 머리글 */}
+                <div className="flex items-start gap-4 border-b border-border bg-card px-6 py-5">
+                  <div className="scale-125 pt-1"><ChannelAvatar channel={channel} /></div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-bold text-foreground">{channel.title}</p>
-                    <p className="text-xs text-muted-foreground">@{channel.username || '-'} · {linkTypeLabel(channel.linkType)} · {channel.category}</p>
+                    <p className="truncate text-xl font-bold text-foreground">{channel.title}</p>
+                    <p className="mt-1 text-sm text-subtle">
+                      @{channel.username || '아이디 없음'} · {linkTypeLabel(channel.linkType)} · {channel.category}
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5 text-xs">
+                      <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass[channel.status]}`}>{statusLabel[channel.status]}</span>
+                      {channel.memberPageVisible ? (
+                        <span className="rounded-full bg-green-100 px-2.5 py-1 font-medium text-green-800">회원 페이지 노출</span>
+                      ) : (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-800">
+                          숨김 · {channel.memberPageReasonKey || channel.memberPageHiddenReason || '숨김'}
+                        </span>
+                      )}
+                      {channel.collectStatus && (
+                        <span className="rounded-full bg-muted px-2.5 py-1 text-subtle">
+                          수집 {collectLabel[channel.collectStatus] ?? channel.collectStatus}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <button type="button" onClick={() => setExpandedId(null)} className="rounded-full p-2 text-muted-foreground hover:bg-muted" aria-label="닫기">✕</button>
+                  <button type="button" onClick={() => setExpandedId(null)} className="rounded-full p-2 text-lg text-muted-foreground hover:bg-muted" aria-label="닫기">✕</button>
                 </div>
-                <div className="flex-1 overflow-y-auto px-5 py-4">
-        <div className="space-y-3 py-1" onClick={(e) => e.stopPropagation()}>
-          <a href={channel.link} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-primary hover:underline">{channel.link}</a>
-          {channel.collectStatus && (
-            <p className="text-[11px] text-muted-foreground">수집 {collectLabel[channel.collectStatus] ?? channel.collectStatus} {channel.collectError ? `· ${channel.collectError}` : ''}</p>
-          )}
-          {(channel.collectStatus === 'invite_expired' ||
-            channel.collectStatus === 'invite_only' ||
-            isInviteLink(channel.link)) && (
-            <div className="space-y-2 rounded-xl bg-warning/15 px-3 py-3 ring-1 ring-warning/30">
-              <p className="text-xs text-amber-800">
-                초대 링크는 제목 저장과 별도로 바꿔 주세요.
-              </p>
-              <label className="block text-xs text-muted-foreground">
-                초대 링크 교체
-                <input
-                  value={linkDrafts[channel.id] ?? channel.link}
-                  onChange={(e) =>
-                    setLinkDrafts((prev) => ({
-                      ...prev,
-                      [channel.id]: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full rounded-lg bg-card px-3 py-1.5 text-sm ring-1 ring-border"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => void handleSaveLink(channel)}
-                className="rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-medium text-white"
-              >
-                링크 저장
-              </button>
-            </div>
-          )}
-          <AdminChannelOpens channelId={channel.id} />
-          {channel.isPromoted && <AdClientDetail channel={channel} />}
-          <ChannelAvatarEditor
-            key={`${channel.id}-${channel.avatarUrl ?? 'none'}`}
-            channelId={channel.id}
-            link={channel.link}
-            avatarUrl={channel.avatarUrl}
-            avatarApproved={channel.avatarApproved}
-            linkType={channel.linkType}
-            onUpdated={(patch) => setChannels((prev) => prev.map((item) => (item.id === channel.id ? { ...item, ...patch } : item)))}
-          />
-          <div className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
-            제보 보상은{' '}
-            <Link to="/admin/pending?tab=payout" className="font-medium text-primary underline">
-              제보·보상 화면에서 지급
-            </Link>
-            합니다.
-            {channel.rewardTonAmount != null && channel.rewardTonAmount > 0
-              ? ` (TON ${channel.rewardTonAmount} 기록됨)`
-              : ''}
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="text-xs text-muted-foreground">
-              제목
-              <input
-                value={draft.title}
-                onChange={(e) => {
-                  const title = e.target.value;
-                  // 제목을 바꾸면 수집이 덮어쓰지 않도록 고정을 자동으로 켠다(풀고 싶으면 체크 해제)
-                  const changed = title.trim() !== channel.title;
-                  setDrafts((prev) => ({
-                    ...prev,
-                    [channel.id]: { ...draft, title, titleLocked: changed ? true : Boolean(channel.titleLocked) },
-                  }));
-                }}
-                className="mt-1 w-full rounded-lg bg-card px-3 py-1.5 text-sm ring-1 ring-border"
-              />
-            </label>
-            <label className="flex items-center gap-2 text-xs text-subtle">
-              <input type="checkbox" checked={draft.titleLocked} onChange={(e) => setDrafts((prev) => ({ ...prev, [channel.id]: { ...draft, titleLocked: e.target.checked } }))} />
-              제목 고정 (풀면 다음 수집 때 텔레그램 제목으로 바뀝니다)
-            </label>
-            <label className="text-xs text-muted-foreground">
-              언어
-              <select value={draft.language} onChange={(e) => setDrafts((prev) => ({ ...prev, [channel.id]: { ...draft, language: e.target.value as Draft['language'] } }))} className="mt-1 w-full rounded-lg bg-card px-2 py-1.5 text-sm ring-1 ring-border">
-                <option value="auto">자동 판별</option>
-                <option value="ko">한국어</option>
-                <option value="foreign">외국어</option>
-                <option value="unknown">미확인</option>
-              </select>
-            </label>
-            <label className="text-xs text-muted-foreground">
-              카테고리
-              <select value={draft.category} onChange={(e) => setDrafts((prev) => ({ ...prev, [channel.id]: { ...draft, category: e.target.value } }))} className="mt-1 w-full rounded-lg bg-card px-2 py-1.5 text-sm ring-1 ring-border">
-                {!categoryOptions.includes(draft.category) && <option value={draft.category}>{draft.category}</option>}
-                {categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}
-              </select>
-            </label>
-            <label className="flex items-center gap-2 text-xs text-subtle">
-              <input type="checkbox" checked={draft.categoryLocked} onChange={(e) => setDrafts((prev) => ({ ...prev, [channel.id]: { ...draft, categoryLocked: e.target.checked } }))} />
-              분류 고정
-            </label>
-            <label className="flex items-center gap-2 text-xs text-subtle">
-              <input type="checkbox" checked={draft.isVisible} onChange={(e) => setDrafts((prev) => ({ ...prev, [channel.id]: { ...draft, isVisible: e.target.checked } }))} />
-              공개 노출 활성
-            </label>
-            {(channel.memberPageReasonKey === '불법 의심(관리자 확인)' ||
-              draft.illegalCleared ||
-              Boolean(channel.illegalCleared)) && (
-              <label className="flex items-center gap-2 text-xs text-subtle">
-                <input
-                  type="checkbox"
-                  checked={draft.illegalCleared}
-                  onChange={(e) =>
-                    setDrafts((prev) => ({
-                      ...prev,
-                      [channel.id]: {
-                        ...draft,
-                        illegalCleared: e.target.checked,
-                      },
-                    }))
-                  }
-                />
-                {draft.illegalCleared
-                  ? '불법 의심 문제없음 (체크 해제하면 다시 숨김)'
-                  : '불법 의심 · 문제없음으로 풀기'}
-              </label>
-            )}
-          </div>
-          {channel.status === 'active' && (
-            <div className="rounded-xl bg-primary/10 px-3 py-3 ring-1 ring-primary/20">
-              <p className="text-xs font-semibold text-primary">홈 Promoted 광고</p>
-              {isPromotionActive(channel.isPromoted, channel.promotedUntil) && channel.promotedUntil && (
-                <p className="mt-1 text-[11px] text-purple-700">노출 종료: {formatPromotedUntil(channel.promotedUntil)}</p>
-              )}
-              <div className="mt-2 flex flex-wrap gap-2">
-                <input type="date" value={promoteDates[channel.id] ?? defaultPromoteDateInput()} onChange={(e) => setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))} className="rounded-lg bg-card px-3 py-1.5 text-xs ring-1 ring-border" />
-                <button type="button" onClick={(e) => handleAddToAds(channel, e)} className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs text-white">{channel.isPromoted ? '광고 기간 변경' : '광고 추가하기'}</button>
-              </div>
-            </div>
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void handleSaveDraft(channel)} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white">저장</button>
-            <button type="button" disabled={collectingId === channel.id || (collectCooldownUntil[channel.id] ?? 0) > collectNow} onClick={() => void handleCollect(channel.id)} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{collectButtonLabel(channel.id)}</button>
-            {saveHint[channel.id] && <span className="text-xs text-subtle">{saveHint[channel.id]}</span>}
-            {channel.status === 'pending' && (
-              <>
-                <button type="button" onClick={() => handleApprove(channel.id)} className="rounded-lg bg-primary px-3 py-1.5 text-xs text-white">승인</button>
-                <button type="button" onClick={() => handleReject(channel.id)} className="rounded-lg bg-card px-3 py-1.5 text-xs ring-1 ring-border">거절</button>
-              </>
-            )}
-            {channel.status === 'rejected' && (
-              <button type="button" onClick={() => handleApprove(channel.id)} className="rounded-lg bg-primary px-3 py-1.5 text-xs text-white">재승인</button>
-            )}
-            <button type="button" onClick={() => handleDelete(channel.id, channel.title)} className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600">삭제</button>
-          </div>
-        </div>
 
+                <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5" onClick={(e) => e.stopPropagation()}>
+                  <a href={channel.link} target="_blank" rel="noopener noreferrer" className="block truncate text-sm font-medium text-primary hover:underline">
+                    {channel.link}
+                  </a>
+                  {channel.collectError && (
+                    <p className="-mt-3 text-sm text-muted-foreground">수집 메모 · {channel.collectError}</p>
+                  )}
+
+                  {/* 기본 정보 */}
+                  <section className="space-y-4 rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
+                    <h3 className="text-base font-bold text-foreground">기본 정보</h3>
+                    <label className="block text-sm font-medium text-subtle">
+                      제목
+                      <input
+                        value={draft.title}
+                        onChange={(e) => {
+                          const title = e.target.value;
+                          // 제목을 바꾸면 수집이 덮어쓰지 않도록 고정을 자동으로 켠다(풀고 싶으면 체크 해제)
+                          const changed = title.trim() !== channel.title;
+                          setDraft({ title, titleLocked: changed ? true : Boolean(channel.titleLocked) });
+                        }}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className={checkClass}>
+                      <input type="checkbox" className="h-5 w-5" checked={draft.titleLocked} onChange={(e) => setDraft({ titleLocked: e.target.checked })} />
+                      제목 고정 <span className="text-xs text-muted-foreground">(풀면 다음 수집 때 텔레그램 제목으로 바뀝니다)</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block text-sm font-medium text-subtle">
+                        카테고리
+                        <select value={draft.category} onChange={(e) => setDraft({ category: e.target.value })} className={inputClass}>
+                          {!categoryOptions.includes(draft.category) && <option value={draft.category}>{draft.category}</option>}
+                          {categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                      </label>
+                      <label className="block text-sm font-medium text-subtle">
+                        언어
+                        <select value={draft.language} onChange={(e) => setDraft({ language: e.target.value as Draft['language'] })} className={inputClass}>
+                          <option value="auto">자동 판별</option>
+                          <option value="ko">한국어</option>
+                          <option value="foreign">외국어</option>
+                          <option value="unknown">미확인</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-x-6 gap-y-3">
+                      <label className={checkClass}>
+                        <input type="checkbox" className="h-5 w-5" checked={draft.categoryLocked} onChange={(e) => setDraft({ categoryLocked: e.target.checked })} />
+                        분류 고정
+                      </label>
+                      <label className={checkClass}>
+                        <input type="checkbox" className="h-5 w-5" checked={draft.isVisible} onChange={(e) => setDraft({ isVisible: e.target.checked })} />
+                        회원 화면에 공개
+                      </label>
+                      {showIllegal && (
+                        <label className={checkClass}>
+                          <input type="checkbox" className="h-5 w-5" checked={draft.illegalCleared} onChange={(e) => setDraft({ illegalCleared: e.target.checked })} />
+                          {draft.illegalCleared ? '불법 의심 문제없음 (해제하면 다시 숨김)' : '불법 의심 · 문제없음으로 풀기'}
+                        </label>
+                      )}
+                    </div>
+                  </section>
+
+                  {/* 초대 링크 */}
+                  {(channel.collectStatus === 'invite_expired' ||
+                    channel.collectStatus === 'invite_only' ||
+                    isInviteLink(channel.link)) && (
+                    <section className="space-y-3 rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
+                      <h3 className="text-base font-bold text-foreground">초대 링크</h3>
+                      <p className="text-sm text-subtle">초대 링크는 위 [저장]과 따로, 여기서 바꿔 저장해요.</p>
+                      <input
+                        value={linkDrafts[channel.id] ?? channel.link}
+                        onChange={(e) => setLinkDrafts((prev) => ({ ...prev, [channel.id]: e.target.value }))}
+                        className={inputClass}
+                      />
+                      <button type="button" onClick={() => void handleSaveLink(channel)} className="h-10 rounded-xl bg-warning px-4 text-sm font-semibold text-white">
+                        링크 저장
+                      </button>
+                    </section>
+                  )}
+
+                  {/* 아이콘 */}
+                  <section className="space-y-3 rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
+                    <h3 className="text-base font-bold text-foreground">아이콘</h3>
+                    <ChannelAvatarEditor
+                      key={`${channel.id}-${channel.avatarUrl ?? 'none'}`}
+                      channelId={channel.id}
+                      link={channel.link}
+                      avatarUrl={channel.avatarUrl}
+                      avatarApproved={channel.avatarApproved}
+                      linkType={channel.linkType}
+                      onUpdated={(patch) => setChannels((prev) => prev.map((item) => (item.id === channel.id ? { ...item, ...patch } : item)))}
+                    />
+                  </section>
+
+                  {/* 광고 */}
+                  {channel.status === 'active' && (
+                    <section className="space-y-3 rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
+                      <h3 className="text-base font-bold text-foreground">홈 광고</h3>
+                      {isPromotionActive(channel.isPromoted, channel.promotedUntil) && channel.promotedUntil && (
+                        <p className="text-sm text-primary">노출 종료: {formatPromotedUntil(channel.promotedUntil)}</p>
+                      )}
+                      {channel.isPromoted && <AdClientDetail channel={channel} />}
+                      <div className="flex flex-wrap gap-2">
+                        <input type="date" value={promoteDates[channel.id] ?? defaultPromoteDateInput()} onChange={(e) => setPromoteDates((prev) => ({ ...prev, [channel.id]: e.target.value }))} className="h-11 rounded-xl bg-background px-3.5 text-[15px] text-foreground ring-1 ring-border" />
+                        <button type="button" onClick={(e) => handleAddToAds(channel, e)} className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white">
+                          {channel.isPromoted ? '광고 기간 변경' : '광고 추가하기'}
+                        </button>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* 활동 */}
+                  <section className="space-y-3 rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
+                    <h3 className="text-base font-bold text-foreground">활동</h3>
+                    <div className="text-sm"><AdminChannelOpens channelId={channel.id} /></div>
+                    <p className="text-sm text-subtle">
+                      제보 보상은{' '}
+                      <Link to="/admin/pending?tab=payout" className="font-semibold text-primary underline">제보·보상 화면</Link>
+                      에서 지급해요.
+                      {channel.rewardTonAmount != null && channel.rewardTonAmount > 0 ? ` (TON ${channel.rewardTonAmount} 기록됨)` : ''}
+                    </p>
+                  </section>
+                </div>
+
+                {/* 아래 고정 버튼 */}
+                <div className="border-t border-border bg-card px-6 py-4">
+                  {saveHint[channel.id] && <p className="mb-2 text-sm text-subtle">{saveHint[channel.id]}</p>}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => void handleSaveDraft(channel)} className="h-11 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white">저장</button>
+                    <button type="button" disabled={collectingId === channel.id || (collectCooldownUntil[channel.id] ?? 0) > collectNow} onClick={() => void handleCollect(channel.id)} className="h-11 rounded-xl bg-muted px-5 text-[15px] font-semibold text-foreground disabled:opacity-50">
+                      {collectButtonLabel(channel.id)}
+                    </button>
+                    {channel.status === 'pending' && (
+                      <>
+                        <button type="button" onClick={() => handleApprove(channel.id)} className="h-11 rounded-xl bg-success px-5 text-[15px] font-semibold text-white">승인</button>
+                        <button type="button" onClick={() => handleReject(channel.id)} className="h-11 rounded-xl bg-muted px-5 text-[15px] font-semibold text-foreground">거절</button>
+                      </>
+                    )}
+                    {channel.status === 'rejected' && (
+                      <button type="button" onClick={() => handleApprove(channel.id)} className="h-11 rounded-xl bg-success px-5 text-[15px] font-semibold text-white">재승인</button>
+                    )}
+                    <button type="button" onClick={() => handleDelete(channel.id, channel.title)} className="ml-auto h-11 rounded-xl px-4 text-[15px] font-semibold text-destructive hover:bg-destructive/10">삭제</button>
+                  </div>
                 </div>
               </aside>
             </div>
