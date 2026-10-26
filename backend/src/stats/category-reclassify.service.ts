@@ -14,6 +14,8 @@ import {
   decideReclassify,
 } from './category-reclassify.logic';
 import { PublicStatsService } from './public-stats.service';
+import { nextSuggestedCategory } from './category-suggestion.logic';
+import { CategorySuggestionService } from './category-suggestion.service';
 
 /** 전체 재분류 한 번에 쓸 AI 호출 상한(하루 상한과 따로). 1.5만 채널 전에 다시 정한다 */
 export const RECLASSIFY_AI_LIMIT = 3000;
@@ -59,6 +61,7 @@ export class CategoryReclassifyService {
     private readonly proposalRepository: Repository<CategoryProposal>,
     private readonly categoryAi: CategoryAiService,
     private readonly publicStats: PublicStatsService,
+    private readonly suggestions: CategorySuggestionService,
   ) {}
 
   private async latestBatchId(): Promise<string | null> {
@@ -184,9 +187,9 @@ export class CategoryReclassifyService {
 
   private async run(batchId: string, channels: Channel[]): Promise<void> {
     const budget = this.categoryAi.createBudget(RECLASSIFY_AI_LIMIT);
-    const allowed = this.categoryAi
-      .defaultCategoryNames()
-      .filter((name) => name !== PENDING_CATEGORY);
+    const allowed = (await this.categoryAi.categoryNames()).filter(
+      (name) => name !== PENDING_CATEGORY,
+    );
     let next = 0;
     const worker = async () => {
       while (!this.stopRequested) {
@@ -213,6 +216,7 @@ export class CategoryReclassifyService {
       stopReason:
         this.state.stopReason ?? (this.stopRequested ? '관리자 중지' : null),
     };
+    await this.suggestions.checkAlerts();
     this.logger.log(
       `전체 재분류 미리보기: ${this.state.processed}/${this.state.total}, 바뀜 ${this.state.changed}, AI ${this.state.aiCalls}회`,
     );
@@ -252,6 +256,13 @@ export class CategoryReclassifyService {
       source: result.source,
     });
     if (decision.changed) this.state.changed += 1;
+    // 새 카테고리 후보는 미리보기에서도 채널에 남긴다(카테고리 자체는 안 바뀜)
+    const suggestion = nextSuggestedCategory(result);
+    if (suggestion !== undefined) {
+      await this.channelRepository.update(channel.id, {
+        suggestedCategory: suggestion,
+      });
+    }
     await this.proposalRepository.insert({
       id: randomUUID(),
       batchId,

@@ -11,8 +11,12 @@ import { ChannelStatus, LinkType } from '../channels/channel.entity';
 import { AutoManageService } from './auto-manage.service';
 import { ImportCandidateStatus } from './channel-import-candidate.entity';
 
-function build(match: { kind: string; channel: { id: string; status: string } } | null) {
-  const service = Object.create(AutoManageService.prototype) as AutoManageService;
+function build(
+  match: { kind: string; channel: { id: string; status: string } } | null,
+) {
+  const service = Object.create(
+    AutoManageService.prototype,
+  ) as AutoManageService;
   const candidate = {
     id: 'cand-1',
     status: ImportCandidateStatus.PENDING,
@@ -24,8 +28,14 @@ function build(match: { kind: string; channel: { id: string; status: string } } 
   };
   const channelsService = {
     findDuplicate: jest.fn().mockResolvedValue(match),
-    approve: jest.fn(async (id: string) => ({ id, status: ChannelStatus.ACTIVE })),
-    createByAdmin: jest.fn(async () => ({ id: 'created', status: ChannelStatus.ACTIVE })),
+    approve: jest.fn(async (id: string) => ({
+      id,
+      status: ChannelStatus.ACTIVE,
+    })),
+    createByAdmin: jest.fn(async () => ({
+      id: 'created',
+      status: ChannelStatus.ACTIVE,
+    })),
   };
   const candidateRepository = {
     find: jest.fn().mockResolvedValue([candidate]),

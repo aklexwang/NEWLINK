@@ -1,0 +1,133 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CategoryAiService } from '../auto-manage/category-ai.service';
+import { Channel, ChannelStatus } from '../channels/channel.entity';
+import { AdminNotificationService } from '../notifications/admin-notification.service';
+import { ChannelCategoryService } from './channel-category.service';
+import {
+  suggestionAlertKey,
+  suggestionsToAlert,
+  type SuggestionRow,
+} from './category-suggestion.logic';
+
+/** 새 카테고리 후보(AI 가 "목록에 맞는 게 없다"며 제안한 이름) 모아 보기·알림·다시 분류 */
+@Injectable()
+export class CategorySuggestionService {
+  private readonly logger = new Logger(CategorySuggestionService.name);
+
+  constructor(
+    @InjectRepository(Channel)
+    private readonly channelRepository: Repository<Channel>,
+    private readonly channelCategory: ChannelCategoryService,
+    private readonly categoryAi: CategoryAiService,
+    private readonly notifications: AdminNotificationService,
+  ) {}
+
+  private baseQuery() {
+    return this.channelRepository
+      .createQueryBuilder('c')
+      .where('c.status = :status', { status: ChannelStatus.ACTIVE })
+      .andWhere('c.category_locked = :locked', { locked: false })
+      .andWhere('c.suggested_category IS NOT NULL');
+  }
+
+  /** 후보 이름별 채널 수(많은 순)와 예시 채널 3개 */
+  async summary(): Promise<
+    Array<
+      SuggestionRow & {
+        samples: Array<{
+          title: string;
+          username: string | null;
+          category: string;
+        }>;
+      }
+    >
+  > {
+    const rows = await this.baseQuery()
+      .select('c.suggested_category', 'name')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('c.suggested_category')
+      .orderBy('COUNT(*)', 'DESC')
+      .limit(50)
+      .getRawMany<{ name: string; count: string | number }>();
+    const result = [];
+    for (const row of rows) {
+      const samples = await this.baseQuery()
+        .andWhere('c.suggested_category = :name', { name: row.name })
+        .select(['c.title', 'c.username', 'c.category'])
+        .orderBy('c.member_count', 'DESC', 'NULLS LAST')
+        .take(3)
+        .getMany();
+      result.push({
+        name: row.name,
+        count: Number(row.count),
+        samples: samples.map((c) => ({
+          title: c.title,
+          username: c.username,
+          category: c.category,
+        })),
+      });
+    }
+    return result;
+  }
+
+  /** 5개 이상 모인 후보를 어드민 알림으로(이름마다 한 번) */
+  async checkAlerts(): Promise<number> {
+    try {
+      const rows = suggestionsToAlert(
+        (await this.summary()).map((row) => ({
+          name: row.name,
+          count: row.count,
+        })),
+      );
+      let created = 0;
+      for (const row of rows) {
+        const made = await this.notifications.notifyOnce({
+          key: suggestionAlertKey(row.name),
+          type: 'category_suggestion',
+          title: `새 카테고리 후보 "${row.name}"`,
+          body: `맞는 카테고리가 없어 AI 가 "${row.name}"을(를) 제안한 채널이 ${row.count}개 모였어요.`,
+          link: '/admin/categories',
+        });
+        if (made) created += 1;
+      }
+      return created;
+    } catch (error) {
+      this.logger.warn(
+        `새 카테고리 후보 알림 확인 실패: ${error instanceof Error ? error.message : error}`,
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * 후보 이름으로 묶인 채널을 지금 다시 분류한다(그 이름의 카테고리를 만든 뒤 누름).
+   * 한 번에 최대 300개.
+   */
+  async reclassifyByName(
+    name: string,
+  ): Promise<{ total: number; changed: number }> {
+    this.categoryAi.clearCategoryNamesCache();
+    const channels = await this.channelRepository.find({
+      where: {
+        status: ChannelStatus.ACTIVE,
+        categoryLocked: false,
+        suggestedCategory: name,
+      },
+      take: 300,
+    });
+    let changed = 0;
+    for (const channel of channels) {
+      const before = channel.category;
+      const next = await this.channelCategory.classifyOne(channel, {
+        force: true,
+      });
+      if (next.category !== before) changed += 1;
+    }
+    this.logger.log(
+      `새 카테고리 후보 "${name}" 다시 분류: ${changed}/${channels.length}`,
+    );
+    return { total: channels.length, changed };
+  }
+}

@@ -3,6 +3,7 @@ import {
   AI_INPUT_MAX_CHARS,
   AiDailyBudget,
   aiSkipReason,
+  cleanSuggestedCategory,
   buildAiUserPrompt,
   parseAiDailyLimit,
   parseAiVerdict,
@@ -212,18 +213,26 @@ describe('parseAiVerdict (우리 카테고리 안에서만)', () => {
 
   it('JSON 응답을 읽는다', () => {
     expect(
-      parseAiVerdict('{"category":"뉴스","confidence":0.82,"reason":"x"}', allowed),
+      parseAiVerdict(
+        '{"category":"뉴스","confidence":0.82,"reason":"x"}',
+        allowed,
+      ),
     ).toEqual({ category: '뉴스', confidence: 0.82, reason: 'x' });
   });
 
   it('코드블록으로 감싼 JSON 도 읽는다', () => {
     expect(
-      parseAiVerdict('```json\n{"category":"게임","confidence":0.9}\n```', allowed),
+      parseAiVerdict(
+        '```json\n{"category":"게임","confidence":0.9}\n```',
+        allowed,
+      ),
     ).toMatchObject({ category: '게임', confidence: 0.9 });
   });
 
   it('목록에 없는 카테고리는 버린다', () => {
-    expect(parseAiVerdict('{"category":"해킹","confidence":0.99}', allowed)).toBeNull();
+    expect(
+      parseAiVerdict('{"category":"해킹","confidence":0.99}', allowed),
+    ).toBeNull();
   });
 
   it('깨진 JSON·빈 응답은 null', () => {
@@ -233,19 +242,33 @@ describe('parseAiVerdict (우리 카테고리 안에서만)', () => {
   });
 
   it('신뢰도는 0~1 로 맞추고 없으면 0.5', () => {
-    expect(parseAiVerdict('{"category":"뉴스","confidence":7}', allowed)?.confidence).toBe(1);
-    expect(parseAiVerdict('{"category":"뉴스","confidence":-1}', allowed)?.confidence).toBe(0);
-    expect(parseAiVerdict('{"category":"뉴스"}', allowed)?.confidence).toBe(0.5);
+    expect(
+      parseAiVerdict('{"category":"뉴스","confidence":7}', allowed)?.confidence,
+    ).toBe(1);
+    expect(
+      parseAiVerdict('{"category":"뉴스","confidence":-1}', allowed)
+        ?.confidence,
+    ).toBe(0);
+    expect(parseAiVerdict('{"category":"뉴스"}', allowed)?.confidence).toBe(
+      0.5,
+    );
   });
 });
 
 describe('AiDailyBudget (하루 상한)', () => {
   it('상한까지만 허용하고 그 뒤는 거절한다', () => {
-    const budget = new AiDailyBudget(2, () => new Date('2026-10-25T10:00:00+09:00'));
+    const budget = new AiDailyBudget(
+      2,
+      () => new Date('2026-10-25T10:00:00+09:00'),
+    );
     expect(budget.tryAcquire()).toBe(true);
     expect(budget.tryAcquire()).toBe(true);
     expect(budget.tryAcquire()).toBe(false);
-    expect(budget.snapshot()).toMatchObject({ used: 2, limit: 2, stopped: true });
+    expect(budget.snapshot()).toMatchObject({
+      used: 2,
+      limit: 2,
+      stopped: true,
+    });
   });
 
   it('날짜(KST)가 바뀌면 0 부터 다시 센다', () => {
@@ -263,7 +286,10 @@ describe('AiDailyBudget (하루 상한)', () => {
     const budget = new AiDailyBudget(10, () => now);
     budget.stopToday('HTTP 429');
     expect(budget.tryAcquire()).toBe(false);
-    expect(budget.snapshot()).toMatchObject({ stopped: true, stopReason: 'HTTP 429' });
+    expect(budget.snapshot()).toMatchObject({
+      stopped: true,
+      stopReason: 'HTTP 429',
+    });
     now = new Date('2026-10-26T09:00:00+09:00');
     expect(budget.tryAcquire()).toBe(true);
     expect(budget.snapshot().stopReason).toBeNull();
@@ -280,5 +306,30 @@ describe('shouldStopAiForToday', () => {
     for (const status of [400, 404, 422]) {
       expect(shouldStopAiForToday(status)).toBe(false);
     }
+  });
+});
+
+describe('새 카테고리 제안', () => {
+  const allowed = ['뉴스', '게임', '기타'];
+
+  it('응답의 newCategory 를 받는다', () => {
+    expect(
+      parseAiVerdict(
+        '{"category":"기타","confidence":0.3,"newCategory":"웹소설"}',
+        allowed,
+      )?.newCategory,
+    ).toBe('웹소설');
+  });
+
+  it('이미 있는 이름·없음·너무 긴 이름은 버린다', () => {
+    expect(cleanSuggestedCategory('뉴스', allowed)).toBeNull();
+    expect(cleanSuggestedCategory(' 게 임 ', allowed)).toBeNull();
+    expect(cleanSuggestedCategory('null', allowed)).toBeNull();
+    expect(cleanSuggestedCategory('없음', allowed)).toBeNull();
+    expect(
+      cleanSuggestedCategory('아주아주아주긴카테고리이름', allowed),
+    ).toBeNull();
+    expect(cleanSuggestedCategory(null, allowed)).toBeNull();
+    expect(cleanSuggestedCategory('"코인 선물"', allowed)).toBe('코인 선물');
   });
 });

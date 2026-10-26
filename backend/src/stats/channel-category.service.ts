@@ -11,6 +11,7 @@ import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { LANGUAGE_POST_LIMIT } from '../channels/channel-language.logic';
 import { ChannelEvent } from './channel-event.entity';
 import { ChannelPost } from './channel-post.entity';
+import { nextSuggestedCategory } from './category-suggestion.logic';
 
 @Injectable()
 export class ChannelCategoryService {
@@ -26,7 +27,10 @@ export class ChannelCategoryService {
     private readonly categoryAi: CategoryAiService,
   ) {}
 
-  async classifyOne(channel: Channel): Promise<Channel> {
+  async classifyOne(
+    channel: Channel,
+    options: { force?: boolean } = {},
+  ): Promise<Channel> {
     if (channel.categoryLocked) return channel;
     const posts =
       channel.linkType === LinkType.GROUP
@@ -36,17 +40,20 @@ export class ChannelCategoryService {
             order: { postedAt: 'DESC' },
             take: LANGUAGE_POST_LIMIT,
           });
-    const allowed = this.categoryAi
-      .defaultCategoryNames()
-      .filter((name) => name !== PENDING_CATEGORY);
-    const classified = await this.categoryAi.classify({
-      title: channel.title,
-      description: channel.description,
-      posts: posts
-        .map((p) => p.textExcerpt)
-        .filter((text): text is string => Boolean(text)),
-      allowedCategories: allowed,
-    });
+    const allowed = (await this.categoryAi.categoryNames()).filter(
+      (name) => name !== PENDING_CATEGORY,
+    );
+    const classified = await this.categoryAi.classify(
+      {
+        title: channel.title,
+        description: channel.description,
+        posts: posts
+          .map((p) => p.textExcerpt)
+          .filter((text): text is string => Boolean(text)),
+        allowedCategories: allowed,
+      },
+      options,
+    );
     const resolved = resolveCategoryWithConfidence(
       classified.category,
       classified.confidence,
@@ -54,6 +61,8 @@ export class ChannelCategoryService {
     const prev = channel.category;
     channel.category = resolved.category;
     channel.categoryConfidence = classified.confidence;
+    const suggestion = nextSuggestedCategory(classified);
+    if (suggestion !== undefined) channel.suggestedCategory = suggestion;
     if (prev !== resolved.category) {
       await this.eventRepository.save({
         channelId: channel.id,

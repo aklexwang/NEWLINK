@@ -150,7 +150,26 @@ export type AiVerdict = {
   category: string;
   confidence: number;
   reason?: string;
+  /** 목록에 맞는 게 없을 때 AI 가 제안한 새 카테고리 이름 */
+  newCategory?: string;
 };
+
+/** AI 가 제안한 새 카테고리 이름 정리. 쓸 수 없으면 null */
+export function cleanSuggestedCategory(
+  raw: unknown,
+  existing: string[],
+): string | null {
+  if (typeof raw !== 'string') return null;
+  const name = raw
+    .replace(/["'`<>[\](){}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (name.length < 2 || name.length > 12) return null;
+  if (/^(null|none|없음|기타|분류대기|n\/a)$/i.test(name)) return null;
+  const key = name.replace(/\s/g, '');
+  if (existing.some((item) => item.replace(/\s/g, '') === key)) return null;
+  return name;
+}
 
 /** 응답 본문(JSON 문자열)을 읽는다. 우리 카테고리 목록에 없으면 null */
 export function parseAiVerdict(
@@ -161,7 +180,12 @@ export function parseAiVerdict(
   if (!text) return null;
   const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   if (fenced) text = fenced[1];
-  let parsed: { category?: unknown; confidence?: unknown; reason?: unknown };
+  let parsed: {
+    category?: unknown;
+    confidence?: unknown;
+    reason?: unknown;
+    newCategory?: unknown;
+  };
   try {
     parsed = JSON.parse(text) as typeof parsed;
   } catch {
@@ -178,6 +202,9 @@ export function parseAiVerdict(
     category,
     confidence,
     reason: typeof parsed.reason === 'string' ? parsed.reason : undefined,
+    newCategory:
+      cleanSuggestedCategory(parsed.newCategory, allowedCategories) ??
+      undefined,
   };
 }
 

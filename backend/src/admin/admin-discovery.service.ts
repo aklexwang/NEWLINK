@@ -241,7 +241,7 @@ export class AdminDiscoveryService {
     if (!nextCategory) {
       const classified = await this.categoryAi.classify({
         title: extra?.title ?? username,
-        allowedCategories: this.categoryAi.defaultCategoryNames(),
+        allowedCategories: await this.categoryAi.categoryNames(),
       });
       nextCategory = classified.category;
     }

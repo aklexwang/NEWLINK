@@ -2,12 +2,31 @@ import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { CategoryReclassifyService } from '../stats/category-reclassify.service';
+import { CategorySuggestionService } from '../stats/category-suggestion.service';
 
 /** 전체 카테고리 재분류: 미리보기 → 확인 → 적용 */
 @Controller('admin/reclassify')
 @UseGuards(TelegramAuthGuard, TelegramAdminGuard)
 export class AdminReclassifyController {
-  constructor(private readonly reclassify: CategoryReclassifyService) {}
+  constructor(
+    private readonly reclassify: CategoryReclassifyService,
+    private readonly suggestions: CategorySuggestionService,
+  ) {}
+
+  /** 새 카테고리 후보(AI 제안 이름별 채널 수) */
+  @Get('suggestions')
+  suggestionList() {
+    return this.suggestions.summary();
+  }
+
+  /** 그 후보 이름으로 묶인 채널을 지금 다시 분류 */
+  @Post('suggestions/reclassify')
+  reclassifySuggestion(@Body() body: { name?: unknown }) {
+    const name =
+      typeof body?.name === 'string' ? body.name.trim().slice(0, 50) : '';
+    if (!name) return { total: 0, changed: 0 };
+    return this.suggestions.reclassifyByName(name);
+  }
 
   @Get('status')
   status() {

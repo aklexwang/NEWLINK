@@ -8,6 +8,7 @@ import {
 } from '../../api/admin';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { AdminReclassifyPanel } from '../../components/admin/AdminReclassifyPanel';
+import { AdminCategorySuggestions } from '../../components/admin/AdminCategorySuggestions';
 import { CategoryIconPicker } from '../../components/CategoryIconPicker';
 import type { CategoryItem } from '../../types/categoryItem';
 import { Badge } from '@/components/admin/ui/badge';
@@ -149,6 +150,12 @@ export function AdminCategoriesPage() {
 
       <div className="mt-6 max-w-5xl">
         <AdminReclassifyPanel />
+      </div>
+      <div className="mt-4 max-w-5xl">
+        <AdminCategorySuggestions
+          existingNames={categories.map((item) => item.name)}
+          onCategoryCreated={() => void loadCategories()}
+        />
       </div>
 
       {loading ? (

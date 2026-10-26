@@ -13,6 +13,8 @@ import { StatsRun } from '../stats/stats-run.entity';
 import { UsersModule } from '../users/users.module';
 import { AdminCategoriesController } from './admin-categories.controller';
 import { AdminReclassifyController } from './admin-reclassify.controller';
+import { AdminNotificationsController } from './admin-notifications.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AdminCollectService } from './admin-collect.service';
 import { AdminController } from './admin.controller';
 import { AdminDashboardController } from './admin-dashboard.controller';
@@ -38,6 +40,7 @@ import { AdminUsersController } from './admin-users.controller';
     PaymentsModule,
     StatsModule,
     AnalyticsModule,
+    NotificationsModule,
     TypeOrmModule.forFeature([
       Channel,
       StatsRun,
@@ -57,6 +60,7 @@ import { AdminUsersController } from './admin-users.controller';
     AdminPromotionsController,
     AdminCategoriesController,
     AdminReclassifyController,
+    AdminNotificationsController,
     AdminUsersController,
     AdminSearchController,
     AdminOpensController,

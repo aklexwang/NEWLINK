@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CategoryEntity } from '../categories/category.entity';
 import { DEFAULT_CATEGORIES } from '../categories/default-categories';
 import { scoreKeywordCategory } from '../channels/channel-category-score.logic';
 import {
@@ -37,6 +40,8 @@ export interface CategoryClassifyResult {
   score?: number;
   /** AI 를 쓰지 않았거나 실패했을 때 이유 */
   skipReason?: AiSkipReason;
+  /** 목록에 맞는 게 없을 때 AI 가 제안한 새 카테고리 이름 */
+  newCategory?: string;
 }
 
 export interface CategoryAiStatus {
@@ -54,8 +59,45 @@ export class CategoryAiService {
   private readonly logger = new Logger(CategoryAiService.name);
   private readonly budget: AiDailyBudget;
 
-  constructor(private readonly configService: ConfigService) {
+  private namesCache: { at: number; names: string[] } | null = null;
+
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectRepository(CategoryEntity)
+    private readonly categoryRepository: Repository<CategoryEntity>,
+  ) {
     this.budget = new AiDailyBudget(this.dailyLimit());
+  }
+
+  /**
+   * AI·키워드가 고를 카테고리 목록 = 어드민에서 켜 둔 카테고리(순서대로).
+   * 어드민에서 추가·이름 변경하면 1분 안에 반영. 비어 있으면 기본 목록.
+   */
+  async categoryNames(): Promise<string[]> {
+    const now = Date.now();
+    if (this.namesCache && now - this.namesCache.at < 60_000) {
+      return this.namesCache.names;
+    }
+    let names: string[] = [];
+    try {
+      const rows = await this.categoryRepository.find({
+        where: { isActive: true },
+        order: { sortOrder: 'ASC', name: 'ASC' },
+        select: { name: true },
+      });
+      names = rows.map((row) => row.name).filter(Boolean);
+    } catch (error) {
+      this.logger.warn(
+        `카테고리 목록을 읽지 못해 기본 목록을 씁니다: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+    if (names.length === 0) names = this.defaultCategoryNames();
+    this.namesCache = { at: now, names };
+    return names;
+  }
+
+  clearCategoryNamesCache(): void {
+    this.namesCache = null;
   }
 
   private dailyLimit(): number {
@@ -132,6 +174,7 @@ export class CategoryAiService {
         confidence: outcome.verdict.confidence,
         source: 'ai',
         reason: outcome.verdict.reason,
+        newCategory: outcome.verdict.newCategory,
       };
     }
     return { ...fallback, skipReason: outcome.skipReason };
@@ -212,7 +255,7 @@ export class CategoryAiService {
   ): Promise<string | null> {
     const system = [
       'You classify Telegram channels/groups into exactly one category.',
-      'Reply with JSON only: {"category":"<one>","confidence":0.0-1.0,"reason":"short"}',
+      'Reply with JSON only: {"category":"<one>","confidence":0.0-1.0,"reason":"short Korean","newCategory":null}',
       `Choose ONLY from this list, copy the name exactly: ${allowedCategories.join(', ')}`,
       'Judge by what the channel mainly PUBLISHES or what members mainly DO there, not by single words.',
       '성인 = the main content itself is sexual/porn (야동, 섹스, 18+ media, 조건만남). It MUST be 성인 then.',
@@ -222,6 +265,7 @@ export class CategoryAiService {
       '커뮤니티 = chat/discussion groups about a general or mixed topic. 뉴스 = news/headlines. 경제 = stocks, investing, macro. 암호화폐 = coins, tokens, exchanges, USDT/TON.',
       'Do not use 기술/게임/구인구직 for adult titles just because of words like game, AI, or job in snippets.',
       'confidence: 0.9+ only when the main topic is obvious; 0.5-0.7 when mixed. If unsure, use 기타 with low confidence.',
+      'If NO category in the list fits well, still pick the closest one with low confidence, AND add "newCategory": a short Korean category name (2-8 chars, general enough for many channels, e.g. 웹소설, 코인선물, 자동차) that would fit. Otherwise set "newCategory": null.',
     ].join('\n');
 
     const response = await fetch(`${config.baseUrl}/chat/completions`, {

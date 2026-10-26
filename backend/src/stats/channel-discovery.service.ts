@@ -310,7 +310,7 @@ export class ChannelDiscoveryService {
     const classified = await this.categoryAi.classify({
       title: info.title,
       description: info.description ?? undefined,
-      allowedCategories: this.categoryAi.defaultCategoryNames(),
+      allowedCategories: await this.categoryAi.categoryNames(),
     });
     const sources = item.sourceChannelIds
       .map((id) => {

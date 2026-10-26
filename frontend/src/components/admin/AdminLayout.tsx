@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { LogOut, Menu, Moon, PanelLeft, Sun } from 'lucide-react';
 import '@/styles/admin.css';
 import { AdminPendingAlertBanner } from './AdminPendingAlertBanner';
+import { AdminNotificationBell } from './AdminNotificationBell';
 import { AdminLoginScreen } from './AdminLoginScreen';
 import { AdminSidebar, adminPageTitle } from './AdminSidebar';
 import { AdminThemeProvider, useAdminTheme } from './AdminThemeProvider';
@@ -128,6 +129,7 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
             >
               {theme === 'dark' ? <Sun /> : <Moon />}
             </Button>
+            <AdminNotificationBell />
             <Button
               type="button"
               className="rounded-full bg-[image:var(--hz-brand-gradient)] px-4 text-white"

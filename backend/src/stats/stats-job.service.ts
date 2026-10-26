@@ -16,6 +16,7 @@ import {
 } from './keyword-search.service';
 import { ChannelLanguageService } from './channel-language.service';
 import { ChannelCategoryService } from './channel-category.service';
+import { CategorySuggestionService } from './category-suggestion.service';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 import { PublicStatsService } from './public-stats.service';
@@ -96,6 +97,7 @@ export class StatsJobService implements OnModuleInit {
     private readonly discovery: ChannelDiscoveryService,
     private readonly keywordSearch: KeywordSearchService,
     private readonly channelCategory: ChannelCategoryService,
+    private readonly categorySuggestions: CategorySuggestionService,
     private readonly mtproto: MtprotoCollectorService,
     private readonly publicStats: PublicStatsService,
     @InjectRepository(Channel)
@@ -215,6 +217,7 @@ export class StatsJobService implements OnModuleInit {
           skipped: result.skipped,
           total: result.total,
         };
+        void this.categorySuggestions.checkAlerts();
       })
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
@@ -435,6 +438,7 @@ export class StatsJobService implements OnModuleInit {
       this.currentRunMode = null;
     }
     await this.refreshLastRunView();
+    void this.categorySuggestions.checkAlerts();
   }
 
   private collectDeadline(mode: StatsCollectMode): number {

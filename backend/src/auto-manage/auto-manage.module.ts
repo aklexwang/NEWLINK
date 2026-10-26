@@ -17,10 +17,6 @@ import { SerperSearchService } from './serper-search.service';
     RankingModule,
     StatsModule,
   ],
-  providers: [
-    AutoManageService,
-    GoogleCseService,
-    SerperSearchService,
-  ],
+  providers: [AutoManageService, GoogleCseService, SerperSearchService],
 })
 export class AutoManageModule {}

@@ -250,6 +250,10 @@ export class Channel {
   @Column({ name: 'category_confidence', type: 'real', nullable: true })
   categoryConfidence: number | null;
 
+  /** 목록에 맞는 카테고리가 없을 때 AI 가 제안한 새 이름. 맞는 카테고리로 분류되면 비운다 */
+  @Column({ name: 'suggested_category', type: 'varchar', length: 50, nullable: true })
+  suggestedCategory: string | null;
+
   /** 조건 통과로 승인 없이 등록됨 */
   @Column({ name: 'auto_registered', default: false })
   autoRegistered: boolean;

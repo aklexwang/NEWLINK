@@ -164,7 +164,8 @@ export class AutoManageService {
       }
 
       const link = this.channelsService.normalizeTelegramLink(item.link);
-      const existingChannel = await this.channelsService.findActiveDuplicate(link);
+      const existingChannel =
+        await this.channelsService.findActiveDuplicate(link);
       const existingCandidate = await this.candidateRepository.findOne({
         where: { link },
       });
@@ -262,7 +263,8 @@ export class AutoManageService {
 
     for (const hit of hits) {
       const link = this.channelsService.normalizeTelegramLink(hit.link);
-      const existingChannel = await this.channelsService.findActiveDuplicate(link);
+      const existingChannel =
+        await this.channelsService.findActiveDuplicate(link);
       const existingCandidate = await this.candidateRepository.findOne({
         where: { link },
       });
