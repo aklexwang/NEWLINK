@@ -108,6 +108,8 @@ export function HomePage() {
   }, []);
 
   const closeSuggestions = useCallback(() => setShowSuggestions(false), []);
+  /** 자동완성에서 고른 글자는 다시 자동완성을 띄우지 않는다 */
+  const skipSuggestFor = useRef<string | null>(null);
 
   const loadSearch = useCallback(
     // record=false 는 추천 후 목록 새로고침처럼 사용자가 새로 검색한 게 아닌 경우
@@ -143,6 +145,14 @@ export function HomePage() {
 
   useEffect(() => {
     const keyword = query.trim();
+    if (skipSuggestFor.current !== null && skipSuggestFor.current === keyword) {
+      skipSuggestFor.current = null;
+      suggestRequestId.current += 1;
+      setSuggestionsLoading(false);
+      setShowSuggestions(false);
+      return;
+    }
+    skipSuggestFor.current = null;
     if (!keyword) {
       suggestRequestId.current += 1;
       setSuggestions([]);
@@ -274,6 +284,7 @@ export function HomePage() {
     if (value.trim()) setShowSuggestions(true);
   };
 
+
   const handleSearch = () => {
     const keyword = query.trim();
     if (!keyword) {
@@ -284,6 +295,8 @@ export function HomePage() {
   };
 
   const handleSelectSuggestion = (channel: Channel) => {
+    skipSuggestFor.current = channel.title.trim();
+    setShowSuggestions(false);
     setQuery(channel.title);
     void loadSearch(channel.title);
   };

@@ -54,6 +54,7 @@ import {
   ADULT_CATEGORY,
   PENDING_CATEGORY,
 } from './auto-expose.logic';
+import { searchRelevance } from './search-relevance.logic';
 import { expandSearchKeywords } from './search-synonyms';
 import { kstDayStart, kstRollingStart } from '../admin/admin-dashboard.logic';
 import {
@@ -572,8 +573,9 @@ export class ChannelsService implements OnModuleInit {
                 .orWhere(`LOWER(channel.description) LIKE :${param}`, {
                   [param]: pattern,
                 })
-                .orWhere(`LOWER(channel.category) LIKE :${param}`, {
-                  [param]: pattern,
+                // 카테고리는 이름을 다 친 경우만("뉴" 로 뉴스 카테고리 전체가 걸리지 않게)
+                .orWhere(`LOWER(channel.category) = :${param}Exact`, {
+                  [`${param}Exact`]: term,
                 })
                 .orWhere(`LOWER(channel.link) LIKE :${param}`, {
                   [param]: pattern,
@@ -597,14 +599,25 @@ export class ChannelsService implements OnModuleInit {
           item.isPromoted && (!item.promotedUntil || item.promotedUntil > now),
         verifiedOwnerTelegramId: null,
       }))
-      .sort((a, b) => {
+      .map((item) => ({
+        item,
+        relevance: dto.q?.trim() ? searchRelevance(item, dto.q) : 0,
+      }))
+      .sort((x, y) => {
+        // 친 글자와 잘 맞는 것 먼저, 같으면 광고 → 회원 수 → 추천 → 최근 등록
+        if (y.relevance !== x.relevance) return y.relevance - x.relevance;
+        const a = x.item;
+        const b = y.item;
         if (a.isPromoted !== b.isPromoted) return a.isPromoted ? -1 : 1;
+        const members = (b.memberCount ?? 0) - (a.memberCount ?? 0);
+        if (members !== 0) return members;
         if (b.recommendCount !== a.recommendCount)
           return b.recommendCount - a.recommendCount;
         return (
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
       })
+      .map((row) => row.item)
       .slice(skip, skip + limit);
 
     return {

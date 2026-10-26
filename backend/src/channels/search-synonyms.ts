@@ -58,6 +58,21 @@ function normalizeTerm(value: string): string {
   return value.trim().toLowerCase();
 }
 
+const HANGUL_RE = /[가-힣]/;
+
+/**
+ * 검색어가 동의어 단어를 "통째로" 포함하는지.
+ * - 같으면 true
+ * - 한글 단어(2자 이상)는 검색어 안에 들어 있으면 true ("코인시세" → 코인)
+ * - 영어 단어는 띄어쓰기로 나뉜 낱말과 같을 때만 ("bitcoin" 안의 "it" 은 아님)
+ */
+export function matchesWholeTerm(raw: string, term: string): boolean {
+  if (!term) return false;
+  if (raw === term) return true;
+  if (HANGUL_RE.test(term)) return term.length >= 2 && raw.includes(term);
+  return raw.split(/\s+/).includes(term);
+}
+
 /** 검색어를 동의어까지 포함한 고유 키워드 목록으로 확장 */
 export function expandSearchKeywords(query: string): string[] {
   const raw = normalizeTerm(query);
@@ -67,11 +82,8 @@ export function expandSearchKeywords(query: string): string[] {
 
   for (const group of SYNONYM_GROUPS) {
     const normalizedGroup = group.map(normalizeTerm);
-    if (
-      normalizedGroup.some(
-        (term) => raw === term || raw.includes(term) || term.includes(raw),
-      )
-    ) {
+    // 다 쳐야만 동의어로 넓힌다. "뉴" 처럼 치는 중인 글자로 "뉴스" 묶음 전체가 딸려 오지 않게 한다
+    if (normalizedGroup.some((term) => matchesWholeTerm(raw, term))) {
       for (const term of normalizedGroup) {
         if (term) expanded.add(term);
       }
