@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getRankingCategories, getRankingStatus } from '../api/ranking';
 import { useRankingInfiniteList } from '../hooks/useRankingInfiniteList';
+import { useRankAds } from '../hooks/useRankAds';
+import { mergeRankAds } from '../utils/mergeRankAds';
 import { RankingCategoryPicker } from '../components/RankingCategoryPicker';
 import { RankingChannelCard } from '../components/RankingChannelCard';
 import type { RankingCategoryItem } from '../types/ranking';
@@ -122,6 +124,8 @@ export function RankingPage() {
     verifiedOnly,
     includeForeign,
   });
+  const rankAds = useRankAds(listCategory, type);
+  const rows = useMemo(() => mergeRankAds(channels, rankAds), [channels, rankAds]);
 
   const selectedLabel = useMemo(
     () => categories.find((item) => item.id === category)?.name ?? '전체',
@@ -277,12 +281,13 @@ export function RankingPage() {
           <p className="px-4 py-8 text-center text-sm text-tg-hint">{error}</p>
         ) : (
           <div className="flex flex-col gap-3 px-4 pt-1 pb-6">
-            {channels.map((channel, index) => (
+            {rows.map((row) => (
               <RankingChannelCard
-                key={channel.id}
-                rank={index + 1}
-                channel={channel}
-                avatarUrl={resolveMediaUrl(channel.avatarUrl)}
+                key={row.adId ? `ad-${row.adId}` : row.channel.id}
+                rank={row.rank}
+                adId={row.adId}
+                channel={row.channel}
+                avatarUrl={resolveMediaUrl(row.channel.avatarUrl)}
                 onOpen={() => undefined}
               />
             ))}

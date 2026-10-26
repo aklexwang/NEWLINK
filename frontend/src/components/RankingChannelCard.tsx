@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { trackRankAdClick } from '../api/ranking';
 import type { RankingChannel } from '../types/ranking';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { channelDetailPath } from '../utils/channelDetailPath';
@@ -16,15 +17,19 @@ import { VerifiedBadge } from './VerifiedBadge';
 import { Sparkline } from './Sparkline';
 
 interface RankingChannelCardProps {
-  rank: number;
+  /** 광고 자리면 null */
+  rank: number | null;
+  /** 순위 광고 자리면 광고 id (AD 표시·클릭 집계) */
+  adId?: string;
   channel: RankingChannel;
   avatarUrl?: string | null;
   onOpen: () => void;
 }
 
-export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: RankingChannelCardProps) {
+export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: RankingChannelCardProps) {
   const navigate = useNavigate();
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
+  const isAd = Boolean(adId);
   // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다
   const delta7d = resolveMemberDelta(
     channel.memberDelta7d,
@@ -62,7 +67,7 @@ export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: Ranking
   const handle = (channel.username ?? '').replace(/^@/, '');
   // 데이터 부족 배지는 등급 배지 옆 표시로 대신하고, 나머지 배지만 최대 3개
   const tags = (channel.badges ?? []).filter((badge) => badge.code !== 'low_data').slice(0, 3);
-  const top3 = rank <= 3;
+  const top3 = rank != null && rank <= 3;
 
   return (
     // 등급 배지가 버튼이라 카드는 button 이 아니라 role="link" 로 둔다 (버튼 안 버튼 방지)
@@ -77,7 +82,12 @@ export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: Ranking
           openDetail();
         }
       }}
-      className="cursor-pointer overflow-hidden rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line transition-transform active:scale-[0.99]"
+      onClickCapture={() => {
+        if (adId) trackRankAdClick(adId);
+      }}
+      className={`cursor-pointer overflow-hidden rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-transform active:scale-[0.99] ${
+        isAd ? 'ring-2 ring-amber-400/70' : 'ring-1 ring-nl-line'
+      }`}
     >
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <div className="relative shrink-0">
@@ -100,14 +110,20 @@ export function RankingChannelCard({ rank, channel, avatarUrl, onOpen }: Ranking
               <span className="text-2xl">{isGroup ? '👥' : '📢'}</span>
             )}
           </div>
-          {/* 순위 배지: 1~3위는 메달, 그 밖은 숫자 */}
-          <span
-            className={`absolute -top-1.5 -left-1.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold tabular-nums shadow-sm ring-2 ring-nl-card ${
-              top3 ? 'bg-nl-card text-[15px]' : 'bg-nl-text text-nl-card'
-            }`}
-          >
-            {medal ?? rank}
-          </span>
+          {/* 순위 배지: 광고는 AD, 1~3위는 메달, 그 밖은 숫자 */}
+          {isAd ? (
+            <span className="absolute -top-1.5 -left-1.5 flex h-6 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[11px] font-extrabold tracking-wide text-slate-900 shadow-sm ring-2 ring-nl-card">
+              AD
+            </span>
+          ) : (
+            <span
+              className={`absolute -top-1.5 -left-1.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold tabular-nums shadow-sm ring-2 ring-nl-card ${
+                top3 ? 'bg-nl-card text-[15px]' : 'bg-nl-text text-nl-card'
+              }`}
+            >
+              {medal ?? rank}
+            </span>
+          )}
         </div>
 
         <div className="min-w-0 flex-1">

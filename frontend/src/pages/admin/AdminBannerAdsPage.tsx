@@ -13,7 +13,6 @@ import {
 import { AdminDatePicker } from '../../components/admin/AdminDatePicker';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
-import { AdminAdsManagePage } from './AdminAdsManagePage';
 
 function kstDateInput(iso: string | null, end: boolean): string {
   if (!iso) return '';
@@ -174,7 +173,6 @@ export function AdminBannerAdsPage() {
   const [message, setMessage] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showLegacy, setShowLegacy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -210,7 +208,7 @@ export function AdminBannerAdsPage() {
   const liveCount = banners.filter((b) => b.live).length;
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           회원 홈에 보이는 배너 {liveCount}개 · 전체 {banners.length}개
@@ -302,17 +300,6 @@ export function AdminBannerAdsPage() {
           )}
         </div>
       )}
-
-      <div className="border-t border-border pt-4">
-        <button type="button" onClick={() => setShowLegacy((v) => !v)} className="text-sm text-muted-foreground underline">
-          {showLegacy ? '예전 채널 광고 닫기' : '예전 채널 광고 보기 (회원 화면에는 더 이상 안 나옴)'}
-        </button>
-        {showLegacy && (
-          <div className="-mx-6 mt-2">
-            <AdminAdsManagePage />
-          </div>
-        )}
-      </div>
     </div>
   );
 }

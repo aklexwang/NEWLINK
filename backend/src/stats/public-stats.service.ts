@@ -58,6 +58,9 @@ import {
   previousIsoWeek,
 } from './kst-week';
 import { asText } from '../common/as-text';
+import { isBannerLive } from '../ads/ad-banner.logic';
+import { RankAd } from '../ads/rank-ad.entity';
+import { composeAdSlots } from '../ads/rank-ad.logic';
 
 const HOME_CACHE_MS = 3 * 60 * 1000;
 /** 순위 목록용 공개 채널 묶음. 요청마다 전체 표를 읽지 않게 잠깐 들고 있는다 */
@@ -158,6 +161,8 @@ export class PublicStatsService {
     @InjectRepository(ChannelEvent)
     private readonly eventRepository: Repository<ChannelEvent>,
     private readonly channelsService: ChannelsService,
+    @InjectRepository(RankAd)
+    private readonly rankAdRepository: Repository<RankAd>,
   ) {}
 
   async getDetailByUsername(usernameRaw: string) {
@@ -380,6 +385,7 @@ export class PublicStatsService {
   }
 
   clearPublicCaches() {
+    this.rankAdCache.clear();
     this.summaryCache.clear();
     this.homeCache = null;
     this.feedCache.clear();
@@ -623,6 +629,11 @@ export class PublicStatsService {
     return u || null;
   }
 
+  private rankAdCache = new Map<
+    string,
+    { expiresAt: number; data: unknown[] }
+  >();
+
   private summaryCache = new Map<
     string,
     { at: number; value: ChannelSummary }
@@ -830,10 +841,18 @@ export class PublicStatsService {
     channels.sort((a, b) => this.compareRanking(a, b, sort));
     const slice = sliceRankingPage(channels, query.offset, limit);
 
+    return this.toRankingItems(slice, this.countByCategory(channels), today);
+  }
+
+  /** 순위 목록 한 줄 모양으로 바꾼다 (순위 목록·순위 광고 공용) */
+  private async toRankingItems(
+    slice: Channel[],
+    categoryCounts: Map<string, number>,
+    today: string,
+  ) {
     const latestScores = await this.latestScoresByChannel(
       slice.map((c) => c.id),
     );
-    const categoryCounts = this.countByCategory(channels);
     const sparkByChannel = await this.sparkline14(
       slice.map((c) => c.id),
       today,
@@ -874,6 +893,68 @@ export class PublicStatsService {
         sparkline14: sparkByChannel.get(channel.id) ?? [],
       };
     });
+  }
+
+  /**
+   * 순위 광고: 이 목록(카테고리·채널/그룹)의 1~5위 자리에 넣을 광고.
+   * 전체 광고는 모든 카테고리 목록에, 카테고리 광고는 그 카테고리 목록에만.
+   * 30초 캐시. 목록에 나올 수 없는 방(숨김·불법 의심 등)은 빼고 보낸다.
+   */
+  async listRankAds(category?: string, type?: LinkType) {
+    const key = `${category ?? 'all'}:${type ?? ''}`;
+    const hit = this.rankAdCache.get(key);
+    if (hit && hit.expiresAt > Date.now()) return hit.data;
+
+    const now = new Date();
+    const live = (
+      await this.rankAdRepository.find({ where: { isActive: true } })
+    ).filter((ad) => isBannerLive(ad, now));
+    const isAll = !category || category === 'all';
+    const globalAds = live.filter((ad) => ad.scope === 'global');
+    const categoryAds = isAll
+      ? []
+      : live.filter(
+          (ad) => ad.scope === 'category' && ad.category === category,
+        );
+
+    const pool = await this.loadRankingPool();
+    const byId = new Map(pool.rows.map((c) => [c.id, c]));
+    const usable = (ad: RankAd) => {
+      const c = byId.get(ad.channelId);
+      if (!c || pool.illegalIds.has(c.id) || !isPublicCollectable(c))
+        return false;
+      if (type && c.linkType !== type) return false;
+      // 전체 목록에서는 성인·분류 대기 방을 넣지 않는다 (일반 목록 규칙과 같게)
+      if (
+        isAll &&
+        (!allowAdultInList(c.category) || isPendingCategory(c.category))
+      )
+        return false;
+      return true;
+    };
+    const slots = composeAdSlots(
+      globalAds.filter(usable),
+      categoryAds.filter(usable),
+    );
+    const ordered = [...slots.entries()].sort((a, b) => a[0] - b[0]);
+    const channels = ordered.map(([, ad]) => byId.get(ad.channelId) as Channel);
+    const items = await this.toRankingItems(
+      channels,
+      this.countByCategory(pool.rows),
+      formatKstYmd(),
+    );
+    const data = ordered.map(([slot, ad], index) => ({
+      adId: ad.id,
+      slot,
+      scope: ad.scope,
+      channel: items[index],
+    }));
+    this.rankAdCache.set(key, { expiresAt: Date.now() + 30_000, data });
+    return data;
+  }
+
+  async clickRankAd(id: string) {
+    await this.rankAdRepository.increment({ id }, 'clicks', 1);
   }
 
   private compareRanking(a: Channel, b: Channel, sort: RankingSort): number {

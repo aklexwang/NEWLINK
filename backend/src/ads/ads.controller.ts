@@ -21,6 +21,7 @@ import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { BANNER_MAX_BYTES } from './ad-banner.logic';
 import { AdsService, type BannerInput } from './ads.service';
+import { RankAdsService, type RankAdInput } from './rank-ads.service';
 
 type UploadFile = { buffer?: Buffer; size?: number };
 
@@ -91,5 +92,32 @@ export class AdminAdBannersController {
   @Put('settings/rotate')
   async rotate(@Body() body: { seconds?: unknown }) {
     return { rotateSeconds: await this.ads.setRotateSeconds(body?.seconds) };
+  }
+}
+
+/** 어드민 텔레그램방 순위 광고 (전체 카테고리 / 카테고리별 1~5위) */
+@Controller('admin/rank-ads')
+@UseGuards(TelegramAuthGuard, TelegramAdminGuard)
+export class AdminRankAdsController {
+  constructor(private readonly rankAds: RankAdsService) {}
+
+  @Get()
+  list() {
+    return this.rankAds.listAdmin();
+  }
+
+  @Post()
+  create(@Body() body: RankAdInput) {
+    return this.rankAds.create(body ?? {});
+  }
+
+  @Patch(':id')
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() body: RankAdInput) {
+    return this.rankAds.update(id, body ?? {});
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.rankAds.remove(id);
   }
 }

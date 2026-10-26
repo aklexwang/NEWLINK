@@ -44,6 +44,7 @@ import { AddCategoryProposals1761430000000 } from './migrations/1761430000000-Ad
 import { AddCategorySuggestionsAndNotifications1761440000000 } from './migrations/1761440000000-AddCategorySuggestionsAndNotifications';
 import { AddRewardToggleLog1761450000000 } from './migrations/1761450000000-AddRewardToggleLog';
 import { AddAdBanners1761460000000 } from './migrations/1761460000000-AddAdBanners';
+import { AddRankAds1761470000000 } from './migrations/1761470000000-AddRankAds';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -111,6 +112,7 @@ function truthy(value: string | undefined): boolean {
                 AddCategorySuggestionsAndNotifications1761440000000,
                 AddRewardToggleLog1761450000000,
                 AddAdBanners1761460000000,
+                AddRankAds1761470000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -159,6 +161,7 @@ function truthy(value: string | undefined): boolean {
               AddCategorySuggestionsAndNotifications1761440000000,
               AddRewardToggleLog1761450000000,
               AddAdBanners1761460000000,
+              AddRankAds1761470000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -203,6 +206,7 @@ function truthy(value: string | undefined): boolean {
             AddCategorySuggestionsAndNotifications1761440000000,
             AddRewardToggleLog1761450000000,
             AddAdBanners1761460000000,
+            AddRankAds1761470000000,
           ],
         };
       },

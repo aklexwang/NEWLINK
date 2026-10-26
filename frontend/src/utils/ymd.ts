@@ -34,3 +34,11 @@ export function formatYmdKo(value: string): string {
   const dow = new Date(Date.UTC(p.y, p.m, p.d)).getUTCDay();
   return `${p.y}년 ${p.m + 1}월 ${p.d}일 (${WEEK[dow]})`;
 }
+
+/** 서버 시각 → 'YYYY-MM-DD'(KST). 종료 시각은 '그 날까지'로 보이게 하루 앞 날짜 */
+export function isoToKstYmd(iso: string | null | undefined, end = false): string {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return '';
+  return new Date(t - (end ? 1 : 0) + 9 * 3600_000).toISOString().slice(0, 10);
+}

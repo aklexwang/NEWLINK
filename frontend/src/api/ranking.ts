@@ -48,3 +48,29 @@ export async function getRankingChannels(
   });
   return data;
 }
+
+/** 목록 1~5위 자리 광고 (전체 카테고리 광고 + 이 카테고리 광고) */
+export type RankAdSlot = {
+  adId: string;
+  slot: number;
+  scope: 'global' | 'category';
+  channel: RankingChannel;
+};
+
+export async function getRankingAds(
+  category: string,
+  type?: 'channel' | 'group',
+): Promise<RankAdSlot[]> {
+  try {
+    const { data } = await apiClient.get<RankAdSlot[]>('/ranking/ads', {
+      params: { category: category === 'all' ? undefined : category, type },
+    });
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export function trackRankAdClick(adId: string): void {
+  void apiClient.post(`/ranking/ads/${adId}/click`).catch(() => undefined);
+}

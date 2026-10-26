@@ -1,3 +1,4 @@
+import type { LinkType } from '../channels/channel.entity';
 import { Injectable } from '@nestjs/common';
 import { CategoriesService } from '../categories/categories.service';
 import { PENDING_CATEGORY } from '../channels/auto-expose.logic';
@@ -168,5 +169,16 @@ export class RankingService {
     const items = await this.publicStatsService.listRanking(query);
     this.setCached(cacheKey, items);
     return items;
+  }
+
+  getRankAds(category?: string, type?: 'channel' | 'group') {
+    return this.publicStatsService.listRankAds(
+      category,
+      type as LinkType | undefined,
+    );
+  }
+
+  clickRankAd(id: string) {
+    return this.publicStatsService.clickRankAd(id);
   }
 }
