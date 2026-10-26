@@ -14,7 +14,7 @@ import { CategoryIconPicker } from '../../components/CategoryIconPicker';
 import type { CategoryItem } from '../../types/categoryItem';
 import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/card';
+import { Card, CardContent } from '@/components/admin/ui/card';
 import { Input } from '@/components/admin/ui/input';
 import { Skeleton } from '@/components/admin/ui/skeleton';
 
@@ -40,6 +40,17 @@ export function AdminCategoriesPage() {
     emoji: '📁',
     iconUrl: null,
   });
+
+  const [panel, setPanel] = useState<'reclassify' | 'suggest' | 'add' | null>(null);
+
+  useEffect(() => {
+    if (!panel) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPanel(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [panel]);
 
   const [counts, setCounts] = useState<Record<string, { total: number; visible: number }>>({});
 
@@ -195,25 +206,53 @@ export function AdminCategoriesPage() {
       </p>
       {message && <p className="mt-3 text-sm text-foreground">{message}</p>}
 
-      <div className="mt-6 max-w-5xl">
-        <AdminReclassifyPanel />
-      </div>
-      <div className="mt-4 max-w-5xl">
-        <AdminCategorySuggestions
-          existingNames={categories.map((item) => item.name)}
-          onCategoryCreated={() => void loadCategories()}
-        />
+      <div className="mt-6 grid max-w-5xl gap-3 md:grid-cols-3">
+        {(
+          [
+            { id: 'reclassify', label: '🤖 전체 재분류 (AI)', desc: '모든 방 카테고리를 AI로 다시 점검' },
+            { id: 'suggest', label: '💡 새 카테고리 후보', desc: 'AI가 제안한 새 이름 보기·옮기기' },
+            { id: 'add', label: '➕ 새 카테고리 추가', desc: '이름·아이콘 정해서 직접 추가' },
+          ] as const
+        ).map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setPanel(item.id)}
+            className="rounded-2xl bg-card px-5 py-4 text-left shadow-[var(--hz-shadow)] transition-colors hover:bg-muted"
+          >
+            <p className="text-[17px] font-bold text-foreground">{item.label}</p>
+            <p className="mt-1 text-sm text-subtle">{item.desc}</p>
+          </button>
+        ))}
       </div>
 
-      {loading ? (
-        <Skeleton className="mt-6 h-32 w-full max-w-3xl" />
-      ) : (
-        <div className="mt-6 flex max-w-3xl flex-col gap-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">새 카테고리 추가</CardTitle>
-            </CardHeader>
-            <CardContent>
+      {panel && (
+        <div className="fixed inset-0 z-40 flex justify-end" role="dialog" aria-modal="true">
+          <button type="button" aria-label="닫기" className="absolute inset-0 bg-black/40" onClick={() => setPanel(null)} />
+          <aside className="relative flex h-full w-full max-w-[760px] flex-col bg-background shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-border bg-card px-6 py-5">
+              <p className="flex-1 text-xl font-bold text-foreground">
+                {panel === 'reclassify' ? '🤖 전체 재분류 (AI)' : panel === 'suggest' ? '💡 새 카테고리 후보' : '➕ 새 카테고리 추가'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setPanel(null)}
+                className="h-10 rounded-xl bg-muted px-4 text-sm font-semibold text-foreground"
+              >
+                닫기 ✕
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              {panel === 'reclassify' && <AdminReclassifyPanel />}
+              {panel === 'suggest' && (
+                <AdminCategorySuggestions
+                  existingNames={categories.map((item) => item.name)}
+                  onCategoryCreated={() => void loadCategories()}
+                />
+              )}
+              {panel === 'add' && (
+                <div className="rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
+                  {message && <p className="mb-3 text-sm text-foreground">{message}</p>}
               <form onSubmit={handleCreateCategory} className="flex flex-col gap-3">
                 <Input
                   required
@@ -229,10 +268,18 @@ export function AdminCategoriesPage() {
                 />
                 <Button type="submit">카테고리 추가</Button>
               </form>
-            </CardContent>
-          </Card>
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
 
-          <div className="sticky top-0 z-10 mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-card p-4 shadow-[var(--hz-shadow)]">
+      {loading ? (
+        <Skeleton className="mt-6 h-32 w-full max-w-3xl" />
+      ) : (
+        <div className="mt-6 flex max-w-3xl flex-col gap-3">
+          <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-2xl bg-card p-4 shadow-[var(--hz-shadow)]">
             <h3 className="mr-auto text-base font-bold">등록된 카테고리 ({categories.length})</h3>
             <Button
               type="button"
