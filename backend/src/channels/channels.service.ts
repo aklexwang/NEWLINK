@@ -1453,6 +1453,10 @@ export class ChannelsService implements OnModuleInit {
     data: Record<string, number>;
   } | null = null;
 
+  clearRankingCountsCache() {
+    this.rankingCountsCache = null;
+  }
+
   async getRankingCounts(): Promise<Record<string, number>> {
     // 카테고리 화면마다 불리므로 60초 동안 같은 값을 쓴다
     if (

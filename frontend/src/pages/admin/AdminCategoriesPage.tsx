@@ -9,6 +9,7 @@ import {
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { AdminReclassifyPanel } from '../../components/admin/AdminReclassifyPanel';
 import { AdminCategorySuggestions } from '../../components/admin/AdminCategorySuggestions';
+import { getAdminCategoryCounts } from '../../api/notifications';
 import { CategoryIconPicker } from '../../components/CategoryIconPicker';
 import type { CategoryItem } from '../../types/categoryItem';
 import { Badge } from '@/components/admin/ui/badge';
@@ -40,11 +41,17 @@ export function AdminCategoriesPage() {
     iconUrl: null,
   });
 
+  const [counts, setCounts] = useState<Record<string, { total: number; visible: number }>>({});
+
   const loadCategories = useCallback(async () => {
     setLoading(true);
     try {
-      const items = await getAdminCategories();
+      const [items, counts] = await Promise.all([
+        getAdminCategories(),
+        getAdminCategoryCounts().catch(() => ({})),
+      ]);
       setCategories(items);
+      setCounts(counts);
       setMessage('');
     } catch {
       setMessage('카테고리를 불러오지 못했습니다.');
@@ -144,7 +151,7 @@ export function AdminCategoriesPage() {
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <p className="mt-1 text-sm text-muted-foreground">
-        이름·아이콘·순서를 관리합니다. 회원 화면 카테고리 목록도 이 순서를 따릅니다.
+        이름·아이콘을 관리합니다. 회원 화면 카테고리 목록은 방 많은 순으로 나오고, 방이 0개인 카테고리는 숨겨져요.
       </p>
       {message && <p className="mt-3 text-sm text-foreground">{message}</p>}
 
@@ -198,6 +205,22 @@ export function AdminCategoriesPage() {
                     <p className="text-xs text-muted-foreground">
                       순서 {item.sortOrder} · {item.isActive ? '활성' : '비활성'}
                     </p>
+                    {(() => {
+                      const c = counts[item.name] ?? { total: 0, visible: 0 };
+                      return (
+                        <p
+                          className={`mt-1 text-sm font-semibold ${
+                            c.visible === 0 ? 'text-destructive' : 'text-foreground'
+                          }`}
+                        >
+                          회원 화면 {c.visible.toLocaleString()}개 · 등록 {c.total.toLocaleString()}개
+                          {c.total === 0 && ' — 방이 없어 회원 화면 목록에 안 나와요'}
+                          {c.total > 0 &&
+                            c.visible === 0 &&
+                            ' — 방은 있지만 모두 숨김(외국어·불법 의심 등)이라 회원 화면에 안 나와요'}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div className="flex flex-wrap gap-1">
                     <Button

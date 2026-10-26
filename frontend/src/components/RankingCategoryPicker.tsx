@@ -19,11 +19,20 @@ export function RankingCategoryPicker({
   const selectedCategory =
     categories.find((category) => category.id === selected) ?? categories[0];
 
+  // 방이 있는 카테고리만, 방 많은 순 (전체는 맨 앞, 지금 고른 건 0개여도 보이게)
+  const ordered = useMemo(() => {
+    const all = categories.filter((c) => c.id === 'all');
+    const rest = categories
+      .filter((c) => c.id !== 'all' && (c.count > 0 || c.id === selected))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'));
+    return [...all, ...rest];
+  }, [categories, selected]);
+
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return categories;
-    return categories.filter((category) => category.name.toLowerCase().includes(keyword));
-  }, [categories, query]);
+    if (!keyword) return ordered;
+    return ordered.filter((category) => category.name.toLowerCase().includes(keyword));
+  }, [ordered, query]);
 
   const close = () => {
     setOpen(false);
@@ -96,15 +105,15 @@ export function RankingCategoryPicker({
                         onClick={() => handleSelect(category.id)}
                         className={`flex flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition active:scale-[0.98] ${
                           active
-                            ? 'border-tg-link/30 bg-tg-open-bg'
-                            : 'border-black/[0.06] bg-tg-secondary'
+                            ? 'border-nl-accent/40 bg-nl-accent/15'
+                            : 'border-nl-line bg-tg-secondary'
                         }`}
                       >
                         <CategoryIcon emoji={category.emoji} iconUrl={category.iconUrl} size="md" />
                         <div className="min-w-0 w-full">
                           <p
                             className={`truncate text-xs font-semibold ${
-                              active ? 'text-tg-link' : 'text-tg-text'
+                              active ? 'text-nl-accent' : 'text-tg-text'
                             }`}
                           >
                             {category.name}

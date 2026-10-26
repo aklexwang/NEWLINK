@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { CategoryEntity } from '../categories/category.entity';
+import { ChannelsService } from '../channels/channels.service';
+import { ChannelEvent } from './channel-event.entity';
+import { PublicStatsService } from './public-stats.service';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
 import { Channel, ChannelStatus } from '../channels/channel.entity';
 import { AdminNotificationService } from '../notifications/admin-notification.service';
@@ -22,7 +26,75 @@ export class CategorySuggestionService {
     private readonly channelCategory: ChannelCategoryService,
     private readonly categoryAi: CategoryAiService,
     private readonly notifications: AdminNotificationService,
+    @InjectRepository(CategoryEntity)
+    private readonly categoryRepository: Repository<CategoryEntity>,
+    @InjectRepository(ChannelEvent)
+    private readonly eventRepository: Repository<ChannelEvent>,
+    private readonly channelsService: ChannelsService,
+    private readonly publicStats: PublicStatsService,
   ) {}
+
+  /**
+   * 후보 이름으로 묶인 채널을 그 이름의 카테고리로 바로 옮긴다(AI 다시 묻지 않음).
+   * AI 가 이미 이 이름을 제안했으므로 그대로 따른다. 카테고리가 있어야 한다.
+   */
+  async moveByName(name: string): Promise<{ moved: number }> {
+    const category = await this.categoryRepository.findOne({ where: { name } });
+    if (!category) return { moved: 0 };
+    const channels = await this.channelRepository.find({
+      where: {
+        status: ChannelStatus.ACTIVE,
+        categoryLocked: false,
+        suggestedCategory: name,
+      },
+      select: ['id', 'category'],
+    });
+    if (channels.length === 0) return { moved: 0 };
+    const ids = channels.map((c) => c.id);
+    await this.channelRepository.update(
+      { id: In(ids) },
+      { category: name, suggestedCategory: null },
+    );
+    const now = new Date();
+    await this.eventRepository.save(
+      channels
+        .filter((c) => c.category !== name)
+        .map((c) => ({
+          channelId: c.id,
+          type: 'category_changed',
+          before: c.category,
+          after: name,
+          occurredAt: now,
+        })),
+      { chunk: 200 },
+    );
+    this.publicStats.clearPublicCaches();
+    this.channelsService.clearRankingCountsCache();
+    this.logger.log(`새 카테고리 "${name}"(으)로 ${ids.length}개 옮김`);
+    return { moved: ids.length };
+  }
+
+  /** 카테고리별 채널 수: 등록된 전체(활성) / 회원 화면에 보이는 수 */
+  async categoryCounts(): Promise<
+    Record<string, { total: number; visible: number }>
+  > {
+    const rows = await this.channelRepository
+      .createQueryBuilder('c')
+      .select('c.category', 'name')
+      .addSelect('COUNT(*)', 'count')
+      .where('c.status = :status', { status: ChannelStatus.ACTIVE })
+      .groupBy('c.category')
+      .getRawMany<{ name: string; count: string | number }>();
+    const visible = await this.channelsService.getRankingCounts();
+    const out: Record<string, { total: number; visible: number }> = {};
+    for (const row of rows) {
+      out[row.name] = {
+        total: Number(row.count),
+        visible: visible[row.name] ?? 0,
+      };
+    }
+    return out;
+  }
 
   private baseQuery() {
     return this.channelRepository

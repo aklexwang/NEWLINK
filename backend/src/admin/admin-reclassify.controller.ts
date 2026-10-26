@@ -28,6 +28,21 @@ export class AdminReclassifyController {
     return this.suggestions.reclassifyByName(name);
   }
 
+  /** 그 후보 이름의 채널을 같은 이름 카테고리로 바로 옮기기 */
+  @Post('suggestions/move')
+  moveSuggestion(@Body() body: { name?: unknown }) {
+    const name =
+      typeof body?.name === 'string' ? body.name.trim().slice(0, 50) : '';
+    if (!name) return { moved: 0 };
+    return this.suggestions.moveByName(name);
+  }
+
+  /** 카테고리별 채널 수(전체 / 회원 화면에 보이는 수) */
+  @Get('category-counts')
+  categoryCounts() {
+    return this.suggestions.categoryCounts();
+  }
+
   @Get('status')
   status() {
     return this.reclassify.status();

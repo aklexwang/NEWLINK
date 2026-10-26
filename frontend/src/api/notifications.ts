@@ -52,3 +52,23 @@ export async function reclassifySuggestion(name: string): Promise<{ total: numbe
   );
   return data;
 }
+
+/** 후보 이름의 채널을 같은 이름 카테고리로 바로 옮기기 (AI 다시 묻지 않음) */
+export async function moveSuggestion(name: string): Promise<{ moved: number }> {
+  const { data } = await apiClient.post(
+    '/admin/reclassify/suggestions/move',
+    { name },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+/** 카테고리별 채널 수: 전체(활성) / 회원 화면에 보이는 수 */
+export async function getAdminCategoryCounts(): Promise<
+  Record<string, { total: number; visible: number }>
+> {
+  const { data } = await apiClient.get('/admin/reclassify/category-counts', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}

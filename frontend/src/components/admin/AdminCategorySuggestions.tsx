@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createCategory } from '../../api/admin';
 import {
   getCategorySuggestions,
-  reclassifySuggestion,
+  moveSuggestion,
   type CategorySuggestion,
 } from '../../api/notifications';
 import { Button } from '@/components/admin/ui/button';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/ui/
 
 /**
  * 새 카테고리 후보: AI 가 "목록에 맞는 게 없다"며 제안한 이름별 채널 수.
- * 카테고리를 만든 뒤 [다시 분류]를 누르면 그 채널들이 새 카테고리로 갈 수 있다.
+ * 카테고리를 만들면 그 채널들을 바로 새 카테고리로 옮긴다.
  */
 export function AdminCategorySuggestions({
   existingNames,
@@ -42,8 +42,10 @@ export function AdminCategorySuggestions({
     setBusy(name);
     try {
       await createCategory({ name, emoji: '📁' });
-      setMessage(`"${name}" 카테고리를 만들었어요. 이제 [다시 분류]를 누르면 그 채널들이 옮겨질 수 있어요.`);
+      const { moved } = await moveSuggestion(name);
+      setMessage(`"${name}" 카테고리를 만들고 채널 ${moved}개를 옮겼어요.`);
       onCategoryCreated();
+      await load();
     } catch {
       setMessage('카테고리를 만들지 못했습니다.');
     } finally {
@@ -51,14 +53,15 @@ export function AdminCategorySuggestions({
     }
   };
 
-  const handleReclassify = async (name: string) => {
+  const handleMove = async (name: string) => {
     setBusy(name);
     try {
-      const result = await reclassifySuggestion(name);
-      setMessage(`"${name}" 후보 ${result.total}개를 다시 분류해 ${result.changed}개가 바뀌었어요.`);
+      const { moved } = await moveSuggestion(name);
+      setMessage(`"${name}" 카테고리로 채널 ${moved}개를 옮겼어요.`);
+      onCategoryCreated();
       await load();
     } catch {
-      setMessage('다시 분류하지 못했습니다.');
+      setMessage('옮기지 못했습니다.');
     } finally {
       setBusy(null);
     }
@@ -70,6 +73,7 @@ export function AdminCategorySuggestions({
         <CardTitle className="text-base">새 카테고리 후보</CardTitle>
         <p className="text-sm text-muted-foreground">
           맞는 카테고리가 없어 AI 가 새 이름을 제안한 채널들이에요. 같은 이름이 5개 이상 모이면 종 알림이 와요.
+          만들면 그 채널들이 바로 새 카테고리로 옮겨져요. 몇 개 안 되는 후보는 만들지 않아도 돼요.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -89,12 +93,12 @@ export function AdminCategorySuggestions({
                   </p>
                 </div>
                 {exists(row.name) ? (
-                  <Button size="sm" disabled={busy !== null} onClick={() => void handleReclassify(row.name)}>
-                    {busy === row.name ? '분류 중...' : '다시 분류'}
+                  <Button size="sm" disabled={busy !== null} onClick={() => void handleMove(row.name)}>
+                    {busy === row.name ? '옮기는 중...' : `${row.count}개 옮기기`}
                   </Button>
                 ) : (
                   <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void handleCreate(row.name)}>
-                    카테고리 만들기
+                    {busy === row.name ? '만드는 중...' : `카테고리 만들고 ${row.count}개 옮기기`}
                   </Button>
                 )}
               </li>
