@@ -7,7 +7,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { In, Repository } from 'typeorm';
-import { SearchTermsService } from '../analytics/search-terms.service';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
 import { Channel, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
@@ -35,7 +34,6 @@ export class AdminDiscoveryService {
     private readonly categoryAi: CategoryAiService,
     private readonly discovery: ChannelDiscoveryService,
     private readonly statsJob: StatsJobService,
-    private readonly searchTerms: SearchTermsService,
     @InjectRepository(DiscoveredUsername)
     private readonly discoveredRepository: Repository<DiscoveredUsername>,
     @InjectRepository(DiscoveryKeyword)
@@ -156,11 +154,6 @@ export class AdminDiscoveryService {
   async createKeyword(word: string, category?: string) {
     const trimmed = word.trim().slice(0, 64);
     if (!trimmed) throw new BadRequestException('키워드를 입력해 주세요.');
-    if ((await this.searchTerms.check(trimmed)).blocked) {
-      throw new BadRequestException(
-        '검색 금지어가 들어 있는 키워드는 발견 키워드로 추가할 수 없습니다.',
-      );
-    }
     const exists = await this.keywordRepository.findOne({
       where: { word: trimmed },
     });
