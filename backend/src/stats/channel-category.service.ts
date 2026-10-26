@@ -66,7 +66,11 @@ export class ChannelCategoryService {
     return this.channelRepository.save(channel);
   }
 
-  async classifyUnlockedWeekly(): Promise<{ updated: number; skipped: number }> {
+  async classifyUnlockedWeekly(): Promise<{
+    updated: number;
+    skipped: number;
+    total: number;
+  }> {
     const channels = await this.channelRepository.find({
       where: {
         status: ChannelStatus.ACTIVE,
@@ -88,6 +92,6 @@ export class ChannelCategoryService {
     this.logger.log(
       `주간 카테고리 재분류: 변경 ${updated} / 건너뜀 ${skipped} / 대상 ${channels.length}`,
     );
-    return { updated, skipped };
+    return { updated, skipped, total: channels.length };
   }
 }

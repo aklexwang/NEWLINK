@@ -154,24 +154,82 @@ export class StatsJobService implements OnModuleInit {
     }
   }
 
-  /** 매주 월요일 KST 04:00. 카테고리 고정이 아닌 채널을 게시글 본문으로 다시 분류합니다. */
+  /**
+   * 매주 월요일 KST 04:00. 분류대기 채널을 게시글 본문으로 다시 분류합니다.
+   * 무료 서버가 잠들어 있으면 이 크론이 안 돌 수 있어, GitHub Actions 가
+   * POST /internal/stats/reclassify 로도 깨워서 부릅니다(겹치면 한 번만 돈다).
+   */
   @Cron('0 4 * * 1', { timeZone: 'Asia/Seoul' })
   async handleWeeklyCategoryCron() {
     if (envFalsy(this.configService.get<string>('STATS_CRON_ENABLED'))) {
       return;
     }
-    try {
-      await this.channelCategory.classifyUnlockedWeekly();
-    } catch (error) {
-      this.logger.warn(
-        `주간 카테고리 재분류 실패: ${error instanceof Error ? error.message : error}`,
-      );
-    }
+    this.startWeeklyCategory();
   }
 
-  async startPipeline(
-    mode: StatsCollectMode = 'full',
-  ): Promise<{
+  private weeklyCategory: {
+    running: boolean;
+    startedAt: string | null;
+    finishedAt: string | null;
+    updated: number | null;
+    skipped: number | null;
+    total: number | null;
+    error: string | null;
+  } = {
+    running: false,
+    startedAt: null,
+    finishedAt: null,
+    updated: null,
+    skipped: null,
+    total: null,
+    error: null,
+  };
+
+  getWeeklyCategoryStatus() {
+    return { ...this.weeklyCategory };
+  }
+
+  /** 분류대기 재분류를 백그라운드로 시작. 이미 도는 중이면 started=false */
+  startWeeklyCategory(): { started: boolean; startedAt: string | null } {
+    if (this.weeklyCategory.running) {
+      return { started: false, startedAt: this.weeklyCategory.startedAt };
+    }
+    const startedAt = new Date().toISOString();
+    this.weeklyCategory = {
+      running: true,
+      startedAt,
+      finishedAt: null,
+      updated: null,
+      skipped: null,
+      total: null,
+      error: null,
+    };
+    void this.channelCategory
+      .classifyUnlockedWeekly()
+      .then((result) => {
+        this.weeklyCategory = {
+          ...this.weeklyCategory,
+          running: false,
+          finishedAt: new Date().toISOString(),
+          updated: result.updated,
+          skipped: result.skipped,
+          total: result.total,
+        };
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`주간 카테고리 재분류 실패: ${message}`);
+        this.weeklyCategory = {
+          ...this.weeklyCategory,
+          running: false,
+          finishedAt: new Date().toISOString(),
+          error: message.slice(0, 200),
+        };
+      });
+    return { started: true, startedAt };
+  }
+
+  async startPipeline(mode: StatsCollectMode = 'full'): Promise<{
     started: boolean;
     skipped: boolean;
     runId: string | null;

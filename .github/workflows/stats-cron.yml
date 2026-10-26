@@ -11,6 +11,7 @@ on:
     - cron: '5 9 * * *' # KST 18:05 light
     - cron: '5 12 * * *' # KST 21:05 light
     - cron: '5 15 * * *' # KST 00:05 light
+    - cron: '5 19 * * 0' # KST 월 04:05 분류대기 AI 재분류 (잠든 무료 서버 깨워서)
   workflow_dispatch:
     inputs:
       mode:
@@ -21,6 +22,7 @@ on:
         options:
           - light
           - full
+          - reclassify
 
 jobs:
   trigger:
@@ -49,13 +51,34 @@ jobs:
           schedule = (os.environ.get("SCHEDULE_CRON") or "").strip()
           dispatch = (os.environ.get("DISPATCH_MODE") or "").strip()
           if event == "workflow_dispatch":
-              print("light" if dispatch.lower() != "full" else "full")
+              d = dispatch.lower()
+              print(d if d in ("full", "reclassify") else "light")
+          elif schedule == "5 19 * * 0":
+              print("reclassify")
           elif schedule == "5 18 * * *":
               print("full")
           else:
               print("light")
           ')"
           echo "mode=${MODE}"
+
+          if [ "${MODE}" = "reclassify" ]; then
+            curl -fsS --retry 5 --retry-delay 20 --max-time 120 -X POST \
+              -H "${HEADER}" "${BASE}/api/internal/stats/reclassify"
+            echo
+            for i in $(seq 1 30); do
+              sleep 120
+              R="$(curl -fsS --retry 3 --retry-delay 10 --max-time 60 \
+                -H "${HEADER}" "${BASE}/api/internal/stats/reclassify")"
+              echo "elapsed=$((i * 2))m ${R}"
+              if echo "${R}" | grep -q '"running":false'; then
+                if echo "${R}" | grep -q '"error":null'; then exit 0; fi
+                exit 1
+              fi
+            done
+            echo "재분류가 60분 안에 끝나지 않았습니다."
+            exit 1
+          fi
           if [ "${MODE}" = "light" ]; then
             MAX_MINUTES=35
           else

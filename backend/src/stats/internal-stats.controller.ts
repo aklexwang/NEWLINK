@@ -59,6 +59,18 @@ export class InternalStatsController {
     };
   }
 
+  /** 분류대기 AI 재분류 시작(백그라운드). 상태는 GET reclassify 로 본다 */
+  @Post('reclassify')
+  @HttpCode(202)
+  reclassify() {
+    return this.statsJobService.startWeeklyCategory();
+  }
+
+  @Get('reclassify')
+  reclassifyStatus() {
+    return this.statsJobService.getWeeklyCategoryStatus();
+  }
+
   @Post('run-one/:channelId')
   @HttpCode(202)
   async runOne(@Param('channelId') channelId: string) {
