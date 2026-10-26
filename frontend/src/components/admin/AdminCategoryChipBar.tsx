@@ -50,7 +50,13 @@ export function AdminCategoryChipBar({
             </span>
           )}
         </button>
-        {categories.map((category) => {
+        {[...categories]
+          // 방 많은 카테고리부터
+          .sort(
+            (a, b) =>
+              (counts?.[b.name] ?? 0) - (counts?.[a.name] ?? 0) || a.name.localeCompare(b.name, 'ko'),
+          )
+          .map((category) => {
           const active = selected === category.name;
           const count = counts?.[category.name] ?? 0;
           return (
