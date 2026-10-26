@@ -68,12 +68,11 @@ export function ChannelQuickActions({ channelId, link, title }: ChannelQuickActi
           type="button"
           onClick={onOpen}
           aria-label={`${title ?? ''} 텔레그램에서 바로가기`}
-          className="flex h-8 items-center gap-1 rounded-full bg-[#2AABEE] px-2.5 text-[12px] font-bold text-white active:scale-95"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2AABEE] text-white active:scale-95"
         >
-          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden>
+          <svg viewBox="0 0 24 24" className="-ml-0.5 h-4 w-4" fill="currentColor" aria-hidden>
             <path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z" />
           </svg>
-          바로가기
         </button>
       )}
     </div>
