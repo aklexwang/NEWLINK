@@ -16,3 +16,10 @@ export function dateTimeColumnType(
 ): DateTimeColumnType {
   return isPostgresConfig(env) ? 'timestamptz' : 'datetime';
 }
+
+/** 바이너리(이미지) 컬럼 — Postgres bytea, SQLite blob */
+export function binaryColumnType(
+  env: { DATABASE_URL?: string; DATABASE_TYPE?: string } = process.env,
+): 'bytea' | 'blob' {
+  return isPostgresConfig(env) ? 'bytea' : 'blob';
+}

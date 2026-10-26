@@ -195,9 +195,9 @@ export function AdminSidebar({
     >
       <div className={cn('mx-6 border-b py-8 text-center', collapsed && 'mx-3 py-6')}>
         {collapsed ? (
-          <p className="text-[15px] font-bold tracking-tight">NL</p>
+          <p className="text-[15px] font-bold tracking-tight">TL</p>
         ) : (
-          <h1 className="text-[26px] leading-none tracking-tight uppercase">
+          <h1 className="text-[26px] leading-none tracking-tight">
             <span className="font-bold">TellLink</span>{' '}
             <span className="font-normal">Admin</span>
           </h1>

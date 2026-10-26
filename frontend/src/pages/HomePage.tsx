@@ -5,7 +5,8 @@ import { getHomeDashboard, getHomeFeed, type HomeCard, type HomeDashboard, type 
 import { ChannelList } from '../components/ChannelList';
 import { GradeBadge } from '../components/GradeBadge';
 import { NewLinkLogo } from '../components/NewLinkLogo';
-import { PromotedShortcuts } from '../components/PromotedShortcuts';
+import { BannerCarousel } from '../components/BannerCarousel';
+import { getBanners, type PublicBanner } from '../api/ads';
 import { SearchBar } from '../components/SearchBar';
 import { useCategories } from '../hooks/useCategories';
 import { useMyFavorites } from '../hooks/useMyFavorites';
@@ -67,6 +68,19 @@ export function HomePage() {
   const { searchCategories } = useCategories();
   const { recommendedIds, load: loadRecommended, recommend } = useMyRecommendations();
   const { favoriteIds, load: loadFavoriteIds, toggleFavorite } = useMyFavorites();
+  // 홈 배너 광고(텔레그램 방 광고 아이콘 줄 대신)
+  const [bannerAds, setBannerAds] = useState<{ rotateSeconds: number; banners: PublicBanner[] } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getBanners()
+      .then((data) => {
+        if (!cancelled) setBannerAds(data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [query, setQuery] = useState('');
   const [searchType, setSearchType] = useState<SearchType>('all');
@@ -405,22 +419,6 @@ export function HomePage() {
     );
   }
 
-  const promotedAsChannels = (home?.promoted ?? []).map(
-    (item): Channel => ({
-      id: item.id,
-      title: item.title,
-      link: item.link,
-      linkType: item.linkType,
-      category: item.category,
-      description: '',
-      recommendCount: 0,
-      status: 'active',
-      isPromoted: true,
-      promotedUntil: null,
-      avatarUrl: item.avatarUrl,
-      createdAt: '',
-    }),
-  );
 
   return (
     <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg pb-4">
@@ -553,20 +551,9 @@ export function HomePage() {
         )}
       </section>
 
-      {!homeLoading && promotedAsChannels.length > 0 && (
+      {bannerAds && bannerAds.banners.length > 0 && (
         <section className="px-4 pt-5">
-          <h2 className="text-[15px] font-bold">광고 채널</h2>
-          <div className="mt-3 rounded-2xl bg-nl-card px-3 py-4 ring-1 ring-nl-line">
-            <PromotedShortcuts
-              channels={promotedAsChannels}
-              categoryEmojis={searchCategories}
-              isLoading={false}
-              onOpen={(channel) => {
-                const path = channelDetailPath(channel);
-                if (path) navigate(path);
-              }}
-            />
-          </div>
+          <BannerCarousel banners={bannerAds.banners} rotateSeconds={bannerAds.rotateSeconds} />
         </section>
       )}
 

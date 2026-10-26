@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module';
+import { AdsModule } from './ads/ads.module';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -42,6 +43,7 @@ import { AddMemberDeltas1761420000000 } from './migrations/1761420000000-AddMemb
 import { AddCategoryProposals1761430000000 } from './migrations/1761430000000-AddCategoryProposals';
 import { AddCategorySuggestionsAndNotifications1761440000000 } from './migrations/1761440000000-AddCategorySuggestionsAndNotifications';
 import { AddRewardToggleLog1761450000000 } from './migrations/1761450000000-AddRewardToggleLog';
+import { AddAdBanners1761460000000 } from './migrations/1761460000000-AddAdBanners';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -108,6 +110,7 @@ function truthy(value: string | undefined): boolean {
                 AddCategoryProposals1761430000000,
                 AddCategorySuggestionsAndNotifications1761440000000,
                 AddRewardToggleLog1761450000000,
+                AddAdBanners1761460000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -155,6 +158,7 @@ function truthy(value: string | undefined): boolean {
               AddCategoryProposals1761430000000,
               AddCategorySuggestionsAndNotifications1761440000000,
               AddRewardToggleLog1761450000000,
+              AddAdBanners1761460000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -198,6 +202,7 @@ function truthy(value: string | undefined): boolean {
             AddCategoryProposals1761430000000,
             AddCategorySuggestionsAndNotifications1761440000000,
             AddRewardToggleLog1761450000000,
+            AddAdBanners1761460000000,
           ],
         };
       },
@@ -207,6 +212,7 @@ function truthy(value: string | undefined): boolean {
     CategoriesModule,
     ChannelsModule,
     AdminModule,
+    AdsModule,
     AutoManageModule,
     PaymentsModule,
     RankingModule,

@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { AdminDiscoveryPage } from '../pages/admin/AdminDiscoveryPage';
-import { AdminAdsManagePage } from '../pages/admin/AdminAdsManagePage';
+import { AdminBannerAdsPage } from '../pages/admin/AdminBannerAdsPage';
 import { AdminCategoriesPage } from '../pages/admin/AdminCategoriesPage';
 import { AdminManualRegisterPage } from '../pages/admin/AdminManualRegisterPage';
 import { AdminCollectOpsPage } from '../pages/admin/AdminCollectOpsPage';
@@ -24,7 +24,7 @@ export default function AdminRoutes() {
         <Route path="pending" element={<AdminPendingPage />} />
         <Route path="register-link" element={<AdminManualRegisterPage />} />
         <Route path="discovery" element={<AdminDiscoveryPage />} />
-        <Route path="ads" element={<AdminAdsManagePage />} />
+        <Route path="ads" element={<AdminBannerAdsPage />} />
         <Route path="search-insights" element={<AdminSearchInsightsPage />} />
         <Route path="opens" element={<AdminOpensPage />} />
         <Route path="search-terms" element={<AdminSearchTermsPage />} />

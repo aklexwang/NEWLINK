@@ -37,7 +37,7 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <p className="text-[22px] leading-none tracking-tight uppercase">
+          <p className="text-[22px] leading-none tracking-tight">
             <span className="font-bold">TellLink</span> <span className="font-normal">Admin</span>
           </p>
           <CardTitle className="mt-3 text-[26px] font-bold">관리자 로그인</CardTitle>
