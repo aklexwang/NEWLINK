@@ -4,8 +4,8 @@ import { trackTelegramOpen } from '../api/opens';
 import { openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import type { ChannelSummary } from '../api/stats';
 import type { Channel } from '../types/channel';
-import { getChannelAvatarSources } from '../utils/channelAvatar';
-import { channelDetailPath } from '../utils/channelDetailPath';
+import { extractTelegramUsername, getChannelAvatarSources } from '../utils/channelAvatar';
+import { channelDetailPath, isInviteLink } from '../utils/channelDetailPath';
 import {
   dataReliability,
   extractContacts,
@@ -59,7 +59,7 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: s
   return (
     <div className="min-w-0 text-center">
       <p className="text-[10px] text-nl-muted">{label}</p>
-      <p className={`mt-0.5 truncate text-[14px] font-bold tabular-nums ${tone ?? 'text-tg-text'}`}>{value}</p>
+      <p className={`mt-0.5 truncate font-bold tabular-nums ${tone ?? 'text-[14px] text-tg-text'}`}>{value}</p>
     </div>
   );
 }
@@ -101,6 +101,9 @@ export function ChannelCard({
   const members = formatMemberNumber(channel.memberCount);
   const createdOn = formatKoDate(channel.createdOn);
   const isGroup = channel.linkType === 'group';
+  // @아이디가 없는 초대 링크 방: 텔레그램이 바깥에 글을 보여 주지 않는다
+  const isPrivate =
+    isInviteLink(channel.link) || (!handle && !extractTelegramUsername(channel.link ?? ''));
 
   const openDetail = () => {
     if (path) navigate(path);
@@ -243,17 +246,27 @@ export function ChannelCard({
           <Metric label={isGroup ? '멤버' : '회원'} value={formatNumber(channel.memberCount) || '-'} />
           <Metric
             label="조회"
-            value={isGroup ? '-' : formatNumber(summary?.medianViews7d ?? null) || '-'}
+            value={
+              isPrivate ? '비공개' : isGroup ? '-' : formatNumber(summary?.medianViews7d ?? null) || '-'
+            }
+            tone={isPrivate ? 'text-[12px] leading-5 text-nl-muted' : undefined}
           />
-          <Metric label="조회율" value={isGroup ? '-' : formatPercent(summary?.viewRate ?? null)} />
+          <Metric
+            label="조회율"
+            value={isPrivate ? '비공개' : isGroup ? '-' : formatPercent(summary?.viewRate ?? null)}
+            tone={isPrivate ? 'text-[12px] leading-5 text-nl-muted' : undefined}
+          />
           <Metric
             label="전체 순위"
             value={summary?.rank ? `${formatNumber(summary.rank)}위` : '-'}
-            tone="text-nl-accent"
+            tone="text-[14px] text-nl-accent"
           />
         </div>
         <div className="mt-2 flex items-center gap-2 border-t border-nl-line pt-2">
           <div className="min-w-0 flex-1 text-[11px] leading-relaxed text-nl-muted">
+            {isPrivate && (
+              <p className="truncate">🔒 비공개 {isGroup ? '그룹' : '채널'} · 글 정보는 가입해야 보여요</p>
+            )}
             {(contentLine.length > 0 || deltaLine) && (
               <p className="truncate">
                 {contentLine.join(' · ')}
