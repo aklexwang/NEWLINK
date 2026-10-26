@@ -12,6 +12,7 @@ import {
 } from './admin-dashboard.logic';
 import { summarizeMemberVisibility } from '../stats/member-page-count.logic';
 import { loadMemberPageRows } from '../stats/member-page-rows';
+import { asText } from '../common/as-text';
 
 type CountRow = Record<string, unknown>;
 
@@ -111,12 +112,12 @@ export class AdminDashboardService {
 
     const collectStatus: Record<string, number> = {};
     for (const row of collectRows) {
-      collectStatus[String(row.name ?? '(없음)')] = toCount(row);
+      collectStatus[asText(row.name ?? '(없음)')] = toCount(row);
     }
 
     const language = { ko: 0, foreign: 0, unknown: 0 };
     for (const row of languageRows) {
-      const key = String(row.name ?? 'unknown');
+      const key = asText(row.name ?? 'unknown');
       const n = toCount(row);
       if (key === 'ko') language.ko += n;
       else if (key === 'foreign') language.foreign += n;
@@ -124,7 +125,7 @@ export class AdminDashboardService {
     }
 
     const categories = categoryRows.map((row) => ({
-      name: String(row.name ?? '(없음)'),
+      name: asText(row.name ?? '(없음)'),
       count: toCount(row),
     }));
 
@@ -170,7 +171,7 @@ function fillSourceCounts(rows: CountRow[]) {
   const out = emptySourceCounts();
   for (const row of rows) {
     const n = toCount(row);
-    const source = String(row.source ?? '');
+    const source = asText(row.source ?? '');
     if (source === 'auto' || source === 'admin' || source === 'report') {
       out[source] += n;
     }

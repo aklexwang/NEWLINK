@@ -2,6 +2,7 @@ import { Repository } from 'typeorm';
 import { Channel, ChannelStatus } from '../channels/channel.entity';
 import { illegalDescriptionPrefilterSql } from '../channels/illegal-content.logic';
 import type { MemberPageRow } from './member-page-count.logic';
+import { asText } from '../common/as-text';
 
 type RawRow = Record<string, unknown>;
 
@@ -24,7 +25,7 @@ function toNum(value: unknown): number | null {
 
 function toDate(value: unknown): Date | string | null {
   if (value == null) return null;
-  return value instanceof Date ? value : String(value);
+  return value instanceof Date ? value : asText(value);
 }
 
 /**
@@ -67,18 +68,18 @@ export async function loadMemberPageRows(
   }
   const raws = await qb.getRawMany<RawRow>();
   return raws.map((raw) => ({
-    link: String(raw.link ?? ''),
-    status: raw.status == null ? null : String(raw.status),
+    link: asText(raw.link),
+    status: raw.status == null ? null : asText(raw.status),
     isVisible: toBool(raw.isVisible),
     firstObservedAt: toDate(raw.firstObservedAt),
-    collectStatus: raw.collectStatus == null ? null : String(raw.collectStatus),
-    language: raw.language == null ? null : String(raw.language),
+    collectStatus: raw.collectStatus == null ? null : asText(raw.collectStatus),
+    language: raw.language == null ? null : asText(raw.language),
     isPromoted: toBool(raw.isPromoted),
     autoRegistered: toBool(raw.autoRegistered),
     submittedBy: toNum(raw.submittedBy),
-    category: raw.category == null ? null : String(raw.category),
-    title: raw.title == null ? null : String(raw.title),
-    description: raw.description == null ? null : String(raw.description),
+    category: raw.category == null ? null : asText(raw.category),
+    title: raw.title == null ? null : asText(raw.title),
+    description: raw.description == null ? null : asText(raw.description),
     illegalCleared: toBool(raw.illegalCleared),
     recommendCount: toNum(raw.recommendCount),
     memberCount: toNum(raw.memberCount),

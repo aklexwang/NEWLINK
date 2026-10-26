@@ -162,7 +162,7 @@ export class StatsJobService implements OnModuleInit {
    * POST /internal/stats/reclassify 로도 깨워서 부릅니다(겹치면 한 번만 돈다).
    */
   @Cron('0 4 * * 1', { timeZone: 'Asia/Seoul' })
-  async handleWeeklyCategoryCron() {
+  handleWeeklyCategoryCron() {
     if (envFalsy(this.configService.get<string>('STATS_CRON_ENABLED'))) {
       return;
     }

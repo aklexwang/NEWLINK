@@ -1,4 +1,5 @@
 import { MTPROTO_MIN_GAP_MS } from './mtproto-collect.logic';
+import { asText } from '../common/as-text';
 
 export const RESOLVE_DAILY_LIMIT_DEFAULT = 50;
 export const MTPROTO_RESOLVE_SEARCH_GAP_MS = 10_000;
@@ -18,7 +19,7 @@ export function serializeAccessHash(raw: unknown): string | null {
       ? raw.toString(10)
       : typeof raw === 'number' && Number.isFinite(raw)
         ? String(Math.trunc(raw))
-        : String(raw).trim();
+        : asText(raw).trim();
   if (!/^-?\d+$/.test(text)) return null;
   return text;
 }

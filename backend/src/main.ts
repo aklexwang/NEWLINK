@@ -38,4 +38,4 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
   console.log(`NEWLINK API listening on 0.0.0.0:${port}`);
 }
-bootstrap();
+void bootstrap();

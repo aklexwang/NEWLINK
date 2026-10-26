@@ -57,6 +57,7 @@ import {
   parseIsoWeek,
   previousIsoWeek,
 } from './kst-week';
+import { asText } from '../common/as-text';
 
 const HOME_CACHE_MS = 3 * 60 * 1000;
 /** 순위 목록용 공개 채널 묶음. 요청마다 전체 표를 읽지 않게 잠깐 들고 있는다 */
@@ -488,10 +489,10 @@ export class PublicStatsService {
       .getRawMany<Record<string, unknown>>();
     const lastMap = new Map<string, Date>();
     for (const row of lastPosts) {
-      const id = String(row.channelId ?? row.channel_id ?? '');
+      const id = asText(row.channelId ?? row.channel_id);
       const rawAt = row.lastPostAt ?? row.last_post_at;
       const last = lastPostAtFromCollectedPosts([
-        { postedAt: rawAt instanceof Date ? rawAt : String(rawAt ?? '') },
+        { postedAt: rawAt instanceof Date ? rawAt : asText(rawAt) },
       ]);
       if (id && last) lastMap.set(id, last);
     }

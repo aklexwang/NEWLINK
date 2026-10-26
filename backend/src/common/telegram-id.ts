@@ -1,3 +1,4 @@
+import { asText } from './as-text';
 /** Postgres bigint 는 문자열로 올 수 있어 비교·조회는 문자열로 통일합니다. */
 export function telegramIdKey(value: unknown): string {
   if (value == null || value === '') return '';
@@ -6,7 +7,7 @@ export function telegramIdKey(value: unknown): string {
     if (!Number.isFinite(value)) return '';
     return String(Math.trunc(value));
   }
-  const text = String(value).trim();
+  const text = asText(value).trim();
   if (!text || text === 'null' || text === 'undefined') return '';
   return text;
 }

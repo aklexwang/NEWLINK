@@ -38,11 +38,7 @@ import { shouldHideIllegalSuspicion } from './illegal-content.logic';
 import { selectMemberVisibleRows } from '../stats/member-visible.logic';
 import { buildMemberRankingCounts } from '../stats/member-page-count.logic';
 import { loadMemberPageRows } from '../stats/member-page-rows';
-import {
-  extractTelegramUsernameFromLink,
-  isInviteOnlyLink,
-  usernameFromChannelLink,
-} from './telegram-username';
+import { isInviteOnlyLink, usernameFromChannelLink } from './telegram-username';
 import { ALREADY_REGISTERED_CHANNEL } from './merge-duplicate-channels.logic';
 import { ChannelFavorite } from './channel-favorite.entity';
 import { ChannelRecommendation } from './channel-recommendation.entity';
@@ -1005,7 +1001,8 @@ export class ChannelsService implements OnModuleInit {
     memberPage?: 'yes' | 'no' | '';
     hideReason?: string;
     createdFrom?: 'today' | '7d';
-    sort?: AdminListSort | string;
+    /** AdminListSort 또는 모르는 값 */
+    sort?: string;
     page?: number;
     pageSize?: number;
     promoted?: boolean;

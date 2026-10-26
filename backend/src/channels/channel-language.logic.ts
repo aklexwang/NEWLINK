@@ -3,6 +3,7 @@ export const HANGUL_RE = /[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/g;
 
 /** 유니코드 글자(숫자·기호 제외) */
 const LETTER_RE =
+  // eslint-disable-next-line no-misleading-character-class -- 문자 범위(태국어 등)를 일부러 통째로 잡는다
   /[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0370-\u03FF\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F\u3040-\u30FF\u4E00-\u9FFF\u0600-\u06FF\u0E00-\u0E7F\u0590-\u05FF\u0900-\u097F]/g;
 
 const INVALID_TITLE_RE =
@@ -58,6 +59,7 @@ const SCRIPT_PATTERNS: Array<{
   { reason: 'thai', re: /[\u0E00-\u0E7F]/g },
   {
     reason: 'other_script',
+    // eslint-disable-next-line no-misleading-character-class -- 문자 범위(태국어 등)를 일부러 통째로 잡는다
     re: /[\u0370-\u03FF\u0590-\u05FF\u0900-\u097F\u3040-\u30FF\u4E00-\u9FFF]/g,
   },
 ];
@@ -221,7 +223,8 @@ export function foreignReasonLabel(reason: LanguageDetectReason): string {
 
 /** 홈·랭킹 기본값에 넣을지 (외국어만 제외) */
 export function isDefaultPublicLanguage(
-  language: ChannelLanguage | string | null | undefined,
+  /** ChannelLanguage 또는 모르는 값 */
+  language: string | null | undefined,
 ): boolean {
   return language !== 'foreign';
 }
@@ -236,7 +239,8 @@ export function isAdminDirectRegistered(channel: {
 
 /** 광고 채널은 언어와 상관없이 공개 화면에 남김. 비활성은 광고여도 뺀다. */
 export function isVisibleOnPublicLists(channel: {
-  language?: ChannelLanguage | string | null;
+  /** ChannelLanguage 또는 모르는 값 */
+  language?: string | null;
   isPromoted?: boolean | null;
   isVisible?: boolean | null;
   autoRegistered?: boolean | null;

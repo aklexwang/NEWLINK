@@ -47,10 +47,9 @@ function loadEntitiesForEnv(kind: 'postgres' | 'sqlite') {
     const { dateTimeColumnType } =
       require('./db-types') as typeof import('./db-types');
     resolvedDateType = dateTimeColumnType();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const typeorm = require('typeorm') as typeof import('typeorm');
     for (const path of ENTITY_IMPORTS) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require(path);
     }
 

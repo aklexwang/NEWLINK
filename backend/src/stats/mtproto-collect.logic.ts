@@ -7,6 +7,7 @@ import {
   LANGUAGE_MIN_POST_EXCERPTS,
   type ChannelLanguage,
 } from '../channels/channel-language.logic';
+import { asText } from '../common/as-text';
 
 /** 공개 채널·그룹만 MTProto 로 읽을 때 쓰는 규칙. 가입·참여자 조회는 여기서 막습니다. */
 
@@ -138,7 +139,7 @@ export function canSpendMtprotoRequest(
 /** FloodWait 초 → 밀리초. 해당 없으면 null */
 export function floodWaitMs(error: unknown): number | null {
   if (!error || typeof error !== 'object') {
-    const text = String(error ?? '');
+    const text = asText(error);
     const match = text.match(/FLOOD_WAIT[_:]?(\d+)/i);
     return match ? Number(match[1]) * 1000 : null;
   }
@@ -150,7 +151,7 @@ export function floodWaitMs(error: unknown): number | null {
   if (typeof record.seconds === 'number' && Number.isFinite(record.seconds)) {
     return Math.max(0, record.seconds) * 1000;
   }
-  const text = `${record.errorMessage ?? ''} ${record.message ?? ''}`;
+  const text = `${asText(record.errorMessage)} ${asText(record.message)}`;
   const match = text.match(/FLOOD_WAIT[_:]?(\d+)/i);
   return match ? Number(match[1]) * 1000 : null;
 }
@@ -188,10 +189,10 @@ export function isMtprotoAuthFatal(error: unknown): boolean {
 export function mtprotoErrorCode(error: unknown): string {
   const text =
     error && typeof error === 'object' && 'errorMessage' in error
-      ? String((error as { errorMessage?: unknown }).errorMessage ?? '')
+      ? asText((error as { errorMessage?: unknown }).errorMessage)
       : error instanceof Error
         ? error.message
-        : String(error ?? '');
+        : asText(error);
   const match = text.match(/\b([A-Z][A-Z0-9_]{5,})\b/);
   return match?.[1] ?? 'mtproto_error';
 }
@@ -366,7 +367,6 @@ export function summarizeGroupHistory(
     nowMs?: number;
   } = {},
 ): GroupHistorySummary {
-  const nowMs = input.nowMs ?? Date.now();
   const dates: number[] = [];
   const excerpts: string[] = [];
   for (const raw of messages) {

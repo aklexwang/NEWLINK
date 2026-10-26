@@ -10,7 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, LessThan, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
-import { Channel, LinkType } from '../channels/channel.entity';
+import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
 import { isInviteOnlyLink } from '../channels/telegram-username';
 import {
@@ -230,7 +230,7 @@ export class AdminInspectService implements OnModuleInit {
   }) {
     const viewed = await this.inspectOne(data.link);
     if (viewed.alreadyRegistered) {
-      if (viewed.existingStatus !== 'rejected') {
+      if (viewed.existingStatus !== ChannelStatus.REJECTED) {
         throw new ConflictException('이미 등록된 채널입니다.');
       }
       // 거절된 행만 있으면 새로 만들지 않는다. 확인 전이면 createByAdmin 이 확인을 요청한다
@@ -374,7 +374,7 @@ export class AdminInspectService implements OnModuleInit {
       });
       // 거절된 행은 대량 등록에서 되살리지 않는다(단건 등록 화면에서 확인 후 활성화)
       throw new Error(
-        existing.status === 'rejected'
+        existing.status === ChannelStatus.REJECTED
           ? '이전에 거절된 링크입니다. 단건 등록에서 다시 활성화해 주세요.'
           : '이미 등록된 채널입니다.',
       );

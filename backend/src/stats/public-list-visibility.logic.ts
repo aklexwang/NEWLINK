@@ -63,7 +63,7 @@ export function describeMemberPageVisibility(channel: {
   description?: string | null;
   illegalCleared?: boolean | null;
 }): MemberPageVisibility {
-  if (channel.status && channel.status !== ChannelStatus.ACTIVE) {
+  if (channel.status && channel.status !== (ChannelStatus.ACTIVE as string)) {
     return hidden(MEMBER_PAGE_REASON.notApproved);
   }
   if (channel.isVisible === false) {

@@ -29,7 +29,7 @@ export const MEMBER_PAGE_REASON_ORDER: readonly string[] = [
 ];
 
 function isActiveRow(row: { status?: string | null }): boolean {
-  return !row.status || row.status === ChannelStatus.ACTIVE;
+  return !row.status || row.status === (ChannelStatus.ACTIVE as string);
 }
 
 type LinkedRow = MemberPageRow & { link: string };

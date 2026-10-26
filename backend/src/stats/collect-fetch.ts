@@ -1,3 +1,4 @@
+import { asText } from '../common/as-text';
 /** t.me 요청이 실패한 뒤 재시도 간격 (2초 → 5초 → 10초) */
 export const FETCH_RETRY_DELAYS_MS = [2_000, 5_000, 10_000] as const;
 
@@ -54,8 +55,8 @@ export function parseBotRetryAfterMs(
 
 export function isTimeoutError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
-  const name = 'name' in error ? String(error.name) : '';
-  const message = error instanceof Error ? error.message : String(error);
+  const name = 'name' in error ? asText(error.name) : '';
+  const message = error instanceof Error ? error.message : asText(error);
   const code = extractNetworkCode(error);
   return (
     name === 'TimeoutError' ||
@@ -74,7 +75,7 @@ export function extractNetworkCode(error: unknown): string | null {
       return rec.errno.trim();
     current = rec.cause;
   }
-  const message = error instanceof Error ? error.message : String(error ?? '');
+  const message = error instanceof Error ? error.message : asText(error);
   const match = message.match(
     /\b(ECONNRESET|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|EPIPE|UND_ERR_[A-Z0-9_]+)\b/i,
   );

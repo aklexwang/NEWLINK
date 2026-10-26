@@ -1,5 +1,3 @@
-import type { DiscoveredUsernameResult } from '../stats/discovered-username.entity';
-
 export const DISCOVERY_QUEUE_PAGE_SIZE = 50;
 export const DISCOVERY_REGISTER_MAX = 100;
 
@@ -34,7 +32,8 @@ export function parseDiscoveryQueueFilter(
 }
 
 export function discoveryResultLabel(
-  result: DiscoveredUsernameResult | string | null,
+  /** DiscoveredUsernameResult 또는 모르는 값 */
+  result: string | null,
 ): string {
   if (result === 'queued') return '대기';
   if (result === 'added') return '등록됨';

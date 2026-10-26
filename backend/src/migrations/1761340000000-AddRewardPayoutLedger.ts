@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { backfillPayoutStatus } from '../payments/payout-status.logic';
 import { classifyWalletKind } from '../payments/wallet-kind.logic';
+import { asText } from '../common/as-text';
 
 function isSqlite(queryRunner: QueryRunner): boolean {
   const type = queryRunner.connection.options.type;
@@ -301,13 +302,13 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
       )) as Array<Record<string, unknown>>;
       for (const user of users) {
         const kind = classifyWalletKind(
-          String(user.ton_wallet_address ?? user.tonWalletAddress ?? ''),
+          asText(user.ton_wallet_address ?? user.tonWalletAddress),
         );
         await this.exec(
           queryRunner,
           sqlite,
           `UPDATE users SET wallet_kind = ? WHERE CAST(telegram_id AS TEXT) = ?`,
-          [kind, String(user.telegram_id ?? user.telegramId ?? '')],
+          [kind, asText(user.telegram_id ?? user.telegramId)],
         );
       }
     }
@@ -327,7 +328,7 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
             channel.reward_ton_amount ?? channel.rewardTonAmount ?? 0,
           ),
           submittedBy: channel.submitted_by ?? channel.submittedBy,
-          status: String(channel.status ?? ''),
+          status: asText(channel.status),
         });
         await this.exec(
           queryRunner,
@@ -352,7 +353,7 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
       )) as Array<Record<string, unknown>>;
       const now = new Date().toISOString();
       for (const row of payments) {
-        const paymentId = cols.has('id') ? String(row.id ?? '') : '';
+        const paymentId = cols.has('id') ? asText(row.id) : '';
         if (!paymentId || seen.has(paymentId)) continue;
         const sendMethod =
           cols.has('method') && row.method === 'tonconnect'
@@ -368,7 +369,7 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
           ) VALUES (?, ?, ?, ?, NULL, 'wallet_address', 'TON', ?, ?, ?, 'paid', ?, NULL, 'ton_payment', ?, ?, ?, ?)`,
           [
             randomUUID(),
-            cols.has('channel_id') ? String(row.channel_id ?? '') : '',
+            cols.has('channel_id') ? asText(row.channel_id) : '',
             cols.has('telegram_id') ? (row.telegram_id ?? null) : null,
             cols.has('reporter_name') ? (row.reporter_name ?? null) : null,
             Number(cols.has('amount') ? row.amount : 0) || 0,
@@ -438,7 +439,7 @@ export class AddRewardPayoutLedger1761340000000 implements MigrationInterface {
     sqlite: boolean,
     sql: string,
     values: unknown[] = [],
-  ) {
+  ): Promise<unknown> {
     if (values.length === 0) return queryRunner.query(sql);
     if (sqlite) return queryRunner.query(sql, values);
     let index = 0;

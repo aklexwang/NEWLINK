@@ -125,7 +125,7 @@ export class TelegramAvatarService {
     value: { buffer: Buffer; contentType: string },
   ) {
     if (this.cache.size >= MAX_CACHE_ENTRIES) {
-      const first = this.cache.keys().next().value;
+      const first = this.cache.keys().next().value as string | undefined;
       if (first) this.cache.delete(first);
     }
     this.cache.set(key, { ...value, expiresAt: Date.now() + CACHE_TTL_MS });

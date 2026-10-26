@@ -91,7 +91,7 @@ export class RankingService {
     );
 
     if (this.tgstatService.isConfigured()) {
-      const items = await this.telegramRankingService.getCategories();
+      const items = this.telegramRankingService.getCategories();
       const mapped = items.map((item) => ({
         ...item,
         iconUrl: item.id === 'all' ? null : (iconMap[item.name] ?? null),

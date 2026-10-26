@@ -102,7 +102,7 @@ export type TonPaymentLike = {
 
 export function payoutRecordFromTonPayment(
   payment: TonPaymentLike,
-  now = new Date(),
+  _now = new Date(),
 ): Pick<PayoutRecord, 'id' | 'sourceTonPaymentId' | 'channelId'> & {
   id: string;
 } {

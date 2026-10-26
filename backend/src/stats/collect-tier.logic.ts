@@ -61,7 +61,8 @@ export function isCollectDueToday(input: {
   id: string;
   memberCount?: number | null;
   posts7d?: number | null;
-  collectTier?: CollectTier | string | null;
+  /** CollectTier 또는 모르는 값 */
+  collectTier?: string | null;
   createdAt?: Date | string | null;
   weekday?: number;
   now?: Date;

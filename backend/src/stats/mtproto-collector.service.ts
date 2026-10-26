@@ -81,6 +81,7 @@ import {
   extractTmeUsernamesFromHtml,
   joinMentionedUsernames,
 } from './telegram-preview-html';
+import { asText } from '../common/as-text';
 
 export type MtprotoPublicStatus = {
   enabled: boolean;
@@ -693,7 +694,7 @@ export class MtprotoCollectorService implements OnModuleInit {
     if (!fwdFrom?.fromId) return null;
     if (fwdFrom.fromId.className === 'PeerChannel') {
       return fwdFrom.fromId.channelId != null
-        ? `channel:${String(fwdFrom.fromId.channelId)}`
+        ? `channel:${asText(fwdFrom.fromId.channelId)}`
         : 'channel';
     }
     return null;

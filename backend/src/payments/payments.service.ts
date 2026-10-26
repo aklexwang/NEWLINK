@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ChannelsService } from '../channels/channels.service';
+import { ChannelStatus } from '../channels/channel.entity';
 import {
   CreateInvoiceDto,
   PromotionInvoicePayload,
@@ -39,7 +40,7 @@ export class PaymentsService {
   ): Promise<{ invoiceLink: string }> {
     const channel = await this.channelsService.findById(dto.channelId);
 
-    if (channel.status !== 'active') {
+    if (channel.status !== ChannelStatus.ACTIVE) {
       throw new BadRequestException(
         '승인된 채널만 상단 노출 결제가 가능합니다.',
       );
