@@ -205,7 +205,12 @@ export function ChannelCard({
                 favorited ? 'bg-amber-50 text-amber-500' : 'bg-nl-card text-nl-muted'
               }`}
             >
-              {favorited ? '★' : '☆'}
+              <span
+                className={`leading-none transition ${favorited ? '' : 'opacity-40 grayscale'}`}
+                aria-hidden
+              >
+                ⭐
+              </span>
             </button>
           )}
           <button

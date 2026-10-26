@@ -61,7 +61,12 @@ export function ChannelQuickActions({ channelId, link, title }: ChannelQuickActi
           favorited ? 'bg-amber-50 text-amber-500' : 'bg-tg-secondary text-tg-hint'
         }`}
       >
-        {favorited ? '★' : '☆'}
+        <span
+                className={`leading-none transition ${favorited ? '' : 'opacity-40 grayscale'}`}
+                aria-hidden
+              >
+                ⭐
+              </span>
       </button>
       {link && (
         <button
