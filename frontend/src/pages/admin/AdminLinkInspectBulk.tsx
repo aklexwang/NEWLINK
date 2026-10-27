@@ -26,6 +26,8 @@ const RESULT_LABEL: Record<AdminInspectItemResult, string> = {
 };
 
 const REGISTER_MAX = 100;
+/** 한 번 요청에 보내는 개수 */
+const REGISTER_CHUNK = 5;
 
 // 정상과 '언어 미확인'(경고만)은 등록할 수 있다. 미확인은 기본 선택에서 빠진다.
 function isRegistrable(item: AdminInspectItemView) {
@@ -67,6 +69,7 @@ export function AdminLinkInspectBulk() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     getAdminCategories()
@@ -171,17 +174,28 @@ export function AdminLinkInspectBulk() {
     setBusy(true);
     setError('');
     setMessage('');
+    // 방마다 미리보기·첫 수집까지 하느라 몇 초씩 걸린다. 5개씩 나눠 보내 진행 상황을 바로 보여 준다
+    const ids = [...selected];
+    let okCount = 0;
+    let failCount = 0;
     try {
-      const { results } = await registerAdminInspectMany({
-        ids: [...selected],
-        category: category || undefined,
-      });
-      const okCount = results.filter((row) => row.ok).length;
-      const failCount = results.length - okCount;
+      for (let i = 0; i < ids.length; i += REGISTER_CHUNK) {
+        setRegisterProgress({ done: i, total: ids.length });
+        const { results } = await registerAdminInspectMany({
+          ids: ids.slice(i, i + REGISTER_CHUNK),
+          category: category || undefined,
+        });
+        okCount += results.filter((row) => row.ok).length;
+        failCount += results.filter((row) => !row.ok).length;
+        if (job) {
+          const next = await getAdminLinkInspectJob(job.id);
+          setJob(next);
+        }
+      }
       setMessage(
         failCount > 0
-          ? `${okCount}개 등록, ${failCount}개는 건너뛰었습니다.`
-          : `${okCount}개를 등록했습니다.`,
+          ? `${okCount}개 등록, ${failCount}개는 건너뛰었습니다. 등록과 함께 첫 수집까지 했어요.`
+          : `${okCount}개를 등록했습니다. 등록과 함께 첫 수집까지 했어요.`,
       );
       if (job) {
         const next = await getAdminLinkInspectJob(job.id);
@@ -189,8 +203,18 @@ export function AdminLinkInspectBulk() {
         setSelected(defaultSelected(next.items));
       }
     } catch (err) {
-      setError(apiErrorMessage(err, '등록에 실패했습니다.'));
+      setError(
+        `${okCount}개 등록 후 멈췄습니다: ${apiErrorMessage(err, '등록에 실패했습니다.')} 다시 [선택 등록]을 누르면 남은 것만 이어서 등록해요.`,
+      );
+      if (job) {
+        const next = await getAdminLinkInspectJob(job.id).catch(() => null);
+        if (next) {
+          setJob(next);
+          setSelected(defaultSelected(next.items));
+        }
+      }
     } finally {
+      setRegisterProgress(null);
       setBusy(false);
     }
   };
@@ -273,7 +297,9 @@ export function AdminLinkInspectBulk() {
                 onClick={() => void registerSelected()}
                 className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
               >
-                선택 등록 ({selected.size}/{REGISTER_MAX})
+                {registerProgress
+                  ? `등록 중… ${registerProgress.done}/${registerProgress.total}`
+                  : `선택 등록 (${selected.size}/${REGISTER_MAX})`}
               </button>
             </div>
           </div>
