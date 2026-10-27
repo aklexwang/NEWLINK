@@ -702,6 +702,8 @@ export class ChannelsService implements OnModuleInit {
   isStaleAvatarUrl(avatarUrl: string | null | undefined): boolean {
     if (!avatarUrl) return true;
     if (avatarUrl.startsWith('/api/media/telegram-avatar')) return false;
+    // DB 에 저장한 이미지는 배포해도 남는다
+    if (avatarUrl.startsWith('/api/images/')) return false;
     if (avatarUrl.startsWith('/api/uploads/')) {
       // 파일이 없거나 ephemeral 환경이면 다시 받아야 함
       return !this.localUploadExists(avatarUrl);

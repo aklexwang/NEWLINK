@@ -12,10 +12,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { existsSync, mkdirSync } from 'fs';
-import { extname, join } from 'path';
-import { randomBytes } from 'crypto';
+import { memoryStorage } from 'multer';
+import { StoredImagesService } from '../stored-images/stored-images.service';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { CategoriesService } from '../categories/categories.service';
@@ -24,7 +22,6 @@ import {
   UpdateCategoryDto,
 } from '../categories/dto/category.dto';
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads', 'categories');
 const ALLOWED_MIME = new Set([
   'image/png',
   'image/jpeg',
@@ -32,16 +29,13 @@ const ALLOWED_MIME = new Set([
   'image/gif',
 ]);
 
-function ensureUploadDir() {
-  if (!existsSync(UPLOAD_DIR)) {
-    mkdirSync(UPLOAD_DIR, { recursive: true });
-  }
-}
-
 @Controller('admin/categories')
 @UseGuards(TelegramAuthGuard, TelegramAdminGuard)
 export class AdminCategoriesController {
-  constructor(private readonly categoriesService: CategoriesService) {}
+  constructor(
+    private readonly categoriesService: CategoriesService,
+    private readonly storedImages: StoredImagesService,
+  ) {}
 
   @Get()
   findAll() {
@@ -56,16 +50,7 @@ export class AdminCategoriesController {
   @Post('upload-icon')
   @UseInterceptors(
     FileInterceptor('icon', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureUploadDir();
-          cb(null, UPLOAD_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase() || '.png';
-          cb(null, `${Date.now()}-${randomBytes(6).toString('hex')}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 512 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_MIME.has(file.mimetype)) {
@@ -81,12 +66,9 @@ export class AdminCategoriesController {
       },
     }),
   )
-  uploadIcon(@UploadedFile() file?: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('이미지 파일을 선택해 주세요.');
-    }
-
-    return { iconUrl: `/api/uploads/categories/${file.filename}` };
+  async uploadIcon(@UploadedFile() file?: Express.Multer.File) {
+    // 서버 폴더는 배포 때 지워지므로 DB 에 저장한다
+    return { iconUrl: await this.storedImages.save('category-icon', file) };
   }
 
   @Patch(':id')
