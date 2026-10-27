@@ -97,6 +97,12 @@ export function HomePage() {
   const [searchType, setSearchType] = useState<SearchType>('all');
   const [view, setView] = useState<HomeView>('dash');
   const [searchChannelsList, setSearchChannelsList] = useState<Channel[]>([]);
+  /** 검색 결과 전체 개수와 더 보기용 다음 페이지 */
+  const [searchTotal, setSearchTotal] = useState<number | null>(null);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchTotalPages, setSearchTotalPages] = useState(1);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchMoreLoading, setSearchMoreLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Channel[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -148,11 +154,16 @@ export function HomePage() {
           record,
         });
         setSearchChannelsList(result.items);
+        setSearchTotal(result.blocked ? 0 : result.total ?? result.items.length);
+        setSearchPage(result.page ?? 1);
+        setSearchTotalPages(result.totalPages ?? 1);
+        setSearchKeyword(keyword);
         setBlockedMessage(result.blocked ? result.message ?? BLOCKED_SEARCH_MESSAGE : null);
         setView('search');
       } catch {
         notifyUser(webApp, isLocalBrowser, '검색 결과를 불러오지 못했습니다.');
         setSearchChannelsList([]);
+        setSearchTotal(null);
         setBlockedMessage(null);
         setView('search');
       } finally {
@@ -161,6 +172,28 @@ export function HomePage() {
     },
     [webApp, isLocalBrowser, searchType],
   );
+
+  const loadMoreSearch = useCallback(async () => {
+    if (searchMoreLoading || searchPage >= searchTotalPages || !searchKeyword) return;
+    setSearchMoreLoading(true);
+    try {
+      const result = await searchChannels({
+        q: searchKeyword,
+        type: searchType === 'all' ? undefined : searchType,
+        page: searchPage + 1,
+      });
+      setSearchChannelsList((prev) => {
+        const seen = new Set(prev.map((c) => c.id));
+        return [...prev, ...result.items.filter((c) => !seen.has(c.id))];
+      });
+      setSearchPage(result.page ?? searchPage + 1);
+      setSearchTotalPages(result.totalPages ?? searchTotalPages);
+    } catch {
+      notifyUser(webApp, isLocalBrowser, '검색 결과를 더 불러오지 못했습니다.');
+    } finally {
+      setSearchMoreLoading(false);
+    }
+  }, [searchMoreLoading, searchPage, searchTotalPages, searchKeyword, searchType, webApp, isLocalBrowser]);
 
   useEffect(() => {
     const resetAt = (location.state as { homeResetAt?: number } | null)?.homeResetAt;
@@ -424,6 +457,23 @@ export function HomePage() {
           onRecommend={handleRecommend}
           onToggleFavorite={handleToggleFavorite}
           sectionTitle="검색 결과"
+          totalCount={searchLoading || blockedMessage ? undefined : searchTotal ?? undefined}
+          footer={
+            !searchLoading && searchPage < searchTotalPages ? (
+              <div className="px-4 pt-2">
+                <button
+                  type="button"
+                  disabled={searchMoreLoading}
+                  onClick={() => void loadMoreSearch()}
+                  className="h-12 w-full rounded-2xl bg-nl-card text-[15px] font-semibold text-nl-text ring-1 ring-nl-line disabled:opacity-60"
+                >
+                  {searchMoreLoading
+                    ? '불러오는 중…'
+                    : `더 보기 (${searchChannelsList.length.toLocaleString('ko-KR')} / ${(searchTotal ?? 0).toLocaleString('ko-KR')})`}
+                </button>
+              </div>
+            ) : undefined
+          }
           emptyMessage={blockedMessage ?? '검색 결과가 없습니다.'}
           emptyBlocked={Boolean(blockedMessage)}
         />

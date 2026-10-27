@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { getChannelSummaries, type ChannelSummary } from '../api/stats';
 import type { Channel } from '../types/channel';
@@ -21,6 +22,10 @@ interface ChannelListProps {
   onToggleFavorite?: (id: string) => void;
   sectionTitle: string;
   emptyMessage: string;
+  /** 제목 옆에 보여 줄 전체 개수 (검색 결과 등) */
+  totalCount?: number;
+  /** 목록 아래 (예: 더 보기 버튼) */
+  footer?: ReactNode;
   /** 금지어 검색이면 빨간 카드로 안내 */
   emptyBlocked?: boolean;
   /** 즐겨찾기 목록이면 별 대신 [해제] */
@@ -45,16 +50,23 @@ export function ChannelList({
   onToggleFavorite,
   sectionTitle,
   emptyMessage,
+  totalCount,
+  footer,
   emptyBlocked = false,
   removeMode = false,
 }: ChannelListProps) {
   // 카드마다 순위·추이·글 수를 보여 주려고 목록 전체 요약을 한 번에 불러온다
-  const idsKey = useMemo(() => channels.map((c) => c.id).slice(0, 30).join(','), [channels]);
+  // 서버는 한 번에 30개까지라 [더 보기]로 늘어난 목록은 30개씩 나눠 부른다
+  const idsKey = useMemo(() => channels.map((c) => c.id).slice(0, 300).join(','), [channels]);
   const [summaries, setSummaries] = useState<Map<string, ChannelSummary>>(new Map());
   useEffect(() => {
     if (!idsKey) return;
     let cancelled = false;
-    getChannelSummaries(idsKey.split(','))
+    const ids = idsKey.split(',');
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
+    Promise.all(chunks.map((chunk) => getChannelSummaries(chunk).catch(() => [] as ChannelSummary[])))
+      .then((lists) => lists.flat())
       .then((items) => {
         if (cancelled) return;
         setSummaries((prev) => {
@@ -87,7 +99,7 @@ export function ChannelList({
 
   return (
     <div className="pb-4">
-      <SectionHeader title={sectionTitle} showChevron={false} />
+      <SectionHeader title={sectionTitle} showChevron={false} count={totalCount} />
       {channels.length === 0 ? (
         emptyBlocked ? (
           <div className="px-4 pb-8 pt-2">
@@ -123,6 +135,7 @@ export function ChannelList({
           })}
         </div>
       )}
+      {footer}
     </div>
   );
 }
