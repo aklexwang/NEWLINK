@@ -2,6 +2,7 @@ import { ADULT_CATEGORY } from '../channels/auto-expose.logic';
 import { hasAdultTitleEvidence } from '../channels/channel-category-score.logic';
 import { hasIllegalDrugSuspicion } from '../channels/illegal-content.logic';
 import { formatKstYmd } from '../stats/channel-metrics.math';
+import { safeCount } from '../daily-counters/daily-counter.logic';
 
 /** 키워드 점수가 이 값 이상이면 AI 를 부르지 않는다 */
 export const AI_SKIP_KEYWORD_CONFIDENCE = 0.7;
@@ -283,11 +284,18 @@ export type AiBudgetSnapshot = {
   stopReason: string | null;
 };
 
+export interface AiBudgetStored {
+  used: number;
+  stopReason: string | null;
+}
+
 /** 하루(KST) 호출 횟수와 "오늘 중단" 상태. 날짜가 바뀌면 0 으로 돌아간다. */
 export class AiDailyBudget {
   private date = '';
   private used = 0;
   private stopReason: string | null = null;
+  /** 오늘 숫자가 바뀌면 부른다 (DB 저장용) */
+  onChange: (() => void) | null = null;
 
   constructor(
     private limit: number,
@@ -313,12 +321,36 @@ export class AiDailyBudget {
     if (this.stopReason) return false;
     if (this.used >= this.limit) return false;
     this.used += 1;
+    this.onChange?.();
     return true;
   }
 
   stopToday(reason: string): void {
     this.rollover();
     this.stopReason = reason;
+    this.onChange?.();
+  }
+
+  /** 오늘 사용 수·중단 이유 (DB 저장용) */
+  exportState(): { date: string; values: AiBudgetStored } {
+    this.rollover();
+    return {
+      date: this.date,
+      values: { used: this.used, stopReason: this.stopReason },
+    };
+  }
+
+  /** 서버를 다시 켰을 때 오늘 저장된 값으로 되돌린다 (이미 센 값보다 작아지지 않게) */
+  restore(saved: Partial<AiBudgetStored>): void {
+    this.rollover();
+    this.used = Math.max(this.used, safeCount(saved.used));
+    if (
+      !this.stopReason &&
+      typeof saved.stopReason === 'string' &&
+      saved.stopReason
+    ) {
+      this.stopReason = saved.stopReason.slice(0, 200);
+    }
   }
 
   snapshot(): AiBudgetSnapshot {

@@ -1,4 +1,12 @@
 import { formatKstYmd } from './channel-metrics.math';
+import { safeCount } from '../daily-counters/daily-counter.logic';
+
+/** 저장해 두는 오늘 429 숫자 */
+export interface TmeGateDaily {
+  tme429: number;
+  bot429: number;
+  locked: boolean;
+}
 
 /**
  * t.me 전역 게이트.
@@ -103,6 +111,7 @@ export class TmeGate {
   private tme429Today = 0;
   private bot429Today = 0;
   private lockedYmd: string | null = null;
+  private dailyListener: (() => void) | null = null;
 
   private readonly active: Record<TmeGateKind, number> = {
     collect: 0,
@@ -217,6 +226,33 @@ export class TmeGate {
     this.rollDay();
     this.bot429Today += 1;
     if (this.run) this.run.bot429 += 1;
+    this.dailyListener?.();
+  }
+
+  /** 오늘 429 횟수·잠금 (DB 저장용) */
+  exportDaily(): { date: string; values: TmeGateDaily } {
+    this.rollDay();
+    return {
+      date: this.ymd,
+      values: {
+        tme429: this.tme429Today,
+        bot429: this.bot429Today,
+        locked: this.lockedYmd === this.ymd,
+      },
+    };
+  }
+
+  /** 서버를 다시 켰을 때 오늘 저장된 값으로 되돌린다 (이미 센 값보다 작아지지 않게) */
+  restoreDaily(saved: Partial<TmeGateDaily>): void {
+    this.rollDay();
+    this.tme429Today = Math.max(this.tme429Today, safeCount(saved.tme429));
+    this.bot429Today = Math.max(this.bot429Today, safeCount(saved.bot429));
+    if (saved.locked === true) this.lockedYmd = this.ymd;
+  }
+
+  /** 오늘 숫자가 바뀌면 부를 함수 */
+  setDailyListener(listener: (() => void) | null): void {
+    this.dailyListener = listener;
   }
 
   beginRun(mode: string): void {
@@ -295,6 +331,7 @@ export class TmeGate {
     if (this.tme429Today > TME_DAILY_429_LOCK) {
       this.lockedYmd = this.ymd;
     }
+    this.dailyListener?.();
     this.startCooldown(retryAfterMs);
   }
 

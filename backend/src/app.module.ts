@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module';
 import { AdsModule } from './ads/ads.module';
+import { DailyCountersModule } from './daily-counters/daily-counters.module';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -229,6 +230,7 @@ function truthy(value: string | undefined): boolean {
     ChannelsModule,
     AdminModule,
     AdsModule,
+    DailyCountersModule,
     AutoManageModule,
     PaymentsModule,
     RankingModule,

@@ -1,4 +1,6 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
+import { DailyCounterStore } from '../daily-counters/daily-counter-store.service';
+import { safeCount } from '../daily-counters/daily-counter.logic';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
@@ -140,6 +142,8 @@ type HistoryPost = {
   textExcerpt: string | null;
 };
 
+const MTPROTO_DAILY_KEY = 'mtproto';
+
 @Injectable()
 export class MtprotoCollectorService implements OnModuleInit {
   private readonly logger = new Logger(MtprotoCollectorService.name);
@@ -171,9 +175,11 @@ export class MtprotoCollectorService implements OnModuleInit {
     private readonly stateRepository: Repository<MtprotoState>,
     @InjectRepository(DiscoveredUsername)
     private readonly discoveredRepository: Repository<DiscoveredUsername>,
+    @Optional() private readonly dailyStore?: DailyCounterStore,
   ) {}
 
   async onModuleInit() {
+    await this.restoreDailyCounters();
     await this.refreshFloodWaitFromDb();
     if (isFloodWaitBlocking(this.floodWaitUntil)) {
       this.stopped = true;
@@ -1175,6 +1181,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       if (method === 'contacts.ResolveUsername') this.resolvesToday += 1;
       if (method === 'contacts.Search') this.searchesToday += 1;
     }
+    this.saveDailyCounters();
 
     try {
       const result = await retryAfterFloodWait(
@@ -1287,6 +1294,48 @@ export class MtprotoCollectorService implements OnModuleInit {
         MTPROTO_DEFAULT_DAILY_LIMIT,
     );
     return Number.isFinite(raw) && raw > 0 ? raw : MTPROTO_DEFAULT_DAILY_LIMIT;
+  }
+
+  /** 서버를 다시 켜도 오늘 요청·조회·검색 수가 이어지게 */
+  private async restoreDailyCounters(): Promise<void> {
+    if (!this.dailyStore) return;
+    const saved = await this.dailyStore.load<{
+      requests: number;
+      resolves: number;
+      searches: number;
+    }>(MTPROTO_DAILY_KEY);
+    this.rollDailyCounter();
+    if (!saved) return;
+    this.requestsToday = Math.max(
+      this.requestsToday,
+      safeCount(saved.requests),
+    );
+    this.resolvesToday = Math.max(
+      this.resolvesToday,
+      safeCount(saved.resolves),
+    );
+    this.searchesToday = Math.max(
+      this.searchesToday,
+      safeCount(saved.searches),
+    );
+    if (!canSpendMtprotoRequest(this.requestsToday, this.dailyLimit())) {
+      this.lastError = 'daily_limit';
+      this.stopped = true;
+    }
+  }
+
+  private saveDailyCounters(): void {
+    this.dailyStore?.schedule(MTPROTO_DAILY_KEY, () => {
+      this.rollDailyCounter();
+      return {
+        date: this.requestDay,
+        values: {
+          requests: this.requestsToday,
+          resolves: this.resolvesToday,
+          searches: this.searchesToday,
+        },
+      };
+    });
   }
 
   private rollDailyCounter() {

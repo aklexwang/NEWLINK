@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
+import { DailyCounterStore } from '../daily-counters/daily-counter-store.service';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,6 +17,7 @@ import {
   resolveAiConfig,
   shouldStopAiForToday,
   type AiBudgetSnapshot,
+  type AiBudgetStored,
   type AiConfig,
   type AiSkipReason,
   type AiVerdict,
@@ -54,8 +56,10 @@ export interface CategoryAiStatus {
   stopReason: string | null;
 }
 
+const AI_BUDGET_KEY = 'ai-budget';
+
 @Injectable()
-export class CategoryAiService {
+export class CategoryAiService implements OnModuleInit {
   private readonly logger = new Logger(CategoryAiService.name);
   private readonly budget: AiDailyBudget;
 
@@ -65,8 +69,19 @@ export class CategoryAiService {
     private readonly configService: ConfigService,
     @InjectRepository(CategoryEntity)
     private readonly categoryRepository: Repository<CategoryEntity>,
+    @Optional() private readonly dailyStore?: DailyCounterStore,
   ) {
     this.budget = new AiDailyBudget(this.dailyLimit());
+  }
+
+  /** 서버를 다시 켜도 오늘 AI 사용 수·중단 상태가 이어지게 */
+  async onModuleInit(): Promise<void> {
+    const store = this.dailyStore;
+    if (!store) return;
+    const saved = await store.load<AiBudgetStored>(AI_BUDGET_KEY);
+    if (saved) this.budget.restore(saved);
+    this.budget.onChange = () =>
+      store.schedule(AI_BUDGET_KEY, () => this.budget.exportState());
   }
 
   /**

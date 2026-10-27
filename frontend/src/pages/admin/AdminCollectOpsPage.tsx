@@ -142,7 +142,7 @@ export function AdminCollectOpsPage() {
             <CardHeader className="px-4">
               <CardDescription>오늘 요청</CardDescription>
               <CardTitle>{ops.mtproto.requestsToday}</CardTitle>
-              <p className="text-[11px] text-muted-foreground">서버 재시작 후 0부터</p>
+              <p className="text-[11px] text-muted-foreground">매일 0시(한국) 초기화</p>
             </CardHeader>
           </Card>
           <Card className="py-4">
@@ -151,7 +151,7 @@ export function AdminCollectOpsPage() {
               <CardTitle>
                 {ops.mtproto.resolvesToday}/{ops.mtproto.resolveDailyLimit}
               </CardTitle>
-              <p className="text-[11px] text-muted-foreground">서버 재시작 후 0부터</p>
+              <p className="text-[11px] text-muted-foreground">매일 0시(한국) 초기화</p>
             </CardHeader>
           </Card>
           <Card className="py-4">
@@ -160,7 +160,7 @@ export function AdminCollectOpsPage() {
               <CardTitle>
                 {ops.mtproto.searchesToday}/{ops.mtproto.searchDailyLimit}
               </CardTitle>
-              <p className="text-[11px] text-muted-foreground">서버 재시작 후 0부터</p>
+              <p className="text-[11px] text-muted-foreground">매일 0시(한국) 초기화</p>
             </CardHeader>
           </Card>
           <Card className="py-4">
@@ -200,7 +200,7 @@ export function AdminCollectOpsPage() {
                     ? `오늘 중단됨(${ops.categoryAi.stopReason}) · 키워드 결과 사용`
                     : ops.categoryAi.stopped
                       ? '오늘 상한 도달 · 키워드 결과 사용'
-                      : `${ops.categoryAi.provider} · 서버 재시작 후 0부터`}
+                      : `${ops.categoryAi.provider} · 매일 0시(한국) 초기화`}
               </p>
             </CardHeader>
           </Card>
@@ -225,7 +225,7 @@ export function AdminCollectOpsPage() {
               <CardTitle>
                 {ops.collectGate.today.tme429} / {ops.collectGate.today.bot429}
               </CardTitle>
-              <p className="text-[11px] text-muted-foreground">서버 재시작 후 0부터</p>
+              <p className="text-[11px] text-muted-foreground">매일 0시(한국) 초기화</p>
             </CardHeader>
           </Card>
           <Card className="py-4">

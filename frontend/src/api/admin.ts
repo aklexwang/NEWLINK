@@ -165,7 +165,7 @@ export interface AdminStatsOps {
     stopped: boolean;
     stopReason: string | null;
   };
-  /** t.me 전역 게이트 (메모리 기준, 서버 재시작 후 0부터) */
+  /** t.me 전역 게이트 (오늘 429 수는 DB 에 저장되어 재시작해도 이어짐) */
   collectGate: {
     collectLimit: number;
     collectMax: number;
