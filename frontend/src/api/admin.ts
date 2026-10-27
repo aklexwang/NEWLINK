@@ -93,6 +93,11 @@ export interface AdminDashboard {
     today: { auto: number; admin: number; report: number; total: number };
     last7d: { auto: number; admin: number; report: number; total: number };
   };
+  /** 링크 등록(어드민)으로 넣은 방과 그중 회원 화면 노출 수 */
+  adminRegistered?: {
+    today: { total: number; visible: number; hidden: number };
+    last7d: { total: number; visible: number; hidden: number };
+  };
   pendingCount: number;
   collectStatus: Record<string, number>;
   language: { ko: number; foreign: number; unknown: number };

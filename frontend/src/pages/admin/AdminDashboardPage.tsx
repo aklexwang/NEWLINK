@@ -30,11 +30,14 @@ function StatCard({
   label,
   value,
   icon,
+  sub,
 }: {
   to: string;
   label: string;
   value: number | string;
   icon?: ReactNode;
+  /** 숫자 아래 작은 설명 */
+  sub?: string;
 }) {
   const long = typeof value === 'string' && value.length > 12;
   return (
@@ -50,10 +53,16 @@ function StatCard({
           <p className={long ? 'mt-1 text-[15px] leading-snug font-bold' : 'mt-1 text-2xl font-bold'}>
             {typeof value === 'number' ? value.toLocaleString('ko-KR') : value}
           </p>
+          {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
         </div>
       </Card>
     </Link>
   );
+}
+
+function adminSub(v?: { visible: number; hidden: number }): string | undefined {
+  if (!v) return undefined;
+  return `회원 노출 ${v.visible.toLocaleString('ko-KR')} · 숨김 ${v.hidden.toLocaleString('ko-KR')}`;
 }
 
 export function AdminDashboardPage() {
@@ -101,10 +110,10 @@ export function AdminDashboardPage() {
             <h3 className="text-sm font-semibold">오늘 / 7일 등록 경로</h3>
             <div className="mt-3 grid grid-cols-2 gap-3 md:gap-5 sm:grid-cols-3">
               <StatCard to="/admin/links?createdFrom=today&source=auto" label="오늘 자동" icon={<Bot />} value={data.registered.today.auto} />
-              <StatCard to="/admin/links?createdFrom=today&source=admin" label="오늘 어드민" icon={<UserCog />} value={data.registered.today.admin} />
+              <StatCard to="/admin/links?createdFrom=today&source=admin" label="오늘 링크 등록 (어드민)" icon={<UserCog />} value={data.registered.today.admin} sub={adminSub(data.adminRegistered?.today)} />
               <StatCard to="/admin/links?createdFrom=today&source=report" label="오늘 제보" icon={<Megaphone />} value={data.registered.today.report} />
               <StatCard to="/admin/links?createdFrom=7d&source=auto" label="7일 자동" icon={<Bot />} value={data.registered.last7d.auto} />
-              <StatCard to="/admin/links?createdFrom=7d&source=admin" label="7일 어드민" icon={<UserCog />} value={data.registered.last7d.admin} />
+              <StatCard to="/admin/links?createdFrom=7d&source=admin" label="7일 링크 등록 (어드민)" icon={<UserCog />} value={data.registered.last7d.admin} sub={adminSub(data.adminRegistered?.last7d)} />
               <StatCard to="/admin/links?createdFrom=7d&source=report" label="7일 제보" icon={<Megaphone />} value={data.registered.last7d.report} />
             </div>
           </section>

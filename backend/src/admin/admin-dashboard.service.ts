@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, MoreThanOrEqual, Repository } from 'typeorm';
 import { Channel, ChannelStatus } from '../channels/channel.entity';
 import { StatsRun } from '../stats/stats-run.entity';
 import {
@@ -13,6 +13,7 @@ import {
 import { summarizeMemberVisibility } from '../stats/member-page-count.logic';
 import { loadMemberPageRows } from '../stats/member-page-rows';
 import { asText } from '../common/as-text';
+import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
 
 type CountRow = Record<string, unknown>;
 
@@ -44,6 +45,7 @@ export class AdminDashboardService {
       todayRows,
       weekRows,
       latest,
+      adminRecent,
     ] = await Promise.all([
       this.channelRepository
         .createQueryBuilder('channel')
@@ -98,6 +100,19 @@ export class AdminDashboardService {
         order: { startedAt: 'DESC' },
         take: 1,
       }),
+      // 링크 등록(어드민)으로 최근 7일 넣은 방: 회원 노출 여부까지 센다
+      this.channelRepository.find({
+        select: [
+          'id', 'createdAt', 'status', 'isVisible', 'firstObservedAt', 'collectStatus',
+          'collectError', 'language', 'isPromoted', 'autoRegistered', 'submittedBy',
+          'category', 'title', 'description', 'illegalCleared',
+        ],
+        where: {
+          createdAt: MoreThanOrEqual(weekStart),
+          autoRegistered: false,
+          submittedBy: IsNull(),
+        },
+      }),
     ]);
 
     let channelCount = 0;
@@ -142,6 +157,10 @@ export class AdminDashboardService {
         today: fillSourceCounts(todayRows),
         last7d: fillSourceCounts(weekRows),
       },
+      adminRegistered: {
+        today: countAdminVisibility(adminRecent.filter((row) => row.createdAt >= todayStart)),
+        last7d: countAdminVisibility(adminRecent),
+      },
       pendingCount,
       collectStatus,
       language,
@@ -161,6 +180,15 @@ export class AdminDashboardService {
         : null,
     };
   }
+}
+
+/** 링크 등록으로 들어온 방 중 회원 화면에 보이는 수 / 숨김 수 */
+function countAdminVisibility(rows: Channel[]): { total: number; visible: number; hidden: number } {
+  let visible = 0;
+  for (const row of rows) {
+    if (describeMemberPageVisibility(row).visible) visible += 1;
+  }
+  return { total: rows.length, visible, hidden: rows.length - visible };
 }
 
 function toCount(row: CountRow): number {
