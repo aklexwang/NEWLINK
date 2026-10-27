@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { InitialAvatar } from '../components/InitialAvatar';
 import { isBlankAvatarImage } from '../utils/avatarFallback';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   CartesianGrid,
   Line,
@@ -40,8 +40,6 @@ import type {
   ChannelStatsSeries,
 } from '../types/stats';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
-import { addCompareId } from '../utils/compareChannels';
-import { getSiteOrigin } from '../config/site';
 import { formatCount, formatPercent } from '../utils/formatCount';
 import {
   deltaTone,
@@ -51,7 +49,7 @@ import {
   type GrowthPeriod,
 } from '../utils/memberDisplay';
 import { resolveMediaUrl } from '../utils/mediaUrl';
-import { channelDetailPath, isInviteLink } from '../utils/channelDetailPath';
+import { isInviteLink } from '../utils/channelDetailPath';
 
 const EVENT_LABEL: Record<ChannelEventType, string> = {
   first_seen: '처음 관측',
@@ -129,6 +127,7 @@ function sourceLabel(href: string): string {
 
 export function ChannelDetailPage() {
   const { username: usernameParam, id: idParam } = useParams();
+  const navigate = useNavigate();
   const username = (usernameParam ?? '').replace(/^@/, '');
   const channelIdParam = idParam?.trim() ?? '';
   const { webApp, isLocalBrowser } = useTelegram();
@@ -309,10 +308,10 @@ export function ChannelDetailPage() {
     }
   };
 
-  const handleCompare = () => {
-    if (!detail) return;
-    const result = addCompareId(detail.id);
-    toastMessage(result.message, result.added ? 'success' : 'info');
+  // 뒤로가기: 앞 화면이 없으면(링크로 바로 들어온 경우) 홈으로
+  const goBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate('/');
   };
 
   const handleVerify = async () => {
@@ -333,31 +332,6 @@ export function ChannelDetailPage() {
       toastMessage(apiErrorMessage(err, '운영자 인증에 실패했습니다.'), 'error');
     } finally {
       setVerifying(false);
-    }
-  };
-
-  const handleShare = async () => {
-    const path =
-      channelDetailPath({
-        id: detail?.id ?? channelIdParam,
-        username: detail?.username ?? username,
-        link: detail?.link,
-      }) ?? '/';
-    const url = `${getSiteOrigin()}${path}`;
-    const title = detail?.title ?? 'TellLink 채널';
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, url });
-        return;
-      }
-    } catch {
-      // 사용자가 취소한 경우 등
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      toastMessage('링크를 복사했습니다.', 'success');
-    } catch {
-      toastMessage(url, 'info');
     }
   };
 
@@ -757,20 +731,22 @@ export function ChannelDetailPage() {
             <p className="text-center text-[12px] leading-snug text-tg-hint">
               초대 링크가 만료됐습니다. 새 링크를 제보해 주세요
             </p>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-3 gap-1">
               <Link
                 to="/submit"
                 className="rounded-xl bg-tg-open-bg px-1 py-2 text-center text-[11px] font-semibold text-tg-open-text"
               >
                 제보
               </Link>
-              <ActionButton onClick={() => void handleFavorite()}>{favorited ? '★ 해제' : '☆ 즐겨찾기'}</ActionButton>
-              <ActionButton onClick={handleCompare}>비교 추가</ActionButton>
-              <ActionButton onClick={() => void handleShare()}>공유</ActionButton>
+              <ActionButton onClick={() => void handleFavorite()}>{favorited ? '★ 해제' : '⭐ 즐겨찾기'}</ActionButton>
+              <ActionButton onClick={goBack}>← 뒤로가기</ActionButton>
             </div>
           </div>
         ) : (
           <div className="flex items-stretch gap-2">
+            <IconAction label="뒤로가기" onClick={goBack} iconClass="text-tg-text">
+              ←
+            </IconAction>
             <button
               type="button"
               onClick={openTelegram}
@@ -783,12 +759,6 @@ export function ChannelDetailPage() {
             </button>
             <IconAction label={favorited ? '해제' : '즐겨찾기'} onClick={() => void handleFavorite()}>
               {favorited ? '★' : '⭐'}
-            </IconAction>
-            <IconAction label="비교" onClick={handleCompare}>
-              ⚖️
-            </IconAction>
-            <IconAction label="공유" onClick={() => void handleShare()}>
-              🔗
             </IconAction>
           </div>
         )}
@@ -881,10 +851,12 @@ function IconAction({
   onClick,
   label,
   children,
+  iconClass = 'text-amber-400',
 }: {
   onClick: () => void;
   label: string;
   children: string;
+  iconClass?: string;
 }) {
   return (
     <button
@@ -892,7 +864,7 @@ function IconAction({
       onClick={onClick}
       className="flex w-[58px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-nl-card py-1.5 ring-1 ring-nl-line active:scale-95"
     >
-      <span className="text-[18px] leading-none text-amber-400">{children}</span>
+      <span className={`text-[18px] leading-none font-bold ${iconClass}`}>{children}</span>
       <span className="text-[10px] font-semibold text-tg-text">{label}</span>
     </button>
   );
