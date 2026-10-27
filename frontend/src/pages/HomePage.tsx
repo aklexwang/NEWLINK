@@ -113,7 +113,7 @@ export function HomePage() {
   const [headlineIndex, setHeadlineIndex] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const [feedType, setFeedType] = useState<FeedType>('channel');
+  const [feedType, setFeedType] = useState<FeedType>('all');
   const [feed, setFeed] = useState<HomeFeedItem[]>([]);
   const [feedCursor, setFeedCursor] = useState<string | null>(null);
   const [feedLoading, setFeedLoading] = useState(true);
@@ -571,20 +571,23 @@ export function HomePage() {
 
       <section className="px-4 pt-5">
         <h2 className="text-[15px] font-bold">최근 활발한 채널</h2>
-        <div className="mt-2 flex gap-2">
+        {/* 카테고리 화면과 같은 전체 / 채널 / 그룹 */}
+        <div className="mt-2 flex rounded-full bg-black/[0.05] p-0.5 dark:bg-white/[0.05]">
           {(
             [
-              ['channel', '채널만'],
-              ['all', '그룹 포함'],
-              ['group', '그룹만'],
+              ['all', '전체'],
+              ['channel', '채널'],
+              ['group', '그룹'],
             ] as const
           ).map(([id, label]) => (
             <button
               key={id}
               type="button"
               onClick={() => setFeedType(id)}
-              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
-                feedType === id ? 'bg-nl-accent text-[#082016]' : 'bg-nl-card text-nl-muted ring-1 ring-nl-line'
+              className={`flex-1 rounded-full py-1.5 text-[13px] font-semibold ${
+                feedType === id
+                  ? 'bg-nl-card text-tg-text shadow-sm ring-1 ring-nl-line dark:bg-nl-elev dark:ring-white/10'
+                  : 'text-tg-hint'
               }`}
             >
               {label}
