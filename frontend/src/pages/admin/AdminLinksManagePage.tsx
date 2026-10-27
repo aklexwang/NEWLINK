@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   approveChannel,
@@ -349,6 +349,24 @@ export function AdminLinksManagePage() {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const focusedChannel = channels.find((c) => c.id === focusedId) ?? channels[0] ?? null;
 
+  // 오른쪽 편집 칸을 고른 방 줄 높이에 맞춰 내린다 (목록 아래로는 넘치지 않게)
+  const splitRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef(new Map<string, HTMLDivElement>());
+  const [panelTop, setPanelTop] = useState(0);
+  useLayoutEffect(() => {
+    const row = focusedChannel ? rowRefs.current.get(focusedChannel.id) : null;
+    const list = listRef.current;
+    const panel = panelRef.current;
+    if (!row || !list || !panel) return;
+    const listHeight = list.offsetHeight;
+    const panelHeight = panel.offsetHeight;
+    const wanted = row.offsetTop;
+    const next = Math.max(0, Math.min(wanted, Math.max(0, listHeight - panelHeight)));
+    setPanelTop((prev) => (prev === next ? prev : next));
+  }, [focusedChannel, channels]);
+
   const moveFocus = useCallback(
     (delta: number) => {
       if (channels.length === 0) return;
@@ -530,15 +548,19 @@ export function AdminLinksManagePage() {
         ) : channels.length === 0 ? (
           <AdminEmptyState message="조건에 맞는 항목이 없습니다." />
         ) : (
-          <div className="flex items-start gap-4">
+          <div ref={splitRef} className="relative flex items-start gap-4">
             {/* 왼쪽: 방 목록 (누르면 오른쪽에서 카테고리 정하기, ↑↓ 키로 이동) */}
-            <div className="w-1/2 min-w-0 space-y-1.5">
+            <div ref={listRef} className="w-1/2 min-w-0 space-y-1.5">
               {channels.map((channel) => {
                 const focused = focusedChannel?.id === channel.id;
                 const pending = channel.category === '분류대기';
                 return (
                   <div
                     key={channel.id}
+                    ref={(el) => {
+                      if (el) rowRefs.current.set(channel.id, el);
+                      else rowRefs.current.delete(channel.id);
+                    }}
                     role="button"
                     tabIndex={0}
                     onClick={() => setFocusedId(channel.id)}
@@ -588,7 +610,11 @@ export function AdminLinksManagePage() {
             </div>
 
             {/* 오른쪽: 고른 방 편집 (화면을 내려도 따라옴) */}
-            <div className="sticky top-4 w-1/2 min-w-0">
+            <div
+              ref={panelRef}
+              className="w-1/2 min-w-0 transition-[margin] duration-200"
+              style={{ marginTop: panelTop }}
+            >
               {focusedChannel ? (
                 <div className="rounded-2xl bg-card p-6 shadow-[var(--hz-shadow)]">
                   <div className="flex items-start gap-4">
