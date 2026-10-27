@@ -10,6 +10,7 @@ import {
   type RankAdState,
 } from '../../api/rankAds';
 import { AdPaymentChips, AdPaymentFields } from '../../components/admin/AdPayment';
+import { AdPerfLine, AdPerfPanel, AdvertiserPicker } from '../../components/admin/AdExtras';
 import { AdminDatePicker } from '../../components/admin/AdminDatePicker';
 import type { Channel } from '../../types/channel';
 import type { CategoryItem } from '../../types/categoryItem';
@@ -157,6 +158,9 @@ function RankAdEditor({
   const [isActive, setIsActive] = useState(ad?.isActive ?? true);
   const [paidUsdt, setPaidUsdt] = useState(ad?.paidUsdt != null ? String(ad.paidUsdt) : '');
   const [paidOn, setPaidOn] = useState(ad?.paidOn ?? '');
+  const [advertiser, setAdvertiser] = useState(
+    ad?.advertiserTelegramId != null ? String(ad.advertiserTelegramId) : '',
+  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -179,6 +183,7 @@ function RankAdEditor({
         isActive,
         paidUsdt,
         paidOn,
+        advertiserTelegramId: advertiser,
       };
       if (ad) await updateAdminRankAd(ad.id, form);
       else await createAdminRankAd(form);
@@ -233,6 +238,8 @@ function RankAdEditor({
             quickBase={startsOn || undefined}
           />
         </div>
+        <AdvertiserPicker value={advertiser} onChange={setAdvertiser} />
+        <div />
         <AdPaymentFields usdt={paidUsdt} onUsdt={setPaidUsdt} paidOn={paidOn} onPaidOn={setPaidOn} />
         <label className="block text-sm font-medium text-subtle">
           광고주·메모 (관리용)
@@ -269,6 +276,7 @@ function AdLine({
 }) {
   const label = STATE_LABEL[ad.state];
   const dim = ad.state === 'ended' || ad.state === 'off';
+  const [perfOpen, setPerfOpen] = useState(false);
   return (
     <div className={`flex flex-wrap items-center gap-3 rounded-xl bg-background px-4 py-3 ring-1 ring-border ${dim ? 'opacity-60' : ''}`}>
       <span className="text-xl">{ad.channel?.linkType === 'group' ? '👥' : '📢'}</span>
@@ -282,11 +290,17 @@ function AdLine({
         </p>
         <p className="mt-0.5 truncate text-sm text-subtle">
           {ad.channel?.username ? `@${ad.channel.username.replace(/^@/, '')} · ` : ''}
-          {isoToKstYmd(ad.startsAt) || '처음부터'} ~ {isoToKstYmd(ad.endsAt, true) || '계속'} · 클릭{' '}
-          {ad.clicks.toLocaleString()}회{ad.memo ? ` · ${ad.memo}` : ''}
+          {isoToKstYmd(ad.startsAt) || '처음부터'} ~ {isoToKstYmd(ad.endsAt, true) || '계속'}
+          {ad.memo ? ` · ${ad.memo}` : ''}
+          {ad.advertiserName && (
+            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+              📢 {ad.advertiserName}
+            </span>
+          )}
         </p>
         {!readOnly && (
-          <p className="mt-1.5">
+          <p className="mt-1.5 flex flex-wrap gap-1.5">
+            <AdPerfLine impressions={ad.impressions} clicks={ad.clicks} />
             <AdPaymentChips
               paidUsdt={ad.paidUsdt}
               paidOn={ad.paidOn}
@@ -298,6 +312,13 @@ function AdLine({
       </div>
       {!readOnly && (
         <>
+          <button
+            type="button"
+            onClick={() => setPerfOpen((v) => !v)}
+            className="h-10 rounded-xl bg-sky-100 px-4 text-sm font-semibold text-sky-800"
+          >
+            📈 성과
+          </button>
           <button type="button" onClick={onEdit} className="h-10 rounded-xl bg-muted px-4 text-sm font-semibold text-foreground">
             수정
           </button>
@@ -305,6 +326,11 @@ function AdLine({
             삭제
           </button>
         </>
+      )}
+      {perfOpen && (
+        <div className="basis-full">
+          <AdPerfPanel kind="rank" id={ad.id} />
+        </div>
       )}
     </div>
   );

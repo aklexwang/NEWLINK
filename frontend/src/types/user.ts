@@ -14,6 +14,8 @@ export interface AdminUser extends AppUser {
   isBlocked: boolean;
   /** 광고회원(광고문의로 텔레그램 광고를 하는 회원) */
   isAdvertiser?: boolean;
+  /** 광고회원의 광고 요약 */
+  adSummary?: { ads: number; live: number; paidUsdt: number };
   walletKind?: string | null;
   payoutCount?: number;
   payoutTon?: number;

@@ -9,6 +9,7 @@ import { In, Repository } from 'typeorm';
 import { Channel } from '../channels/channel.entity';
 import { isBannerLive, kstDateBoundary } from './ad-banner.logic';
 import { applyPayment, daysLeft } from './ad-payment.logic';
+import { AdStatsService } from './ad-stats.service';
 import { RankAd } from './rank-ad.entity';
 import {
   parseRankAdScope,
@@ -27,6 +28,7 @@ export type RankAdInput = {
   memo?: unknown;
   paidUsdt?: unknown;
   paidOn?: unknown;
+  advertiserTelegramId?: unknown;
 };
 
 const UUID_RE =
@@ -48,6 +50,7 @@ export class RankAdsService {
     private readonly repo: Repository<RankAd>,
     @InjectRepository(Channel)
     private readonly channelRepo: Repository<Channel>,
+    private readonly stats: AdStatsService,
   ) {}
 
   async listAdmin() {
@@ -73,6 +76,10 @@ export class RankAdsService {
       : [];
     const byId = new Map(channels.map((c) => [c.id, c]));
     const now = new Date();
+    const totals = await this.stats.totals('rank');
+    const names = await this.stats.advertiserNames(
+      rows.map((r) => r.advertiserTelegramId as number),
+    );
     return rows.map((row) => {
       const ch = byId.get(row.channelId);
       return {
@@ -87,6 +94,12 @@ export class RankAdsService {
         clicks: row.clicks,
         paidUsdt: row.paidUsdt,
         paidOn: row.paidOn,
+        impressions: totals.get(row.id)?.impressions ?? 0,
+        advertiserTelegramId: row.advertiserTelegramId,
+        advertiserName:
+          row.advertiserTelegramId != null
+            ? (names.get(row.advertiserTelegramId) ?? null)
+            : null,
         daysLeft: daysLeft(row.endsAt, now),
         state: rankAdState(row, now),
         createdAt: row.createdAt,
@@ -152,6 +165,11 @@ export class RankAdsService {
       row.memo = memo ? memo.slice(0, 200) : null;
     }
     applyPayment(row, input);
+    if (input.advertiserTelegramId !== undefined) {
+      const r = await this.stats.resolveAdvertiser(input.advertiserTelegramId);
+      if (!r.ok) throw new BadRequestException(r.error);
+      row.advertiserTelegramId = r.value;
+    }
   }
 
   /** 같은 자리·같은 방 기간 겹침 막기 */
@@ -194,6 +212,7 @@ export class RankAdsService {
       clicks: 0,
       paidUsdt: null,
       paidOn: null,
+      advertiserTelegramId: null,
     } as Partial<RankAd>;
     if (!row.scope) throw new BadRequestException('광고 종류를 골라 주세요.');
     if (input.slot === undefined)

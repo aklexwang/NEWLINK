@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AdBanner } from './ad-banner.entity';
+import { AdStatsService } from './ad-stats.service';
 import { AppSetting } from './app-setting.entity';
 import {
   BANNER_MAX_BYTES,
@@ -28,6 +29,7 @@ export type BannerInput = {
   isActive?: unknown;
   paidUsdt?: unknown;
   paidOn?: unknown;
+  advertiserTelegramId?: unknown;
 };
 
 function toBool(value: unknown, fallback: boolean): boolean {
@@ -44,7 +46,16 @@ export class AdsService {
     private readonly bannerRepository: Repository<AdBanner>,
     @InjectRepository(AppSetting)
     private readonly settingRepository: Repository<AppSetting>,
+    private readonly stats: AdStatsService,
   ) {}
+
+  /** 입력의 광고회원 값을 확인해서 row 에 넣는다 */
+  private async applyAdvertiser(row: Partial<AdBanner>, input: BannerInput) {
+    if (input.advertiserTelegramId === undefined) return;
+    const r = await this.stats.resolveAdvertiser(input.advertiserTelegramId);
+    if (!r.ok) throw new BadRequestException(r.error);
+    row.advertiserTelegramId = r.value;
+  }
 
   async rotateSeconds(): Promise<number> {
     const row = await this.settingRepository.findOne({
@@ -102,7 +113,7 @@ export class AdsService {
   }
 
   async click(id: string): Promise<void> {
-    await this.bannerRepository.increment({ id }, 'clicks', 1);
+    await this.stats.recordClick('banner', id);
   }
 
   /** 어드민 목록(이미지 데이터 빼고) */
@@ -111,9 +122,19 @@ export class AdsService {
       order: { sortOrder: 'ASC', createdAt: 'DESC' },
     });
     const now = new Date();
+    const totals = await this.stats.totals('banner');
+    const names = await this.stats.advertiserNames(
+      rows.map((r) => r.advertiserTelegramId as number),
+    );
     return {
       rotateSeconds: await this.rotateSeconds(),
       banners: rows.map((row) => ({
+        impressions: totals.get(row.id)?.impressions ?? 0,
+        advertiserTelegramId: row.advertiserTelegramId,
+        advertiserName:
+          row.advertiserTelegramId != null
+            ? (names.get(row.advertiserTelegramId) ?? null)
+            : null,
         ...this.publicShape(row),
         startsAt: row.startsAt,
         endsAt: row.endsAt,
@@ -188,6 +209,7 @@ export class AdsService {
       endsAt: null,
     };
     this.applyInput(row, input, true);
+    await this.applyAdvertiser(row, input);
     await this.bannerRepository.insert(row);
     this.publicCache = null;
     return { id: row.id };
@@ -202,6 +224,7 @@ export class AdsService {
     if (!existing) throw new NotFoundException('배너가 없습니다.');
     const patch: Partial<AdBanner> = {};
     this.applyInput(patch, input, false);
+    await this.applyAdvertiser(patch, input);
     if (file?.buffer?.length) {
       const image = this.checkImage(file);
       patch.imageMime = image.mime;

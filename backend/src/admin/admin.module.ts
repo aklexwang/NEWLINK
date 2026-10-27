@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdsModule } from '../ads/ads.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { CategoriesModule } from '../categories/categories.module';
 import { Channel } from '../channels/channel.entity';
@@ -34,6 +35,7 @@ import { AdminUsersController } from './admin-users.controller';
 
 @Module({
   imports: [
+    AdsModule,
     ChannelsModule,
     CategoriesModule,
     UsersModule,

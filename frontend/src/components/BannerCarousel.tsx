@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { trackBannerClick, type PublicBanner } from '../api/ads';
+import { trackAdImpressions, trackBannerClick, type PublicBanner } from '../api/ads';
 import { openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 
@@ -90,6 +90,13 @@ export function BannerCarousel({
     );
     return () => window.clearTimeout(timer);
   }, [loop, paused, rotateSeconds, tick, count]);
+
+  // 지금 보이는 배너 노출 기록 (같은 배너는 하루 한 번만)
+  const visibleId =
+    count === 0 ? null : banners[loop ? (((pos - 1) % count) + count) % count : 0]?.id ?? null;
+  useEffect(() => {
+    if (visibleId && !hidden) trackAdImpressions('banner', [visibleId]);
+  }, [visibleId, hidden]);
 
   if (count === 0) return null;
 

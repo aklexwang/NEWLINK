@@ -16,6 +16,7 @@ import { emptyUserPayoutTotals } from '../payments/payout-format.logic';
 import { RewardPayoutService } from '../payments/reward-payout.service';
 import { telegramIdKey } from '../common/telegram-id';
 import { UsersService } from '../users/users.service';
+import { AdStatsService } from '../ads/ad-stats.service';
 
 class SetUserBlockedDto {
   @IsBoolean()
@@ -34,15 +35,18 @@ export class AdminUsersController {
     private readonly usersService: UsersService,
     private readonly channelsService: ChannelsService,
     private readonly rewards: RewardPayoutService,
+    private readonly adStats: AdStatsService,
   ) {}
 
   @Get()
   async findAll() {
-    const [users, submissionCounts, payoutTotals] = await Promise.all([
-      this.usersService.findAll(),
-      this.channelsService.getSubmissionCountsByUser(),
-      this.rewards.paidTotalsByTelegramId(),
-    ]);
+    const [users, submissionCounts, payoutTotals, adSummaries] =
+      await Promise.all([
+        this.usersService.findAll(),
+        this.channelsService.getSubmissionCountsByUser(),
+        this.rewards.paidTotalsByTelegramId(),
+        this.adStats.advertiserSummaries(),
+      ]);
 
     return users.map((user) => {
       const totals =
@@ -56,6 +60,11 @@ export class AdminUsersController {
         isRegistered: user.isRegistered,
         isBlocked: user.isBlocked,
         isAdvertiser: Boolean(user.isAdvertiser),
+        adSummary: adSummaries[String(user.telegramId)] ?? {
+          ads: 0,
+          live: 0,
+          paidUsdt: 0,
+        },
         submissionCount: submissionCounts[user.telegramId] ?? 0,
         payoutCount: totals.payoutCount,
         payoutTon: totals.payoutTon,

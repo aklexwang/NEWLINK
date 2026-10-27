@@ -16,6 +16,9 @@ export type AdminRankAd = {
   clicks: number;
   paidUsdt: number | null;
   paidOn: string | null;
+  impressions: number;
+  advertiserTelegramId: number | null;
+  advertiserName: string | null;
   daysLeft: number | null;
   state: RankAdState;
   createdAt: string;
@@ -45,6 +48,8 @@ export type RankAdForm = {
   /** 받은 USDT (비우면 없음) */
   paidUsdt?: string;
   paidOn?: string;
+  /** 광고회원 텔레그램 ID, 빈 문자열이면 연결 해제 */
+  advertiserTelegramId?: string;
 };
 
 export async function getAdminRankAds(): Promise<AdminRankAd[]> {

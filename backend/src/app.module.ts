@@ -47,6 +47,7 @@ import { AddAdBanners1761460000000 } from './migrations/1761460000000-AddAdBanne
 import { AddRankAds1761470000000 } from './migrations/1761470000000-AddRankAds';
 import { AddAdPayments1761480000000 } from './migrations/1761480000000-AddAdPayments';
 import { AddUserAdvertiser1761490000000 } from './migrations/1761490000000-AddUserAdvertiser';
+import { AddAdAdvertiserAndStats1761500000000 } from './migrations/1761500000000-AddAdAdvertiserAndStats';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -117,6 +118,7 @@ function truthy(value: string | undefined): boolean {
                 AddRankAds1761470000000,
                 AddAdPayments1761480000000,
                 AddUserAdvertiser1761490000000,
+                AddAdAdvertiserAndStats1761500000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -168,6 +170,7 @@ function truthy(value: string | undefined): boolean {
               AddRankAds1761470000000,
               AddAdPayments1761480000000,
               AddUserAdvertiser1761490000000,
+              AddAdAdvertiserAndStats1761500000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -215,6 +218,7 @@ function truthy(value: string | undefined): boolean {
             AddRankAds1761470000000,
             AddAdPayments1761480000000,
             AddUserAdvertiser1761490000000,
+            AddAdAdvertiserAndStats1761500000000,
           ],
         };
       },

@@ -201,6 +201,7 @@ export function AdminUsersPage() {
                   <th className="px-4 py-3 font-medium">Telegram ID</th>
                   <th className="px-4 py-3 font-medium">TON 지갑</th>
                   <th className="px-4 py-3 font-medium">지갑 종류</th>
+                  {kind === 'advertiser' && <th className="px-4 py-3 font-medium">광고</th>}
                   <th className="px-4 py-3 font-medium">제보 수</th>
                   <th className="px-4 py-3 font-medium">지급 건수</th>
                   <th className="px-4 py-3 font-medium">TON</th>
@@ -272,6 +273,19 @@ export function AdminUsersPage() {
                             ? 'USDT TRC-20'
                             : '미등록'}
                       </td>
+                      {kind === 'advertiser' && (
+                        <td className="min-w-[150px] whitespace-nowrap px-4 py-3">
+                          <p className="font-semibold text-foreground">
+                            광고 {user.adSummary?.ads ?? 0}개
+                            {(user.adSummary?.live ?? 0) > 0 && (
+                              <span className="ml-1 text-green-700">· 진행 {user.adSummary?.live}</span>
+                            )}
+                          </p>
+                          <p className="text-xs font-semibold text-emerald-700">
+                            💵 {(user.adSummary?.paidUsdt ?? 0).toLocaleString()} USDT
+                          </p>
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-subtle">{user.submissionCount}</td>
                       <td className="px-4 py-3 text-subtle">{user.payoutCount ?? 0}</td>
                       <td className="px-4 py-3 text-subtle">

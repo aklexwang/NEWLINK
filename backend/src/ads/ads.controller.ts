@@ -20,6 +20,7 @@ import type { Response } from 'express';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { BANNER_MAX_BYTES } from './ad-banner.logic';
+import { AdStatsService } from './ad-stats.service';
 import { AdsService, type BannerInput } from './ads.service';
 import { RankAdsService, type RankAdInput } from './rank-ads.service';
 
@@ -33,7 +34,10 @@ const uploadOptions = {
 /** 회원 화면 배너 */
 @Controller('ads')
 export class PublicAdsController {
-  constructor(private readonly ads: AdsService) {}
+  constructor(
+    private readonly ads: AdsService,
+    private readonly stats: AdStatsService,
+  ) {}
 
   @Get('banners')
   banners() {
@@ -54,6 +58,32 @@ export class PublicAdsController {
   @HttpCode(204)
   async click(@Param('id', ParseUUIDPipe) id: string) {
     await this.ads.click(id);
+  }
+
+  /** 순위 광고 클릭 */
+  @Post('rank/:id/click')
+  @HttpCode(204)
+  async rankClick(@Param('id', ParseUUIDPipe) id: string) {
+    await this.stats.recordClick('rank', id);
+  }
+
+  /** 회원 화면에 보인 광고(배너·순위) 노출 기록 */
+  @Post('impressions')
+  @HttpCode(204)
+  async impressions(@Body() body: { banners?: unknown; rank?: unknown }) {
+    await this.stats.recordImpressions(body ?? {});
+  }
+}
+
+/** 어드민: 광고 하나의 날짜별 성과 */
+@Controller('admin/ad-stats')
+@UseGuards(TelegramAuthGuard, TelegramAdminGuard)
+export class AdminAdStatsController {
+  constructor(private readonly stats: AdStatsService) {}
+
+  @Get(':kind/:id')
+  daily(@Param('kind') kind: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.stats.daily(kind === 'rank' ? 'rank' : 'banner', id, 14);
   }
 }
 

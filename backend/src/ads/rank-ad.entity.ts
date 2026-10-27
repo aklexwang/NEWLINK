@@ -5,6 +5,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { bigintNumberTransformer } from '../common/bigint-transformer';
 import { dateTimeColumnType } from '../common/db-types';
 
 /** global: 모든 카테고리(전체 포함) 목록 1~5위 / category: 그 카테고리 목록 1~5위 */
@@ -45,6 +46,15 @@ export class RankAd {
 
   @Column({ type: 'integer', default: 0 })
   clicks: number;
+
+  /** 이 광고를 낸 광고회원 (회원 텔레그램 ID) */
+  @Column({
+    name: 'advertiser_telegram_id',
+    type: 'bigint',
+    nullable: true,
+    transformer: bigintNumberTransformer,
+  })
+  advertiserTelegramId: number | null;
 
   /** 받은 광고비 (USDT) */
   @Column({ name: 'paid_usdt', type: 'real', nullable: true })

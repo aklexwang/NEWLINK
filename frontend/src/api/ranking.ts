@@ -72,5 +72,5 @@ export async function getRankingAds(
 }
 
 export function trackRankAdClick(adId: string): void {
-  void apiClient.post(`/ranking/ads/${adId}/click`).catch(() => undefined);
+  void apiClient.post(`/ads/rank/${adId}/click`).catch(() => undefined);
 }

@@ -11,6 +11,7 @@ import {
   type BannerForm,
 } from '../../api/ads';
 import { AdPaymentChips, AdPaymentFields } from '../../components/admin/AdPayment';
+import { AdPerfLine, AdPerfPanel, AdvertiserPicker } from '../../components/admin/AdExtras';
 import { AdminDatePicker } from '../../components/admin/AdminDatePicker';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
@@ -43,6 +44,9 @@ function BannerEditor({
   const [isActive, setIsActive] = useState(banner?.isActive ?? true);
   const [paidUsdt, setPaidUsdt] = useState(banner?.paidUsdt != null ? String(banner.paidUsdt) : '');
   const [paidOn, setPaidOn] = useState(banner?.paidOn ?? '');
+  const [advertiser, setAdvertiser] = useState(
+    banner?.advertiserTelegramId != null ? String(banner.advertiserTelegramId) : '',
+  );
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(
     banner ? resolveMediaUrl(banner.imageUrl) : null,
@@ -86,6 +90,7 @@ function BannerEditor({
         isActive,
         paidUsdt,
         paidOn,
+        advertiserTelegramId: advertiser,
         image,
       };
       if (banner) await updateAdminBanner(banner.id, form);
@@ -146,6 +151,8 @@ function BannerEditor({
             quickBase={startsOn || undefined}
           />
         </div>
+        <AdvertiserPicker value={advertiser} onChange={setAdvertiser} />
+        <div />
         <AdPaymentFields usdt={paidUsdt} onUsdt={setPaidUsdt} paidOn={paidOn} onPaidOn={setPaidOn} />
         <label className="block text-sm font-medium text-subtle">
           순서 (작을수록 먼저)
@@ -179,6 +186,7 @@ export function AdminBannerAdsPage() {
   const [message, setMessage] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [perfId, setPerfId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -274,7 +282,7 @@ export function AdminBannerAdsPage() {
                 onCancel={() => setEditingId(null)}
               />
             ) : (
-              <div key={banner.id} className="flex flex-col overflow-hidden rounded-2xl bg-card shadow-[var(--hz-shadow)] sm:flex-row sm:items-center">
+              <div key={banner.id} className="flex flex-col flex-wrap overflow-hidden rounded-2xl bg-card shadow-[var(--hz-shadow)] sm:flex-row sm:items-center">
                 <img src={resolveMediaUrl(banner.imageUrl)} alt={banner.title} className="block aspect-[3/1] w-full shrink-0 object-cover sm:w-[360px]" />
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 p-4">
                   <div className="min-w-0 flex-1">
@@ -288,8 +296,16 @@ export function AdminBannerAdsPage() {
                         {banner.live ? '노출 중' : banner.isActive ? '기간 밖' : '꺼짐'}
                       </span>
                     </p>
-                    <p className="mt-1 truncate text-sm text-primary">{banner.link}</p>
-                    <p className="mt-1.5">
+                    <p className="mt-1 truncate text-sm text-primary">
+                      {banner.link}
+                      {banner.advertiserName && (
+                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                          📢 {banner.advertiserName}
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-1.5 flex flex-wrap gap-1.5">
+                      <AdPerfLine impressions={banner.impressions} clicks={banner.clicks} />
                       <AdPaymentChips
                         paidUsdt={banner.paidUsdt}
                         paidOn={banner.paidOn}
@@ -298,10 +314,17 @@ export function AdminBannerAdsPage() {
                       />
                     </p>
                     <p className="mt-1 text-sm text-subtle">
-                      순서 {banner.sortOrder} · 클릭 {banner.clicks.toLocaleString()}회 ·{' '}
+                      순서 {banner.sortOrder} ·{' '}
                       {kstDateInput(banner.startsAt, false) || '처음부터'} ~ {kstDateInput(banner.endsAt, true) || '계속'}
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setPerfId((v) => (v === banner.id ? null : banner.id))}
+                    className="h-10 rounded-xl bg-sky-100 px-4 text-sm font-semibold text-sky-800"
+                  >
+                    📈 성과
+                  </button>
                   <button type="button" onClick={() => setEditingId(banner.id)} className="h-10 rounded-xl bg-muted px-4 text-sm font-semibold text-foreground">
                     수정
                   </button>
@@ -309,6 +332,11 @@ export function AdminBannerAdsPage() {
                     삭제
                   </button>
                 </div>
+                {perfId === banner.id && (
+                  <div className="w-full p-4 pt-0 sm:basis-full">
+                    <AdPerfPanel kind="banner" id={banner.id} />
+                  </div>
+                )}
               </div>
             ),
           )}
