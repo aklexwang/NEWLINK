@@ -21,6 +21,8 @@ interface ChannelListProps {
   onToggleFavorite?: (id: string) => void;
   sectionTitle: string;
   emptyMessage: string;
+  /** 금지어 검색이면 빨간 카드로 안내 */
+  emptyBlocked?: boolean;
   /** 즐겨찾기 목록이면 별 대신 [해제] */
   removeMode?: boolean;
 }
@@ -43,6 +45,7 @@ export function ChannelList({
   onToggleFavorite,
   sectionTitle,
   emptyMessage,
+  emptyBlocked = false,
   removeMode = false,
 }: ChannelListProps) {
   // 카드마다 순위·추이·글 수를 보여 주려고 목록 전체 요약을 한 번에 불러온다
@@ -86,7 +89,18 @@ export function ChannelList({
     <div className="pb-4">
       <SectionHeader title={sectionTitle} showChevron={false} />
       {channels.length === 0 ? (
-        <p className="px-4 pb-8 pt-2 text-center text-sm text-tg-hint">{emptyMessage}</p>
+        emptyBlocked ? (
+          <div className="px-4 pb-8 pt-2">
+            <div className="flex items-center gap-3 rounded-[20px] bg-nl-card px-5 py-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-red-500/30">
+              <span className="text-2xl" aria-hidden>
+                🚫
+              </span>
+              <p className="text-[15px] font-bold text-red-500">{emptyMessage}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="px-4 pb-8 pt-2 text-center text-sm text-tg-hint">{emptyMessage}</p>
+        )
       ) : (
         <div className="space-y-3 px-4">
           {channels.map((channel) => {

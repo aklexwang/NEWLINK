@@ -72,7 +72,7 @@ export function SearchBar({
       }`}
     >
       {blockedMessage ? (
-        <li className="px-4 py-3 text-sm text-[#70757a]">{blockedMessage}</li>
+        <li className="px-4 py-3 text-sm font-semibold text-red-500">🚫 {blockedMessage}</li>
       ) : suggestionsLoading && suggestions.length === 0 ? (
         <li className="px-4 py-3 text-sm text-[#70757a]">검색 중…</li>
       ) : (
@@ -156,7 +156,7 @@ export function SearchBar({
             className="absolute left-0 right-0 z-20 overflow-hidden rounded-b-2xl border border-t-0 border-nl-line bg-nl-card shadow-lg"
           >
             {blockedMessage ? (
-              <li className="px-4 py-3 text-sm text-nl-muted">{blockedMessage}</li>
+              <li className="px-4 py-3 text-sm font-semibold text-red-500">🚫 {blockedMessage}</li>
             ) : suggestionsLoading && suggestions.length === 0 ? (
               <li className="px-4 py-3 text-sm text-nl-muted">검색 중…</li>
             ) : (

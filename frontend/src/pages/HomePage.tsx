@@ -414,6 +414,7 @@ export function HomePage() {
           onToggleFavorite={handleToggleFavorite}
           sectionTitle="검색 결과"
           emptyMessage={blockedMessage ?? '검색 결과가 없습니다.'}
+          emptyBlocked={Boolean(blockedMessage)}
         />
       </div>
     );
