@@ -23,7 +23,8 @@ import {
 } from '../utils/memberDisplay';
 import { GradeBadge } from './GradeBadge';
 import { Sparkline } from './Sparkline';
-import { CategoryIcon } from './CategoryIcon';
+import { InitialAvatar } from './InitialAvatar';
+import { isBlankAvatarImage } from '../utils/avatarFallback';
 import { VerifiedBadge } from './VerifiedBadge';
 
 interface ChannelCardProps {
@@ -69,8 +70,6 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: s
 export function ChannelCard({
   channel,
   summary,
-  emoji,
-  iconUrl,
   favorited = false,
   onToggleFavorite,
   showFavorite = true,
@@ -158,6 +157,11 @@ export function ChannelCard({
               src={avatarSrc}
               alt=""
               referrerPolicy="no-referrer"
+              onLoad={(event) => {
+                if (!isBlankAvatarImage(event.currentTarget)) return;
+                if (sourceIndex + 1 < avatarSources.length) setSourceIndex((index) => index + 1);
+                else setAvatarFailed(true);
+              }}
               onError={() => {
                 if (sourceIndex + 1 < avatarSources.length) {
                   setSourceIndex((index) => index + 1);
@@ -175,7 +179,7 @@ export function ChannelCard({
                 promoted ? 'bg-amber-100' : 'bg-nl-elev'
               }`}
             >
-              <CategoryIcon emoji={emoji || (isGroup ? '👥' : '📢')} iconUrl={iconUrl} size="md" />
+              <InitialAvatar title={channel.title} seed={channel.link || channel.id} textClass="text-[18px]" />
             </div>
           )}
 

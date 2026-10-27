@@ -13,6 +13,8 @@ import {
 } from '../utils/memberDisplay';
 import { ChannelQuickActions } from './ChannelQuickActions';
 import { GradeBadge } from './GradeBadge';
+import { InitialAvatar } from './InitialAvatar';
+import { isBlankAvatarImage } from '../utils/avatarFallback';
 import { VerifiedBadge } from './VerifiedBadge';
 import { Sparkline } from './Sparkline';
 
@@ -97,6 +99,11 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
                 src={currentSrc}
                 alt=""
                 referrerPolicy="no-referrer"
+                onLoad={(event) => {
+                  if (!isBlankAvatarImage(event.currentTarget)) return;
+                  if (sourceIndex + 1 < avatarSources.length) setSourceIndex((index) => index + 1);
+                  else setFailed(true);
+                }}
                 onError={() => {
                   if (sourceIndex + 1 < avatarSources.length) {
                     setSourceIndex((index) => index + 1);
@@ -107,7 +114,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-2xl">{isGroup ? '👥' : '📢'}</span>
+              <InitialAvatar title={channel.title} seed={channel.link || channel.id} textClass="text-[18px]" />
             )}
           </div>
           {/* 순위 배지: 광고는 AD, 1~3위는 메달, 그 밖은 숫자 */}

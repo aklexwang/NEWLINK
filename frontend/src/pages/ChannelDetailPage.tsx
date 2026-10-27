@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { InitialAvatar } from '../components/InitialAvatar';
+import { isBlankAvatarImage } from '../utils/avatarFallback';
 import { Link, useParams } from 'react-router-dom';
 import {
   CartesianGrid,
@@ -459,6 +461,11 @@ export function ChannelDetailPage() {
                 src={avatarSrc}
                 alt=""
                 referrerPolicy="no-referrer"
+                onLoad={(event) => {
+                  if (!isBlankAvatarImage(event.currentTarget)) return;
+                  if (avatarIndex + 1 < avatarSources.length) setAvatarIndex((i) => i + 1);
+                  else setAvatarFailed(true);
+                }}
                 onError={() => {
                   if (avatarIndex + 1 < avatarSources.length) setAvatarIndex((i) => i + 1);
                   else setAvatarFailed(true);
@@ -466,7 +473,7 @@ export function ChannelDetailPage() {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-2xl">{detail.linkType === 'group' ? '👥' : '📢'}</span>
+              <InitialAvatar title={detail.title} seed={detail.link} textClass="text-[22px]" />
             )}
           </div>
           <div className="min-w-0 flex-1">

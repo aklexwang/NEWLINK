@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { InitialAvatar } from '../components/InitialAvatar';
+import { isBlankAvatarImage } from '../utils/avatarFallback';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { searchChannels } from '../api/channels';
 import { getHomeDashboard, getHomeFeed, type HomeCard, type HomeDashboard, type HomeFeedItem } from '../api/stats';
@@ -50,16 +52,19 @@ function Avatar({
           alt=""
           referrerPolicy="no-referrer"
           className="h-full w-full object-cover"
+          onLoad={(event) => {
+            if (!isBlankAvatarImage(event.currentTarget)) return;
+            if (i + 1 < sources.length) setI((n) => n + 1);
+            else setFailed(true);
+          }}
           onError={() => {
-            // 모든 주소가 실패하면 깨진 그림 대신 첫 글자
+            // 모든 주소가 실패하면 깨진 그림 대신 머리글자
             if (i + 1 < sources.length) setI((n) => n + 1);
             else setFailed(true);
           }}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-nl-accent/25 to-sky-400/25 text-[16px] font-extrabold text-nl-accent">
-          {channel.title.slice(0, 1)}
-        </div>
+        <InitialAvatar title={channel.title} seed={channel.link} textClass={size === 'lg' ? 'text-[18px]' : 'text-[15px]'} />
       )}
     </div>
   );
