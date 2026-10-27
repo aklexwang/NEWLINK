@@ -70,6 +70,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 회원 화면: 스크롤 막대 모두 숨김 (스크롤은 그대로 됨) */
+html.nl-member,
+html.nl-member * { scrollbar-width: none; -ms-overflow-style: none; }
+html.nl-member::-webkit-scrollbar,
+html.nl-member *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 
 interface CategoryIconProps {
@@ -15,9 +16,18 @@ const sizeClass = {
 
 export function CategoryIcon({ emoji, iconUrl, size = 'md', className = '' }: CategoryIconProps) {
   const box = `${sizeClass[size]} shrink-0 flex items-center justify-center overflow-hidden bg-tg-secondary ${className}`;
+  // 올린 아이콘 그림이 깨지면 이모지로 대신 보여 준다
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
-  if (iconUrl) {
-    return <img src={resolveMediaUrl(iconUrl)} alt="" className={`${box} object-cover`} />;
+  if (iconUrl && failedUrl !== iconUrl) {
+    return (
+      <img
+        src={resolveMediaUrl(iconUrl)}
+        alt=""
+        onError={() => setFailedUrl(iconUrl)}
+        className={`${box} object-cover`}
+      />
+    );
   }
 
   return <span className={box}>{emoji || '📁'}</span>;
