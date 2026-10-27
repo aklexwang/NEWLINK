@@ -174,6 +174,19 @@ export class UsersService {
     });
   }
 
+  async setAdvertiser(
+    telegramId: number,
+    isAdvertiser: boolean,
+  ): Promise<{ ok: true; telegramId: number; isAdvertiser: boolean }> {
+    const user = await this.findByTelegramId(telegramId);
+    if (!user) {
+      throw new NotFoundException('회원을 찾을 수 없습니다.');
+    }
+    user.isAdvertiser = isAdvertiser;
+    await this.userRepository.save(user);
+    return { ok: true, telegramId, isAdvertiser };
+  }
+
   async setBlocked(
     telegramId: number,
     isBlocked: boolean,

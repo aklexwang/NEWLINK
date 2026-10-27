@@ -41,6 +41,10 @@ export class User {
   @Column({ name: 'is_blocked', default: false })
   isBlocked: boolean;
 
+  /** 광고회원: 광고문의로 텔레그램 광고를 하는 회원. 관리자가 지정 */
+  @Column({ name: 'is_advertiser', default: false })
+  isAdvertiser: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: dateTimeColumnType() })
   createdAt: Date;
 

@@ -22,6 +22,11 @@ class SetUserBlockedDto {
   isBlocked: boolean;
 }
 
+class SetUserAdvertiserDto {
+  @IsBoolean()
+  isAdvertiser: boolean;
+}
+
 @Controller('admin/users')
 @UseGuards(TelegramAuthGuard, TelegramAdminGuard)
 export class AdminUsersController {
@@ -50,6 +55,7 @@ export class AdminUsersController {
         walletKind: user.walletKind,
         isRegistered: user.isRegistered,
         isBlocked: user.isBlocked,
+        isAdvertiser: Boolean(user.isAdvertiser),
         submissionCount: submissionCounts[user.telegramId] ?? 0,
         payoutCount: totals.payoutCount,
         payoutTon: totals.payoutTon,
@@ -67,6 +73,15 @@ export class AdminUsersController {
     @Body() dto: SetUserBlockedDto,
   ) {
     return this.usersService.setBlocked(telegramId, dto.isBlocked);
+  }
+
+  /** 일반회원 ↔ 광고회원 */
+  @Patch(':telegramId/advertiser')
+  async setAdvertiser(
+    @Param('telegramId', ParseIntPipe) telegramId: number,
+    @Body() dto: SetUserAdvertiserDto,
+  ) {
+    return this.usersService.setAdvertiser(telegramId, dto.isAdvertiser);
   }
 
   @Delete(':telegramId')

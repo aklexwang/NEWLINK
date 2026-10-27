@@ -21,6 +21,15 @@ export async function deleteAdminUser(telegramId: number) {
   return data;
 }
 
+export async function setAdminUserAdvertiser(telegramId: number, isAdvertiser: boolean) {
+  const { data } = await apiClient.patch<{ ok: boolean; telegramId: number; isAdvertiser: boolean }>(
+    `/admin/users/${telegramId}/advertiser`,
+    { isAdvertiser },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
 export async function setAdminUserBlocked(telegramId: number, isBlocked: boolean) {
   const { data } = await apiClient.patch<{ ok: boolean; telegramId: number; isBlocked: boolean }>(
     `/admin/users/${telegramId}/block`,

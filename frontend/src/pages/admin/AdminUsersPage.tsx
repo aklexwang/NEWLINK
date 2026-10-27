@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { deleteAdminUser, getAdminUsers, setAdminUserBlocked } from '../../api/admin';
+import { useSearchParams } from 'react-router-dom';
+import {
+  deleteAdminUser,
+  getAdminUsers,
+  setAdminUserAdvertiser,
+  setAdminUserBlocked,
+} from '../../api/admin';
 import type { AdminUser } from '../../types/user';
 import { WalletNetworkBadge } from '../../components/WalletNetworkBadge';
 import { useToast } from '../../providers/ToastProvider';
@@ -12,6 +18,8 @@ export function AdminUsersPage() {
   const [actingId, setActingId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [query, setQuery] = useState('');
+  const [params, setParams] = useSearchParams();
+  const kind: 'normal' | 'advertiser' = params.get('kind') === 'advertiser' ? 'advertiser' : 'normal';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,7 +95,32 @@ export function AdminUsersPage() {
     }
   };
 
+  const handleAdvertiserToggle = async (user: AdminUser) => {
+    const next = !user.isAdvertiser;
+    const label = userLabel(user);
+    const ok = await confirm(
+      next ? `${label} 회원을 광고회원으로 옮길까요?` : `${label} 회원을 일반회원으로 되돌릴까요?`,
+    );
+    if (!ok) return;
+    setActingId(user.telegramId);
+    try {
+      await setAdminUserAdvertiser(user.telegramId, next);
+      setUsers((prev) =>
+        prev.map((item) => (item.telegramId === user.telegramId ? { ...item, isAdvertiser: next } : item)),
+      );
+      setMessage(next ? `${label} 회원을 광고회원으로 옮겼어요.` : `${label} 회원을 일반회원으로 되돌렸어요.`);
+    } catch {
+      setMessage('회원 구분을 바꾸지 못했습니다.');
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const advertiserCount = users.filter((u) => u.isAdvertiser).length;
+  const normalCount = users.length - advertiserCount;
+
   const filtered = users.filter((user) => {
+    if (kind === 'advertiser' ? !user.isAdvertiser : user.isAdvertiser) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -117,6 +150,31 @@ export function AdminUsersPage() {
           </div>
         )}
 
+        <div className="mb-5 grid max-w-3xl grid-cols-2 gap-3">
+          {(
+            [
+              { id: 'normal', label: '👤 일반회원', desc: `가입해서 제보·즐겨찾기를 쓰는 회원 · ${normalCount}명` },
+              { id: 'advertiser', label: '📢 광고회원', desc: `광고문의로 텔레그램 광고를 하는 회원 · ${advertiserCount}명` },
+            ] as const
+          ).map((item) => {
+            const active = kind === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setParams(item.id === 'normal' ? {} : { kind: item.id }, { replace: true })}
+                aria-pressed={active}
+                className={`rounded-2xl px-5 py-4 text-left shadow-[var(--hz-shadow)] transition-colors ${
+                  active ? 'bg-primary text-white' : 'bg-card text-foreground hover:bg-muted'
+                }`}
+              >
+                <p className="text-[17px] font-bold">{item.label}</p>
+                <p className={`mt-1 text-sm ${active ? 'text-white/80' : 'text-subtle'}`}>{item.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="mb-4">
           <input
             value={query}
@@ -130,7 +188,9 @@ export function AdminUsersPage() {
           <div className="h-32 animate-pulse rounded-[20px] bg-card shadow-[var(--hz-shadow)]" />
         ) : filtered.length === 0 ? (
           <div className="rounded-[20px] bg-card px-6 py-16 text-center text-sm text-muted-foreground shadow-[var(--hz-shadow)]">
-            등록된 회원이 없습니다.
+            {kind === 'advertiser'
+              ? '광고회원이 없어요. 일반회원 목록에서 [광고회원으로]를 누르면 여기로 옮겨져요.'
+              : '등록된 회원이 없습니다.'}
           </div>
         ) : (
           <div className="overflow-hidden rounded-[20px] bg-card shadow-[var(--hz-shadow)]">
@@ -245,6 +305,14 @@ export function AdminUsersPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => void handleAdvertiserToggle(user)}
+                            disabled={busy}
+                            className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary ring-1 ring-primary/30 hover:bg-primary/15 disabled:opacity-50"
+                          >
+                            {user.isAdvertiser ? '일반회원으로' : '광고회원으로'}
+                          </button>
                           <button
                             type="button"
                             onClick={() => void handleBlockToggle(user)}
