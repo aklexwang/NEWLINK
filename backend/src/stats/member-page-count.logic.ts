@@ -43,7 +43,7 @@ export type MemberVisibilitySummary = {
   hiddenReasons: Record<string, number>;
   /** 노출 조건을 통과했지만 같은 링크의 대표가 따로 있어 회원 화면에서 빠지는 수 */
   duplicateExcess: number;
-  /** 회원 화면 "전체" 숫자와 같은 값 = visible - adultOnly - duplicateExcess */
+  /** 회원 화면 "전체" 숫자와 같은 값 = visible - duplicateExcess (성인 포함) */
   listTotal: number;
 };
 
@@ -70,6 +70,7 @@ export function summarizeMemberVisibility(
       // 성인 카테고리 안에서는 보이므로 노출로 센다
       visible += 1;
       adultOnly += 1;
+      visibleRows.add(row);
     } else {
       hidden += 1;
       hiddenReasons[vis.reasonKey] = (hiddenReasons[vis.reasonKey] ?? 0) + 1;
@@ -94,13 +95,13 @@ export function summarizeMemberVisibility(
     adultOnly,
     hiddenReasons,
     duplicateExcess,
-    listTotal: visible - adultOnly - duplicateExcess,
+    listTotal: visible - duplicateExcess,
   };
 }
 
 /**
  * 회원 화면 카테고리별 개수(all 포함). 승인된 채널만, 같은 링크는 대표 1개.
- * all 은 회원 목록에 실제로 나오는 채널 수이고, 성인 카테고리 칩 숫자만 별도로 센다.
+ * all 은 회원이 볼 수 있는 방 전체 수(성인 카테고리 방 포함).
  */
 export function buildMemberRankingCounts<
   T extends MemberPageRow & { link: string },
@@ -112,10 +113,9 @@ export function buildMemberRankingCounts<
   for (const channel of winners) {
     const vis = describeMemberPageVisibility(channel);
     const category = channel.category ?? '';
-    if (vis.visible) {
+    if (vis.visible || vis.reasonKey === MEMBER_PAGE_REASON.adult) {
+      // "전체" 숫자에는 성인 카테고리 방도 센다 (목록 자체는 성인을 고를 때만 보임)
       counts.all += 1;
-      counts[category] = (counts[category] ?? 0) + 1;
-    } else if (vis.reasonKey === MEMBER_PAGE_REASON.adult) {
       counts[category] = (counts[category] ?? 0) + 1;
     }
   }

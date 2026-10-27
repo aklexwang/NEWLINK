@@ -91,7 +91,7 @@ export function AdminDashboardPage() {
           <div className="mt-5 grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
             <StatCard to="/admin/links?type=channel" label="채널" icon={<Radio />} value={data.channelCount} />
             <StatCard to="/admin/links?type=group" label="그룹" icon={<Users />} value={data.groupCount} />
-            <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" icon={<Eye />} value={data.memberVisible} sub={data.memberAdultOnly ? `전체 ${data.memberListTotal.toLocaleString('ko-KR')} + 성인 ${data.memberAdultOnly.toLocaleString('ko-KR')}${data.memberDuplicateExcess ? ` (+중복 ${data.memberDuplicateExcess})` : ''}` : undefined} />
+            <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" icon={<Eye />} value={data.memberVisible} sub={data.memberAdultOnly ? `성인 카테고리 ${data.memberAdultOnly.toLocaleString('ko-KR')} 포함` : undefined} />
             <StatCard to="/admin/links?memberPage=no" label="회원 페이지 숨김" icon={<EyeOff />} value={data.memberHidden} />
             <StatCard to="/admin/links?status=pending" label="승인 대기" icon={<ClipboardList />} value={data.pendingCount} />
             <StatCard to="/admin/links?createdFrom=today" label="오늘 등록" icon={<CalendarPlus />} value={data.registered.today.total} />
@@ -100,12 +100,10 @@ export function AdminDashboardPage() {
           </div>
 
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-            회원 페이지 노출 {data.memberVisible}
-            {data.memberAdultOnly ? ` − 성인 카테고리 ${data.memberAdultOnly}` : ''} − 같은 링크 중복{' '}
-            {data.memberDuplicateExcess} = 회원 화면 “전체” {data.memberListTotal}. 노출은 채널을 한 건씩 판정한
-            수이고(승인됨 · 관리자 노출 · 수집됨 · 한국어 또는 광고 · 불법 의심 아님 · 분류대기 아님), 성인 카테고리 방은
-            회원이 “성인”을 고르면 보이므로 노출에 넣되 “전체”에서는 뺍니다. 같은 링크는 1개로 합쳐 셉니다. 숨김 이유는 아래 표
-            순서대로 처음 걸리는 한 가지만 셉니다.
+            회원 페이지 노출 {data.memberVisible} − 같은 링크 중복 {data.memberDuplicateExcess} = 회원 화면 “전체”{' '}
+            {data.memberListTotal}. 노출은 채널을 한 건씩 판정한 수이고(승인됨 · 관리자 노출 · 수집됨 · 한국어 또는 광고 ·
+            불법 의심 아님 · 분류대기 아님), 성인 카테고리 방도 포함합니다(성인 방은 회원이 “성인”을 고를 때만 목록에
+            보입니다). 같은 링크는 1개로 합쳐 셉니다. 숨김 이유는 아래 표 순서대로 처음 걸리는 한 가지만 셉니다.
           </p>
 
           <section className="mt-8">

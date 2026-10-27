@@ -53,7 +53,8 @@ function referenceMemberTotal(rows: Row[]): number {
     isPublicCollectable(c as never) &&
     isVisibleOnPublicLists(c) &&
     !shouldHideIllegalSuspicion(c) &&
-    allowAdultInList(c.category) &&
+    // 성인 카테고리 방도 "전체" 숫자에 센다
+    allowAdultInList(c.category, '성인') &&
     !isPendingCategory(c.category);
   // 같은 링크는 노출 가능한 행을 먼저 대표로 고른 뒤, 노출 가능한 것만 센다
   return dedupeChannelsByLink(active, { prefer: listable }).filter(listable)
@@ -148,11 +149,7 @@ describe('member-page-count.logic', () => {
     // 회원 "전체" 숫자 = 대시보드 노출 − 같은 링크 중복
     expect(memberCounts.all).toBe(reference);
     expect(dashboard.memberListTotal).toBe(reference);
-    expect(
-      dashboard.memberVisible -
-        dashboard.memberAdultOnly -
-        dashboard.memberDuplicateExcess,
-    ).toBe(
+    expect(dashboard.memberVisible - dashboard.memberDuplicateExcess).toBe(
       reference,
     );
     expect(dashboard.memberVisible + dashboard.memberHidden).toBe(rows.length);
@@ -161,7 +158,7 @@ describe('member-page-count.logic', () => {
     ).toBe(dashboard.memberHidden);
   });
 
-  it('회원 카테고리별 개수는 불법 의심·분류대기를 빼고 성인 칩만 따로 센다', () => {
+  it('회원 카테고리별 개수는 불법 의심·분류대기를 빼고, 전체에 성인도 센다', () => {
     const rows = [
       row({ category: '뉴스' }),
       row({ category: '뉴스', title: '마약 정보방' }),
@@ -169,7 +166,8 @@ describe('member-page-count.logic', () => {
       row({ category: '성인' }),
     ];
     const counts = buildMemberRankingCounts(rows);
-    expect(counts.all).toBe(1);
+    // 전체 = 뉴스 1 + 성인 1
+    expect(counts.all).toBe(2);
     expect(counts['뉴스']).toBe(1);
     expect(counts['성인']).toBe(1);
     expect(counts['분류대기']).toBeUndefined();
