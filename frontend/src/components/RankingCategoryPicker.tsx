@@ -47,29 +47,29 @@ export function RankingCategoryPicker({
   if (!selectedCategory) return null;
 
   return (
-    <div className="relative z-30 border-b border-black/[0.06] bg-tg-bg px-4 py-3">
+    <div className="relative z-30 bg-tg-bg px-4 py-3">
+      {/* 지금 보는 카테고리를 크게(초록 테두리), 오른쪽 [카테고리 ▾]로 목록 열기 */}
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 rounded-2xl border border-black/[0.06] bg-tg-bg px-3.5 py-3 text-left active:scale-[0.99]"
+        className="flex w-full items-center gap-3.5 rounded-[22px] bg-gradient-to-br from-nl-accent/20 to-sky-400/15 p-4 text-left ring-[1.5px] ring-nl-accent/60 active:scale-[0.99]"
       >
-        <CategoryIcon emoji={selectedCategory.emoji} iconUrl={selectedCategory.iconUrl} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] text-tg-hint">카테고리</p>
-          <p className="truncate text-[15px] font-semibold text-tg-text">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-tg-bg">
+          <CategoryIcon emoji={selectedCategory.emoji} iconUrl={selectedCategory.iconUrl} size="md" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[12px] font-bold text-nl-accent">지금 보는 카테고리</span>
+          <span className="mt-0.5 block truncate text-[22px] leading-tight font-extrabold text-tg-text">
             {selectedCategory.name}
-            {selectedCategory.id !== 'all' && (
-              <span className="ml-1 text-[13px] font-normal text-tg-hint">
-                · {selectedCategory.count}개
-              </span>
-            )}
-          </p>
-        </div>
-        <span
-          className={`shrink-0 rounded-full bg-nl-accent/15 px-3 py-1.5 text-xs font-medium text-nl-accent transition-transform ${open ? 'rotate-180' : ''}`}
-        >
-          ▼
+          </span>
+          <span className="mt-0.5 block text-[13px] text-tg-hint">
+            방 {selectedCategory.count.toLocaleString()}개
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 rounded-2xl bg-nl-accent px-3.5 py-3 text-[14px] font-extrabold text-[#082016] shadow-sm">
+          카테고리
+          <span className={`inline-block transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
         </span>
       </button>
 
