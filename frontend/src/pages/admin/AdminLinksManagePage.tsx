@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   approveChannel,
@@ -21,16 +21,12 @@ import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor'
 import {
   AdminEmptyState,
   AdminMessage,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
   ChannelAvatar,
 } from '../../components/admin/AdminTable';
 import type { Channel, PendingChannel } from '../../types/channel';
 import type { CategoryItem } from '../../types/categoryItem';
 import { refreshAdminBadges } from '../../utils/adminBadges';
-import { linkTypeBadgeClass, linkTypeLabel } from '../../utils/linkType';
+import { linkTypeLabel } from '../../utils/linkType';
 import { AdminDatePicker } from '../../components/admin/AdminDatePicker';
 import { todayKstYmd } from '../../utils/ymd';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
@@ -128,8 +124,9 @@ export function AdminLinksManagePage() {
     [params, setParams],
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    // silent: 목록을 지우지 않고 뒤에서 새로 받기 (화면이 위로 튀지 않게)
+    if (!opts?.silent) setLoading(true);
     try {
       const [result, categoryItems] = await Promise.all([
         getAdminChannels({
@@ -343,20 +340,60 @@ export function AdminLinksManagePage() {
     invite_expired: '초대 만료',
     merged: '합침',
   };
-  const languageLabel: Record<string, string> = {
-    ko: '한국어',
-    foreign: '외국어',
-    unknown: '미확인',
-  };
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const drawerChannel = expandedId ? (channels.find((item) => item.id === expandedId) ?? null) : null;
   const categoryOptions = categories.map((c) => c.name);
+
+  // 왼쪽 목록에서 고른 방 (오른쪽 편집)
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const focusedChannel = channels.find((c) => c.id === focusedId) ?? channels[0] ?? null;
+
+  const moveFocus = useCallback(
+    (delta: number) => {
+      if (channels.length === 0) return;
+      const index = Math.max(0, channels.findIndex((c) => c.id === focusedChannel?.id));
+      const next = channels[Math.min(channels.length - 1, Math.max(0, index + delta))];
+      if (next) setFocusedId(next.id);
+    },
+    [channels, focusedChannel],
+  );
+
+  // ↑↓ 키로 방 이동 (글 입력 중에는 동작 안 함)
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const tag = (event.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || expandedId) return;
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        moveFocus(1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveFocus(-1);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [moveFocus, expandedId]);
+
+  /** 카테고리 고르고 다음 방으로 */
+  const pickCategoryAndNext = async (channel: { id: string; title: string; category: string }, name: string) => {
+    if (name === channel.category) {
+      moveFocus(1);
+      return;
+    }
+    const index = channels.findIndex((c) => c.id === channel.id);
+    const nextId = channels[index + 1]?.id ?? null;
+    await moveCategory(channel, name);
+    if (nextId) setFocusedId(nextId);
+  };
 
   const moveCategory = async (channel: { id: string; title: string; category: string }, next: string) => {
     try {
       await updateAdminChannel(channel.id, { category: next, categoryLocked: true });
       setMessage(`"${channel.title}" 카테고리를 ${channel.category} → ${next}(으)로 옮겼어요. (고정됨)`);
-      await load();
+      // 바로 화면에 반영하고, 노출 여부 등은 뒤에서 다시 받는다
+      setChannels((prev) => prev.map((c) => (c.id === channel.id ? { ...c, category: next } : c)));
+      void load({ silent: true });
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '카테고리를 옮기지 못했습니다.'));
     }
@@ -492,104 +529,142 @@ export function AdminLinksManagePage() {
         ) : channels.length === 0 ? (
           <AdminEmptyState message="조건에 맞는 항목이 없습니다." />
         ) : (
-          <AdminTableShell>
-            <AdminTable>
-              <thead className="bg-muted">
-                <tr>
-                  <AdminTh className="w-8" />
-                  <AdminTh>방</AdminTh>
-                  <AdminTh className="w-24 text-right">회원</AdminTh>
-                  <AdminTh className="w-44">카테고리</AdminTh>
-                  <AdminTh className="w-52">회원 화면</AdminTh>
-                  <AdminTh className="w-8" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {channels.map((channel) => {
-                  const expanded = expandedId === channel.id;
-                  return (
-                    <Fragment key={channel.id}>
-                      <tr onClick={() => {
-                        setExpandedId(expanded ? null : channel.id);
-                        setDrafts((prev) => prev[channel.id] ? prev : { ...prev, [channel.id]: draftFromChannel(channel) });
-                      }} className={`cursor-pointer hover:bg-muted/80 ${expanded ? 'bg-primary/5' : ''}`}>
-                        <AdminTd>
-                          <input type="checkbox" checked={selectedIds.has(channel.id)} onChange={() => {
-                            setSelectedIds((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(channel.id)) next.delete(channel.id);
-                              else next.add(channel.id);
-                              return next;
-                            });
-                          }} onClick={(e) => e.stopPropagation()} />
-                        </AdminTd>
-                        <AdminTd>
-                          <div className="flex items-center gap-3">
-                            <ChannelAvatar channel={channel} />
-                            <div className="min-w-0">
-                              <p className="max-w-[360px] truncate text-[14px] font-semibold text-foreground">{channel.title}</p>
-                              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                <span className="text-muted-foreground">{channel.username ? `@${channel.username}` : '비공개 초대방'}</span>
-                                <span className={`rounded-md px-1.5 py-0.5 font-medium ${linkTypeBadgeClass(channel.linkType)}`}>{linkTypeLabel(channel.linkType)}</span>
-                                {channel.language === 'foreign' && (
-                                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-subtle">{languageLabel[channel.language ?? 'unknown']}</span>
-                                )}
-                                {channel.status !== 'active' && (
-                                  <span className={`rounded-full px-2 py-0.5 font-medium ${statusClass[channel.status]}`}>{statusLabel[channel.status]}</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </AdminTd>
-                        <AdminTd className="text-right tabular-nums text-[13px] text-foreground">
-                          {channel.memberCount != null ? channel.memberCount.toLocaleString() : '-'}
-                        </AdminTd>
-                        <AdminTd>
-                          {/* 고르면 바로 그 카테고리로 옮김 (옮긴 방은 AI 가 다시 바꾸지 않게 고정) */}
-                          <select
-                            value={channel.category}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              const next = e.target.value;
-                              if (!next || next === channel.category) return;
-                              void moveCategory(channel, next);
-                            }}
-                            className={`h-8 w-full cursor-pointer rounded-lg px-2.5 text-[12px] font-semibold outline-none ring-1 ${
-                              channel.category === '분류대기'
-                                ? 'bg-amber-100 text-amber-800 ring-amber-300'
-                                : 'bg-background text-foreground ring-border hover:ring-primary/40'
+          <div className="flex items-start gap-4">
+            {/* 왼쪽: 방 목록 (누르면 오른쪽에서 카테고리 정하기, ↑↓ 키로 이동) */}
+            <div className="w-full max-w-[640px] shrink-0 space-y-1.5">
+              {channels.map((channel) => {
+                const focused = focusedChannel?.id === channel.id;
+                const pending = channel.category === '분류대기';
+                return (
+                  <div
+                    key={channel.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setFocusedId(channel.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') setFocusedId(channel.id);
+                    }}
+                    className={`flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors ${
+                      focused ? 'bg-primary/10 ring-2 ring-primary' : 'bg-card hover:bg-muted'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={selectedIds.has(channel.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(channel.id)) next.delete(channel.id);
+                          else next.add(channel.id);
+                          return next;
+                        });
+                      }}
+                    />
+                    <ChannelAvatar channel={channel} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-semibold text-foreground">{channel.title}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {channel.username ? `@${channel.username}` : '비공개 초대방'} · {linkTypeLabel(channel.linkType)} ·{' '}
+                        {channel.memberCount != null ? `${Number(channel.memberCount).toLocaleString()}명` : '회원 -'}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-bold ${
+                        pending ? 'bg-amber-100 text-amber-800' : 'bg-muted text-foreground'
+                      }`}
+                    >
+                      {channel.category}
+                    </span>
+                    <span
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${channel.memberPageVisible ? 'bg-green-500' : 'bg-amber-500'}`}
+                      title={channel.memberPageVisible ? '회원 화면 노출 중' : '회원 화면 숨김'}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 오른쪽: 고른 방 편집 (화면을 내려도 따라옴) */}
+            <div className="sticky top-4 min-w-0 flex-1">
+              {focusedChannel ? (
+                <div className="rounded-2xl bg-card p-6 shadow-[var(--hz-shadow)]">
+                  <div className="flex items-start gap-4">
+                    <div className="scale-125 pt-1">
+                      <ChannelAvatar channel={focusedChannel} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xl font-bold text-foreground">{focusedChannel.title}</p>
+                      <p className="mt-1 text-sm text-subtle">
+                        {focusedChannel.username ? `@${focusedChannel.username}` : '비공개 초대방'} ·{' '}
+                        {linkTypeLabel(focusedChannel.linkType)} · 회원{' '}
+                        {focusedChannel.memberCount != null ? Number(focusedChannel.memberCount).toLocaleString() : '-'}
+                      </p>
+                      <p className="mt-2 text-sm font-semibold">
+                        {focusedChannel.memberPageVisible ? (
+                          <span className="text-green-600">● 회원 화면 노출 중</span>
+                        ) : (
+                          <span className="text-amber-600">
+                            ● 회원 화면 숨김 · {focusedChannel.memberPageReasonKey || focusedChannel.memberPageHiddenReason || '숨김'}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="mt-6 text-sm font-semibold text-subtle">
+                    카테고리 고르기 <span className="font-normal">(누르면 바로 저장·고정되고 다음 방으로 넘어가요)</span>
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {categories
+                      .filter((c) => c.isActive && c.name !== '분류대기')
+                      .map((c) => {
+                        const on = focusedChannel.category === c.name;
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => void pickCategoryAndNext(focusedChannel, c.name)}
+                            className={`h-11 rounded-xl px-4 text-[14px] font-bold transition-colors ${
+                              on ? 'bg-green-500 text-white' : 'bg-muted text-foreground hover:bg-primary/15'
                             }`}
                           >
-                            {!categoryOptions.includes(channel.category) && (
-                              <option value={channel.category}>{channel.category}</option>
-                            )}
-                            {categoryOptions.map((name) => (
-                              <option key={name} value={name}>
-                                {name === '분류대기' ? '⏳ 분류대기 (고르면 노출)' : name}
-                              </option>
-                            ))}
-                          </select>
-                        </AdminTd>
-                        <AdminTd>
-                          {channel.memberPageVisible ? (
-                            <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-green-700">
-                              <span className="h-2 w-2 rounded-full bg-green-500" /> 노출 중
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-amber-700">
-                              <span className="h-2 w-2 rounded-full bg-amber-500" />
-                              숨김 · {channel.memberPageReasonKey || channel.memberPageHiddenReason || '숨김'}
-                            </span>
-                          )}
-                        </AdminTd>
-                        <AdminTd><span className={`inline-block text-muted-foreground ${expanded ? 'text-primary' : ''}`}>›</span></AdminTd>
-                      </tr>
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </AdminTable>
-          </AdminTableShell>
+                            {c.emoji} {c.name}
+                          </button>
+                        );
+                      })}
+                  </div>
+
+                  <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4">
+                    <button type="button" onClick={() => moveFocus(-1)} className="h-10 rounded-xl bg-muted px-4 text-sm font-semibold text-foreground">
+                      ↑ 이전 방
+                    </button>
+                    <button type="button" onClick={() => moveFocus(1)} className="h-10 rounded-xl bg-muted px-4 text-sm font-semibold text-foreground">
+                      다음 방 ↓
+                    </button>
+                    <a href={focusedChannel.link} target="_blank" rel="noopener noreferrer" className="flex h-10 items-center rounded-xl bg-muted px-4 text-sm font-semibold text-primary">
+                      텔레그램에서 보기 ↗
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDrafts((prev) => (prev[focusedChannel.id] ? prev : { ...prev, [focusedChannel.id]: draftFromChannel(focusedChannel) }));
+                        setExpandedId(focusedChannel.id);
+                      }}
+                      className="ml-auto h-10 rounded-xl bg-primary px-4 text-sm font-semibold text-white"
+                    >
+                      자세히 편집 (이름·노출·광고 등)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground shadow-[var(--hz-shadow)]">
+                  왼쪽에서 방을 고르세요.
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {drawerChannel && (() => {
