@@ -567,7 +567,10 @@ export class ChannelsService implements OnModuleInit {
     qb.andWhere('channel.category <> :pending', { pending: PENDING_CATEGORY });
     if (dto.category)
       qb.andWhere('channel.category = :category', { category: dto.category });
-    if (!dto.category || dto.category !== ADULT_CATEGORY) {
+    // 검색어가 있으면 성인 카테고리 방도 찾아 준다 (목록·홈에서만 빼고 검색은 예외 없이)
+    const hasKeyword = Boolean(dto.q?.trim());
+    const allowAdult = hasKeyword || dto.category === ADULT_CATEGORY;
+    if (!allowAdult) {
       qb.andWhere('channel.category <> :adult', { adult: ADULT_CATEGORY });
     }
 
@@ -607,7 +610,10 @@ export class ChannelsService implements OnModuleInit {
     const [allItems] = await qb.getManyAndCount();
     const now = new Date();
     // 회원 노출 규칙은 한 곳(describeMemberPageVisibility)만 쓰고, 같은 링크는 가장 좋은 행 1개
-    const deduped = selectMemberVisibleRows(allItems, dto.category);
+    const deduped = selectMemberVisibleRows(
+      allItems,
+      allowAdult && !dto.category ? ADULT_CATEGORY : dto.category,
+    );
     const activeItems = deduped
       .map((item) => ({
         ...item,
