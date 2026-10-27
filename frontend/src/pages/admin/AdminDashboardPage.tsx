@@ -91,7 +91,7 @@ export function AdminDashboardPage() {
           <div className="mt-5 grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
             <StatCard to="/admin/links?type=channel" label="채널" icon={<Radio />} value={data.channelCount} />
             <StatCard to="/admin/links?type=group" label="그룹" icon={<Users />} value={data.groupCount} />
-            <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" icon={<Eye />} value={data.memberVisible} />
+            <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" icon={<Eye />} value={data.memberVisible} sub={data.memberAdultOnly ? `전체 ${data.memberListTotal.toLocaleString('ko-KR')} + 성인 ${data.memberAdultOnly.toLocaleString('ko-KR')}${data.memberDuplicateExcess ? ` (+중복 ${data.memberDuplicateExcess})` : ''}` : undefined} />
             <StatCard to="/admin/links?memberPage=no" label="회원 페이지 숨김" icon={<EyeOff />} value={data.memberHidden} />
             <StatCard to="/admin/links?status=pending" label="승인 대기" icon={<ClipboardList />} value={data.pendingCount} />
             <StatCard to="/admin/links?createdFrom=today" label="오늘 등록" icon={<CalendarPlus />} value={data.registered.today.total} />
