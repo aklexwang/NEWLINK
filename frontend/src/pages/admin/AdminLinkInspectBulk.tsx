@@ -271,6 +271,17 @@ export function AdminLinkInspectBulk() {
               이어서 확인
             </button>
           )}
+          {job && job.total > 0 && (
+            <ProgressPill
+              label={job.status === 'completed' ? '확인 완료' : job.status === 'interrupted' ? '확인 중단' : '확인 중'}
+              done={job.processed}
+              total={job.total}
+              tone={job.status === 'interrupted' ? 'amber' : 'primary'}
+            />
+          )}
+          {registerProgress && (
+            <ProgressPill label="등록 중" done={registerProgress.done} total={registerProgress.total} tone="emerald" />
+          )}
         </div>
       </section>
 
@@ -370,4 +381,32 @@ function keepAllowedSelection(prev: Set<string>, items: AdminInspectItemView[]) 
     if (allowed.has(id)) next.add(id);
   }
   return next;
+}
+
+/** 확인 버튼 옆 진행 막대: 라벨 · 막대 · 45% (12/27) */
+function ProgressPill({
+  label,
+  done,
+  total,
+  tone,
+}: {
+  label: string;
+  done: number;
+  total: number;
+  tone: 'primary' | 'emerald' | 'amber';
+}) {
+  const pct = total > 0 ? Math.min(100, Math.floor((done / total) * 100)) : 0;
+  const bar = tone === 'emerald' ? 'bg-emerald-500' : tone === 'amber' ? 'bg-amber-500' : 'bg-primary';
+  return (
+    <div className="flex min-w-[260px] flex-1 items-center gap-3 rounded-xl bg-muted px-3 py-2 ring-1 ring-border sm:max-w-md">
+      <span className="shrink-0 text-xs font-semibold text-subtle">{label}</span>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/10">
+        <div className={`h-full rounded-full ${bar} transition-[width] duration-500`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="shrink-0 text-sm font-bold tabular-nums text-foreground">{pct}%</span>
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        {done}/{total}
+      </span>
+    </div>
+  );
 }
