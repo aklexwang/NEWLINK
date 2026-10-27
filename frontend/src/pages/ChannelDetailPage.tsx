@@ -227,7 +227,7 @@ export function ChannelDetailPage() {
     : username
       ? `@${username}`
       : isInviteLink(detail?.link)
-        ? '초대 전용 방'
+        ? '🔒 비공개 초대방'
         : '';
   const inviteExpired = detail?.collectStatus === 'invite_expired';
   const inviteRoom = Boolean(

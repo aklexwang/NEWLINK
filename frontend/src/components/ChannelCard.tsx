@@ -344,7 +344,11 @@ export function ChannelCard({
               value={channel.telegramChatId != null ? String(channel.telegramChatId) : '-'}
               mono
             />
-            <InfoCell label="아이디" value={handle ? `@${handle}` : '-'} mono />
+            <InfoCell
+              label="아이디"
+              value={handle ? `@${handle}` : isInviteOnly ? '🔒 비공개 초대방' : '-'}
+              mono={Boolean(handle)}
+            />
             <InfoCell label="개설일" value={createdOn ?? '-'} />
             <InfoCell label="처음 관측" value={formatSince(channel.firstObservedAt) ?? '-'} />
             <InfoCell label="마지막 갱신" value={formatKoDate(channel.lastCollectedAt) ?? '-'} />
