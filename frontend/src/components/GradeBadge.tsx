@@ -26,7 +26,7 @@ const GRADE_CLASS: Record<GradeCode, string> = {
   A: 'bg-emerald-100 text-emerald-800 ring-emerald-300',
   B: 'bg-sky-100 text-sky-800 ring-sky-200',
   C: 'bg-orange-50 text-orange-700 ring-orange-200',
-  D: 'bg-slate-100 text-slate-500 ring-slate-200',
+  D: 'bg-nl-elev text-nl-muted ring-nl-line',
 };
 
 const SIZE_CLASS = {
@@ -232,12 +232,12 @@ function GradeInfoPanel({
   const scoreText = formatScore(effectiveScore);
 
   const body = (
-    <div className="text-[13px] leading-snug text-slate-700">
+    <div className="text-[13px] leading-snug text-tg-text">
       <div className="flex items-center gap-2.5">
         <GradeChip grade={grade} size="md" />
         <div className="min-w-0">
-          <p className="text-[15px] font-bold text-slate-900">{GRADE_LABEL[grade]} 등급</p>
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[15px] font-bold text-tg-text">{GRADE_LABEL[grade]} 등급</p>
+          <p className="text-[12px] text-nl-muted">
             {scoreText ? `${scoreText} / 100점 만점` : loading ? '점수 불러오는 중…' : '점수 집계 전'}
           </p>
         </div>
@@ -249,8 +249,8 @@ function GradeInfoPanel({
         </p>
       )}
 
-      <p className="mt-4 text-[12px] font-semibold text-slate-900">점수 기준</p>
-      <ul className="mt-1 space-y-0.5 text-[12px] text-slate-600">
+      <p className="mt-4 text-[12px] font-semibold text-tg-text">점수 기준</p>
+      <ul className="mt-1 space-y-0.5 text-[12px] text-nl-muted">
         {(kind === null || kind === 'channel') && (
           <li>
             {kind === null ? '채널: ' : ''}
@@ -265,13 +265,13 @@ function GradeInfoPanel({
         )}
       </ul>
 
-      <p className="mt-4 text-[12px] font-semibold text-slate-900">등급 구간</p>
+      <p className="mt-4 text-[12px] font-semibold text-tg-text">등급 구간</p>
       <ul className="mt-1 space-y-1">
         {GRADE_BANDS.map((band) => (
           <li
             key={band.grade}
             className={`flex items-center justify-between rounded-md px-2 py-1 text-[12px] ${
-              band.grade === grade ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-600'
+              band.grade === grade ? 'bg-nl-elev font-semibold text-tg-text' : 'text-nl-muted'
             }`}
           >
             <span>{band.label}</span>
@@ -284,7 +284,7 @@ function GradeInfoPanel({
         ref={closeRef}
         type="button"
         onClick={onClose}
-        className="mt-4 w-full rounded-xl bg-slate-100 py-2 text-[13px] font-semibold text-slate-700"
+        className="mt-4 w-full rounded-xl bg-nl-elev py-2 text-[13px] font-semibold text-tg-text"
       >
         닫기
       </button>
@@ -308,7 +308,7 @@ function GradeInfoPanel({
           role="dialog"
           aria-modal="true"
           aria-label="등급 설명"
-          className="max-h-[85dvh] w-full overflow-y-auto rounded-t-3xl bg-white px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-2xl"
+          className="max-h-[85dvh] w-full overflow-y-auto rounded-t-3xl bg-nl-card px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-2xl"
           onClick={stop}
         >
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300" aria-hidden />
@@ -337,7 +337,7 @@ function GradeInfoPanel({
         ref={panelRef}
         role="dialog"
         aria-label="등급 설명"
-        className="absolute max-h-[calc(100dvh-16px)] overflow-y-auto rounded-2xl bg-white p-4 shadow-xl ring-1 ring-black/10"
+        className="absolute max-h-[calc(100dvh-16px)] overflow-y-auto rounded-2xl bg-nl-card p-4 shadow-xl ring-1 ring-black/10"
         style={{ left, width: PANEL_WIDTH, ...vertical }}
         onClick={stop}
       >

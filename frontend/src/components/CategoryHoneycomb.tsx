@@ -339,7 +339,7 @@ export function CategoryHoneycomb({ categories, onSelect }: CategoryHoneycombPro
   );
 
   return (
-    <div className="relative flex-1 overflow-hidden bg-white">
+    <div className="relative flex-1 overflow-hidden bg-nl-card">
       <div
         ref={containerRef}
         className="absolute inset-0 touch-none select-none"

@@ -15,7 +15,7 @@ export function WalletNetworkBadge({ address, className = '', showHint = true }:
       : info.kind === 'trc20'
         ? 'bg-emerald-100 text-emerald-800 ring-emerald-200'
         : info.valid
-          ? 'bg-slate-100 text-slate-700 ring-slate-200'
+          ? 'bg-nl-elev text-tg-text ring-nl-line'
           : 'bg-amber-100 text-amber-900 ring-amber-200';
 
   return (
@@ -23,8 +23,8 @@ export function WalletNetworkBadge({ address, className = '', showHint = true }:
       <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ${tone}`}>
         {info.badge}
       </span>
-      <span className="ml-1.5 text-[11px] font-medium text-slate-700">{info.label}</span>
-      {showHint && <p className="mt-1 text-[10px] leading-snug text-slate-500">{info.hint}</p>}
+      <span className="ml-1.5 text-[11px] font-medium text-tg-text">{info.label}</span>
+      {showHint && <p className="mt-1 text-[10px] leading-snug text-nl-muted">{info.hint}</p>}
     </div>
   );
 }

@@ -210,7 +210,7 @@ export function MyPage() {
 
       {!isLoggedIn && authStatus !== 'loading' && !isLocalBrowser && (
         <section className="p-4">
-          <div className="rounded-2xl bg-white p-4 ring-1 ring-black/5">
+          <div className="rounded-2xl bg-nl-card p-4 ring-1 ring-black/5">
             <p className="mb-3 text-center text-sm font-semibold text-tg-text">텔레그램 로그인</p>
             <p className="mb-4 text-center text-xs text-tg-hint">
               미니앱에서는 아래 버튼으로 바로 로그인됩니다.
@@ -268,11 +268,11 @@ export function MyPage() {
             ) : (
               <>
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-black/5">
+                  <div className="rounded-xl bg-nl-card px-3 py-2.5 ring-1 ring-black/5">
                     <p className="text-[11px] text-tg-hint">총 지급 건수</p>
                     <p className="mt-0.5 text-base font-bold text-tg-text">{rewardSummary.count}건</p>
                   </div>
-                  <div className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-black/5">
+                  <div className="rounded-xl bg-nl-card px-3 py-2.5 ring-1 ring-black/5">
                     <p className="text-[11px] text-tg-hint">총 TON/Gram</p>
                     <p className="mt-0.5 text-base font-bold text-emerald-700">
                       {rewardSummary.totalTon.toLocaleString('ko-KR')}
@@ -291,7 +291,7 @@ export function MyPage() {
                 )}
                 <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto">
                   {rewardSummary.rewarded.map((item) => (
-                    <li key={item.id} className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-black/5">
+                    <li key={item.id} className="rounded-xl bg-nl-card px-3 py-2.5 ring-1 ring-black/5">
                       <p className="truncate text-sm font-medium text-tg-text">{item.title}</p>
                       <p className="mt-1 text-xs font-semibold text-emerald-700">
                         {item.rewardTonAmount != null && item.rewardTonAmount > 0 && (

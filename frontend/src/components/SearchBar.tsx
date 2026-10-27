@@ -67,14 +67,14 @@ export function SearchBar({
     <ul
       role="listbox"
       aria-label="검색 제안"
-      className={`absolute left-0 right-0 z-20 overflow-hidden border border-t-0 border-[#dfe1e5] bg-white shadow-[0_4px_12px_rgba(32,33,36,0.18)] ${
+      className={`absolute left-0 right-0 z-20 overflow-hidden border border-t-0 border-nl-line bg-nl-card shadow-[0_4px_12px_rgba(32,33,36,0.18)] ${
         variant === 'google' ? 'rounded-b-3xl' : 'rounded-b-2xl'
       }`}
     >
       {blockedMessage ? (
         <li className="px-4 py-3 text-sm font-semibold text-red-500">🚫 {blockedMessage}</li>
       ) : suggestionsLoading && suggestions.length === 0 ? (
-        <li className="px-4 py-3 text-sm text-[#70757a]">검색 중…</li>
+        <li className="px-4 py-3 text-sm text-nl-muted">검색 중…</li>
       ) : (
         suggestions.map((channel) => {
           const subtitle =
@@ -92,7 +92,7 @@ export function SearchBar({
                 <SearchIcon className="h-[18px] w-[18px] shrink-0 fill-[#9aa0a6]" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] text-[#202124]">{channel.title}</span>
-                  <span className="mt-0.5 block truncate text-[12px] text-[#70757a]">{subtitle}</span>
+                  <span className="mt-0.5 block truncate text-[12px] text-nl-muted">{subtitle}</span>
                 </span>
               </button>
             </li>
@@ -193,7 +193,7 @@ export function SearchBar({
     return (
       <div id="search-section" ref={rootRef} className={`relative w-full max-w-[520px] ${className}`}>
         <div
-          className={`flex h-[46px] items-center gap-1 border border-[#dfe1e5] bg-white px-3 transition-shadow ${
+          className={`flex h-[46px] items-center gap-1 border border-nl-line bg-nl-card px-3 transition-shadow ${
             open
               ? 'rounded-t-3xl border-b-transparent shadow-[0_1px_6px_rgba(32,33,36,0.16)]'
               : 'rounded-full shadow-[0_1px_6px_rgba(32,33,36,0.16)] hover:shadow-[0_1px_8px_rgba(32,33,36,0.24)] focus-within:border-transparent focus-within:shadow-[0_1px_8px_rgba(32,33,36,0.28)]'
@@ -221,7 +221,7 @@ export function SearchBar({
                 onCloseSuggestions?.();
               }}
               aria-label="검색어 지우기"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#70757a] hover:bg-[#f1f3f4]"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-nl-muted hover:bg-[#f1f3f4]"
             >
               ✕
             </button>
@@ -247,7 +247,7 @@ export function SearchBar({
   return (
     <div id="search-section" ref={rootRef} className={`relative px-4 pb-2 pt-1 ${className}`}>
       <div
-        className={`flex items-center gap-1 border border-black/[0.06] bg-white px-2 py-2 shadow-sm ${
+        className={`flex items-center gap-1 border border-black/[0.06] bg-nl-card px-2 py-2 shadow-sm ${
           open ? 'rounded-t-2xl border-b-transparent' : 'rounded-2xl'
         }`}
       >

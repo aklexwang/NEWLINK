@@ -21,6 +21,8 @@ html.light {
   --tg-theme-hint-color: #667085;
   --tg-theme-link-color: #12b884;
   --tg-theme-secondary-bg-color: #ffffff;
+  --nl-open-bg: #e8f4fd;
+  --nl-open-text: #2481cc;
 }
 
 html.dark {
@@ -36,6 +38,8 @@ html.dark {
   --tg-theme-hint-color: #9aa3b5;
   --tg-theme-link-color: #2ee59d;
   --tg-theme-secondary-bg-color: #1b202b;
+  --nl-open-bg: rgba(46, 229, 157, 0.14);
+  --nl-open-text: #2ee59d;
 }
 
 @theme {
@@ -46,8 +50,8 @@ html.dark {
   --color-tg-button: var(--tg-theme-button-color, #2481cc);
   --color-tg-button-text: var(--tg-theme-button-text-color, #ffffff);
   --color-tg-secondary: var(--tg-theme-secondary-bg-color, #f2f2f7);
-  --color-tg-open-bg: #e8f4fd;
-  --color-tg-open-text: #2481cc;
+  --color-tg-open-bg: var(--nl-open-bg, #e8f4fd);
+  --color-tg-open-text: var(--nl-open-text, #2481cc);
   --color-nl-bg: var(--nl-bg);
   --color-nl-card: var(--nl-card);
   --color-nl-elev: var(--nl-elev);

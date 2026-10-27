@@ -450,7 +450,7 @@ export function ChannelDetailPage() {
     );
 
   return (
-    <div className="pb-24">
+    <div className="pb-40">
       <header className="px-4 pb-4 pt-5">
         <div className="flex items-start gap-3">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-tg-secondary ring-1 ring-black/5">
@@ -559,7 +559,7 @@ export function ChannelDetailPage() {
         ))}
       </section>
 
-      <section className="mx-4 mt-4 rounded-2xl bg-tg-secondary/70 p-4">
+      <section className="mx-4 mt-4 rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line p-4">
         <p className="text-[13px] font-medium text-tg-hint">종합 점수</p>
         <div className="mt-1 flex items-end justify-between gap-3">
           <p className="text-[40px] font-bold leading-none text-tg-text">{detail.score ?? '—'}</p>
@@ -581,7 +581,7 @@ export function ChannelDetailPage() {
         </div>
       </section>
 
-      <section className="mt-4 px-4">
+      <section className="mx-4 mt-4 rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line p-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex rounded-full bg-black/[0.05] p-0.5 dark:bg-white/[0.05]">
             <ChartTab active={chartTab === 'members'} onClick={() => setChartTab('members')}>
@@ -613,10 +613,15 @@ export function ChannelDetailPage() {
             <div className="h-full animate-pulse rounded-2xl bg-tg-secondary" />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#8e8e93' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#8e8e93' }} width={48} />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#8e8e93' }}
+                  width={44}
+                  tickFormatter={(v: number) => formatCount(v)}
+                  domain={['auto', 'auto']}
+                />
                 <Tooltip
                   formatter={(value) => [formatCount(typeof value === 'number' ? value : null), isGroup || chartTab === 'members' ? '회원' : '조회']}
                   labelFormatter={(label) => String(label)}
@@ -624,8 +629,8 @@ export function ChannelDetailPage() {
                 <Line
                   type="monotone"
                   dataKey="value"
-                  stroke="#2481cc"
-                  strokeWidth={2}
+                  stroke="#12b884"
+                  strokeWidth={2.5}
                   dot={false}
                   connectNulls={false}
                 />
@@ -637,8 +642,8 @@ export function ChannelDetailPage() {
 
       {isGroup ? null : (
         <>
-      <section className="mt-5 px-4">
-        <h2 className="text-[15px] font-semibold text-tg-text">글 구성 (90일)</h2>
+      <section className="mx-4 mt-4 rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line p-4">
+        <h2 className="text-[15px] font-bold text-tg-text">📊 글 구성 (90일)</h2>
         <MediaBars mix={mediaMix} />
         {mediaMix && mediaMix.topSources.length > 0 && (
           <div className="mt-3">
@@ -655,12 +660,12 @@ export function ChannelDetailPage() {
         )}
       </section>
 
-      <section className="mt-5">
-        <h2 className="px-4 text-[15px] font-semibold text-tg-text">최근 글</h2>
+      <section className="mx-4 mt-4 overflow-hidden rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line pt-4">
+        <h2 className="px-4 text-[15px] font-bold text-tg-text">📝 최근 글</h2>
         {posts.length === 0 ? (
           <p className="px-4 py-3 text-sm text-tg-hint">관측된 글이 없습니다.</p>
         ) : (
-          <ul className="mt-1 divide-y divide-black/[0.06]">
+          <ul className="mt-1 divide-y divide-nl-line">
             {posts.map((post) => (
               <li key={post.messageId}>
                 <button
@@ -684,12 +689,12 @@ export function ChannelDetailPage() {
         </>
       )}
 
-      <section className="mt-5 px-4">
-        <h2 className="text-[15px] font-semibold text-tg-text">변경 기록</h2>
+      <section className="mx-4 mt-4 mb-4 rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line p-4">
+        <h2 className="text-[15px] font-bold text-tg-text">🕘 변경 기록</h2>
         {events.length === 0 ? (
           <p className="py-3 text-sm text-tg-hint">아직 기록된 변경이 없습니다.</p>
         ) : (
-          <ol className="mt-2 space-y-3 border-l border-black/10 pl-4">
+          <ol className="mt-3 space-y-3 border-l border-nl-line pl-4">
             {events.map((event) => (
               <li key={event.id} className="-ml-[21px]">
                 <div className="flex items-start gap-2">
@@ -712,7 +717,7 @@ export function ChannelDetailPage() {
 
       {verifyOpen && (
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 px-4 pb-24 pt-8 sm:items-center">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl bg-nl-card p-4 shadow-xl">
             <h2 className="text-[16px] font-bold text-tg-text">운영자 인증</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-tg-hint">
               텔레그램에서 @{VERIFY_BOT} 봇을 이 채널(또는 그룹)의 관리자로 추가한 뒤 확인을 눌러 주세요. 봇과 회원님이 모두 관리자여야 인증됩니다.
@@ -739,7 +744,7 @@ export function ChannelDetailPage() {
         </div>
       )}
 
-      <div className="fixed bottom-[68px] left-0 right-0 z-20 mx-auto max-w-lg border-t border-black/[0.06] bg-tg-bg/95 px-3 py-2 backdrop-blur-md">
+      <div className="fixed bottom-[calc(57px+env(safe-area-inset-bottom))] left-0 right-0 z-20 mx-auto max-w-lg border-t border-nl-line bg-tg-bg/95 px-3 py-2.5 backdrop-blur-md">
         {inviteExpired ? (
           <div className="space-y-2">
             <p className="text-center text-[12px] leading-snug text-tg-hint">
@@ -758,11 +763,26 @@ export function ChannelDetailPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-1">
-            <ActionButton onClick={openTelegram}>텔레그램에서 열기</ActionButton>
-            <ActionButton onClick={() => void handleFavorite()}>{favorited ? '★ 해제' : '☆ 즐겨찾기'}</ActionButton>
-            <ActionButton onClick={handleCompare}>비교 추가</ActionButton>
-            <ActionButton onClick={() => void handleShare()}>공유</ActionButton>
+          <div className="flex items-stretch gap-2">
+            <button
+              type="button"
+              onClick={openTelegram}
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#2AABEE] py-3 text-[15px] font-bold text-white shadow-sm active:scale-[0.98]"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+                <path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z" />
+              </svg>
+              텔레그램에서 열기
+            </button>
+            <IconAction label={favorited ? '해제' : '즐겨찾기'} onClick={() => void handleFavorite()}>
+              {favorited ? '★' : '⭐'}
+            </IconAction>
+            <IconAction label="비교" onClick={handleCompare}>
+              ⚖️
+            </IconAction>
+            <IconAction label="공유" onClick={() => void handleShare()}>
+              🔗
+            </IconAction>
           </div>
         )}
       </div>
@@ -780,7 +800,7 @@ function MetricCard({
   valueClass?: string;
 }) {
   return (
-    <div className="rounded-2xl bg-tg-secondary/70 px-3 py-3">
+    <div className="rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line px-3.5 py-3">
       <p className="text-[11px] text-tg-hint">{label}</p>
       <p className={`mt-1 truncate text-[18px] font-bold ${valueClass}`}>{value}</p>
     </div>
@@ -795,8 +815,8 @@ function ScoreBar({ label, value }: { label: string; value?: number | null }) {
         <span>{label}</span>
         <span>{pct}</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-white/80">
-        <div className="h-full rounded-full bg-tg-link" style={{ width: `${pct}%` }} />
+      <div className="h-1.5 overflow-hidden rounded-full bg-nl-elev">
+        <div className="h-full rounded-full bg-nl-accent" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -847,6 +867,27 @@ function MediaBars({ mix }: { mix: ChannelMediaMix | null }) {
         );
       })}
     </div>
+  );
+}
+
+function IconAction({
+  onClick,
+  label,
+  children,
+}: {
+  onClick: () => void;
+  label: string;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-[58px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-nl-card py-1.5 ring-1 ring-nl-line active:scale-95"
+    >
+      <span className="text-[18px] leading-none text-amber-400">{children}</span>
+      <span className="text-[10px] font-semibold text-tg-text">{label}</span>
+    </button>
   );
 }
 

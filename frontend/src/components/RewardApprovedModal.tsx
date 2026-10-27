@@ -15,7 +15,7 @@ export function RewardApprovedModal({ item, onClose }: RewardApprovedModalProps)
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
+        className="w-full max-w-sm overflow-hidden rounded-2xl bg-nl-card shadow-2xl ring-1 ring-black/5"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -29,9 +29,9 @@ export function RewardApprovedModal({ item, onClose }: RewardApprovedModalProps)
         </div>
 
         <div className="space-y-3 px-5 py-5">
-          <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
-            <p className="text-[11px] font-medium text-slate-500">제보한 곳</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{item.title}</p>
+          <div className="rounded-xl bg-nl-elev px-4 py-3 ring-1 ring-nl-line">
+            <p className="text-[11px] font-medium text-nl-muted">제보한 곳</p>
+            <p className="mt-1 text-sm font-semibold text-tg-text">{item.title}</p>
           </div>
 
           <div className="rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-100">

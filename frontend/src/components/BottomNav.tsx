@@ -4,10 +4,24 @@ import { getRewardPolicy } from '../api/rewards';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 
-const navClass = ({ isActive }: { isActive: boolean }) =>
-  `flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium ${
-    isActive ? 'text-tg-link' : 'text-tg-hint'
+/** 아래 메뉴 한 칸: 고른 칸은 아이콘 뒤에 초록 알약 + 굵은 글씨 */
+const itemClass = (active: boolean) =>
+  `group flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] ${
+    active ? 'font-bold text-nl-accent' : 'font-medium text-tg-hint'
   }`;
+const navClass = ({ isActive }: { isActive: boolean }) => itemClass(isActive);
+
+function NavIcon({ active, children }: { active: boolean; children: string }) {
+  return (
+    <span
+      className={`flex h-7 w-12 items-center justify-center rounded-full text-[19px] leading-none transition-colors ${
+        active ? 'bg-nl-accent/15' : 'opacity-75 group-hover:opacity-100'
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
 
 export function BottomNav() {
   const navigate = useNavigate();
@@ -64,8 +78,8 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg border-t border-black/[0.06] bg-tg-bg/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
-      <div className="flex h-[52px] items-stretch">
+    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg border-t border-nl-line bg-tg-bg/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+      <div className="flex h-[56px] items-stretch">
         <NavLink
           to="/"
           end
@@ -77,42 +91,34 @@ export function BottomNav() {
             }
           }}
         >
-          <span className="text-[22px] leading-none">🏠</span>
+          <NavIcon active={location.pathname === '/'}>🏠</NavIcon>
           <span>홈</span>
         </NavLink>
         <NavLink
           to="/categories"
-          className={() =>
-            `flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium ${
-              isCategoriesActive ? 'text-tg-link' : 'text-tg-hint'
-            }`
-          }
+          className={() => itemClass(isCategoriesActive)}
         >
-          <span className="text-[22px] leading-none">📂</span>
+          <NavIcon active={isCategoriesActive}>📂</NavIcon>
           <span>카테고리</span>
         </NavLink>
         <a
           href="/favorites"
           onClick={handleFavoritesClick}
-          className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium ${
-            isFavoritesActive ? 'text-tg-link' : 'text-tg-hint'
-          }`}
+          className={itemClass(isFavoritesActive)}
         >
-          <span className="text-[22px] leading-none">⭐</span>
+          <NavIcon active={isFavoritesActive}>⭐</NavIcon>
           <span>즐겨찾기</span>
         </a>
         <a
           href="/submit"
           onClick={handleSubmitClick}
-          className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium ${
-            isSubmitActive ? 'text-tg-link' : 'text-tg-hint'
-          }`}
+          className={itemClass(isSubmitActive)}
         >
-          <span className="text-[22px] leading-none">📣</span>
+          <NavIcon active={isSubmitActive}>📣</NavIcon>
           <span>제보</span>
         </a>
         <NavLink to="/my" className={navClass}>
-          <span className="text-[22px] leading-none">👤</span>
+          <NavIcon active={location.pathname.startsWith('/my')}>👤</NavIcon>
           <span>MY</span>
         </NavLink>
       </div>

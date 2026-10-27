@@ -49,7 +49,7 @@ export function TelegramOfficialLoginButton({ botUsername, onAuth, onError }: Pr
   }, [botUsername, onError]);
 
   return (
-    <div className="rounded-2xl bg-white p-4 ring-1 ring-black/5">
+    <div className="rounded-2xl bg-nl-card p-4 ring-1 ring-black/5">
       <p className="mb-4 text-center text-sm font-semibold text-tg-text">Telegram 계정으로 로그인</p>
       <div ref={containerRef} className="flex min-h-[44px] items-center justify-center" />
     </div>

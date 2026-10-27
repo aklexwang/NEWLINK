@@ -87,9 +87,9 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
   };
 
   return (
-    <section className="rounded-2xl bg-white p-4 ring-1 ring-black/[0.06]">
-      <h3 className="text-sm font-semibold text-slate-900">보상 받을 지갑</h3>
-      <p className="mt-1 text-xs leading-relaxed text-slate-600">
+    <section className="rounded-2xl bg-nl-card p-4 ring-1 ring-black/[0.06]">
+      <h3 className="text-sm font-semibold text-tg-text">보상 받을 지갑</h3>
+      <p className="mt-1 text-xs leading-relaxed text-nl-muted">
         텔레그램 Wallet 또는 외부 지갑 중 <span className="font-semibold">하나만</span> 선택하세요.
       </p>
 
@@ -147,15 +147,15 @@ export function SubmitWalletPicker({ onLinked, onNotify }: SubmitWalletPickerPro
           </button>
         </div>
       ) : (
-        <div className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
-          <p className="text-xs leading-relaxed text-slate-600">
+        <div className="mt-3 rounded-xl bg-nl-elev p-3 ring-1 ring-nl-line">
+          <p className="text-xs leading-relaxed text-nl-muted">
             외부지갑은 USDT TRC-20 등록만 가능합니다
           </p>
           <input
             value={externalWallet}
             onChange={(e) => setExternalWallet(e.target.value)}
             placeholder="T로 시작하는 USDT TRC-20 주소"
-            className="mt-3 w-full rounded-xl bg-white px-4 py-3 font-mono text-sm outline-none ring-1 ring-slate-200 focus:ring-blue-300"
+            className="mt-3 w-full rounded-xl bg-nl-card px-4 py-3 font-mono text-sm outline-none ring-1 ring-nl-line focus:ring-blue-300"
             autoComplete="off"
             spellCheck={false}
           />

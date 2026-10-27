@@ -192,7 +192,7 @@ export function SlideTelegramLogin({
   };
 
   return (
-    <div className="rounded-2xl bg-white p-4 ring-1 ring-black/5">
+    <div className="rounded-2xl bg-nl-card p-4 ring-1 ring-black/5">
       <p className="mb-1 text-center text-sm font-semibold text-tg-text">텔레그램 로그인</p>
       <p className="mb-4 text-center text-xs text-tg-hint">오른쪽으로 슬라이드하여 로그인하세요.</p>
 

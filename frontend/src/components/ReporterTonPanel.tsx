@@ -236,7 +236,7 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="수량"
-            className="w-24 rounded-lg bg-white px-3 py-2 text-sm outline-none ring-1 ring-black/5"
+            className="w-24 rounded-lg bg-nl-card px-3 py-2 text-sm outline-none ring-1 ring-black/5"
           />
           <span className="text-xs font-semibold text-sky-700">
             {walletInfo.kind === 'ton' ? 'TON/Gram' : '수량'}
@@ -246,7 +246,7 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder="메모(선택, 외부 TX 등)"
-            className="min-w-[10rem] flex-1 rounded-lg bg-white px-3 py-2 text-sm outline-none ring-1 ring-black/5"
+            className="min-w-[10rem] flex-1 rounded-lg bg-nl-card px-3 py-2 text-sm outline-none ring-1 ring-black/5"
           />
         </div>
 
@@ -263,7 +263,7 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
             type="button"
             onClick={() => openDialog('external-confirm')}
             disabled={!canPay}
-            className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40"
+            className="rounded-xl bg-nl-card px-4 py-2 text-sm font-medium text-tg-text ring-1 ring-nl-line hover:bg-nl-elev disabled:opacity-40"
           >
             외부 송금 기록
           </button>
@@ -276,7 +276,7 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
           onClick={() => (dialog === 'sending' ? undefined : setDialog(null))}
         >
           <div
-            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-nl-card shadow-2xl ring-1 ring-black/5"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -286,8 +286,8 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
                   ✓
                 </div>
-                <h3 className="mt-4 text-lg font-bold text-slate-900">① 보상 기록 완료</h3>
-                <p className="mt-2 text-sm text-slate-500">
+                <h3 className="mt-4 text-lg font-bold text-tg-text">① 보상 기록 완료</h3>
+                <p className="mt-2 text-sm text-nl-muted">
                   {tonAmount} TON/Gram이 회원 MY·TON 지급 이력에 저장되었습니다.
                 </p>
                 <p className="mt-2 text-xs text-amber-800">
@@ -320,15 +320,15 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
                 </div>
 
                 <div className="px-6 py-5">
-                  <div className="rounded-xl bg-slate-50 px-4 py-3 text-center ring-1 ring-slate-100">
-                    <p className="text-xs font-medium text-slate-500">지급 수량</p>
-                    <p className="mt-1 text-2xl font-bold text-slate-900">{tonAmount} TON/Gram</p>
+                  <div className="rounded-xl bg-nl-elev px-4 py-3 text-center ring-1 ring-nl-line">
+                    <p className="text-xs font-medium text-nl-muted">지급 수량</p>
+                    <p className="mt-1 text-2xl font-bold text-tg-text">{tonAmount} TON/Gram</p>
                   </div>
 
                   <div className="mt-4">
-                    <p className="text-xs font-medium text-slate-500">수신 지갑</p>
+                    <p className="text-xs font-medium text-nl-muted">수신 지갑</p>
                     <WalletNetworkBadge address={wallet} className="mt-2" />
-                    <p className="mt-1 break-all rounded-xl bg-slate-50 px-3 py-2.5 font-mono text-xs leading-relaxed text-slate-700 ring-1 ring-slate-100">
+                    <p className="mt-1 break-all rounded-xl bg-nl-elev px-3 py-2.5 font-mono text-xs leading-relaxed text-tg-text ring-1 ring-nl-line">
                       {wallet}
                     </p>
                   </div>
@@ -346,7 +346,7 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
                       type="button"
                       onClick={() => setDialog(null)}
                       disabled={dialog === 'sending'}
-                      className="rounded-xl bg-white py-3 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
+                      className="rounded-xl bg-nl-card py-3 text-sm font-medium text-tg-text ring-1 ring-nl-line hover:bg-nl-elev disabled:opacity-50"
                     >
                       취소
                     </button>

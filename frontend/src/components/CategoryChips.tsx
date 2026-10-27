@@ -27,7 +27,7 @@ export function CategoryChips({ categories, selected, onSelect }: CategoryChipsP
               className={`flex shrink-0 items-center gap-2 rounded-2xl border px-3.5 py-2.5 text-sm font-medium shadow-sm transition active:scale-[0.98] ${
                 active
                   ? 'border-tg-link/30 bg-tg-open-bg text-tg-link'
-                  : 'border-black/[0.06] bg-white text-tg-text'
+                  : 'border-black/[0.06] bg-nl-card text-tg-text'
               }`}
             >
               <CategoryIcon emoji={cat.emoji} iconUrl={cat.iconUrl} size="sm" className="bg-transparent ring-0" />

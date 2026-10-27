@@ -32,14 +32,18 @@ const SUGGEST_DEBOUNCE_MS = 200;
 
 function Avatar({
   channel,
+  size = 'md',
 }: {
   channel: { avatarUrl?: string | null; link: string; title: string };
+  size?: 'md' | 'lg';
 }) {
   const sources = useMemo(() => getChannelAvatarSources(channel), [channel]);
   const [i, setI] = useState(0);
-  const src = sources[i];
+  const [failed, setFailed] = useState(false);
+  const src = failed ? undefined : sources[i];
+  const box = size === 'lg' ? 'h-14 w-14 rounded-2xl' : 'h-11 w-11 rounded-full';
   return (
-    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-nl-elev ring-1 ring-nl-line">
+    <div className={`${box} shrink-0 overflow-hidden bg-nl-elev ring-1 ring-nl-line`}>
       {src ? (
         <img
           src={src}
@@ -47,11 +51,13 @@ function Avatar({
           referrerPolicy="no-referrer"
           className="h-full w-full object-cover"
           onError={() => {
+            // 모든 주소가 실패하면 깨진 그림 대신 첫 글자
             if (i + 1 < sources.length) setI((n) => n + 1);
+            else setFailed(true);
           }}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-[13px] font-bold text-nl-muted">
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-nl-accent/25 to-sky-400/25 text-[16px] font-extrabold text-nl-accent">
           {channel.title.slice(0, 1)}
         </div>
       )}
@@ -508,10 +514,10 @@ export function HomePage() {
         {home?.topBy === 'members' && (
           <p className="px-4 pt-1 text-[11px] text-nl-muted">점수 데이터가 부족해 회원 수 순으로 보여 줍니다.</p>
         )}
-        <div className="mt-2 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none">
+        <div className="mt-2 flex gap-2.5 overflow-x-auto px-4 pb-1 scrollbar-none">
           {homeLoading
             ? Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-16 w-40 shrink-0 animate-pulse rounded-2xl bg-nl-card" />
+                <div key={i} className="h-[150px] w-[132px] shrink-0 animate-pulse rounded-[20px] bg-nl-card" />
               ))
             : (home?.topChannels ?? []).map((item, index) => (
                 <TopChip key={item.id} rank={index + 1} item={item} onOpen={() => goChannel(item)} />
@@ -524,16 +530,16 @@ export function HomePage() {
 
       <section className="relative px-4 pt-4">
         <div className="flex gap-2 overflow-x-auto scrollbar-none">
-          <QuickLink to="/ranking" label="랭킹" />
-          <QuickLink to="/ranking?sort=rising" label="급상승" />
-          <QuickLink to="/ranking?type=group" label="그룹" />
-          <QuickLink to="/weekly" label="주간 변화" />
+          <QuickLink to="/ranking" label="🏆 랭킹" />
+          <QuickLink to="/ranking?sort=rising" label="🚀 급상승" />
+          <QuickLink to="/ranking?type=group" label="👥 그룹" />
+          <QuickLink to="/weekly" label="📈 주간 변화" />
           <button
             type="button"
             onClick={() => setMoreOpen((v) => !v)}
-            className="shrink-0 rounded-full bg-nl-card px-3 py-2 text-[12px] font-semibold ring-1 ring-nl-line"
+            className="shrink-0 rounded-full bg-nl-card px-3.5 py-2 text-[13px] font-semibold ring-1 ring-nl-line"
           >
-            더 보기
+            ⋯ 더 보기
           </button>
         </div>
         {moreOpen && (
@@ -605,7 +611,7 @@ function QuickLink({ to, label }: { to: string; label: string }) {
   return (
     <Link
       to={to}
-      className="shrink-0 rounded-full bg-nl-card px-3 py-2 text-[12px] font-semibold ring-1 ring-nl-line"
+      className="shrink-0 rounded-full bg-nl-card px-3.5 py-2 text-[13px] font-semibold ring-1 ring-nl-line active:scale-95"
     >
       {label}
     </Link>
@@ -613,19 +619,24 @@ function QuickLink({ to, label }: { to: string; label: string }) {
 }
 
 function TopChip({ rank, item, onOpen }: { rank: number; item: HomeCard; onOpen: () => void }) {
+  const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-[168px] shrink-0 items-center gap-2 rounded-2xl bg-nl-card px-2.5 py-2 text-left ring-1 ring-nl-line"
+      className="relative flex w-[132px] shrink-0 flex-col items-center gap-2 rounded-[20px] bg-nl-card px-3 pt-4 pb-3 text-center shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line transition-transform active:scale-[0.98]"
     >
-      <span className="w-5 text-center text-[12px] font-bold text-nl-accent">{rank}</span>
-      <Avatar channel={item} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold">{item.title}</span>
-        <span className="text-[11px] text-nl-muted">
-          {item.score != null ? `점수 ${item.score}` : formatMembers(item.memberCount)}
-        </span>
+      <span
+        className={`absolute top-2 left-2 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold ${
+          medal ? 'text-[15px]' : 'bg-nl-elev text-nl-muted'
+        }`}
+      >
+        {medal ?? rank}
+      </span>
+      <Avatar channel={item} size="lg" />
+      <span className="line-clamp-2 min-h-[34px] w-full text-[13px] leading-[17px] font-bold">{item.title}</span>
+      <span className="rounded-full bg-nl-elev px-2 py-0.5 text-[11px] font-semibold text-nl-muted">
+        {item.score != null ? `점수 ${item.score}` : formatMembers(item.memberCount)}
       </span>
     </button>
   );
@@ -650,9 +661,9 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
           onOpen();
         }
       }}
-      className="flex w-full cursor-pointer items-center gap-3 rounded-2xl bg-nl-card px-3 py-2.5 text-left ring-1 ring-nl-line"
+      className="flex w-full cursor-pointer items-center gap-3 rounded-[20px] bg-nl-card px-3.5 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line active:scale-[0.99]"
     >
-      <Avatar channel={item} />
+      <Avatar channel={item} size="lg" />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
           <span className="min-w-0 truncate text-[14px] font-semibold">{item.title}</span>

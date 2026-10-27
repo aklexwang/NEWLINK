@@ -143,7 +143,7 @@ export function ComparePage() {
           className="w-full rounded-2xl bg-tg-secondary px-4 py-2.5 text-sm outline-none"
         />
         {(searching || hits.length > 0 || blockedMessage) && query.trim() && (
-          <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-2xl border border-black/10 bg-white shadow-lg">
+          <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-2xl border border-black/10 bg-nl-card shadow-lg">
             {searching && hits.length === 0 ? (
               <li className="px-3 py-2 text-[13px] text-tg-hint">검색 중...</li>
             ) : hits.length === 0 ? (

@@ -72,7 +72,7 @@ export function CategoryIconPicker({
             <button
               type="button"
               onClick={() => onIconUrlChange(null)}
-              className="rounded-xl bg-white px-4 py-2 text-sm ring-1 ring-black/5"
+              className="rounded-xl bg-nl-card px-4 py-2 text-sm ring-1 ring-black/5"
             >
               이미지 제거
             </button>
