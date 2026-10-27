@@ -532,7 +532,7 @@ export function AdminLinksManagePage() {
         ) : (
           <div className="flex items-start gap-4">
             {/* 왼쪽: 방 목록 (누르면 오른쪽에서 카테고리 정하기, ↑↓ 키로 이동) */}
-            <div className="w-full max-w-[640px] shrink-0 space-y-1.5">
+            <div className="w-1/2 min-w-0 space-y-1.5">
               {channels.map((channel) => {
                 const focused = focusedChannel?.id === channel.id;
                 const pending = channel.category === '분류대기';
@@ -588,7 +588,7 @@ export function AdminLinksManagePage() {
             </div>
 
             {/* 오른쪽: 고른 방 편집 (화면을 내려도 따라옴) */}
-            <div className="sticky top-4 min-w-0 flex-1">
+            <div className="sticky top-4 w-1/2 min-w-0">
               {focusedChannel ? (
                 <div className="rounded-2xl bg-card p-6 shadow-[var(--hz-shadow)]">
                   <div className="flex items-start gap-4">
