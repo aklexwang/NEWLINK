@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  clearAdminLinkInspect,
   getAdminCategories,
   getAdminLinkInspectJob,
   getLatestAdminLinkInspect,
@@ -69,6 +70,9 @@ export function AdminLinkInspectBulk() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  /** 등록 후 정상 항목이 남았을 때 "계속 등록할까요?" */
+  const [askContinue, setAskContinue] = useState<number | null>(null);
+  const [registeredTotal, setRegisteredTotal] = useState(0);
   const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
@@ -158,6 +162,38 @@ export function AdminLinkInspectBulk() {
     });
   };
 
+  /** 다 등록했거나 그만둘 때: 한 줄 요약만 남기고 확인 목록을 지운다 */
+  const finishAndClear = async (current: AdminInspectJobView, total: number) => {
+    const summary = summarizeJob(current.items, total);
+    try {
+      await clearAdminLinkInspect(current.id);
+    } catch {
+      // 지우기 실패해도 화면은 비운다. 다음 확인 때 새 목록으로 바뀐다
+    }
+    setJob(null);
+    setSelected(new Set());
+    setText('');
+    setAskContinue(null);
+    setRegisteredTotal(0);
+    setMessage(summary);
+  };
+
+  const stopAndClear = async () => {
+    if (!job) return;
+    setBusy(true);
+    try {
+      const latest = await getAdminLinkInspectJob(job.id).catch(() => job);
+      await finishAndClear(latest, registeredTotal);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const continueRegister = () => {
+    setAskContinue(null);
+    void registerSelected();
+  };
+
   const selectNormals = () => {
     setSelected(new Set(selectable.slice(0, REGISTER_MAX).map((item) => item.id)));
   };
@@ -192,15 +228,21 @@ export function AdminLinkInspectBulk() {
           setJob(next);
         }
       }
-      setMessage(
-        failCount > 0
-          ? `${okCount}개 등록, ${failCount}개는 건너뛰었습니다. 등록과 함께 첫 수집까지 했어요.`
-          : `${okCount}개를 등록했습니다. 등록과 함께 첫 수집까지 했어요.`,
-      );
+      const total = registeredTotal + okCount;
+      setRegisteredTotal(total);
       if (job) {
         const next = await getAdminLinkInspectJob(job.id);
-        setJob(next);
-        setSelected(defaultSelected(next.items));
+        const remaining = remainingNormals(next.items);
+        if (remaining > 0) {
+          setJob(next);
+          setSelected(defaultSelected(next.items));
+          setAskContinue(remaining);
+          setMessage(
+            `${okCount}개 등록${failCount > 0 ? `, ${failCount}개 건너뜀` : ''} (첫 수집까지 완료).`,
+          );
+        } else {
+          await finishAndClear(next, total);
+        }
       }
     } catch (err) {
       setError(
@@ -315,6 +357,30 @@ export function AdminLinkInspectBulk() {
             </div>
           </div>
 
+          {askContinue != null && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-amber-500/10 px-4 py-3 ring-1 ring-amber-500/40">
+              <p className="mr-auto text-sm font-semibold text-foreground">
+                남은 정상 항목 {askContinue}개가 남아 있습니다. 계속 등록하시겠습니까?
+              </p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={continueRegister}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                계속 등록 ({Math.min(askContinue, REGISTER_MAX)}개)
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void stopAndClear()}
+                className="rounded-xl bg-card px-4 py-2 text-sm font-medium text-subtle ring-1 ring-border disabled:opacity-50"
+              >
+                그만하고 목록 지우기
+              </button>
+            </div>
+          )}
+
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
@@ -409,4 +475,23 @@ function ProgressPill({
       </span>
     </div>
   );
+}
+
+/** 아직 등록 안 한 정상 항목 수 ([정상만 선택] 과 같은 기준) */
+function remainingNormals(items: AdminInspectItemView[]): number {
+  return items.filter((item) => item.result === 'ok' && !item.registeredChannelId).length;
+}
+
+/** 목록을 지울 때 남기는 한 줄 요약 */
+function summarizeJob(items: AdminInspectItemView[], registeredNow: number): string {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    if (!item.result || item.result === 'ok' || item.result === 'language_unknown') continue;
+    const label = RESULT_LABEL[item.result] ?? item.result;
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  const rest = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, n]) => `${label} ${n}`);
+  return `✅ 등록이 완료되었습니다. ${[`새로 등록 ${registeredNow}개`, ...rest].join(' · ')} (확인 목록은 지웠어요)`;
 }

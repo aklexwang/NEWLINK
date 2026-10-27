@@ -392,6 +392,13 @@ export async function getAdminLinkInspectJob(jobId: string): Promise<AdminInspec
   return data;
 }
 
+/** 등록을 마친 확인 목록 지우기 (등록된 채널은 그대로) */
+export async function clearAdminLinkInspect(jobId: string): Promise<void> {
+  await apiClient.delete(`/admin/links/inspect/${jobId}`, {
+    headers: getAdminAuthHeaders(),
+  });
+}
+
 export async function getLatestAdminLinkInspect(): Promise<AdminInspectJobView | null> {
   const { data } = await apiClient.get<AdminInspectJobView | null>('/admin/links/inspect/latest', {
     headers: getAdminAuthHeaders(),

@@ -163,6 +163,26 @@ export class AdminInspectService implements OnModuleInit {
     return this.toJobView(job, items);
   }
 
+  /**
+   * 등록을 마친 뒤 확인 목록 비우기. 이 작업과 그 전의 끝난 작업을 모두 지워
+   * 새로고침해도 예전 목록이 다시 뜨지 않게 한다. 등록된 채널은 건드리지 않는다.
+   */
+  async clearJob(jobId: string): Promise<{ ok: true; deleted: number }> {
+    const job = await this.jobRepository.findOneBy({ id: jobId });
+    if (!job) return { ok: true, deleted: 0 };
+    if (job.status === 'running') {
+      throw new BadRequestException('아직 확인 중인 목록은 지울 수 없습니다.');
+    }
+    const finished = (await this.jobRepository.find()).filter(
+      (row) => row.status !== 'running' && row.createdAt <= job.createdAt,
+    );
+    const ids = finished.map((row) => row.id);
+    if (ids.length === 0) return { ok: true, deleted: 0 };
+    await this.itemRepository.delete({ jobId: In(ids) });
+    await this.jobRepository.delete({ id: In(ids) });
+    return { ok: true, deleted: ids.length };
+  }
+
   async getLatest() {
     const job = await this.jobRepository.find({
       order: { createdAt: 'DESC' },

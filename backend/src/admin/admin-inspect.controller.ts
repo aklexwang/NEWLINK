@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -38,6 +39,12 @@ export class AdminInspectController {
   @HttpCode(HttpStatus.ACCEPTED)
   resume(@Param('jobId') jobId: string) {
     return this.inspect.resumeInspect(jobId);
+  }
+
+  /** 등록을 마친 확인 목록 지우기 (등록된 채널은 그대로) */
+  @Delete('inspect/:jobId')
+  clear(@Param('jobId') jobId: string) {
+    return this.inspect.clearJob(jobId);
   }
 
   @Post('register-many')
