@@ -252,8 +252,8 @@ export function AdminLinksManagePage() {
       const result = await collectAdminChannels(ids);
       const ok = result.results.filter((row) => row.ok).length;
       const fail = result.results.length - ok;
-      setMessage(`수집 완료 ${ok}건, 실패 ${fail}건`);
       await load();
+      setMessage(`수집 완료 ${ok}건, 실패 ${fail}건`);
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '일괄 수집에 실패했습니다.'));
     }
@@ -302,11 +302,27 @@ export function AdminLinksManagePage() {
     if (selectedList.length === 0) return;
     try {
       const result = await setAdminChannelsVisibility(selectedList, isVisible);
-      await load();
-      const still = result.stillHidden ?? [];
       if (!isVisible) {
+        await load();
         setMessage(`${selectedList.length}건을 회원 화면에서 숨겼습니다.`);
-      } else if (still.length === 0) {
+        return;
+      }
+      // 한 번도 수집되지 않아 숨겨진 방은 바로 수집해서 노출되게 한다
+      const uncollected = (result.stillHidden ?? [])
+        .filter((item) => item.reason.startsWith('아직 수집되지 않음'))
+        .slice(0, 20);
+      if (uncollected.length > 0) {
+        setMessage(`아직 수집되지 않은 ${uncollected.length}건을 지금 수집하는 중… (방마다 몇 초 걸려요)`);
+        try {
+          await collectAdminChannels(uncollected.map((item) => item.id));
+        } catch {
+          // 수집 실패는 아래에서 다시 확인한 이유로 알려 준다
+        }
+      }
+      const recheck = uncollected.length > 0 ? await setAdminChannelsVisibility(selectedList, true) : result;
+      await load();
+      const still = recheck.stillHidden ?? [];
+      if (still.length === 0) {
         setMessage(`${selectedList.length}건 모두 회원 화면에 노출됩니다.`);
       } else {
         const detail = still
@@ -314,7 +330,7 @@ export function AdminLinksManagePage() {
           .map((item) => `${item.title} (${item.reason})`)
           .join(', ');
         setMessage(
-          `${selectedList.length - still.length}건 노출됨 · ${still.length}건은 다른 이유로 아직 숨김: ${detail}${still.length > 5 ? ' 외' : ''}`,
+          `${selectedList.length - still.length}건 노출됨 · ${still.length}건은 아직 숨김: ${detail}${still.length > 5 ? ' 외' : ''}`,
         );
       }
     } catch (error) {
