@@ -15,7 +15,7 @@ import {
   updateAdminChannel,
 } from '../../api/admin';
 import { AdminCategoryChipBar } from '../../components/admin/AdminCategoryChipBar';
-import { AdClientCells, AdClientDetail } from '../../components/admin/AdClientInfo';
+import { AdClientDetail } from '../../components/admin/AdClientInfo';
 import { AdminChannelOpens } from '../../components/admin/AdminChannelOpens';
 import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor';
 import {
@@ -497,17 +497,11 @@ export function AdminLinksManagePage() {
               <thead className="bg-muted">
                 <tr>
                   <AdminTh className="w-8" />
-                  <AdminTh className="w-12" />
-                  <AdminTh>제목</AdminTh>
-                  <AdminTh className="w-16">유형</AdminTh>
-                  <AdminTh className="w-24">카테고리</AdminTh>
-                  <AdminTh className="w-16">언어</AdminTh>
-                  <AdminTh className="w-16">상태</AdminTh>
-                  <AdminTh className="w-40">카테고리 수정</AdminTh>
-                  <AdminTh className="w-12">👍</AdminTh>
-                  <AdminTh>광고 의뢰</AdminTh>
-                  <AdminTh className="w-24">광고</AdminTh>
-                  <AdminTh className="w-10" />
+                  <AdminTh>방</AdminTh>
+                  <AdminTh className="w-24 text-right">회원</AdminTh>
+                  <AdminTh className="w-44">카테고리</AdminTh>
+                  <AdminTh className="w-52">회원 화면</AdminTh>
+                  <AdminTh className="w-8" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -529,53 +523,63 @@ export function AdminLinksManagePage() {
                             });
                           }} onClick={(e) => e.stopPropagation()} />
                         </AdminTd>
-                        <AdminTd><ChannelAvatar channel={channel} /></AdminTd>
                         <AdminTd>
-                          <p className="max-w-[200px] truncate font-medium text-foreground">{channel.title}</p>
-                          <p className="text-[11px] text-muted-foreground">@{channel.username || '-'}</p>
+                          <div className="flex items-center gap-3">
+                            <ChannelAvatar channel={channel} />
+                            <div className="min-w-0">
+                              <p className="max-w-[360px] truncate text-[14px] font-semibold text-foreground">{channel.title}</p>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                                <span className="text-muted-foreground">{channel.username ? `@${channel.username}` : '비공개 초대방'}</span>
+                                <span className={`rounded-md px-1.5 py-0.5 font-medium ${linkTypeBadgeClass(channel.linkType)}`}>{linkTypeLabel(channel.linkType)}</span>
+                                {channel.language === 'foreign' && (
+                                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-subtle">{languageLabel[channel.language ?? 'unknown']}</span>
+                                )}
+                                {channel.status !== 'active' && (
+                                  <span className={`rounded-full px-2 py-0.5 font-medium ${statusClass[channel.status]}`}>{statusLabel[channel.status]}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </AdminTd>
+                        <AdminTd className="text-right tabular-nums text-[13px] text-foreground">
+                          {channel.memberCount != null ? channel.memberCount.toLocaleString() : '-'}
                         </AdminTd>
                         <AdminTd>
-                          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(channel.linkType)}`}>{linkTypeLabel(channel.linkType)}</span>
-                        </AdminTd>
-                        <AdminTd><span className="text-xs">{channel.category}</span></AdminTd>
-                        <AdminTd><span className="text-[11px] text-subtle">{languageLabel[channel.language ?? 'unknown']}</span></AdminTd>
-                        <AdminTd>
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClass[channel.status]}`}>{statusLabel[channel.status]}</span>
-                        </AdminTd>
-                        <AdminTd>
-                          {/* 목록에서 바로 카테고리 옮기기 (옮긴 방은 AI 가 다시 바꾸지 않게 고정) */}
+                          {/* 고르면 바로 그 카테고리로 옮김 (옮긴 방은 AI 가 다시 바꾸지 않게 고정) */}
                           <select
-                            value=""
-                            title={
-                              channel.memberPageVisible
-                                ? '회원 화면에 보이는 중'
-                                : `회원 화면 숨김 · ${channel.memberPageReasonKey || channel.memberPageHiddenReason || '숨김'}`
-                            }
+                            value={channel.category}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => {
                               const next = e.target.value;
                               if (!next || next === channel.category) return;
                               void moveCategory(channel, next);
                             }}
-                            className="h-8 cursor-pointer rounded-lg bg-primary/10 px-2.5 text-[12px] font-semibold text-primary outline-none ring-1 ring-primary/30 hover:bg-primary/15"
+                            className={`h-8 w-full cursor-pointer rounded-lg px-2.5 text-[12px] font-semibold outline-none ring-1 ${
+                              channel.category === '분류대기'
+                                ? 'bg-amber-100 text-amber-800 ring-amber-300'
+                                : 'bg-background text-foreground ring-border hover:ring-primary/40'
+                            }`}
                           >
-                            <option value="">카테고리 이동 ▾</option>
-                            {categoryOptions
-                              .filter((name) => name !== channel.category)
-                              .map((name) => (
-                                <option key={name} value={name}>
-                                  → {name}
-                                </option>
-                              ))}
+                            {!categoryOptions.includes(channel.category) && (
+                              <option value={channel.category}>{channel.category}</option>
+                            )}
+                            {categoryOptions.map((name) => (
+                              <option key={name} value={name}>
+                                {name === '분류대기' ? '⏳ 분류대기 (고르면 노출)' : name}
+                              </option>
+                            ))}
                           </select>
                         </AdminTd>
-                        <AdminTd>{channel.recommendCount}</AdminTd>
-                        <AdminTd>{channel.isPromoted ? <AdClientCells channel={channel} /> : <span className="text-xs text-muted-foreground">-</span>}</AdminTd>
                         <AdminTd>
-                          {channel.status === 'active' && isPromotionActive(channel.isPromoted, channel.promotedUntil) ? (
-                            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] text-purple-700">노출 중</span>
+                          {channel.memberPageVisible ? (
+                            <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-green-700">
+                              <span className="h-2 w-2 rounded-full bg-green-500" /> 노출 중
+                            </span>
                           ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
+                            <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-amber-700">
+                              <span className="h-2 w-2 rounded-full bg-amber-500" />
+                              숨김 · {channel.memberPageReasonKey || channel.memberPageHiddenReason || '숨김'}
+                            </span>
                           )}
                         </AdminTd>
                         <AdminTd><span className={`inline-block text-muted-foreground ${expanded ? 'text-primary' : ''}`}>›</span></AdminTd>
