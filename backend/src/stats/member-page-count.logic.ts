@@ -25,7 +25,6 @@ export const MEMBER_PAGE_REASON_ORDER: readonly string[] = [
   MEMBER_PAGE_REASON.foreign,
   MEMBER_PAGE_REASON.illegal,
   MEMBER_PAGE_REASON.pendingCategory,
-  MEMBER_PAGE_REASON.adult,
 ];
 
 function isActiveRow(row: { status?: string | null }): boolean {
@@ -38,11 +37,13 @@ export type MemberVisibilitySummary = {
   /** 행(채널) 기준 노출 수. describeMemberPageVisibility 로 한 건씩 판정 */
   visible: number;
   hidden: number;
+  /** visible 중 성인 카테고리 안에서만 보이는 수 (회원 "전체"에서는 빠짐) */
+  adultOnly: number;
   /** 이유별 숨김 수. 0건인 이유도 줄을 남긴다 */
   hiddenReasons: Record<string, number>;
   /** 노출 조건을 통과했지만 같은 링크의 대표가 따로 있어 회원 화면에서 빠지는 수 */
   duplicateExcess: number;
-  /** 회원 화면 "전체" 숫자와 같은 값 = visible - duplicateExcess */
+  /** 회원 화면 "전체" 숫자와 같은 값 = visible - adultOnly - duplicateExcess */
   listTotal: number;
 };
 
@@ -59,11 +60,16 @@ export function summarizeMemberVisibility(
   const visibleRows = new Set<MemberPageRow>();
   let visible = 0;
   let hidden = 0;
+  let adultOnly = 0;
   for (const row of rows) {
     const vis = describeMemberPageVisibility(row);
     if (vis.visible) {
       visible += 1;
       visibleRows.add(row);
+    } else if (vis.reasonKey === MEMBER_PAGE_REASON.adult) {
+      // 성인 카테고리 안에서는 보이므로 노출로 센다
+      visible += 1;
+      adultOnly += 1;
     } else {
       hidden += 1;
       hiddenReasons[vis.reasonKey] = (hiddenReasons[vis.reasonKey] ?? 0) + 1;
@@ -85,9 +91,10 @@ export function summarizeMemberVisibility(
   return {
     visible,
     hidden,
+    adultOnly,
     hiddenReasons,
     duplicateExcess,
-    listTotal: visible - duplicateExcess,
+    listTotal: visible - adultOnly - duplicateExcess,
   };
 }
 

@@ -129,3 +129,17 @@ function hidden(
 ): MemberPageVisibility {
   return { visible: false, reason: reason ?? reasonKey, reasonKey };
 }
+
+/**
+ * 관리자 화면용 노출 판정. 성인 카테고리 방은 회원이 "성인"을 고르면 보이므로 노출로 센다.
+ * (회원 "전체"·홈·랭킹에서 빼는 규칙은 describeMemberPageVisibility 그대로)
+ */
+export function describeAdminMemberVisibility(
+  channel: Parameters<typeof describeMemberPageVisibility>[0],
+): MemberPageVisibility & { adultOnly: boolean } {
+  const vis = describeMemberPageVisibility(channel);
+  if (vis.reasonKey === MEMBER_PAGE_REASON.adult) {
+    return { visible: true, reason: '', reasonKey: '', adultOnly: true };
+  }
+  return { ...vis, adultOnly: false };
+}

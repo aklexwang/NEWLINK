@@ -25,7 +25,7 @@ import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { TelegramUserParam } from '../auth/telegram-user.decorator';
 import type { TelegramUser } from '../auth/interfaces/telegram-user.interface';
 import { ChannelsService } from '../channels/channels.service';
-import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
+import { describeAdminMemberVisibility } from '../stats/public-list-visibility.logic';
 import { RewardPayoutService } from '../payments/reward-payout.service';
 import { UsersService } from '../users/users.service';
 import { AdminCollectService } from './admin-collect.service';
@@ -131,7 +131,7 @@ export class AdminController {
         const base = channel.isPromoted
           ? await this.withAdClient(channel)
           : channel;
-        const memberPageInfo = describeMemberPageVisibility(channel);
+        const memberPageInfo = describeAdminMemberVisibility(channel);
         return {
           ...base,
           reporter: channel.submittedBy
@@ -180,7 +180,7 @@ export class AdminController {
   @Post(':id/collect')
   async collectOne(@Param('id', ParseUUIDPipe) id: string) {
     const channel = await this.adminCollect.collectOne(id);
-    const memberPageInfo = describeMemberPageVisibility(channel);
+    const memberPageInfo = describeAdminMemberVisibility(channel);
     return {
       ...channel,
       memberPageVisible: memberPageInfo.visible,

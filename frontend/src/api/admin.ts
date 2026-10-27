@@ -86,6 +86,8 @@ export interface AdminDashboard {
   memberHidden: number;
   /** 노출 조건은 통과했지만 같은 링크의 대표가 따로 있어 회원 화면에서 빠지는 수 */
   memberDuplicateExcess: number;
+  /** 노출 중 성인 카테고리 안에서만 보이는 수 */
+  memberAdultOnly?: number;
   /** 회원 화면 "전체" 숫자와 같은 값 (= 노출 - 중복) */
   memberListTotal: number;
   hiddenReasons: Record<string, number>;

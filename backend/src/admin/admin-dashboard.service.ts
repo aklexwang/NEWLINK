@@ -13,7 +13,7 @@ import {
 import { summarizeMemberVisibility } from '../stats/member-page-count.logic';
 import { loadMemberPageRows } from '../stats/member-page-rows';
 import { asText } from '../common/as-text';
-import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
+import { describeAdminMemberVisibility } from '../stats/public-list-visibility.logic';
 
 type CountRow = Record<string, unknown>;
 
@@ -150,6 +150,7 @@ export class AdminDashboardService {
       groupCount,
       memberVisible: member.visible,
       memberHidden: member.hidden,
+      memberAdultOnly: member.adultOnly,
       memberDuplicateExcess: member.duplicateExcess,
       memberListTotal: member.listTotal,
       hiddenReasons: member.hiddenReasons,
@@ -186,7 +187,7 @@ export class AdminDashboardService {
 function countAdminVisibility(rows: Channel[]): { total: number; visible: number; hidden: number } {
   let visible = 0;
   for (const row of rows) {
-    if (describeMemberPageVisibility(row).visible) visible += 1;
+    if (describeAdminMemberVisibility(row).visible) visible += 1;
   }
   return { total: rows.length, visible, hidden: rows.length - visible };
 }

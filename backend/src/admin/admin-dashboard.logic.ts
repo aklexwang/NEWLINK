@@ -92,6 +92,7 @@ export function buildAdminDashboard(
     groupCount,
     memberVisible: member.visible,
     memberHidden: member.hidden,
+    memberAdultOnly: member.adultOnly,
     memberDuplicateExcess: member.duplicateExcess,
     memberListTotal: member.listTotal,
     hiddenReasons: member.hiddenReasons,

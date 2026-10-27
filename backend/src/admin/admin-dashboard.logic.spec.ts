@@ -56,7 +56,6 @@ describe('buildAdminDashboard', () => {
       '외국어',
       '불법 의심(관리자 확인)',
       '분류대기',
-      '성인 카테고리',
     ]) {
       expect(data.hiddenReasons[reason]).toBe(0);
     }

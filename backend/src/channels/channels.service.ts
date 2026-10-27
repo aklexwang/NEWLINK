@@ -34,7 +34,7 @@ import {
   type DuplicateMatch,
 } from './link-duplicate.logic';
 import { isTitleLocked } from './title-lock.logic';
-import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
+import { describeAdminMemberVisibility } from '../stats/public-list-visibility.logic';
 import { shouldHideIllegalSuspicion } from './illegal-content.logic';
 import { selectMemberVisibleRows } from '../stats/member-visible.logic';
 import { buildMemberRankingCounts } from '../stats/member-page-count.logic';
@@ -1409,7 +1409,7 @@ export class ChannelsService implements OnModuleInit {
         updated += 1;
       }
       if (isVisible) {
-        const vis = describeMemberPageVisibility(channel);
+        const vis = describeAdminMemberVisibility(channel);
         if (!vis.visible) {
           stillHidden.push({ id: channel.id, title: channel.title, reason: vis.reason });
         }

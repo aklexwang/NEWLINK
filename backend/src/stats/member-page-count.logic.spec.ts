@@ -148,7 +148,11 @@ describe('member-page-count.logic', () => {
     // 회원 "전체" 숫자 = 대시보드 노출 − 같은 링크 중복
     expect(memberCounts.all).toBe(reference);
     expect(dashboard.memberListTotal).toBe(reference);
-    expect(dashboard.memberVisible - dashboard.memberDuplicateExcess).toBe(
+    expect(
+      dashboard.memberVisible -
+        dashboard.memberAdultOnly -
+        dashboard.memberDuplicateExcess,
+    ).toBe(
       reference,
     );
     expect(dashboard.memberVisible + dashboard.memberHidden).toBe(rows.length);

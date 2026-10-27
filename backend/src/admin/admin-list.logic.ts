@@ -1,4 +1,7 @@
-import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
+import {
+  describeAdminMemberVisibility,
+  describeMemberPageVisibility,
+} from '../stats/public-list-visibility.logic';
 
 export const ADMIN_LIST_DEFAULT_PAGE_SIZE = 50;
 export const ADMIN_LIST_MAX_PAGE_SIZE = 200;
@@ -53,7 +56,7 @@ export function matchesMemberPageFilter(
   filters: { memberPage?: 'yes' | 'no' | ''; hideReason?: string },
 ): boolean {
   if (!filters.memberPage && !filters.hideReason) return true;
-  const vis = describeMemberPageVisibility(channel);
+  const vis = describeAdminMemberVisibility(channel);
   if (filters.memberPage === 'yes' && !vis.visible) return false;
   if (filters.memberPage === 'no' && vis.visible) return false;
   if (filters.hideReason && vis.reasonKey !== filters.hideReason) return false;

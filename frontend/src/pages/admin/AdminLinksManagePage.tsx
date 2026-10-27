@@ -653,6 +653,11 @@ export function AdminLinksManagePage() {
                     >
                       {channel.category}
                     </span>
+                    {channel.memberPageVisible && channel.category === '성인' && (
+                      <span className="shrink-0 rounded-lg bg-rose-500/15 px-2 py-1 text-[11px] font-semibold text-rose-500">
+                        🔞 성인 카테고리에서만
+                      </span>
+                    )}
                     {!channel.memberPageVisible && (
                       <span className="shrink-0 rounded-lg bg-amber-500/15 px-2 py-1 text-[11px] font-semibold text-amber-600">
                         숨김 · {channel.memberPageReasonKey || channel.memberPageHiddenReason || '숨김'}
@@ -688,7 +693,9 @@ export function AdminLinksManagePage() {
                       </p>
                       <p className="mt-2 text-sm font-semibold">
                         {focusedChannel.memberPageVisible ? (
-                          <span className="text-green-600">● 회원 화면 노출 중</span>
+                          <span className="text-green-600">
+                            ● 회원 화면 노출 중{focusedChannel.category === '성인' ? ' (성인 카테고리에서만)' : ''}
+                          </span>
                         ) : (
                           <span className="text-amber-600">
                             ● 회원 화면 숨김 · {focusedChannel.memberPageReasonKey || focusedChannel.memberPageHiddenReason || '숨김'}
