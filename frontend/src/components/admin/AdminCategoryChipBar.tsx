@@ -15,10 +15,11 @@ export function AdminCategoryChipBar({
   counts,
 }: AdminCategoryChipBarProps) {
   const chipClass = (active: boolean) =>
-    `inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition ${
+    // 마우스를 올리면 칩이 커져서 잘 보이게 (옆 칩 위로 떠오름)
+    `relative inline-flex origin-center items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] font-medium transition duration-150 ease-out hover:z-10 hover:scale-[1.35] hover:shadow-xl ${
       active
         ? 'bg-primary text-white shadow-sm'
-        : 'bg-card text-subtle ring-1 ring-border hover:bg-muted'
+        : 'bg-card text-subtle ring-1 ring-border hover:text-foreground hover:ring-2 hover:ring-primary'
     }`;
 
   const totalCount = counts?.[''];
