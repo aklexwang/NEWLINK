@@ -304,12 +304,12 @@ export function AdminUsersPage() {
                               차단됨
                             </span>
                           ) : user.isRegistered ? (
-                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                              가입완료
+                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700" title="보상 받을 지갑까지 등록함">
+                              지갑 등록
                             </span>
                           ) : (
-                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-subtle">
-                              미가입
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-subtle" title="텔레그램 로그인만 함 (보상 받을 지갑은 아직 안 넣음)">
+                              로그인만 · 지갑 없음
                             </span>
                           )}
                         </div>
