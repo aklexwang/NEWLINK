@@ -16,7 +16,7 @@ const TELEGRAM_BOT_USERNAME =
   (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ||
   'telllink_bot';
 
-const AD_INQUIRY_URL = 'https://t.me/Kplaytwo';
+const AD_INQUIRY_URL = 'https://t.me/kplay33';
 
 function hasPayout(item: Channel) {
   return (
