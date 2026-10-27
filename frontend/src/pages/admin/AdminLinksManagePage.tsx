@@ -612,6 +612,17 @@ export function AdminLinksManagePage() {
                         )}
                       </p>
                     </div>
+                    <a
+                      href={focusedChannel.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex shrink-0 items-center gap-2 rounded-xl bg-[#2AABEE] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+                        <path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z" />
+                      </svg>
+                      텔레그램에서 열기
+                    </a>
                   </div>
 
                   <ChannelQuickPreview channelId={focusedChannel.id} />
@@ -646,9 +657,6 @@ export function AdminLinksManagePage() {
                     <button type="button" onClick={() => moveFocus(1)} className="h-10 rounded-xl bg-muted px-4 text-sm font-semibold text-foreground">
                       다음 방 ↓
                     </button>
-                    <a href={focusedChannel.link} target="_blank" rel="noopener noreferrer" className="flex h-10 items-center rounded-xl bg-muted px-4 text-sm font-semibold text-primary">
-                      텔레그램에서 보기 ↗
-                    </a>
                     <button
                       type="button"
                       onClick={() => {
