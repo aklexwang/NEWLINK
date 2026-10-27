@@ -1,3 +1,4 @@
+import { ChannelQuickPreviewService } from './channel-quick-preview.service';
 import { RankAd } from '../ads/rank-ad.entity';
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -63,6 +64,7 @@ import { StatsService } from './stats.service';
     PublicStatsController,
   ],
   providers: [
+    ChannelQuickPreviewService,
     StatsService,
     ChannelCollectorService,
     MtprotoCollectorService,
@@ -81,6 +83,7 @@ import { StatsService } from './stats.service';
     PublicStatsService,
   ],
   exports: [
+    ChannelQuickPreviewService,
     StatsService,
     ChannelCollectorService,
     ChannelMetricsService,

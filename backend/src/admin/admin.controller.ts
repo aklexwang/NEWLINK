@@ -1,3 +1,4 @@
+import { ChannelQuickPreviewService } from '../stats/channel-quick-preview.service';
 import {
   BadRequestException,
   Body,
@@ -65,6 +66,7 @@ export class AdminController {
     private readonly rewardPayout: RewardPayoutService,
     private readonly adminCollect: AdminCollectService,
     private readonly inspect: AdminInspectService,
+    private readonly quickPreviewService: ChannelQuickPreviewService,
   ) {}
 
   @Get('pending')
@@ -263,6 +265,12 @@ export class AdminController {
   @Post(':id/import-avatar')
   importAvatar(@Param('id', ParseUUIDPipe) id: string) {
     return this.channelsService.importAvatarFromTelegram(id);
+  }
+
+  /** 카테고리 판단용: 소개글 + 최근 공개 글 (저장 안 함) */
+  @Get(':id/quick-preview')
+  quickPreview(@Param('id', ParseUUIDPipe) id: string) {
+    return this.quickPreviewService.preview(id);
   }
 
   @Get(':id/preview')

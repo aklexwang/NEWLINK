@@ -18,6 +18,7 @@ import { AdminCategoryChipBar } from '../../components/admin/AdminCategoryChipBa
 import { AdClientDetail } from '../../components/admin/AdClientInfo';
 import { AdminChannelOpens } from '../../components/admin/AdminChannelOpens';
 import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor';
+import { ChannelQuickPreview } from '../../components/admin/ChannelQuickPreview';
 import {
   AdminEmptyState,
   AdminMessage,
@@ -612,6 +613,8 @@ export function AdminLinksManagePage() {
                       </p>
                     </div>
                   </div>
+
+                  <ChannelQuickPreview channelId={focusedChannel.id} />
 
                   <p className="mt-6 text-sm font-semibold text-subtle">
                     카테고리 고르기 <span className="font-normal">(누르면 바로 저장·고정되고 다음 방으로 넘어가요)</span>

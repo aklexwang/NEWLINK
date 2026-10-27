@@ -1040,3 +1040,16 @@ export async function getChannelOpenSummary(channelId: string): Promise<ChannelO
   });
   return data;
 }
+export type QuickPreview = {
+  description: string;
+  posts: Array<{ postedAt: string; views: number | null; mediaType: string; text: string | null }>;
+  note: string | null;
+};
+
+/** 카테고리 판단용: 소개글 + 최근 공개 글 (서버에 저장하지 않음) */
+export async function getChannelQuickPreview(id: string): Promise<QuickPreview> {
+  const { data } = await apiClient.get<QuickPreview>(`/admin/channels/${id}/quick-preview`, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
