@@ -34,6 +34,7 @@ import {
   type DuplicateMatch,
 } from './link-duplicate.logic';
 import { isTitleLocked } from './title-lock.logic';
+import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
 import { shouldHideIllegalSuspicion } from './illegal-content.logic';
 import { selectMemberVisibleRows } from '../stats/member-visible.logic';
 import { buildMemberRankingCounts } from '../stats/member-page-count.logic';
@@ -1366,28 +1367,56 @@ export class ChannelsService implements OnModuleInit {
     return this.channelRepository.save(channel);
   }
 
+  /**
+   * 여러 방 노출 켜기/끄기.
+   * 켜기는 관리자가 풀 수 있는 숨김(관리자 숨김·외국어 판정)을 함께 푼다.
+   * 수집 안 됨·사라짐·불법 의심처럼 풀 수 없는 이유는 stillHidden 으로 알려 준다.
+   */
   async setVisibilityMany(
     ids: string[],
     isVisible: boolean,
     actorTelegramId?: number,
-  ) {
+  ): Promise<{
+    ok: true;
+    updated: number;
+    stillHidden: Array<{ id: string; title: string; reason: string }>;
+  }> {
     const unique = [...new Set(ids)];
     let updated = 0;
+    const stillHidden: Array<{ id: string; title: string; reason: string }> = [];
     for (const id of unique) {
       const channel = await this.channelRepository.findOneBy({ id });
       if (!channel) continue;
-      if (channel.isVisible === isVisible) continue;
-      await this.recordVisibilityChange(
-        channel.id,
-        channel.isVisible,
-        isVisible,
-        actorTelegramId,
-      );
-      channel.isVisible = isVisible;
-      await this.channelRepository.save(channel);
-      updated += 1;
+      let changed = false;
+      if (channel.isVisible !== isVisible) {
+        await this.recordVisibilityChange(
+          channel.id,
+          channel.isVisible,
+          isVisible,
+          actorTelegramId,
+        );
+        channel.isVisible = isVisible;
+        changed = true;
+      }
+      if (isVisible && channel.language === 'foreign') {
+        // 관리자가 노출을 켰으면 외국어 판정을 덮어쓰고 다시 바뀌지 않게 고정
+        channel.language = 'ko';
+        channel.languageLocked = true;
+        changed = true;
+      }
+      if (changed) {
+        await this.channelRepository.save(channel);
+        updated += 1;
+      }
+      if (isVisible) {
+        const vis = describeMemberPageVisibility(channel);
+        if (!vis.visible) {
+          stillHidden.push({ id: channel.id, title: channel.title, reason: vis.reason });
+        }
+      }
     }
-    return { ok: true, updated };
+    if (updated > 0) this.clearRankingCountsCache();
+    return { ok: true, updated, stillHidden };
   }
 
   async setCategoryMany(

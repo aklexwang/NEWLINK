@@ -464,8 +464,8 @@ export async function updateAdminChannel(
 export async function setAdminChannelsVisibility(
   ids: string[],
   isVisible: boolean,
-): Promise<{ ok: boolean; updated: number }> {
-  const { data } = await apiClient.post<{ ok: boolean; updated: number }>(
+): Promise<{ ok: boolean; updated: number; stillHidden?: Array<{ id: string; title: string; reason: string }> }> {
+  const { data } = await apiClient.post<{ ok: boolean; updated: number; stillHidden?: Array<{ id: string; title: string; reason: string }> }>(
     '/admin/channels/visibility',
     { ids, isVisible },
     { headers: getAdminAuthHeaders() },

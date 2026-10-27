@@ -294,8 +294,32 @@ export function AdminLinksManagePage() {
   const handleBulkCategory = async () => {
     if (!bulkCategory || selectedList.length === 0) return;
     const result = await setAdminChannelsCategory(selectedList, bulkCategory);
-    setMessage(`${result.updated}건의 카테고리를 바꿨습니다.`);
     await load();
+    setMessage(`${result.updated}건의 카테고리를 바꿨습니다.`);
+  };
+
+  const handleBulkVisibility = async (isVisible: boolean) => {
+    if (selectedList.length === 0) return;
+    try {
+      const result = await setAdminChannelsVisibility(selectedList, isVisible);
+      await load();
+      const still = result.stillHidden ?? [];
+      if (!isVisible) {
+        setMessage(`${selectedList.length}건을 회원 화면에서 숨겼습니다.`);
+      } else if (still.length === 0) {
+        setMessage(`${selectedList.length}건 모두 회원 화면에 노출됩니다.`);
+      } else {
+        const detail = still
+          .slice(0, 5)
+          .map((item) => `${item.title} (${item.reason})`)
+          .join(', ');
+        setMessage(
+          `${selectedList.length - still.length}건 노출됨 · ${still.length}건은 다른 이유로 아직 숨김: ${detail}${still.length > 5 ? ' 외' : ''}`,
+        );
+      }
+    } catch (error) {
+      setMessage(adminApiErrorMessage(error, '노출 변경에 실패했습니다.'));
+    }
   };
 
   const handleApprove = async (id: string) => {
@@ -522,8 +546,8 @@ export function AdminLinksManagePage() {
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <button type="button" disabled={bulkDisabled} onClick={() => void setAdminChannelsVisibility(selectedList, true).then(() => load())} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">노출 켜기</button>
-          <button type="button" disabled={bulkDisabled} onClick={() => void setAdminChannelsVisibility(selectedList, false).then(() => load())} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">노출 끄기</button>
+          <button type="button" disabled={bulkDisabled} onClick={() => void handleBulkVisibility(true)} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">노출 켜기</button>
+          <button type="button" disabled={bulkDisabled} onClick={() => void handleBulkVisibility(false)} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">노출 끄기</button>
           <select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)} className="rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-border">
             <option value="">카테고리 일괄</option>
             {categoryOptions.map((name) => (
@@ -613,6 +637,11 @@ export function AdminLinksManagePage() {
                     >
                       {channel.category}
                     </span>
+                    {!channel.memberPageVisible && (
+                      <span className="shrink-0 rounded-lg bg-amber-500/15 px-2 py-1 text-[11px] font-semibold text-amber-600">
+                        숨김 · {channel.memberPageReasonKey || channel.memberPageHiddenReason || '숨김'}
+                      </span>
+                    )}
                     <span
                       className={`h-2.5 w-2.5 shrink-0 rounded-full ${channel.memberPageVisible ? 'bg-green-500' : 'bg-amber-500'}`}
                       title={channel.memberPageVisible ? '회원 화면 노출 중' : '회원 화면 숨김'}
