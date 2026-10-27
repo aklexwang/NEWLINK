@@ -394,16 +394,29 @@ export function AdminLinksManagePage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [moveFocus, expandedId]);
 
-  /** 카테고리 고르고 다음 방으로 */
-  const pickCategoryAndNext = async (channel: { id: string; title: string; category: string }, name: string) => {
-    if (name === channel.category) {
-      moveFocus(1);
-      return;
-    }
-    const index = channels.findIndex((c) => c.id === channel.id);
+  // 고른 카테고리(확인 전) + 확인 후 안내 문구
+  const [pick, setPick] = useState<{ channelId: string; name: string } | null>(null);
+  const [moveNotice, setMoveNotice] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const pickedName = pick && pick.channelId === focusedChannel?.id ? pick.name : null;
+
+  /** [확인]: 안내를 보여 준 뒤 저장하고 다음 방으로 */
+  const confirmPick = async () => {
+    if (!focusedChannel || !pickedName || confirming) return;
+    setConfirming(true);
+    setMoveNotice(`"${focusedChannel.title}" → [${pickedName}] 카테고리로 넘어갑니다`);
+    const index = channels.findIndex((c) => c.id === focusedChannel.id);
     const nextId = channels[index + 1]?.id ?? null;
-    await moveCategory(channel, name);
-    if (nextId) setFocusedId(nextId);
+    try {
+      if (pickedName !== focusedChannel.category) await moveCategory(focusedChannel, pickedName);
+      // 안내를 잠깐 보여 준 뒤 다음 방으로
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      if (nextId) setFocusedId(nextId);
+    } finally {
+      setPick(null);
+      setMoveNotice(null);
+      setConfirming(false);
+    }
   };
 
   const moveCategory = async (channel: { id: string; title: string; category: string }, next: string) => {
@@ -664,20 +677,26 @@ export function AdminLinksManagePage() {
                   <ChannelQuickPreview channelId={focusedChannel.id} />
 
                   <p className="mt-6 text-sm font-semibold text-subtle">
-                    카테고리 고르기 <span className="font-normal">(누르면 바로 저장·고정되고 다음 방으로 넘어가요)</span>
+                    카테고리 고르기 <span className="font-normal">(고른 뒤 [확인]을 누르면 저장·고정되고 다음 방으로 넘어가요)</span>
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {categories
                       .filter((c) => c.isActive && c.name !== '분류대기')
                       .map((c) => {
-                        const on = focusedChannel.category === c.name;
+                        const current = focusedChannel.category === c.name;
+                        const chosen = pickedName === c.name;
                         return (
                           <button
                             key={c.id}
                             type="button"
-                            onClick={() => void pickCategoryAndNext(focusedChannel, c.name)}
+                            disabled={confirming}
+                            onClick={() => setPick({ channelId: focusedChannel.id, name: c.name })}
                             className={`h-11 rounded-xl px-4 text-[14px] font-bold transition-colors ${
-                              on ? 'bg-green-500 text-white' : 'bg-muted text-foreground hover:bg-primary/15'
+                              chosen
+                                ? 'bg-primary text-white ring-2 ring-primary/40'
+                                : current
+                                  ? 'bg-green-500/15 text-green-600 ring-1 ring-green-500/50'
+                                  : 'bg-muted text-foreground hover:bg-primary/15'
                             }`}
                           >
                             {c.emoji} {c.name}
@@ -685,6 +704,31 @@ export function AdminLinksManagePage() {
                         );
                       })}
                   </div>
+
+                  {moveNotice ? (
+                    <div className="mt-4 rounded-xl bg-green-500 px-4 py-3 text-[15px] font-bold text-white">✅ {moveNotice}</div>
+                  ) : (
+                    <div className="mt-4 flex items-center gap-3">
+                      <p className="flex-1 text-sm text-subtle">
+                        {pickedName ? (
+                          <>
+                            고른 카테고리: <b className="text-foreground">{pickedName}</b>
+                            {pickedName === focusedChannel.category ? ' (지금과 같아요)' : ''}
+                          </>
+                        ) : (
+                          '카테고리를 고르세요.'
+                        )}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={!pickedName || confirming}
+                        onClick={() => void confirmPick()}
+                        className="h-11 min-w-[120px] rounded-xl bg-primary px-6 text-[15px] font-bold text-white disabled:opacity-40"
+                      >
+                        확인
+                      </button>
+                    </div>
+                  )}
 
                   <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4">
                     <button type="button" onClick={() => moveFocus(-1)} className="h-10 rounded-xl bg-muted px-4 text-sm font-semibold text-foreground">
