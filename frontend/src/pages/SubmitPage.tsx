@@ -4,7 +4,6 @@ import { isAxiosError } from 'axios';
 import { submitChannel } from '../api/channels';
 import { getRewardPolicy } from '../api/rewards';
 import { SubmitWalletPicker, type WalletMethod } from '../components/SubmitWalletPicker';
-import { useCategories } from '../hooks/useCategories';
 import { useTonWalletLink } from '../hooks/useTonWalletLink';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
@@ -15,7 +14,6 @@ export function SubmitPage() {
   const location = useLocation();
   const { webApp, isLocalBrowser } = useTelegram();
   const { user, status: authStatus } = useAuth();
-  const { submitCategories, loading: categoriesLoading } = useCategories();
   const { isLinked, connect, savedAddress } = useTonWalletLink({ autoSync: false });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,7 +27,6 @@ export function SubmitPage() {
     linkType: 'channel' as LinkType,
     title: '',
     link: '',
-    category: '',
     description: '',
   });
 
@@ -38,8 +35,6 @@ export function SubmitPage() {
   const requireWallet =
     requireWalletPolicy ||
     Boolean((location.state as { requireWallet?: boolean } | null)?.requireWallet);
-  const defaultCategory = submitCategories[0] ?? '';
-  const categoryValue = form.category || defaultCategory;
 
   const notify = useCallback(
     (message: string) => notifyUser(webApp, isLocalBrowser, message),
@@ -54,7 +49,6 @@ export function SubmitPage() {
         title: form.title,
         link: form.link,
         description: form.description,
-        category: categoryValue,
       });
       notify('제보가 접수되었습니다. 관리자 승인 후 노출됩니다.');
       navigate('/');
@@ -77,7 +71,7 @@ export function SubmitPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [form, needLinkType, categoryValue, notify, navigate]);
+  }, [form, needLinkType, notify, navigate]);
 
   useEffect(() => {
     void getRewardPolicy()
@@ -213,21 +207,6 @@ export function SubmitPage() {
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-tg-hint">카테고리</label>
-          <select
-            value={categoryValue}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            disabled={categoriesLoading || submitCategories.length === 0}
-            className="w-full rounded-xl bg-tg-secondary px-4 py-3 text-sm outline-none"
-          >
-            {submitCategories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
           <label className="mb-1.5 block text-xs font-medium text-tg-hint">설명</label>
           <textarea
             required
@@ -240,7 +219,7 @@ export function SubmitPage() {
         </div>
         <button
           type="submit"
-          disabled={isSubmitting || submitCategories.length === 0 || !isLoggedIn}
+          disabled={isSubmitting || !isLoggedIn}
           className="mt-2 w-full rounded-xl bg-tg-button py-3.5 text-sm font-medium text-tg-button-text disabled:opacity-50"
         >
           {isSubmitting ? '접수 중...' : '제보하기'}

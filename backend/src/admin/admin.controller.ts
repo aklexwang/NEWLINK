@@ -275,7 +275,11 @@ export class AdminController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ApproveChannelDto,
   ) {
-    return this.channelsService.approve(id, dto.isPromoted ?? false);
+    return this.channelsService.approve(
+      id,
+      dto.isPromoted ?? false,
+      dto.category,
+    );
   }
 
   @Patch(':id/reject')

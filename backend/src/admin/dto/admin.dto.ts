@@ -72,6 +72,12 @@ export class ApproveChannelDto {
   @IsBoolean()
   @IsOptional()
   isPromoted?: boolean;
+
+  /** 승인하면서 정하는 카테고리 */
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  category?: string;
 }
 
 export class PromoteChannelDto {

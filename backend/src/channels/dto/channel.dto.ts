@@ -41,10 +41,11 @@ export class CreateChannelDto {
   @IsIn([LinkType.CHANNEL, LinkType.GROUP])
   linkType?: LinkType;
 
+  /** 예전 앱 호환용. 회원이 보내도 무시하고 '분류대기'로 받는다(어드민이 승인 때 고름) */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(100)
-  category: string;
+  category?: string;
 
   @IsString()
   @IsNotEmpty()

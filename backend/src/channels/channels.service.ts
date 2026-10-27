@@ -232,6 +232,8 @@ export class ChannelsService implements OnModuleInit {
     const linkType = await this.resolveSubmitLinkType(link, dto.linkType);
     const channel = this.channelRepository.create({
       ...dto,
+      // 카테고리는 회원이 고르지 않는다. 어드민이 승인할 때 정한다
+      category: PENDING_CATEGORY,
       link,
       linkType,
       submittedBy,
@@ -894,7 +896,11 @@ export class ChannelsService implements OnModuleInit {
     });
   }
 
-  async approve(id: string, isPromoted = false): Promise<Channel> {
+  async approve(
+    id: string,
+    isPromoted = false,
+    category?: string,
+  ): Promise<Channel> {
     let channel = await this.findById(id);
     // 같은 링크로 이미 승인된 다른 행이 있으면 두 번째 ACTIVE 를 만들지 않는다
     const other = await this.findDuplicate(channel.link, { excludeId: id });
@@ -905,6 +911,13 @@ export class ChannelsService implements OnModuleInit {
     channel.status = ChannelStatus.ACTIVE;
     channel.avatarApproved = Boolean(channel.avatarUrl);
     if (isPromoted) channel.isPromoted = true;
+    // 어드민이 승인하면서 고른 카테고리는 고정(AI 가 바꾸지 않음)
+    const picked = category?.trim();
+    if (picked) {
+      channel.category = picked.slice(0, 100);
+      channel.categoryLocked = true;
+      channel.suggestedCategory = null;
+    }
     this.applyUsernameFromLink(channel);
     const saved = await this.channelRepository.save(channel);
     return this.collectPublicPageAfterRegister(saved);

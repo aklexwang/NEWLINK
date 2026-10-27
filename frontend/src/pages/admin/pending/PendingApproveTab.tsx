@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   approveChannel,
+  getAdminCategories,
   getChannelPreview,
   getPendingChannels,
   rejectChannel,
 } from '../../../api/admin';
+import type { CategoryItem } from '../../../types/categoryItem';
 import { CandidateAvatar } from '../../../components/admin/CandidateAvatar';
 import { ChannelPreviewModal } from '../../../components/ChannelPreviewModal';
 import { Badge } from '@/components/admin/ui/badge';
@@ -30,6 +32,19 @@ export function PendingApproveTab() {
   const [preview, setPreview] = useState<ChannelPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewChannelId, setPreviewChannelId] = useState<string | null>(null);
+  // 제보마다 어드민이 고른 카테고리 (회원은 카테고리를 고르지 않는다)
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [picked, setPicked] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    getAdminCategories()
+      .then((list) =>
+        setCategories(
+          list.filter((c) => c.isActive && c.name !== '분류대기').sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+        ),
+      )
+      .catch(() => setCategories([]));
+  }, []);
 
   const loadPending = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -80,8 +95,13 @@ export function PendingApproveTab() {
   };
 
   const handleApprove = async (id: string) => {
-    await approveChannel(id);
-    setMessage('승인되었습니다. 로고가 회원 페이지에 노출됩니다. 광고 노출은 광고 관리에서 설정하세요.');
+    const category = picked[id];
+    if (!category) {
+      setMessage('승인하기 전에 카테고리를 골라 주세요.');
+      return;
+    }
+    await approveChannel(id, false, category);
+    setMessage(`승인했어요. 카테고리: ${category}. 회원 페이지에 노출됩니다.`);
     closePreview();
     await loadPending();
   };
@@ -117,7 +137,9 @@ export function PendingApproveTab() {
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
                       <Badge variant="secondary">pending</Badge>
-                      <Badge variant="outline">{item.category}</Badge>
+                      {item.category && item.category !== '분류대기' && (
+                        <Badge variant="outline">{item.category}</Badge>
+                      )}
                     </div>
                     <CardTitle className="text-base">{item.title}</CardTitle>
                     <p className="mt-1 line-clamp-2 whitespace-pre-line text-sm text-muted-foreground">{item.description}</p>
@@ -166,9 +188,26 @@ export function PendingApproveTab() {
                     승인하면 회원 페이지에 공개되고 이 목록에서 빠집니다. 보상 지급은 「지급」 탭에서
                     합니다.
                   </p>
+                  <label className="block text-sm font-semibold text-foreground">
+                    카테고리 정하기
+                    <select
+                      value={picked[item.id] ?? ''}
+                      onChange={(e) => setPicked((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                      className={`mt-1.5 h-11 w-full rounded-xl bg-background px-3.5 text-[15px] ring-1 outline-none focus:ring-2 focus:ring-primary/50 ${
+                        picked[item.id] ? 'text-foreground ring-border' : 'text-muted-foreground ring-amber-400'
+                      }`}
+                    >
+                      <option value="">카테고리를 골라 주세요</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.emoji} {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <div className="grid grid-cols-2 gap-2">
-                    <Button type="button" onClick={() => void handleApprove(item.id)}>
-                      승인
+                    <Button type="button" disabled={!picked[item.id]} onClick={() => void handleApprove(item.id)}>
+                      {picked[item.id] ? '승인' : '카테고리 고른 뒤 승인'}
                     </Button>
                     <Button type="button" variant="outline" onClick={() => void handleReject(item.id)}>
                       거절

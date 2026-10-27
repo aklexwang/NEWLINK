@@ -114,6 +114,7 @@ export interface CreateChannelPayload {
   link: string;
   /** 비워 두면 서버가 링크를 검사해 판별한다 */
   linkType?: LinkType;
-  category: string;
+  /** 회원 제보는 보내지 않는다(어드민이 승인 때 정함) */
+  category?: string;
   description: string;
 }

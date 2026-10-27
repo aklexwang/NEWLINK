@@ -510,8 +510,8 @@ export async function deleteAdminChannel(id: string) {
   return data;
 }
 
-export async function approveChannel(id: string, isPromoted = false) {
-  const { data } = await apiClient.patch(`/admin/channels/${id}/approve`, { isPromoted }, {
+export async function approveChannel(id: string, isPromoted = false, category?: string) {
+  const { data } = await apiClient.patch(`/admin/channels/${id}/approve`, { isPromoted, category }, {
     headers: getAdminAuthHeaders(),
   });
   return data;
