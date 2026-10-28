@@ -43,7 +43,7 @@ function StatCard({
   const long = typeof value === 'string' && value.length > 12;
   return (
     <Link to={to} className="block">
-      <Card className="h-full flex-row items-center gap-4 px-4 py-4 transition-transform hover:-translate-y-0.5 sm:px-5 sm:py-5">
+      <Card className="relative h-full flex-row items-center gap-4 px-4 py-4 transition duration-200 ease-out hover:z-10 hover:scale-[1.04] hover:shadow-xl hover:ring-2 hover:ring-primary/40 sm:px-5 sm:py-5">
         {icon && (
           <span className="hidden size-14 shrink-0 items-center justify-center rounded-full bg-muted text-primary sm:flex [&>svg]:size-6">
             {icon}
