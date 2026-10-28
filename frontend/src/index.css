@@ -94,3 +94,26 @@ html.nl-member *::-webkit-scrollbar { display: none; width: 0; height: 0; }
     transform: translateY(0);
   }
 }
+/* 카드의 즐겨찾기·텔레그램 버튼: 빛 반사로 볼록한 구슬 (시안 버튼-C) */
+.nl-orb-star {
+  background: radial-gradient(circle at 35% 25%, #ffffff 0, #f4f5f8 55%, #e2e5eb 100%);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.14), inset 0 -3px 6px rgba(0, 0, 0, 0.06);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.nl-orb-tg {
+  background: radial-gradient(circle at 35% 25%, #7fd6ff 0, #2aabee 50%, #1580bf 100%);
+  box-shadow: 0 5px 14px rgba(21, 128, 191, 0.45), inset 0 -3px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.nl-orb-star:active,
+.nl-orb-tg:active {
+  transform: translateY(1px) scale(0.95);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18), inset 0 2px 5px rgba(0, 0, 0, 0.12);
+}
+html.dark .nl-orb-star {
+  background: radial-gradient(circle at 35% 25%, #4a5578 0, #2b3350 55%, #1c2238 100%);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.45), inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+}
+html.dark .nl-orb-tg {
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.5), inset 0 -3px 6px rgba(0, 0, 0, 0.2);
+}

@@ -51,14 +51,14 @@ export function ChannelQuickActions({ channelId, link, title }: ChannelQuickActi
   };
 
   return (
-    <div className="flex shrink-0 items-center gap-1 self-center" onKeyDown={stop}>
+    <div className="flex shrink-0 items-center gap-1.5 self-center" onKeyDown={stop}>
       {/* 즐겨찾기 안 한 방만 노란 별. 이미 즐겨찾기한 방은 별을 숨긴다(해제는 즐겨찾기 탭에서) */}
       {!favorited && (
         <button
           type="button"
           onClick={(event) => void onFavorite(event)}
           aria-label={`${title ?? ''} 즐겨찾기 추가`}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-tg-secondary text-[16px] leading-none ring-1 ring-black/5 active:scale-95"
+          className="nl-orb-star flex h-9 w-9 items-center justify-center rounded-full text-[16px] leading-none"
         >
           <span aria-hidden>⭐</span>
         </button>
@@ -68,7 +68,7 @@ export function ChannelQuickActions({ channelId, link, title }: ChannelQuickActi
           type="button"
           onClick={onOpen}
           aria-label={`${title ?? ''} 텔레그램에서 바로가기`}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2AABEE] text-white active:scale-95"
+          className="nl-orb-tg flex h-9 w-9 items-center justify-center rounded-full text-white"
         >
           <svg viewBox="0 0 24 24" className="-ml-0.5 h-4 w-4" fill="currentColor" aria-hidden>
             <path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z" />
