@@ -703,7 +703,6 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
     resolveMemberDelta(item.memberDelta7d, item.memberCount, item.growth7d),
   );
   const post = item.latestPost ?? null;
-  const [showOriginal, setShowOriginal] = useState(false);
   const postUrl = post && item.username ? `https://t.me/${item.username}/${post.messageId}` : null;
   const mediaLabel = post ? MEDIA_LABEL[post.mediaType] : undefined;
   return (
@@ -743,7 +742,12 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
         <ChannelQuickActions channelId={item.id} link={item.link} title={item.title} />
       </div>
 
-      {post ? (
+      {post && postUrl ? (
+        // 텔레그램 공식 미리보기를 처음부터 보여 준다 (화면에 가까워질 때 불러옴)
+        <div className="border-t border-nl-line px-3 pt-2 pb-3">
+          <TelegramPostEmbed url={postUrl} />
+        </div>
+      ) : post ? (
         <div className="border-t border-nl-line px-4 pt-3 pb-3">
           {post.text ? (
             <p className="line-clamp-4 whitespace-pre-line text-[14px] leading-relaxed text-tg-text">
@@ -758,20 +762,7 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
             )}
             {post.views != null && <span>👁 {post.views.toLocaleString('ko-KR')}</span>}
             <span>{formatRelativeKo(post.postedAt)}</span>
-            {postUrl && (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setShowOriginal((v) => !v);
-                }}
-                className="ml-auto rounded-full bg-tg-open-bg px-3 py-1 text-[12px] font-semibold text-tg-open-text"
-              >
-                {showOriginal ? '원본 닫기 ▴' : '원본 보기 ▾'}
-              </button>
-            )}
           </div>
-          {showOriginal && postUrl && <TelegramPostEmbed url={postUrl} />}
         </div>
       ) : (
         <p className="border-t border-nl-line px-4 py-2.5 text-[11px] text-nl-muted">
@@ -785,7 +776,7 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
 /** 텔레그램 공식 게시글 미리보기 (사진·영상·전체 글). 우리 서버에는 저장하지 않는다 */
 function TelegramPostEmbed({ url }: { url: string }) {
   const ref = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState(360);
+  const [height, setHeight] = useState(240);
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== 'https://t.me' || event.source !== ref.current?.contentWindow) return;
@@ -801,7 +792,7 @@ function TelegramPostEmbed({ url }: { url: string }) {
   }, []);
   const dark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   return (
-    <div className="mt-3" onClick={(event) => event.stopPropagation()}>
+    <div onClick={(event) => event.stopPropagation()}>
       <iframe
         ref={ref}
         title="텔레그램 원본 게시글"
