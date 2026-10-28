@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   approveChannel,
+  getAdminStatsOps,
   collectAdminChannel,
   collectAdminChannels,
   deleteAdminChannel,
@@ -15,6 +16,7 @@ import {
   updateAdminChannel,
 } from '../../api/admin';
 import { AdminCategoryChipBar } from '../../components/admin/AdminCategoryChipBar';
+import { recheckCategoryWithAi } from '../../api/notifications';
 import { AdClientDetail } from '../../components/admin/AdClientInfo';
 import { AdminChannelOpens } from '../../components/admin/AdminChannelOpens';
 import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor';
@@ -506,6 +508,8 @@ export function AdminLinksManagePage() {
           onSelect={(value) => patchParams({ category: value })}
           counts={categoryCounts}
         />
+
+        {param(params, 'category') === '분류대기' && <PendingAiPanel onDone={() => void load()} />}
 
         <div className="mb-4 flex flex-wrap gap-2">
           <select value={param(params, 'status')} onChange={(e) => patchParams({ status: e.target.value })} className="rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-border">
@@ -1026,4 +1030,68 @@ function draftFromChannel(channel: PendingChannel): Draft {
     isVisible: channel.isVisible !== false,
     illegalCleared: Boolean(channel.illegalCleared),
   };
+}
+
+/** 분류대기 칩을 골랐을 때: AI 로 한꺼번에 분류하기 */
+function PendingAiPanel({ onDone }: { onDone: () => void }) {
+  const [ai, setAi] = useState<{ today: number; dailyMax: number; configured: boolean; stopped: boolean } | null>(null);
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    getAdminStatsOps()
+      .then((ops) => {
+        if (alive && ops.categoryAi) setAi(ops.categoryAi);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [running]);
+
+  const left = ai ? (ai.stopped ? 0 : Math.max(0, ai.dailyMax - ai.today)) : null;
+  const run = async () => {
+    setRunning(true);
+    setResult('');
+    try {
+      const r = await recheckCategoryWithAi('분류대기');
+      setResult(
+        r.total === 0
+          ? '분류할 방이 없어요.'
+          : `${r.total}개 중 ${r.changed.length}개를 카테고리로 옮겼어요.${
+              r.changed.length < r.total ? ' 나머지는 AI도 확신하지 못해 분류대기로 남았어요.' : ''
+            }`,
+      );
+      onDone();
+    } catch {
+      setResult('AI 분류 중 오류가 났어요. 잠시 뒤 다시 눌러 주세요.');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-violet-500/10 px-4 py-3 ring-1 ring-violet-500/30">
+      <div className="mr-auto text-sm">
+        <p className="font-semibold text-foreground">🤖 분류대기 방을 AI가 게시글·소개글을 보고 카테고리를 정해요</p>
+        <p className="mt-0.5 text-muted-foreground">
+          {ai == null
+            ? 'AI 사용량 확인 중…'
+            : !ai.configured
+              ? 'AI 키가 설정되지 않았어요.'
+              : `오늘 AI ${ai.today}/${ai.dailyMax} 사용 · 남은 ${left}회 (매일 0시 초기화)`}
+          {result && <span className="ml-2 font-semibold text-foreground">{result}</span>}
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={running || !ai?.configured || left === 0}
+        onClick={() => void run()}
+        className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+      >
+        {running ? 'AI 분류 중… (몇 분 걸려요)' : left === 0 ? '오늘 AI 한도 다 씀' : 'AI로 분류하기'}
+      </button>
+    </div>
+  );
 }
