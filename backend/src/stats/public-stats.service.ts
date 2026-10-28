@@ -63,6 +63,8 @@ import { RankAd } from '../ads/rank-ad.entity';
 import { composeAdSlots } from '../ads/rank-ad.logic';
 
 const HOME_CACHE_MS = 3 * 60 * 1000;
+/** 홈 피드에서 보는 최근 글 기간 */
+const FEED_LOOKBACK_DAYS = 7;
 /** 순위 목록용 공개 채널 묶음. 요청마다 전체 표를 읽지 않게 잠깐 들고 있는다 */
 const RANKING_POOL_MS = 60 * 1000;
 /**
@@ -512,6 +514,10 @@ export class PublicStatsService {
       .createQueryBuilder('post')
       .select('post.channel_id', 'channelId')
       .addSelect('MAX(post.posted_at)', 'lastPostAt')
+      // 피드는 최근 활동만 보면 되므로 최근 며칠 글만 훑는다 (게시글이 쌓여도 느려지지 않게)
+      .where('post.posted_at >= :since', {
+        since: new Date(Date.now() - FEED_LOOKBACK_DAYS * 86_400_000),
+      })
       .groupBy('post.channel_id')
       .getRawMany<Record<string, unknown>>();
     const lastMap = new Map<string, Date>();

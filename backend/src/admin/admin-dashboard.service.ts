@@ -17,6 +17,8 @@ import { describeAdminMemberVisibility } from '../stats/public-list-visibility.l
 
 type CountRow = Record<string, unknown>;
 
+const DASHBOARD_CACHE_MS = 60_000;
+
 @Injectable()
 export class AdminDashboardService {
   constructor(
@@ -26,7 +28,21 @@ export class AdminDashboardService {
     private readonly runRepository: Repository<StatsRun>,
   ) {}
 
+  /** 새로고침마다 전체 방을 다시 세지 않게 1분 동안 같은 결과를 쓴다 */
+  private cache: { at: number; data: unknown } | null = null;
+
   async getDashboard() {
+    if (this.cache && Date.now() - this.cache.at < DASHBOARD_CACHE_MS) {
+      return this.cache.data as Awaited<
+        ReturnType<AdminDashboardService['computeDashboard']>
+      >;
+    }
+    const data = await this.computeDashboard();
+    this.cache = { at: Date.now(), data };
+    return data;
+  }
+
+  private async computeDashboard() {
     const driver = String(
       this.channelRepository.manager.connection.options.type,
     );
