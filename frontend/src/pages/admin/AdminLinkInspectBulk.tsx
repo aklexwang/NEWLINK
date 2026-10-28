@@ -77,9 +77,10 @@ export function AdminLinkInspectBulk() {
   const [error, setError] = useState('');
   /** 등록 후 정상 항목이 남았을 때 "계속 등록할까요?" */
   const [askContinue, setAskContinue] = useState<number | null>(null);
+  /** 등록이 다 끝났을 때 화면 가운데에 띄우는 완료 안내 */
+  const [doneSummary, setDoneSummary] = useState<string | null>(null);
   /** 확인이 끝나면 다음에 누를 버튼을 깜빡여 알려 준다: 정상만 선택 → 선택 등록 */
   const [guide, setGuide] = useState<'select' | 'register' | null>(null);
-  const prevStatus = useRef<string | null>(null);
   const resultRef = useRef<HTMLElement>(null);
   const [registeredTotal, setRegisteredTotal] = useState(0);
   const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number } | null>(null);
@@ -106,18 +107,6 @@ export function AdminLinkInspectBulk() {
       })
       .catch(() => undefined);
   }, []);
-
-  // 확인 중 → 완료로 바뀌는 순간 다음 단계 안내 시작
-  useEffect(() => {
-    const now = job?.status ?? null;
-    if (prevStatus.current === 'running' && now === 'completed') {
-      const hasNormals = (job?.items ?? []).some((item) => item.result === 'ok' && !item.registeredChannelId);
-      setGuide(hasNormals ? 'select' : null);
-      if (!hasNormals) setMessage('확인이 끝났어요. 새로 등록할 정상 항목이 없어요.');
-      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    prevStatus.current = now;
-  }, [job?.status, job?.items]);
 
   // 수집기 창에서 보낸 아이디 받기 (확인·등록 중이면 받지 않음)
   const workingRef = useRef(false);
@@ -173,6 +162,13 @@ export function AdminLinkInspectBulk() {
         .then((next) => {
           setJob(next);
           setSelected((prev) => keepAllowedSelection(prev, next.items));
+          // 확인 중 → 완료로 바뀌는 순간 다음 단계 안내 시작
+          if (next.status === 'completed') {
+            const hasNormals = next.items.some((item) => item.result === 'ok' && !item.registeredChannelId);
+            setGuide(hasNormals ? 'select' : null);
+            if (!hasNormals) setMessage('확인이 끝났어요. 새로 등록할 정상 항목이 없어요.');
+            window.setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+          }
         })
         .catch(() => undefined);
     }, 2500);
@@ -250,6 +246,7 @@ export function AdminLinkInspectBulk() {
     setAskContinue(null);
     setRegisteredTotal(0);
     setMessage(summary);
+    setDoneSummary(summary.replace(/^✅ 등록이 완료되었습니다\. /, ''));
   };
 
   const stopAndClear = async () => {
@@ -343,6 +340,33 @@ export function AdminLinkInspectBulk() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
+      {doneSummary && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setDoneSummary(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-card p-7 text-center shadow-2xl ring-1 ring-border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-5xl" aria-hidden>
+              ✅
+            </p>
+            <p className="mt-3 text-2xl font-bold text-foreground">등록이 완료되었습니다</p>
+            <p className="mt-3 text-sm leading-relaxed text-subtle">{doneSummary}</p>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setDoneSummary(null)}
+              className="mt-6 h-12 w-full rounded-2xl bg-primary text-base font-bold text-white"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
       {message && <AdminMessage message={message} />}
       {error && (
         <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">

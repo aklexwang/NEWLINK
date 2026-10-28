@@ -14,6 +14,22 @@ const TABLE_LABEL: Record<string, string> = {
   admin_inspect_items: '대량 등록 확인 목록',
   analytics_events: '방문·클릭 기록',
   users: '회원',
+  discovery_keywords: '발견용 검색어',
+  admin_notifications: '어드민 알림',
+  payout_records: '보상 지급 기록',
+  channel_scores: '채널 점수',
+  category_proposals: '카테고리 제안',
+  categories: '카테고리',
+  rank_ads: '방 광고',
+  ad_daily_stats: '광고 성과 기록',
+  app_settings: '설정 값',
+  stats_runs: '수집 실행 기록',
+  search_logs: '검색 기록',
+  channel_favorites: '즐겨찾기',
+  channel_recommendations: '추천',
+  mtproto_state: 'MTProto 상태',
+  discovered_username_sources: '발견 출처',
+  admin_inspect_jobs: '대량 등록 작업',
 };
 
 const LEVEL_STYLE: Record<ServerLevel, { bar: string; chip: string; text: string }> = {
@@ -76,8 +92,18 @@ export function AdminServerStatusPage() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let alive = true;
+    getServerStatus()
+      .then((d) => {
+        if (alive) setData(d);
+      })
+      .catch((error: unknown) => {
+        if (alive) setMessage(adminApiErrorMessage(error, '서버 상황을 불러오지 못했습니다.'));
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const db = data?.db;
   const growthText =
