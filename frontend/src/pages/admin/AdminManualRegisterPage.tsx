@@ -11,7 +11,7 @@ export function AdminManualRegisterPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="border-b border-border bg-background px-6 pt-5">
-        <div className="mb-5 grid max-w-3xl grid-cols-2 gap-3">
+        <div className="mb-5 grid max-w-5xl grid-cols-3 gap-3">
           {(
             [
               { id: 'single', label: '🔗 단건', desc: '링크 하나 바로 등록' },
@@ -34,6 +34,17 @@ export function AdminManualRegisterPage() {
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => {
+              const w = window.open('/admin/collector', 'nl-collector', 'width=820,height=940');
+              w?.focus();
+            }}
+            className="rounded-2xl bg-card px-5 py-4 text-left text-foreground shadow-[var(--hz-shadow)] ring-2 ring-emerald-500/40 transition-colors hover:bg-muted"
+          >
+            <p className="text-[17px] font-bold">🧲 수집기 ↗</p>
+            <p className="mt-1 text-sm text-subtle">새 창에서 텍스트 속 아이디 찾기</p>
+          </button>
         </div>
       </div>
 

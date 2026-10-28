@@ -1,5 +1,10 @@
 import axios from 'axios';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  COLLECTOR_CHANNEL,
+  COLLECTOR_HANDOFF_KEY,
+  type CollectorHandoff,
+} from '../../utils/keywordFinder';
 import {
   clearAdminLinkInspect,
   getAdminCategories,
@@ -76,6 +81,9 @@ export function AdminLinkInspectBulk() {
   const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number } | null>(null);
   /** 확인·등록이 도는 동안은 새 링크 입력을 막는다 */
   const working = job?.status === 'running' || registerProgress != null;
+  useEffect(() => {
+    workingRef.current = working;
+  }, [working]);
 
   useEffect(() => {
     getAdminCategories()
@@ -93,6 +101,53 @@ export function AdminLinkInspectBulk() {
         }
       })
       .catch(() => undefined);
+  }, []);
+
+  // 수집기 창에서 보낸 아이디 받기 (확인·등록 중이면 받지 않음)
+  const workingRef = useRef(false);
+  useEffect(() => {
+    let lastAt = 0;
+    const take = (payload: CollectorHandoff | null | undefined) => {
+      if (!payload || !Array.isArray(payload.entries) || payload.at === lastAt) return;
+      lastAt = payload.at;
+      if (workingRef.current) {
+        setError('확인·등록 작업 중이라 수집기 목록을 받지 않았어요. 끝난 뒤 수집기에서 다시 보내 주세요.');
+        return;
+      }
+      setText(payload.entries.join('\n'));
+      setError('');
+      setMessage(`🧲 수집기에서 ${payload.entries.length.toLocaleString('ko-KR')}개를 받았어요. [확인]을 누르면 검사를 시작해요.`);
+      try {
+        localStorage.removeItem(COLLECTOR_HANDOFF_KEY);
+      } catch {
+        // 무시
+      }
+    };
+    let ch: BroadcastChannel | null = null;
+    try {
+      ch = new BroadcastChannel(COLLECTOR_CHANNEL);
+      ch.onmessage = (event) => take(event.data as CollectorHandoff);
+    } catch {
+      ch = null;
+    }
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const d = event.data as ({ type?: string } & CollectorHandoff) | null;
+      if (d?.type === COLLECTOR_CHANNEL) take(d);
+    };
+    window.addEventListener('message', onMessage);
+    // 이 화면을 열기 전에 보낸 목록 (5분 안)
+    try {
+      const raw = localStorage.getItem(COLLECTOR_HANDOFF_KEY);
+      const saved = raw ? (JSON.parse(raw) as CollectorHandoff) : null;
+      if (saved && Date.now() - saved.at < 5 * 60_000) take(saved);
+    } catch {
+      // 무시
+    }
+    return () => {
+      ch?.close();
+      window.removeEventListener('message', onMessage);
+    };
   }, []);
 
   useEffect(() => {

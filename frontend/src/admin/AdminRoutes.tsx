@@ -12,10 +12,13 @@ import { AdminOpensPage } from '../pages/admin/AdminOpensPage';
 import { AdminSearchInsightsPage } from '../pages/admin/AdminSearchInsightsPage';
 import { AdminSearchTermsPage } from '../pages/admin/AdminSearchTermsPage';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage';
+import { AdminCollectorToolPage } from '../pages/admin/AdminCollectorToolPage';
 
 export default function AdminRoutes() {
   return (
     <Routes>
+      {/* 수집기: 어드민 화면 밖 새 창 */}
+      <Route path="collector" element={<AdminCollectorToolPage />} />
       <Route element={<AdminLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboardPage />} />
