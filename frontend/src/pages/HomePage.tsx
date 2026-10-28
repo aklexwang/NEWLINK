@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { searchChannels } from '../api/channels';
 import { getHomeDashboard, getHomeFeed, type HomeCard, type HomeDashboard, type HomeFeedItem } from '../api/stats';
 import { ChannelList } from '../components/ChannelList';
+import { PublicPrivateBadge } from '../components/PublicPrivateBadge';
 import { GradeBadge } from '../components/GradeBadge';
 import { NewLinkLogo } from '../components/NewLinkLogo';
 import { BannerCarousel } from '../components/BannerCarousel';
@@ -16,7 +17,6 @@ import { ChannelQuickActions } from '../components/ChannelQuickActions';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
 import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import { trackTelegramOpen } from '../api/opens';
-import { isInviteLink } from '../utils/channelDetailPath';
 import { channelDetailPath } from '../utils/channelDetailPath';
 import { useAuth } from '../providers/AuthProvider';
 import { useTheme } from '../providers/ThemeProvider';
@@ -698,21 +698,6 @@ const MEDIA_ONLY_LABEL: Record<string, string> = {
   poll: '📊 투표 게시글',
   sticker: '스티커',
 };
-
-/** 공개방 "공"(초록) / 비공개 초대방 "비"(빨강) 한 글자 표시 */
-function PublicPrivateBadge({ link }: { link: string }) {
-  const isPrivate = isInviteLink(link);
-  return (
-    <span
-      title={isPrivate ? '비공개 방 (초대 링크)' : '공개 방'}
-      className={`inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] text-[10px] font-bold leading-none text-white ${
-        isPrivate ? 'bg-red-500' : 'bg-emerald-500'
-      }`}
-    >
-      {isPrivate ? '비' : '공'}
-    </span>
-  );
-}
 
 function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) {
   // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다

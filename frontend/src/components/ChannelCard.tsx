@@ -26,6 +26,7 @@ import { Sparkline } from './Sparkline';
 import { InitialAvatar } from './InitialAvatar';
 import { isBlankAvatarImage } from '../utils/avatarFallback';
 import { VerifiedBadge } from './VerifiedBadge';
+import { PublicPrivateBadge } from './PublicPrivateBadge';
 
 interface ChannelCardProps {
   channel: Channel;
@@ -185,6 +186,7 @@ export function ChannelCard({
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
+              <PublicPrivateBadge link={channel.link} />
               <p className="min-w-0 truncate text-[16px] font-bold leading-snug text-tg-text">
                 {channel.title}
               </p>
