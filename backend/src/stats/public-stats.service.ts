@@ -65,6 +65,9 @@ import { composeAdSlots } from '../ads/rank-ad.logic';
 const HOME_CACHE_MS = 3 * 60 * 1000;
 /** 홈 피드에서 보는 최근 글 기간 */
 const FEED_LOOKBACK_DAYS = 7;
+/** 예전에 저장된 채널 알림 글(종류 표시 전) 거르기 */
+const SERVICE_TEXT_RE =
+  /^(channel (photo|name|title) (updated|changed|removed)|channel created|.{0,80} pinned( a| «| ")|.{0,80}(pinned|고정했습니다)|live stream (started|finished|scheduled)|video chat (started|ended))/i;
 /** 순위 목록용 공개 채널 묶음. 요청마다 전체 표를 읽지 않게 잠깐 들고 있는다 */
 const RANKING_POOL_MS = 60 * 1000;
 /**
@@ -645,7 +648,9 @@ export class PublicStatsService {
     for (const post of posts) {
       if (map.has(post.channelId)) continue;
       // 고정·사진 변경 같은 "Service message"(글도 사진도 없는 알림)는 건너뛰고 그 전 글을 쓴다
+      if (post.mediaType === 'service') continue;
       if (post.mediaType === 'text' && !post.textExcerpt?.trim()) continue;
+      if (post.textExcerpt && SERVICE_TEXT_RE.test(post.textExcerpt.trim())) continue;
       map.set(post.channelId, {
         messageId: post.messageId,
         text: post.textExcerpt,

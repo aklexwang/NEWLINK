@@ -489,6 +489,10 @@ export function parseInviteLinkHtml(
 }
 
 function detectMediaType(node: Cheerio<Element>): ChannelPostMediaType {
+  // "○○ pinned …", "Channel photo updated" 같은 채널 알림
+  if (node.hasClass('service_message') || node.find('.tgme_widget_message_service').length > 0) {
+    return 'service';
+  }
   if (
     node.find(
       '.tgme_widget_message_video, .tgme_widget_message_video_wrap, .tgme_widget_message_video_player, .tgme_widget_message_roundvideo, .tgme_widget_message_roundvideo_wrap, video',

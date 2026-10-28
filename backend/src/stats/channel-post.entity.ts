@@ -6,7 +6,9 @@ export type ChannelPostMediaType =
   | 'photo'
   | 'video'
   | 'file'
-  | 'other';
+  | 'other'
+  /** 고정·사진 변경 같은 채널 알림 (실제 글 아님) */
+  | 'service';
 
 /** 채널에서 관측한 게시물 */
 @Entity('channel_posts')
