@@ -79,11 +79,15 @@ function CollectorTool() {
     return `${lines.toLocaleString('ko-KR')}줄, ${data.length.toLocaleString('ko-KR')}자`;
   }, [data]);
 
+  // "_ 빼기": 값 앞의 _ 만 지운다 (_c1476299484 → c1476299484). 값 자체는 남긴다
   const filtered = useMemo(
-    () => (rows && dropUnderscore ? rows.filter((r) => !r.value.trim().startsWith('_')) : rows),
+    () => (rows && dropUnderscore ? rows.map((r) => ({ ...r, value: r.value.trim().replace(/^_+/, '') })) : rows),
     [rows, dropUnderscore],
   );
-  const underscoreCount = (rows?.length ?? 0) - (filtered?.length ?? 0);
+  const underscoreCount = useMemo(
+    () => (rows ?? []).filter((r) => r.value.trim().startsWith('_')).length,
+    [rows],
+  );
   const shown = useMemo(
     () => (filtered && unique ? dedupeRows(filtered, caseSensitive) : filtered),
     [filtered, unique, caseSensitive],
@@ -270,7 +274,7 @@ function CollectorTool() {
               <input type="checkbox" checked={unique} onChange={(e) => setUnique(e.target.checked)} />
               중복 빼기
             </label>
-            <label className="flex items-center gap-2" title="_c3285789158 처럼 _ 로 시작하는 값은 결과에서 뺍니다">
+            <label className="flex items-center gap-2" title="_c3285789158 → c3285789158 처럼 값 앞의 _ 만 지웁니다">
               <input type="checkbox" checked={dropUnderscore} onChange={(e) => setDropUnderscore(e.target.checked)} />
               _ 빼기
             </label>
@@ -297,7 +301,7 @@ function CollectorTool() {
                   <span className="ml-1 font-normal text-muted-foreground">(중복 {(filtered.length - shown.length).toLocaleString('ko-KR')}개 뺌)</span>
                 )}
                 {dropUnderscore && underscoreCount > 0 && (
-                  <span className="ml-1 font-normal text-muted-foreground">(_로 시작 {underscoreCount.toLocaleString('ko-KR')}개 뺌)</span>
+                  <span className="ml-1 font-normal text-muted-foreground">(앞의 _ 지움 {underscoreCount.toLocaleString('ko-KR')}개)</span>
                 )}
               </p>
               <button type="button" onClick={() => void copyValues()} className="rounded-xl bg-muted px-3 py-2 text-sm ring-1 ring-border">
@@ -323,7 +327,7 @@ function CollectorTool() {
               <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-emerald-500/10 px-4 py-3 ring-1 ring-emerald-500/30">
                 <p className="mr-auto text-sm">
                   이 중 텔레그램 아이디로 쓸 수 있는 값 <b>{entries.length.toLocaleString('ko-KR')}개</b>
-                  <span className="ml-1 text-muted-foreground">(숫자만·_c123 같은 값은 뺌)</span>
+                  <span className="ml-1 text-muted-foreground">{dropUnderscore ? '(숫자만인 값은 뺌)' : '(숫자만·_c123 같은 값은 뺌)'}</span>
                 </p>
                 <button
                   type="button"
