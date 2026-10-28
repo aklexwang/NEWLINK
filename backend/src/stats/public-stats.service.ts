@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
@@ -40,6 +41,8 @@ import {
   formatKstYmd,
 } from './channel-metrics.math';
 import { ChannelPost } from './channel-post.entity';
+import { FeedFilterService } from './feed-filter.service';
+import { isAdPost } from './feed-filter.logic';
 import { ChannelScore } from './channel-score.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import type {
@@ -65,6 +68,13 @@ import { composeAdSlots } from '../ads/rank-ad.logic';
 const HOME_CACHE_MS = 3 * 60 * 1000;
 /** 홈 피드에서 보는 최근 글 기간 */
 const FEED_LOOKBACK_DAYS = 7;
+type LatestFeedPost = {
+  messageId: number;
+  text: string | null;
+  mediaType: string;
+  views: number | null;
+  postedAt: string;
+};
 /** 예전에 저장된 채널 알림 글(종류 표시 전) 거르기 */
 const SERVICE_TEXT_RE =
   /^(channel (photo|name|title) (updated|changed|removed)|channel created|.{0,80} pinned( a| «| ")|.{0,80}(pinned|고정했습니다)|live stream (started|finished|scheduled)|video chat (started|ended))/i;
@@ -168,6 +178,7 @@ export class PublicStatsService {
     private readonly channelsService: ChannelsService,
     @InjectRepository(RankAd)
     private readonly rankAdRepository: Repository<RankAd>,
+    @Optional() private readonly feedFilter?: FeedFilterService,
   ) {}
 
   async getDetailByUsername(usernameRaw: string) {
@@ -572,18 +583,36 @@ export class PublicStatsService {
       if (start < 0) start = rows.length;
     }
 
-    const slice = rows.slice(start, start + limit);
-    const last = slice[slice.length - 1];
+    // 광고 거르기: 제외 카테고리는 빼고, 최근 글에 광고 단어가 여러 개면 뺀다 (모자라면 다음 줄에서 채움)
+    const filter = await this.feedFilter?.get();
+    const excluded = new Set(filter?.excludeCategories ?? []);
+    const slice: typeof rows = [];
+    const latestPosts = new Map<string, LatestFeedPost>();
+    let lastScanned: (typeof rows)[number] | undefined;
+    let i = start;
+    while (slice.length < limit && i < rows.length) {
+      const chunk = rows.slice(i, i + Math.max(limit * 2, 30));
+      i += chunk.length;
+      const posts = await this.latestPostsFor(
+        chunk
+          .filter((r) => r.channel.linkType === LinkType.CHANNEL)
+          .map((r) => r.channel.id),
+      );
+      for (const row of chunk) {
+        lastScanned = row;
+        if (excluded.has(row.channel.category)) continue;
+        const post = posts.get(row.channel.id);
+        if (filter && post && isAdPost(post.text, filter)) continue;
+        if (post) latestPosts.set(row.channel.id, post);
+        slice.push(row);
+        if (slice.length >= limit) break;
+      }
+    }
+    const last = slice.length >= limit ? slice[slice.length - 1] : lastScanned;
     const nextCursor =
-      slice.length === limit && last?.lastPostAt
+      slice.length >= limit && last?.lastPostAt
         ? `${last.lastPostAt.toISOString()}::${last.channel.id}`
         : null;
-
-    const latestPosts = await this.latestPostsFor(
-      slice
-        .filter((r) => r.channel.linkType === LinkType.CHANNEL)
-        .map((r) => r.channel.id),
-    );
 
     const data = {
       items: slice.map(({ channel, lastPostAt, activityKind }) => ({
@@ -650,7 +679,8 @@ export class PublicStatsService {
       // 고정·사진 변경 같은 "Service message"(글도 사진도 없는 알림)는 건너뛰고 그 전 글을 쓴다
       if (post.mediaType === 'service') continue;
       if (post.mediaType === 'text' && !post.textExcerpt?.trim()) continue;
-      if (post.textExcerpt && SERVICE_TEXT_RE.test(post.textExcerpt.trim())) continue;
+      if (post.textExcerpt && SERVICE_TEXT_RE.test(post.textExcerpt.trim()))
+        continue;
       map.set(post.channelId, {
         messageId: post.messageId,
         text: post.textExcerpt,

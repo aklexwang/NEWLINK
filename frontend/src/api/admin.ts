@@ -1094,3 +1094,19 @@ export async function getServerStatus(): Promise<ServerStatus> {
   });
   return data;
 }
+
+export interface FeedFilterSettings {
+  excludeCategories: string[];
+  adWords: string[];
+  minHits: number;
+}
+
+export async function getFeedFilter(): Promise<FeedFilterSettings> {
+  const { data } = await apiClient.get<FeedFilterSettings>('/admin/feed-filter', { headers: getAdminAuthHeaders() });
+  return data;
+}
+
+export async function saveFeedFilter(input: FeedFilterSettings): Promise<FeedFilterSettings> {
+  const { data } = await apiClient.put<FeedFilterSettings>('/admin/feed-filter', input, { headers: getAdminAuthHeaders() });
+  return data;
+}

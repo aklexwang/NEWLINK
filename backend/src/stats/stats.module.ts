@@ -20,6 +20,9 @@ import { CategorySuggestionService } from './category-suggestion.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ChannelCollectorService } from './channel-collector.service';
 import { InviteDiscoveryQueueService } from './invite-discovery-queue.service';
+import { FeedFilterService } from './feed-filter.service';
+import { AdminFeedFilterController } from './admin-feed-filter.controller';
+import { AppSetting } from '../ads/app-setting.entity';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelDiscoveryService } from './channel-discovery.service';
 import { KeywordSearchService } from './keyword-search.service';
@@ -57,9 +60,11 @@ import { StatsService } from './stats.service';
       CategoryProposal,
       CategoryEntity,
       RankAd,
+      AppSetting,
     ]),
   ],
   controllers: [
+    AdminFeedFilterController,
     InternalStatsController,
     PublicChannelStatsController,
     PublicStatsController,
@@ -69,6 +74,7 @@ import { StatsService } from './stats.service';
     StatsService,
     ChannelCollectorService,
     InviteDiscoveryQueueService,
+    FeedFilterService,
     MtprotoCollectorService,
     ChannelDiscoveryService,
     DiscoveryKeywordService,

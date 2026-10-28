@@ -14,6 +14,7 @@ import { AdminSearchTermsPage } from '../pages/admin/AdminSearchTermsPage';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage';
 import { AdminCollectorToolPage } from '../pages/admin/AdminCollectorToolPage';
 import { AdminServerStatusPage } from '../pages/admin/AdminServerStatusPage';
+import { AdminFeedFilterPage } from '../pages/admin/AdminFeedFilterPage';
 
 export default function AdminRoutes() {
   return (
@@ -35,6 +36,7 @@ export default function AdminRoutes() {
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="server" element={<AdminServerStatusPage />} />
+        <Route path="feed-filter" element={<AdminFeedFilterPage />} />
       </Route>
     </Routes>
   );

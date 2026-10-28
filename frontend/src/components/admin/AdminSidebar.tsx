@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   ClipboardList,
+  Filter,
   FolderCog,
   LayoutDashboard,
   Link2,
@@ -59,6 +60,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { to: '/admin/categories', label: '카테고리 설정', icon: <FolderCog /> },
       { to: '/admin/search-terms', label: '검색 금지어', icon: <SearchX /> },
+      { to: '/admin/feed-filter', label: '홈 피드 광고 거르기', icon: <Filter /> },
     ],
   },
 ];
