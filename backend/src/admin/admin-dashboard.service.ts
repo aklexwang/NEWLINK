@@ -192,6 +192,19 @@ export class AdminDashboardService {
     }));
 
     const run = latest[0] ?? null;
+    // 이번 수집에서 실제로 성공(수집 상태 정상)한 채널 수: 수집 시각이 이번 실행 시간 안이고 상태가 ok
+    let succeeded: number | null = null;
+    if (run) {
+      succeeded = await this.channelRepository
+        .createQueryBuilder('channel')
+        .where('channel.lastCollectedAt >= :from', { from: run.startedAt })
+        .andWhere('channel.lastCollectedAt <= :to', {
+          to: run.finishedAt ?? new Date(),
+        })
+        .andWhere("channel.collectStatus = 'ok'")
+        .getCount()
+        .catch(() => null);
+    }
     return {
       channelCount,
       groupCount,
@@ -232,6 +245,18 @@ export class AdminDashboardService {
             processed: run.processed,
             total: run.total,
             remaining: Math.max(0, (run.total ?? 0) - (run.processed ?? 0)),
+            succeeded:
+              succeeded == null
+                ? null
+                : Math.min(succeeded, run.processed ?? 0),
+            failed:
+              succeeded == null
+                ? null
+                : Math.max(
+                    0,
+                    (run.processed ?? 0) -
+                      Math.min(succeeded, run.processed ?? 0),
+                  ),
             status: run.finishedAt
               ? (run.endedReason ?? 'completed')
               : 'running',

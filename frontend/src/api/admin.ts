@@ -114,6 +114,9 @@ export interface AdminDashboard {
     total: number;
     remaining?: number;
     status: string;
+    /** 이번 수집에서 실제로 성공한 채널 수 / 실패 수 */
+    succeeded?: number | null;
+    failed?: number | null;
   } | null;
 }
 

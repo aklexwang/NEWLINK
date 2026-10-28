@@ -77,8 +77,15 @@ export function AdminDashboardPage() {
   }, []);
 
   const run = data?.lastCollectRun;
+  const modeKo = (m: string) => (m === 'light' ? '가벼운 수집' : m === 'full' ? '전체 수집' : m);
+  const statusKo = (st: string) =>
+    st === 'completed' ? '완료' : st === 'running' ? '진행 중' : st === 'interrupted' ? '중간에 멈춤' : st;
   const runLabel = run
-    ? `${run.mode} · ${run.status} · 처리 ${run.processed}/${run.total}, 남은 ${run.remaining ?? Math.max(0, run.total - run.processed)}`
+    ? `${modeKo(run.mode)} · ${statusKo(run.status)} · ${run.total.toLocaleString('ko-KR')}개 중 ${
+        run.succeeded != null
+          ? `성공 ${run.succeeded.toLocaleString('ko-KR')} · 실패 ${(run.failed ?? 0).toLocaleString('ko-KR')}`
+          : `${run.processed.toLocaleString('ko-KR')}개 처리`
+      }${(run.remaining ?? 0) > 0 ? ` · 못 한 것 ${run.remaining}` : ''}`
     : '기록 없음';
 
   return (
