@@ -54,7 +54,8 @@ export class AdminDiscoveryService {
     if (
       input.source === 'snowball' ||
       input.source === 'keyword' ||
-      input.source === 'linked'
+      input.source === 'linked' ||
+      input.source === 'invite'
     ) {
       qb.andWhere('row.source = :source', { source: input.source });
     } else if (input.source === 'other') {

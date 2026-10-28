@@ -22,6 +22,8 @@ export interface ParsedPreviewPost {
   forwardedFrom: string | null;
   isEdited: boolean;
   mentionedUsernames: string[];
+  /** 글 속 비공개 초대 링크 해시 ("+AbC..." 형태, 대소문자 그대로) */
+  inviteHashes?: string[];
   textExcerpt: string | null;
 }
 
@@ -269,6 +271,7 @@ function parsePosts($: CheerioAPI): ParsedPreviewPost[] {
       forwardedFrom,
       isEdited: node.find('.tgme_widget_message_edited').length > 0,
       mentionedUsernames,
+      inviteHashes: extractTmeInvitesFromText(node.html() ?? ''),
       textExcerpt: clipPostExcerpt(rawText),
     });
   });
@@ -514,4 +517,28 @@ function detectMediaType(node: Cheerio<Element>): ChannelPostMediaType {
     return 'other';
   }
   return 'text';
+}
+
+const TME_INVITE_RE =
+  /(?:https?:\/\/)?(?:t\.me|telegram\.me|telegram\.dog)\/(?:\+|joinchat\/)([A-Za-z0-9_-]{10,40})/gi;
+
+/**
+ * 글·소개글 속 비공개 초대 링크(t.me/+해시, joinchat/해시)를 "+해시" 로 모은다.
+ * 해시는 대소문자가 다르면 다른 링크라서 그대로 둔다.
+ */
+export function extractTmeInvitesFromText(
+  text: string | null | undefined,
+): string[] {
+  if (!text) return [];
+  const found: string[] = [];
+  const seen = new Set<string>();
+  TME_INVITE_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = TME_INVITE_RE.exec(text))) {
+    const token = `+${match[1]}`;
+    if (seen.has(token)) continue;
+    seen.add(token);
+    found.push(token);
+  }
+  return found;
 }

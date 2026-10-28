@@ -52,6 +52,7 @@ export function discoverySourceLabel(
   if (source === 'snowball') return 'snowball';
   if (source === 'keyword') return 'keyword';
   if (source === 'linked') return '연결 대화방';
+  if (source === 'invite') return '🔒 초대 링크';
   return '기타';
 }
 

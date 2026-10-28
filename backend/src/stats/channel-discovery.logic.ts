@@ -170,7 +170,10 @@ export function mergeDiscoveryQueue(
     out.push({ ...item, source: 'mention' });
   }
   for (const raw of queuedRows) {
-    const username = raw.username.replace(/^@/, '').trim().toLowerCase();
+    // 비공개 초대 링크(+해시)는 대소문자를 그대로 둔다
+    const username = raw.username.startsWith('+')
+      ? raw.username.trim()
+      : raw.username.replace(/^@/, '').trim().toLowerCase();
     if (!username || known.has(username) || seen.has(username)) continue;
     seen.add(username);
     out.push({

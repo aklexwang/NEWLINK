@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { DailyCounterStore } from '../daily-counters/daily-counter-store.service';
+import { InviteDiscoveryQueueService } from './invite-discovery-queue.service';
 import { safeCount } from '../daily-counters/daily-counter.logic';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -83,6 +84,7 @@ import {
 } from './linked-chat.logic';
 import { MtprotoState } from './mtproto-state.entity';
 import {
+  extractTmeInvitesFromText,
   extractTmeUsernamesFromHtml,
   joinMentionedUsernames,
 } from './telegram-preview-html';
@@ -139,6 +141,7 @@ type HistoryPost = {
   forwardedFrom: string | null;
   isEdited: boolean;
   mentionedUsernames: string[];
+  inviteHashes?: string[];
   textExcerpt: string | null;
 };
 
@@ -176,6 +179,7 @@ export class MtprotoCollectorService implements OnModuleInit {
     @InjectRepository(DiscoveredUsername)
     private readonly discoveredRepository: Repository<DiscoveredUsername>,
     @Optional() private readonly dailyStore?: DailyCounterStore,
+    @Optional() private readonly inviteQueue?: InviteDiscoveryQueueService,
   ) {}
 
   async onModuleInit() {
@@ -829,6 +833,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       forwards?: number;
       editDate?: number;
       message?: string;
+      entities?: Array<{ url?: string }>;
       media?: { className?: string };
       fwdFrom?: {
         fromId?: { className?: string; channelId?: unknown };
@@ -850,6 +855,15 @@ export class MtprotoCollectorService implements OnModuleInit {
       forwardedFrom: this.forwardSource(msg.fwdFrom),
       isEdited: typeof msg.editDate === 'number' && msg.editDate > 0,
       mentionedUsernames: extractTmeUsernamesFromHtml(text, selfUsername),
+      // 글자 그대로 쓴 링크 + 글자에 숨겨 건 링크(텍스트 링크) 모두
+      inviteHashes: extractTmeInvitesFromText(
+        [
+          text,
+          ...(msg.entities ?? []).map((e) =>
+            typeof e.url === 'string' ? e.url : '',
+          ),
+        ].join(' '),
+      ),
       textExcerpt: clipPostExcerpt(text, MTPROTO_EXCERPT_MAX),
     };
   }
@@ -930,6 +944,9 @@ export class MtprotoCollectorService implements OnModuleInit {
         },
       });
       const prevMap = new Map(previous.map((row) => [row.messageId, row]));
+      await this.inviteQueue?.enqueue(
+        data.posts.flatMap((p) => p.inviteHashes ?? []),
+      );
       await this.postRepository.upsert(
         data.posts.map((post) => {
           const old = prevMap.get(post.messageId);

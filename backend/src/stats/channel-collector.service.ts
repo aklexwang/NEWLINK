@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Optional, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
@@ -50,6 +50,8 @@ import {
   shouldMarkLightNoPostsFailed,
 } from './stats-collect.logic';
 import { isCollectBudgetOver } from './collect-budget.logic';
+import { InviteDiscoveryQueueService } from './invite-discovery-queue.service';
+import { extractTmeInvitesFromText } from './telegram-preview-html';
 import { ChannelPost } from './channel-post.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import {
@@ -129,6 +131,7 @@ export class ChannelCollectorService {
     private readonly snapshotRepository: Repository<ChannelSnapshot>,
     private readonly configService: ConfigService,
     private readonly mtproto: MtprotoCollectorService,
+    @Optional() private readonly inviteQueue?: InviteDiscoveryQueueService,
   ) {}
 
   async collectAll(
@@ -448,11 +451,17 @@ export class ChannelCollectorService {
    * 초대 링크 방. 수집 계정이 이미 회원이면 MTProto 로 글 정보까지 읽고(가입은 하지 않음),
    * 아니면 공개 초대 페이지(제목·사진·회원 수)만 읽는다. 정기 수집·관리자 "지금 수집" 공통.
    */
-  private async collectInviteChannel(channel: Channel): Promise<CollectOneResult> {
+  private async collectInviteChannel(
+    channel: Channel,
+  ): Promise<CollectOneResult> {
     let note: string;
     if (this.mtproto.canCollectInvite(channel)) {
       const viaMember = await this.mtproto.collectInviteAndSave(channel);
-      if (viaMember.ok) return { ...viaMember, note: 'MTProto · 서버 계정이 회원이라 글 정보까지 읽음' };
+      if (viaMember.ok)
+        return {
+          ...viaMember,
+          note: 'MTProto · 서버 계정이 회원이라 글 정보까지 읽음',
+        };
       note =
         viaMember.reason === 'not_member'
           ? '서버 계정이 이 방 회원이 아니라 공개 초대 페이지만 읽음'
@@ -463,7 +472,6 @@ export class ChannelCollectorService {
     const preview = await this.collectInvitePreview(channel);
     return { ...preview, note };
   }
-
 
   /** 등록 직후: t.me 공개 페이지만 보고 first_observed_at 을 채운다 */
   async collectPublicPageNow(channelInput: Channel): Promise<CollectOneResult> {
@@ -711,6 +719,8 @@ export class ChannelCollectorService {
 
   private async upsertPosts(channelId: string, posts: ParsedPreviewPost[]) {
     if (posts.length === 0) return;
+    // 글 속 비공개 초대 링크는 발견 대기열로
+    await this.inviteQueue?.enqueue(posts.flatMap((p) => p.inviteHashes ?? []));
     const now = new Date();
     await this.postRepository.upsert(
       posts.map((post) => ({
@@ -1153,6 +1163,10 @@ export class ChannelCollectorService {
       kind?: 'channel' | 'group' | null;
     },
   ) {
+    // 소개글 속 비공개 초대 링크(백업방·홍보방 등)도 발견 대기열로
+    await this.inviteQueue?.enqueue(
+      extractTmeInvitesFromText(info.description),
+    );
     const now = new Date();
     const wasGone = channel.collectStatus === 'gone';
     const isFirst = channel.firstObservedAt == null;

@@ -8,6 +8,10 @@ import {
 } from '../auto-manage/channel-import-candidate.entity';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { AutoExposeService } from './auto-expose.service';
+import {
+  classifyAdminInspectPage,
+  toChannelLanguage,
+} from '../admin/admin-inspect.logic';
 import { isPublicCollectable } from './collect-visibility';
 import { hasIllegalDrugSuspicion } from '../channels/illegal-content.logic';
 import { extractTelegramUsernameFromLink } from '../channels/telegram-username';
@@ -170,10 +174,83 @@ export class ChannelDiscoveryService {
     return { checked, added };
   }
 
+  /** 비공개 초대 링크(+해시) 검사: 초대 페이지를 읽어 한국어·회원 수 조건이면 자동 등록 */
+  private async inspectInvite(
+    item: DiscoveryQueueItem,
+  ): Promise<DiscoveredUsernameResult> {
+    const link = `https://t.me/${item.username}`;
+    let result: DiscoveredUsernameResult = 'not_found';
+    try {
+      const page = await this.publicFetch.fetchHtml(link);
+      const inspected = classifyAdminInspectPage({
+        html: page.html,
+        status: page.status,
+        isInvite: true,
+        finalUrl: page.finalUrl,
+      });
+      if (inspected.result === 'ok' && inspected.title) {
+        const linkType =
+          inspected.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
+        const registered = await this.autoExpose.tryRegisterInspected(
+          {
+            link,
+            title: inspected.title,
+            description: inspected.description ?? '',
+            memberCount: inspected.memberCount,
+            username: null,
+            kind: linkType === LinkType.GROUP ? 'group' : 'channel',
+            language: toChannelLanguage(inspected.language) ?? 'unknown',
+            linkType,
+            avatarUrl: inspected.avatarUrl,
+          },
+          { skipCollect: true },
+        );
+        if (registered) {
+          result = 'added';
+        } else {
+          const dup = await this.channelRepository.exist({ where: { link } });
+          result = dup
+            ? 'already_registered'
+            : (inspected.memberCount ?? 0) < DISCOVERY_MIN_MEMBERS
+              ? 'too_small'
+              : 'not_korean';
+        }
+      } else if (inspected.result === 'invite_or_private') {
+        result = 'invite_or_private';
+      } else {
+        result =
+          inspected.result === 'language_unknown'
+            ? 'not_korean'
+            : inspected.result === 'not_korean' ||
+                inspected.result === 'too_small' ||
+                inspected.result === 'already_registered'
+              ? inspected.result
+              : 'not_found';
+      }
+    } catch (error) {
+      this.logger.warn(
+        `초대 링크 검사 실패: ${error instanceof Error ? error.message : error}`,
+      );
+      result = 'not_found';
+    }
+    await this.discoveredRepository.upsert(
+      {
+        username: item.username,
+        result,
+        checkedAt: new Date(),
+        mentionCount: item.mentionCount,
+        source: 'invite',
+      },
+      ['username'],
+    );
+    return result;
+  }
+
   private async inspectOne(
     item: DiscoveryQueueItem,
     channelById: Map<string, Channel>,
   ): Promise<DiscoveredUsernameResult> {
+    if (item.username.startsWith('+')) return this.inspectInvite(item);
     const link = `https://t.me/${item.username}`;
     let result: DiscoveredUsernameResult = 'not_found';
     try {
@@ -446,7 +523,10 @@ export class ChannelDiscoveryService {
     });
     const inspectable: QueuedDiscoveryRow[] = [];
     for (const row of rows) {
-      const username = row.username.replace(/^@/, '').trim().toLowerCase();
+      // 비공개 초대 링크(+해시)는 대소문자가 다르면 다른 링크라 그대로 둔다
+      const username = row.username.startsWith('+')
+        ? row.username.trim()
+        : row.username.replace(/^@/, '').trim().toLowerCase();
       if (registered.has(username)) {
         row.result = 'already_registered';
         row.checkedAt = new Date();

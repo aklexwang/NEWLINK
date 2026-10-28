@@ -19,6 +19,7 @@ import { CategoryReclassifyService } from './category-reclassify.service';
 import { CategorySuggestionService } from './category-suggestion.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ChannelCollectorService } from './channel-collector.service';
+import { InviteDiscoveryQueueService } from './invite-discovery-queue.service';
 import { MtprotoCollectorService } from './mtproto-collector.service';
 import { ChannelDiscoveryService } from './channel-discovery.service';
 import { KeywordSearchService } from './keyword-search.service';
@@ -67,6 +68,7 @@ import { StatsService } from './stats.service';
     ChannelQuickPreviewService,
     StatsService,
     ChannelCollectorService,
+    InviteDiscoveryQueueService,
     MtprotoCollectorService,
     ChannelDiscoveryService,
     DiscoveryKeywordService,
