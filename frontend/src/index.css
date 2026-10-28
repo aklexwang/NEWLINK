@@ -117,3 +117,14 @@ html.dark .nl-orb-star {
 html.dark .nl-orb-tg {
   box-shadow: 0 5px 14px rgba(0, 0, 0, 0.5), inset 0 -3px 6px rgba(0, 0, 0, 0.2);
 }
+
+/* 홈 위 오른쪽 MY / 로그인: 텔레그램 파랑 입체 버튼 (시안 MY-2) */
+.nl-my-btn {
+  background: linear-gradient(180deg, #37b9f5, #1e96d6);
+  box-shadow: 0 3px 0 #1679ad, 0 6px 12px rgba(30, 150, 214, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.nl-my-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 #1679ad, 0 2px 5px rgba(30, 150, 214, 0.3);
+}
