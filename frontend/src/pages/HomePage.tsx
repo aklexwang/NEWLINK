@@ -798,7 +798,9 @@ function TelegramPostEmbed({ url }: { url: string }) {
         title="텔레그램 원본 게시글"
         src={`${url}?embed=1&userpic=false${dark ? '&dark=1' : ''}`}
         loading="lazy"
-        className="w-full rounded-xl border-0"
+        tabIndex={-1}
+        // 상자 안(로고·이름·링크)은 눌리지 않게: 텔레그램 웹으로 튀어 나가는 것 방지
+        className="pointer-events-none w-full rounded-xl border-0"
         style={{ height }}
       />
     </div>
