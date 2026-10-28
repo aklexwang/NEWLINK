@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { COLLECTOR_CHANNEL } from '../../utils/keywordFinder';
 import { AdminLinkInspectBulk } from './AdminLinkInspectBulk';
 import { AdminLinkRegisterPage } from './AdminLinkRegisterPage';
 
@@ -6,7 +8,29 @@ type RegisterTab = 'single' | 'bulk';
 
 /** 관리자가 텔레그램 링크를 직접 찾아 등록하는 통합 메뉴 */
 export function AdminManualRegisterPage() {
-  const [tab, setTab] = useState<RegisterTab>('single');
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState<RegisterTab>(searchParams.get('tab') === 'bulk' ? 'bulk' : 'single');
+
+  // 수집기에서 [대량 등록으로 보내기] 를 누르면 대량 탭으로 바꾼다 (목록은 대량 화면이 받음)
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const d = event.data as { type?: string } | null;
+      if (d?.type === COLLECTOR_CHANNEL) setTab('bulk');
+    };
+    window.addEventListener('message', onMessage);
+    let ch: BroadcastChannel | null = null;
+    try {
+      ch = new BroadcastChannel(COLLECTOR_CHANNEL);
+      ch.onmessage = () => setTab('bulk');
+    } catch {
+      ch = null;
+    }
+    return () => {
+      window.removeEventListener('message', onMessage);
+      ch?.close();
+    };
+  }, []);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

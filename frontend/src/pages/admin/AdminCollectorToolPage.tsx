@@ -40,6 +40,30 @@ function download(name: string, content: string, mime: string) {
  * 수집기: 새 창으로 열리는 키워드 찾기 도구 (윈도우 KeywordFinder 와 같은 동작).
  * 넣은 데이터는 이 창 안에서만 처리하고 서버로 보내지 않는다.
  */
+const BULK_PATH = '/admin/register-link';
+
+/** 어드민 창을 링크 등록 › 대량 화면으로 열고(없으면 새로 열고) 목록을 넘긴다 */
+function openBulkScreen(payload: CollectorHandoff) {
+  const opener = window.opener as Window | null;
+  try {
+    if (opener && !opener.closed) {
+      if (opener.location.pathname === BULK_PATH) {
+        // 이미 링크 등록 화면: 대량 탭으로 바꾸고 목록 전달
+        opener.postMessage({ type: COLLECTOR_CHANNEL, ...payload }, window.location.origin);
+      } else {
+        // 다른 화면이면 대량 화면으로 이동 (목록은 저장해 둔 것으로 받음)
+        opener.location.href = `${BULK_PATH}?tab=bulk`;
+      }
+      opener.focus();
+      return;
+    }
+  } catch {
+    // 다른 주소의 창이면 아래에서 새로 연다
+  }
+  const w = window.open(`${BULK_PATH}?tab=bulk`, 'nl-admin');
+  w?.focus();
+}
+
 export function AdminCollectorToolPage() {
   return (
     <AdminThemeProvider>
@@ -152,7 +176,7 @@ function CollectorTool() {
     } catch {
       // 오래된 브라우저
     }
-    window.opener?.postMessage({ type: COLLECTOR_CHANNEL, ...payload }, window.location.origin);
+    openBulkScreen(payload);
     const next = start + batch.length;
     setSentOffset(next);
     const left = entries.length - next;
