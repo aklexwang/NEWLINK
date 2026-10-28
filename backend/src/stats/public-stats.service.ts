@@ -41,6 +41,7 @@ import {
   formatKstYmd,
 } from './channel-metrics.math';
 import { ChannelPost } from './channel-post.entity';
+import { dedupeByTitle, normalizeTitleKey } from './title-dedupe.logic';
 import { FeedFilterService } from './feed-filter.service';
 import { isAdPost } from './feed-filter.logic';
 import { ChannelScore } from './channel-score.entity';
@@ -571,6 +572,17 @@ export class PublicStatsService {
         return b.channel.id.localeCompare(a.channel.id);
       });
 
+    // 이름이 같은 방은 최근 활동이 더 최근인 하나만
+    const seenTitles = new Set<string>();
+    const uniqueRows = rows.filter((row) => {
+      const key = normalizeTitleKey(row.channel.title);
+      if (!key) return true;
+      if (seenTitles.has(key)) return false;
+      seenTitles.add(key);
+      return true;
+    });
+    rows.length = 0;
+    rows.push(...uniqueRows);
     const cursor = parseFeedCursor(query.cursor);
     let start = 0;
     if (cursor) {
@@ -934,6 +946,8 @@ export class PublicStatsService {
     }
 
     channels.sort((a, b) => this.compareRanking(a, b, sort));
+    // 이름이 같은 방(같은 방의 다른 주소 등)은 순위가 높은 하나만
+    channels = dedupeByTitle(channels);
     const slice = sliceRankingPage(channels, query.offset, limit);
 
     return this.toRankingItems(slice, this.countByCategory(channels), today);
