@@ -10,6 +10,8 @@ interface ChannelQuickActionsProps {
   title?: string;
   /** 작게 (홈 피드 카드 등) */
   compact?: boolean;
+  /** 텔레그램 버튼 숨기기 (다른 곳에 열기 버튼이 있을 때) */
+  hideTelegram?: boolean;
 }
 
 /**
@@ -17,7 +19,13 @@ interface ChannelQuickActionsProps {
  * 바로가기는 텔레그램의 그 방으로 바로 연다(미니앱이면 텔레그램 안에서).
  * 카드 클릭(상세로 이동)과 겹치지 않게 이벤트를 막는다.
  */
-export function ChannelQuickActions({ channelId, link, title, compact = false }: ChannelQuickActionsProps) {
+export function ChannelQuickActions({
+  channelId,
+  link,
+  title,
+  compact = false,
+  hideTelegram = false,
+}: ChannelQuickActionsProps) {
   const { webApp, isLocalBrowser } = useTelegram();
   const { status } = useAuth();
   const { favoriteIds, toggleFavorite, load } = useMyFavorites();
@@ -65,7 +73,7 @@ export function ChannelQuickActions({ channelId, link, title, compact = false }:
           <span aria-hidden>⭐</span>
         </button>
       )}
-      {link && (
+      {link && !hideTelegram && (
         <button
           type="button"
           onClick={onOpen}

@@ -14,7 +14,8 @@ import { useCategories } from '../hooks/useCategories';
 import { useMyFavorites } from '../hooks/useMyFavorites';
 import { ChannelQuickActions } from '../components/ChannelQuickActions';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
-import { hapticSuccess, notifyUser, useTelegram } from '../hooks/useTelegram';
+import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
+import { trackTelegramOpen } from '../api/opens';
 import { channelDetailPath } from '../utils/channelDetailPath';
 import { useAuth } from '../providers/AuthProvider';
 import { useTheme } from '../providers/ThemeProvider';
@@ -703,7 +704,12 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
     '7일',
     resolveMemberDelta(item.memberDelta7d, item.memberCount, item.growth7d),
   );
+  const { webApp, isLocalBrowser } = useTelegram();
   const post = item.latestPost ?? null;
+  const openRoom = () => {
+    trackTelegramOpen(item.id);
+    openTelegramChannel(webApp, isLocalBrowser, item.link);
+  };
   const postUrl = post && item.username ? `https://t.me/${item.username}/${post.messageId}` : null;
   const mediaLabel = post ? MEDIA_LABEL[post.mediaType] : undefined;
   return (
@@ -740,13 +746,19 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
             {deltaLine ? ` · ${deltaLine}` : ''}
           </span>
         </span>
-        <ChannelQuickActions channelId={item.id} link={item.link} title={item.title} compact />
+        <ChannelQuickActions
+          channelId={item.id}
+          link={item.link}
+          title={item.title}
+          compact
+          hideTelegram={Boolean(post && postUrl)}
+        />
       </div>
 
       {post && postUrl ? (
         // 텔레그램 공식 미리보기를 처음부터 보여 준다 (화면에 가까워질 때 불러옴)
         <div className="border-t border-nl-line px-3 pt-2 pb-3">
-          <TelegramPostEmbed url={postUrl} />
+          <TelegramPostEmbed url={postUrl} onOpenRoom={openRoom} title={item.title} />
         </div>
       ) : post ? (
         <div className="border-t border-nl-line px-4 pt-3 pb-3">
@@ -775,7 +787,7 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
 }
 
 /** 텔레그램 공식 게시글 미리보기 (사진·영상·전체 글). 우리 서버에는 저장하지 않는다 */
-function TelegramPostEmbed({ url }: { url: string }) {
+function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onOpenRoom: () => void; title: string }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(240);
   useEffect(() => {
@@ -793,7 +805,7 @@ function TelegramPostEmbed({ url }: { url: string }) {
   }, []);
   const dark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   return (
-    <div onClick={(event) => event.stopPropagation()}>
+    <div className="relative" onClick={(event) => event.stopPropagation()}>
       <iframe
         ref={ref}
         title="텔레그램 원본 게시글"
@@ -803,6 +815,16 @@ function TelegramPostEmbed({ url }: { url: string }) {
         // 상자 안(로고·이름·링크)은 눌리지 않게: 텔레그램 웹으로 튀어 나가는 것 방지
         className="pointer-events-none w-full rounded-xl border-0"
         style={{ height }}
+      />
+      {/* 상자 오른쪽 위 텔레그램 로고 자리: 누르면 이 방을 텔레그램 앱으로 연다 */}
+      <button
+        type="button"
+        aria-label={`${title} 텔레그램에서 열기`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenRoom();
+        }}
+        className="absolute top-0 right-0 h-12 w-14 rounded-tr-xl"
       />
     </div>
   );
