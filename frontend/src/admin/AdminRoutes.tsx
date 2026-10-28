@@ -13,6 +13,7 @@ import { AdminSearchInsightsPage } from '../pages/admin/AdminSearchInsightsPage'
 import { AdminSearchTermsPage } from '../pages/admin/AdminSearchTermsPage';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage';
 import { AdminCollectorToolPage } from '../pages/admin/AdminCollectorToolPage';
+import { AdminServerStatusPage } from '../pages/admin/AdminServerStatusPage';
 
 export default function AdminRoutes() {
   return (
@@ -33,6 +34,7 @@ export default function AdminRoutes() {
         <Route path="search-terms" element={<AdminSearchTermsPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="users" element={<AdminUsersPage />} />
+        <Route path="server" element={<AdminServerStatusPage />} />
       </Route>
     </Routes>
   );

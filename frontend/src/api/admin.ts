@@ -1067,3 +1067,28 @@ export async function getChannelQuickPreview(id: string): Promise<QuickPreview> 
   });
   return data;
 }
+
+export type ServerLevel = 'ok' | 'warn' | 'danger';
+export interface ServerStatus {
+  checkedAt: string;
+  db: {
+    usedMb: number;
+    limitMb: number;
+    percent: number;
+    level: ServerLevel;
+    growthMbPerDay: number | null;
+    daysUntilFull: number | null;
+    tables: Array<{ name: string; mb: number; rows: number }>;
+    history: Array<{ d: string; mb: number }>;
+  };
+  memory: { usedMb: number; heapMb: number; limitMb: number; percent: number; level: ServerLevel };
+  server: { startedAt: string; uptimeHours: number; node: string; load1m: number };
+  plan: { web: string; db: string };
+}
+
+export async function getServerStatus(): Promise<ServerStatus> {
+  const { data } = await apiClient.get<ServerStatus>('/admin/server-status', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}

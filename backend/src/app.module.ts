@@ -51,6 +51,7 @@ import { AddUserAdvertiser1761490000000 } from './migrations/1761490000000-AddUs
 import { AddAdAdvertiserAndStats1761500000000 } from './migrations/1761500000000-AddAdAdvertiserAndStats';
 import { AddStoredImages1761510000000 } from './migrations/1761510000000-AddStoredImages';
 import { StoredImagesModule } from './stored-images/stored-images.module';
+import { ServerStatusModule } from './server-status/server-status.module';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -237,6 +238,7 @@ function truthy(value: string | undefined): boolean {
     AdsModule,
     DailyCountersModule,
     StoredImagesModule,
+    ServerStatusModule,
     AutoManageModule,
     PaymentsModule,
     RankingModule,

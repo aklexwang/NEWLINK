@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Search,
   SearchX,
+  Server,
   Star,
   Timer,
   Users,
@@ -68,6 +69,7 @@ const MORE_ITEMS: NavItem[] = [
   { to: '/admin/discovery', label: '발견', icon: <RefreshCw /> },
   { to: '/admin/search-insights', label: '검색 인사이트', icon: <Search /> },
   { to: '/admin/opens', label: '텔레그램 이동 순위', icon: <MousePointerClick /> },
+  { to: '/admin/server', label: '서버 상황', icon: <Server /> },
 ];
 
 const MORE_KEY = 'tl-admin-more-open';
