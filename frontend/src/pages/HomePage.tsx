@@ -16,6 +16,7 @@ import { ChannelQuickActions } from '../components/ChannelQuickActions';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
 import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import { trackTelegramOpen } from '../api/opens';
+import { isInviteLink } from '../utils/channelDetailPath';
 import { channelDetailPath } from '../utils/channelDetailPath';
 import { useAuth } from '../providers/AuthProvider';
 import { useTheme } from '../providers/ThemeProvider';
@@ -698,6 +699,21 @@ const MEDIA_ONLY_LABEL: Record<string, string> = {
   sticker: '스티커',
 };
 
+/** 공개방 "공"(초록) / 비공개 초대방 "비"(빨강) 한 글자 표시 */
+function PublicPrivateBadge({ link }: { link: string }) {
+  const isPrivate = isInviteLink(link);
+  return (
+    <span
+      title={isPrivate ? '비공개 방 (초대 링크)' : '공개 방'}
+      className={`inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] text-[10px] font-bold leading-none text-white ${
+        isPrivate ? 'bg-red-500' : 'bg-emerald-500'
+      }`}
+    >
+      {isPrivate ? '비' : '공'}
+    </span>
+  );
+}
+
 function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) {
   // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다
   const deltaLine = formatDeltaLine(
@@ -731,6 +747,7 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
         <Avatar channel={item} size="sm" />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
+            <PublicPrivateBadge link={item.link} />
             <span className="min-w-0 truncate text-[14px] font-semibold">{item.title}</span>
             <GradeBadge
               grade={item.grade}
