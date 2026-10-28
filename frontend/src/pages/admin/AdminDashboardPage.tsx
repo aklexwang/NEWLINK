@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Eye,
   EyeOff,
+  Lock,
   Megaphone,
   Radio,
   Timer,
@@ -91,6 +92,17 @@ export function AdminDashboardPage() {
           <div className="mt-5 grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
             <StatCard to="/admin/links?type=channel" label="채널" icon={<Radio />} value={data.channelCount} />
             <StatCard to="/admin/links?type=group" label="그룹" icon={<Users />} value={data.groupCount} />
+            <StatCard
+              to="/admin/links?q=t.me%2F%2B"
+              label="비공개 채널"
+              icon={<Lock />}
+              value={data.privateRooms?.channel ?? 0}
+              sub={
+                data.privateRooms
+                  ? `비공개 그룹 ${data.privateRooms.group.toLocaleString('ko-KR')} · 검사 대기 링크 ${data.privateRooms.queuedInvites.toLocaleString('ko-KR')}`
+                  : undefined
+              }
+            />
             <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" icon={<Eye />} value={data.memberVisible} sub={data.memberAdultOnly ? `성인 카테고리 ${data.memberAdultOnly.toLocaleString('ko-KR')} 포함` : undefined} />
             <StatCard to="/admin/links?memberPage=no" label="회원 페이지 숨김" icon={<EyeOff />} value={data.memberHidden} />
             <StatCard to="/admin/links?status=pending" label="승인 대기" icon={<ClipboardList />} value={data.pendingCount} />

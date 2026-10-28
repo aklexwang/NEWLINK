@@ -45,6 +45,8 @@ export class AdminDashboardService {
       todayRows,
       weekRows,
       latest,
+      privateRows,
+      inviteQueueRows,
       adminRecent,
     ] = await Promise.all([
       this.channelRepository
@@ -100,12 +102,41 @@ export class AdminDashboardService {
         order: { startedAt: 'DESC' },
         take: 1,
       }),
+      // 비공개(초대 링크) 방 수: 채널·그룹별
+      this.channelRepository
+        .createQueryBuilder('channel')
+        .select('channel.linkType', 'linkType')
+        .addSelect('COUNT(*)', 'cnt')
+        .where('channel.status = :active', { active: ChannelStatus.ACTIVE })
+        .andWhere(
+          "(channel.link LIKE '%t.me/+%' OR channel.link LIKE '%/joinchat/%')",
+        )
+        .groupBy('channel.linkType')
+        .getRawMany<CountRow>(),
+      // 자동 발견이 모아 둔 초대 링크 중 아직 검사 전인 수
+      this.channelRepository.manager
+        .query(
+          "SELECT COUNT(*) AS cnt FROM discovered_usernames WHERE source = 'invite' AND result = 'queued'",
+        )
+        .catch(() => [{ cnt: 0 }]) as Promise<CountRow[]>,
       // 링크 등록(어드민)으로 최근 7일 넣은 방: 회원 노출 여부까지 센다
       this.channelRepository.find({
         select: [
-          'id', 'createdAt', 'status', 'isVisible', 'firstObservedAt', 'collectStatus',
-          'collectError', 'language', 'isPromoted', 'autoRegistered', 'submittedBy',
-          'category', 'title', 'description', 'illegalCleared',
+          'id',
+          'createdAt',
+          'status',
+          'isVisible',
+          'firstObservedAt',
+          'collectStatus',
+          'collectError',
+          'language',
+          'isPromoted',
+          'autoRegistered',
+          'submittedBy',
+          'category',
+          'title',
+          'description',
+          'illegalCleared',
         ],
         where: {
           createdAt: MoreThanOrEqual(weekStart),
@@ -148,6 +179,15 @@ export class AdminDashboardService {
     return {
       channelCount,
       groupCount,
+      privateRooms: {
+        channel: privateRows
+          .filter((r) => String(r.linkType) !== 'group')
+          .reduce((a, r) => a + toCount(r), 0),
+        group: privateRows
+          .filter((r) => String(r.linkType) === 'group')
+          .reduce((a, r) => a + toCount(r), 0),
+        queuedInvites: toCount(inviteQueueRows[0] ?? {}),
+      },
       memberVisible: member.visible,
       memberHidden: member.hidden,
       memberAdultOnly: member.adultOnly,
@@ -159,7 +199,9 @@ export class AdminDashboardService {
         last7d: fillSourceCounts(weekRows),
       },
       adminRegistered: {
-        today: countAdminVisibility(adminRecent.filter((row) => row.createdAt >= todayStart)),
+        today: countAdminVisibility(
+          adminRecent.filter((row) => row.createdAt >= todayStart),
+        ),
         last7d: countAdminVisibility(adminRecent),
       },
       pendingCount,
@@ -184,7 +226,11 @@ export class AdminDashboardService {
 }
 
 /** 링크 등록으로 들어온 방 중 회원 화면에 보이는 수 / 숨김 수 */
-function countAdminVisibility(rows: Channel[]): { total: number; visible: number; hidden: number } {
+function countAdminVisibility(rows: Channel[]): {
+  total: number;
+  visible: number;
+  hidden: number;
+} {
   let visible = 0;
   for (const row of rows) {
     if (describeAdminMemberVisibility(row).visible) visible += 1;

@@ -95,6 +95,8 @@ export interface AdminDashboard {
     today: { auto: number; admin: number; report: number; total: number };
     last7d: { auto: number; admin: number; report: number; total: number };
   };
+  /** 비공개(초대 링크) 방 수와 검사 대기 중인 초대 링크 수 */
+  privateRooms?: { channel: number; group: number; queuedInvites: number };
   /** 링크 등록(어드민)으로 넣은 방과 그중 회원 화면 노출 수 */
   adminRegistered?: {
     today: { total: number; visible: number; hidden: number };
