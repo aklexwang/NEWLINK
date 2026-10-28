@@ -64,6 +64,8 @@ function CollectorTool() {
   const [mode, setMode] = useState<'key' | 'line'>('key');
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [unique, setUnique] = useState(true);
+  /** _c3285789158 처럼 _ 로 시작하는 값(아이디 없는 방 번호)은 결과에서 뺀다 */
+  const [dropUnderscore, setDropUnderscore] = useState(true);
   const [rows, setRows] = useState<FoundRow[] | null>(null);
   const [notice, setNotice] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -77,7 +79,15 @@ function CollectorTool() {
     return `${lines.toLocaleString('ko-KR')}줄, ${data.length.toLocaleString('ko-KR')}자`;
   }, [data]);
 
-  const shown = useMemo(() => (rows && unique ? dedupeRows(rows, caseSensitive) : rows), [rows, unique, caseSensitive]);
+  const filtered = useMemo(
+    () => (rows && dropUnderscore ? rows.filter((r) => !r.value.trim().startsWith('_')) : rows),
+    [rows, dropUnderscore],
+  );
+  const underscoreCount = (rows?.length ?? 0) - (filtered?.length ?? 0);
+  const shown = useMemo(
+    () => (filtered && unique ? dedupeRows(filtered, caseSensitive) : filtered),
+    [filtered, unique, caseSensitive],
+  );
   const entries = useMemo(() => (shown && mode === 'key' ? collectTelegramEntries(shown) : []), [shown, mode]);
 
   const loadFiles = async (files: FileList | File[] | null) => {
@@ -260,6 +270,10 @@ function CollectorTool() {
               <input type="checkbox" checked={unique} onChange={(e) => setUnique(e.target.checked)} />
               중복 빼기
             </label>
+            <label className="flex items-center gap-2" title="_c3285789158 처럼 _ 로 시작하는 값은 결과에서 뺍니다">
+              <input type="checkbox" checked={dropUnderscore} onChange={(e) => setDropUnderscore(e.target.checked)} />
+              _ 빼기
+            </label>
           </div>
           <button
             type="button"
@@ -279,8 +293,11 @@ function CollectorTool() {
             <div className="flex flex-wrap items-center gap-2">
               <p className="mr-auto text-sm font-semibold">
                 결과 {shown.length.toLocaleString('ko-KR')}개
-                {rows && unique && rows.length !== shown.length && (
-                  <span className="ml-1 font-normal text-muted-foreground">(중복 {(rows.length - shown.length).toLocaleString('ko-KR')}개 뺌)</span>
+                {filtered && unique && filtered.length !== shown.length && (
+                  <span className="ml-1 font-normal text-muted-foreground">(중복 {(filtered.length - shown.length).toLocaleString('ko-KR')}개 뺌)</span>
+                )}
+                {dropUnderscore && underscoreCount > 0 && (
+                  <span className="ml-1 font-normal text-muted-foreground">(_로 시작 {underscoreCount.toLocaleString('ko-KR')}개 뺌)</span>
                 )}
               </p>
               <button type="button" onClick={() => void copyValues()} className="rounded-xl bg-muted px-3 py-2 text-sm ring-1 ring-border">
