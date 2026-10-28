@@ -117,10 +117,6 @@ export function BottomNav() {
           <NavIcon active={isSubmitActive}>📣</NavIcon>
           <span>제보</span>
         </a>
-        <NavLink to="/my" className={navClass}>
-          <NavIcon active={location.pathname.startsWith('/my')}>👤</NavIcon>
-          <span>MY</span>
-        </NavLink>
       </div>
     </nav>
   );
