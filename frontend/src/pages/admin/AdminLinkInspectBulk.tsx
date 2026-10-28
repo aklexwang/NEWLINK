@@ -74,6 +74,8 @@ export function AdminLinkInspectBulk() {
   const [askContinue, setAskContinue] = useState<number | null>(null);
   const [registeredTotal, setRegisteredTotal] = useState(0);
   const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number } | null>(null);
+  /** 확인·등록이 도는 동안은 새 링크 입력을 막는다 */
+  const working = job?.status === 'running' || registerProgress != null;
 
   useEffect(() => {
     getAdminCategories()
@@ -275,13 +277,29 @@ export function AdminLinkInspectBulk() {
         <p className="mt-1 text-xs text-muted-foreground">
           t.me 링크, @아이디, 아이디만. 한 줄에 하나, 최대 500줄. 중복은 빼 둡니다.
         </p>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={10}
-          className="mt-3 w-full rounded-xl bg-muted px-4 py-3 font-mono text-sm outline-none ring-1 ring-border focus:ring-ring/40"
-          placeholder={'https://t.me/example\n@username\nchannelid'}
-        />
+        <div className="relative mt-3">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            readOnly={working}
+            rows={10}
+            className={`w-full rounded-xl bg-muted px-4 py-3 font-mono text-sm outline-none ring-1 ring-border focus:ring-ring/40 ${working ? 'pointer-events-none opacity-40' : ''}`}
+            placeholder={'https://t.me/example\n@username\nchannelid'}
+          />
+          {working && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-background/60 text-center backdrop-blur-[1px]">
+              <span className="text-3xl" aria-hidden>
+                ⏳
+              </span>
+              <p className="text-base font-bold text-foreground">
+                {registerProgress ? '등록 작업 중입니다…' : '링크 확인 작업 중입니다…'}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                끝나면 새 링크를 넣을 수 있어요. 헷갈리지 않게 지금은 입력을 막아 두었어요.
+              </p>
+            </div>
+          )}
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select
             value={category}
@@ -297,7 +315,7 @@ export function AdminLinkInspectBulk() {
           </select>
           <button
             type="button"
-            disabled={busy || !text.trim()}
+            disabled={busy || working || !text.trim()}
             onClick={() => void startInspect()}
             className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
           >
