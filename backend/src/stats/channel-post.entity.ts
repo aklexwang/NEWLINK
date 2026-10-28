@@ -14,6 +14,7 @@ export type ChannelPostMediaType =
 @Entity('channel_posts')
 @Unique('uq_channel_posts_channel_message', ['channelId', 'messageId'])
 @Index('idx_channel_posts_channel', ['channelId'])
+@Index('idx_channel_posts_posted_at', ['postedAt'])
 export class ChannelPost {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -50,6 +50,7 @@ import { AddAdPayments1761480000000 } from './migrations/1761480000000-AddAdPaym
 import { AddUserAdvertiser1761490000000 } from './migrations/1761490000000-AddUserAdvertiser';
 import { AddAdAdvertiserAndStats1761500000000 } from './migrations/1761500000000-AddAdAdvertiserAndStats';
 import { AddStoredImages1761510000000 } from './migrations/1761510000000-AddStoredImages';
+import { AddChannelPostsPostedAtIndex1761520000000 } from './migrations/1761520000000-AddChannelPostsPostedAtIndex';
 import { StoredImagesModule } from './stored-images/stored-images.module';
 import { ServerStatusModule } from './server-status/server-status.module';
 
@@ -124,6 +125,7 @@ function truthy(value: string | undefined): boolean {
                 AddUserAdvertiser1761490000000,
                 AddAdAdvertiserAndStats1761500000000,
                 AddStoredImages1761510000000,
+                AddChannelPostsPostedAtIndex1761520000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -177,6 +179,7 @@ function truthy(value: string | undefined): boolean {
               AddUserAdvertiser1761490000000,
               AddAdAdvertiserAndStats1761500000000,
               AddStoredImages1761510000000,
+              AddChannelPostsPostedAtIndex1761520000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -226,6 +229,7 @@ function truthy(value: string | undefined): boolean {
             AddUserAdvertiser1761490000000,
             AddAdAdvertiserAndStats1761500000000,
             AddStoredImages1761510000000,
+            AddChannelPostsPostedAtIndex1761520000000,
           ],
         };
       },
