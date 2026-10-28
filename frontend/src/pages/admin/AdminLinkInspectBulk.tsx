@@ -77,6 +77,10 @@ export function AdminLinkInspectBulk() {
   const [error, setError] = useState('');
   /** 등록 후 정상 항목이 남았을 때 "계속 등록할까요?" */
   const [askContinue, setAskContinue] = useState<number | null>(null);
+  /** 확인이 끝나면 다음에 누를 버튼을 깜빡여 알려 준다: 정상만 선택 → 선택 등록 */
+  const [guide, setGuide] = useState<'select' | 'register' | null>(null);
+  const prevStatus = useRef<string | null>(null);
+  const resultRef = useRef<HTMLElement>(null);
   const [registeredTotal, setRegisteredTotal] = useState(0);
   const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number } | null>(null);
   /** 확인·등록이 도는 동안은 새 링크 입력을 막는다 */
@@ -102,6 +106,18 @@ export function AdminLinkInspectBulk() {
       })
       .catch(() => undefined);
   }, []);
+
+  // 확인 중 → 완료로 바뀌는 순간 다음 단계 안내 시작
+  useEffect(() => {
+    const now = job?.status ?? null;
+    if (prevStatus.current === 'running' && now === 'completed') {
+      const hasNormals = (job?.items ?? []).some((item) => item.result === 'ok' && !item.registeredChannelId);
+      setGuide(hasNormals ? 'select' : null);
+      if (!hasNormals) setMessage('확인이 끝났어요. 새로 등록할 정상 항목이 없어요.');
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    prevStatus.current = now;
+  }, [job?.status, job?.items]);
 
   // 수집기 창에서 보낸 아이디 받기 (확인·등록 중이면 받지 않음)
   const workingRef = useRef(false);
@@ -172,6 +188,7 @@ export function AdminLinkInspectBulk() {
   );
 
   const startInspect = async () => {
+    setGuide(null);
     setBusy(true);
     setError('');
     setMessage('');
@@ -253,9 +270,11 @@ export function AdminLinkInspectBulk() {
 
   const selectNormals = () => {
     setSelected(new Set(selectable.slice(0, REGISTER_MAX).map((item) => item.id)));
+    if (guide === 'select') setGuide('register');
   };
 
   const registerSelected = async () => {
+    setGuide(null);
     if (job?.status !== 'completed') {
       setError('확인이 다 끝난 뒤에 등록할 수 있어요.');
       return;
@@ -405,7 +424,7 @@ export function AdminLinkInspectBulk() {
       </section>
 
       {job && (
-        <section className="mt-6 rounded-[20px] bg-card p-5 shadow-[var(--hz-shadow)]">
+        <section ref={resultRef} className="mt-6 scroll-mt-4 rounded-[20px] bg-card p-5 shadow-[var(--hz-shadow)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-subtle">
               {job.processed}/{job.total} 확인
@@ -413,11 +432,18 @@ export function AdminLinkInspectBulk() {
               {job.status === 'interrupted' ? ' · 중단됨' : ''}
               {job.status === 'completed' ? ' · 완료' : ''}
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {guide && (
+                <span className="text-sm font-bold text-emerald-600">
+                  👉 다음: {guide === 'select' ? '[정상만 선택]을 누르세요' : '[선택 등록]을 누르세요'}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={selectNormals}
-                className="rounded-xl bg-card px-3 py-2 text-sm text-subtle ring-1 ring-border hover:bg-muted"
+                className={`rounded-xl px-3 py-2 text-sm ring-1 ring-border hover:bg-muted ${
+                  guide === 'select' ? 'admin-guide-blink bg-emerald-500 font-bold text-white hover:bg-emerald-600' : 'bg-card text-subtle'
+                }`}
               >
                 정상만 선택
               </button>
@@ -426,7 +452,9 @@ export function AdminLinkInspectBulk() {
                 disabled={busy || selected.size === 0 || job.status !== 'completed'}
                 title={job.status !== 'completed' ? '확인이 다 끝난 뒤에 등록할 수 있어요' : undefined}
                 onClick={() => void registerSelected()}
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+                className={`rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50 ${
+                  guide === 'register' ? 'admin-guide-blink font-bold' : ''
+                }`}
               >
                 {registerProgress
                   ? `등록 중… ${registerProgress.done}/${registerProgress.total}`

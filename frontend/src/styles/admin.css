@@ -159,3 +159,15 @@
 }
 .admin-root [data-slot="table-row"] { border-color: var(--border); }
 .admin-root [data-slot="table-cell"] { color: var(--foreground); font-weight: 500; }
+
+/* 다음에 누를 버튼 깜빡임 안내 (대량 등록) */
+@keyframes admin-guide-blink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.0); transform: scale(1); }
+  50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.45); transform: scale(1.06); }
+}
+.admin-guide-blink {
+  position: relative;
+  animation: admin-guide-blink 1s ease-in-out infinite;
+  outline: 2px solid rgb(16 185 129);
+  outline-offset: 2px;
+}
