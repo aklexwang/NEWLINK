@@ -376,6 +376,13 @@ export class AdminRegisterManyDto {
   category?: string;
 }
 
+export class AdminRegisterStartDto extends AdminRegisterManyDto {
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  jobId?: string;
+}
+
 export class UpdateImportCandidateDto {
   @IsString()
   @IsOptional()

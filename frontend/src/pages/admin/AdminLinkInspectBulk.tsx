@@ -6,11 +6,14 @@ import {
   type CollectorHandoff,
 } from '../../utils/keywordFinder';
 import {
+  REGISTER_WATCH_KEY,
+  getAdminRegisterStatus,
+  startAdminRegister,
+  type AdminRegisterRun,
   clearAdminLinkInspect,
   getAdminCategories,
   getAdminLinkInspectJob,
   getLatestAdminLinkInspect,
-  registerAdminInspectMany,
   resumeAdminLinkInspect,
   startAdminLinkInspect,
   type AdminInspectItemResult,
@@ -32,8 +35,8 @@ const RESULT_LABEL: Record<AdminInspectItemResult, string> = {
 };
 
 const REGISTER_MAX = 100;
-/** 한 번 요청에 보내는 개수 */
-const REGISTER_CHUNK = 5;
+/** 이 창에서 완료 처리를 마친 등록 번호 */
+const REGISTER_ACK_KEY = 'nl-register-acked';
 
 // 정상과 '언어 미확인'(경고만)은 등록할 수 있다. 미확인은 기본 선택에서 빠진다.
 function isRegistrable(item: AdminInspectItemView) {
@@ -270,9 +273,80 @@ export function AdminLinkInspectBulk() {
     if (guide === 'select') setGuide('register');
   };
 
+  /** 등록이 끝난 뒤: 남은 정상 항목이 있으면 "계속 등록?", 없으면 목록 지우고 완료 안내 */
+  const afterRegister = async (run: AdminRegisterRun) => {
+    try {
+      localStorage.setItem(REGISTER_ACK_KEY, run.id);
+    } catch {
+      // 무시
+    }
+    const total = registeredTotal + run.ok;
+    setRegisteredTotal(total);
+    const next = await getAdminLinkInspectJob(run.jobId).catch(() => null);
+    if (!next) {
+      setMessage(`✅ 등록이 완료되었습니다. 새로 등록 ${run.ok}개${run.fail ? ` · 건너뜀 ${run.fail}개` : ''}`);
+      return;
+    }
+    const remaining = remainingNormals(next.items);
+    if (remaining > 0) {
+      setJob(next);
+      setSelected(defaultSelected(next.items));
+      setAskContinue(remaining);
+      setMessage(`${run.ok}개 등록${run.fail > 0 ? `, ${run.fail}개 건너뜀` : ''} (첫 수집까지 완료).`);
+    } else {
+      await finishAndClear(next, total);
+    }
+  };
+
+  /** 서버 등록이 끝날 때까지 2초마다 진행 상황 확인 */
+  const watchRegister = async (runId: string) => {
+    setBusy(true);
+    try {
+      for (;;) {
+        const run = await getAdminRegisterStatus().catch(() => null);
+        if (!run || run.id !== runId) break;
+        setRegisterProgress({ done: run.done, total: run.total });
+        if (job && run.done > 0) {
+          getAdminLinkInspectJob(run.jobId)
+            .then((next) => setJob(next))
+            .catch(() => undefined);
+        }
+        if (!run.running) {
+          await afterRegister(run);
+          break;
+        }
+        await new Promise((r) => window.setTimeout(r, 2000));
+      }
+    } finally {
+      setRegisterProgress(null);
+      setBusy(false);
+    }
+  };
+
+  // 화면에 다시 들어왔을 때: 서버 등록이 진행 중이면 이어서 보여 주고, 내가 안 본 완료가 있으면 마무리
+  useEffect(() => {
+    let alive = true;
+    getAdminRegisterStatus()
+      .then((run) => {
+        if (!alive || !run) return;
+        let acked: string | null;
+        try {
+          acked = localStorage.getItem(REGISTER_ACK_KEY);
+        } catch {
+          acked = null;
+        }
+        if (run.running || acked !== run.id) void watchRegister(run.id);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const registerSelected = async () => {
     setGuide(null);
-    if (job?.status !== 'completed') {
+    if (!job || job.status !== 'completed') {
       setError('확인이 다 끝난 뒤에 등록할 수 있어요.');
       return;
     }
@@ -284,57 +358,24 @@ export function AdminLinkInspectBulk() {
       setError(`한 번에 최대 ${REGISTER_MAX}개만 등록할 수 있습니다.`);
       return;
     }
-    setBusy(true);
     setError('');
     setMessage('');
-    // 방마다 미리보기·첫 수집까지 하느라 몇 초씩 걸린다. 5개씩 나눠 보내 진행 상황을 바로 보여 준다
-    const ids = [...selected];
-    let okCount = 0;
-    let failCount = 0;
     try {
-      for (let i = 0; i < ids.length; i += REGISTER_CHUNK) {
-        setRegisterProgress({ done: i, total: ids.length });
-        const { results } = await registerAdminInspectMany({
-          ids: ids.slice(i, i + REGISTER_CHUNK),
-          category: category || undefined,
-        });
-        okCount += results.filter((row) => row.ok).length;
-        failCount += results.filter((row) => !row.ok).length;
-        if (job) {
-          const next = await getAdminLinkInspectJob(job.id);
-          setJob(next);
-        }
+      // 서버가 혼자 끝까지 등록한다 (다른 화면으로 가거나 창을 닫아도 계속)
+      const run = await startAdminRegister({
+        jobId: job.id,
+        ids: [...selected],
+        category: category || undefined,
+      });
+      try {
+        localStorage.setItem(REGISTER_WATCH_KEY, run.id);
+      } catch {
+        // 무시
       }
-      const total = registeredTotal + okCount;
-      setRegisteredTotal(total);
-      if (job) {
-        const next = await getAdminLinkInspectJob(job.id);
-        const remaining = remainingNormals(next.items);
-        if (remaining > 0) {
-          setJob(next);
-          setSelected(defaultSelected(next.items));
-          setAskContinue(remaining);
-          setMessage(
-            `${okCount}개 등록${failCount > 0 ? `, ${failCount}개 건너뜀` : ''} (첫 수집까지 완료).`,
-          );
-        } else {
-          await finishAndClear(next, total);
-        }
-      }
+      setMessage('등록을 서버에서 진행해요. 다른 화면으로 가도 계속되고, 끝나면 어디서든 알려 드려요.');
+      await watchRegister(run.id);
     } catch (err) {
-      setError(
-        `${okCount}개 등록 후 멈췄습니다: ${apiErrorMessage(err, '등록에 실패했습니다.')} 다시 [선택 등록]을 누르면 남은 것만 이어서 등록해요.`,
-      );
-      if (job) {
-        const next = await getAdminLinkInspectJob(job.id).catch(() => null);
-        if (next) {
-          setJob(next);
-          setSelected(defaultSelected(next.items));
-        }
-      }
-    } finally {
-      setRegisterProgress(null);
-      setBusy(false);
+      setError(apiErrorMessage(err, '등록을 시작하지 못했습니다.'));
     }
   };
 

@@ -1110,3 +1110,33 @@ export async function saveFeedFilter(input: FeedFilterSettings): Promise<FeedFil
   const { data } = await apiClient.put<FeedFilterSettings>('/admin/feed-filter', input, { headers: getAdminAuthHeaders() });
   return data;
 }
+
+export interface AdminRegisterRun {
+  id: string;
+  jobId: string;
+  total: number;
+  done: number;
+  ok: number;
+  fail: number;
+  running: boolean;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+/** 서버에서 혼자 끝까지 등록 시작 (화면을 떠나도 계속) */
+export async function startAdminRegister(payload: { jobId: string; ids: string[]; category?: string }): Promise<AdminRegisterRun> {
+  const { data } = await apiClient.post<AdminRegisterRun>('/admin/links/register-start', payload, {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function getAdminRegisterStatus(): Promise<AdminRegisterRun | null> {
+  const { data } = await apiClient.get<AdminRegisterRun | null>('/admin/links/register-status', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data || null;
+}
+
+/** 등록이 끝나면 어드민 어디서든 알려 주려고 지켜볼 등록 번호 */
+export const REGISTER_WATCH_KEY = 'nl-register-watch';

@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { LogOut, Menu, Moon, PanelLeft, Sun } from 'lucide-react';
 import '@/styles/admin.css';
 import { AdminPendingAlertBanner } from './AdminPendingAlertBanner';
+import { RegisterDoneWatcher } from './RegisterDoneWatcher';
 import { AdminNotificationBell } from './AdminNotificationBell';
 import { AdminLoginScreen } from './AdminLoginScreen';
 import { AdminSidebar, adminPageTitle } from './AdminSidebar';
@@ -141,6 +142,7 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
           </div>
         </header>
         <AdminPendingAlertBanner />
+        <RegisterDoneWatcher />
         <div className="min-w-0 flex-1 overflow-x-auto">
           <Outlet />
         </div>

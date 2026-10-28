@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  Optional,
   Injectable,
   Logger,
   NotFoundException,
@@ -22,6 +23,7 @@ import { createPublicTelegramFetcher } from '../stats/public-telegram-fetch.logi
 import { StatsJobService } from '../stats/stats-job.service';
 import { describeMemberPageVisibility } from '../stats/public-list-visibility.logic';
 import { StatsRun } from '../stats/stats-run.entity';
+import { AdminNotificationService } from '../notifications/admin-notification.service';
 import { shouldBlockAdminCollect } from './admin-collect.logic';
 import {
   AdminInspectJob,
@@ -66,7 +68,81 @@ export class AdminInspectService implements OnModuleInit {
     private readonly channelRepository: Repository<Channel>,
     @InjectRepository(StatsRun)
     private readonly runRepository: Repository<StatsRun>,
+    @Optional() private readonly notifications?: AdminNotificationService,
   ) {}
+
+  /** 서버에서 혼자 도는 대량 등록 (화면을 떠나도 계속) */
+  private registerRun: {
+    id: string;
+    jobId: string;
+    total: number;
+    done: number;
+    ok: number;
+    fail: number;
+    running: boolean;
+    startedAt: string;
+    finishedAt: string | null;
+  } | null = null;
+
+  registerStatus() {
+    return this.registerRun;
+  }
+
+  /** 등록을 서버에서 시작하고 바로 돌려준다. 끝나면 어드민 종 알림 */
+  startRegister(jobId: string, ids: string[], category?: string) {
+    if (this.registerRun?.running) {
+      throw new ConflictException(
+        '이미 등록 작업이 진행 중입니다. 끝난 뒤 다시 눌러 주세요.',
+      );
+    }
+    let unique: string[];
+    try {
+      unique = assertRegisterManySize(ids);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : '등록할 수 없습니다.',
+      );
+    }
+    const run = {
+      id: randomUUID(),
+      jobId,
+      total: unique.length,
+      done: 0,
+      ok: 0,
+      fail: 0,
+      running: true,
+      startedAt: new Date().toISOString(),
+      finishedAt: null as string | null,
+    };
+    this.registerRun = run;
+    void (async () => {
+      for (let i = 0; i < unique.length; i += 1) {
+        try {
+          await this.registerOne(unique[i], category);
+          run.ok += 1;
+        } catch {
+          run.fail += 1;
+        }
+        run.done += 1;
+        if (i < unique.length - 1) await sleep(PUBLIC_INSPECT_GAP_MS);
+      }
+      run.running = false;
+      run.finishedAt = new Date().toISOString();
+      await this.notifications
+        ?.notifyOnce({
+          key: `bulk-register:${run.id}`,
+          type: 'bulk_register',
+          title: `✅ 대량 등록이 완료되었습니다 (${run.ok}개 등록)`,
+          body:
+            run.fail > 0
+              ? `${run.fail}개는 건너뜀 (이미 등록됨 등)`
+              : undefined,
+          link: '/admin/register-link?tab=bulk',
+        })
+        .catch(() => undefined);
+    })();
+    return run;
+  }
 
   async onModuleInit() {
     const now = new Date();

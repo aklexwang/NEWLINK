@@ -12,7 +12,11 @@ import {
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { AdminInspectService } from './admin-inspect.service';
-import { AdminInspectTextDto, AdminRegisterManyDto } from './dto/admin.dto';
+import {
+  AdminInspectTextDto,
+  AdminRegisterManyDto,
+  AdminRegisterStartDto,
+} from './dto/admin.dto';
 
 @Controller('admin/links')
 @UseGuards(TelegramAuthGuard, TelegramAdminGuard)
@@ -45,6 +49,21 @@ export class AdminInspectController {
   @Delete('inspect/:jobId')
   clear(@Param('jobId') jobId: string) {
     return this.inspect.clearJob(jobId);
+  }
+
+  /** 서버에서 혼자 끝까지 등록 (화면을 떠나도 계속) */
+  @Post('register-start')
+  registerStart(@Body() dto: AdminRegisterStartDto) {
+    return this.inspect.startRegister(
+      String(dto.jobId ?? ''),
+      dto.ids,
+      dto.category,
+    );
+  }
+
+  @Get('register-status')
+  registerStatus() {
+    return this.inspect.registerStatus();
   }
 
   @Post('register-many')
