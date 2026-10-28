@@ -119,7 +119,8 @@ export function HomePage() {
   const [headlineIndex, setHeadlineIndex] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const [feedType, setFeedType] = useState<FeedType>('all');
+  // 홈 피드는 채널만 (그룹은 글을 저장하지 않아 보여 줄 글이 없음)
+  const feedType: FeedType = 'channel';
   const [feed, setFeed] = useState<HomeFeedItem[]>([]);
   const [feedCursor, setFeedCursor] = useState<string | null>(null);
   const [feedLoading, setFeedLoading] = useState(true);
@@ -621,33 +622,10 @@ export function HomePage() {
 
       <section className="px-4 pt-5">
         <h2 className="text-[15px] font-bold">최근 활발한 채널</h2>
-        {/* 카테고리 화면과 같은 전체 / 채널 / 그룹 */}
-        <div className="mt-2 flex rounded-full bg-black/[0.05] p-0.5 dark:bg-white/[0.05]">
-          {(
-            [
-              ['all', '전체'],
-              ['channel', '채널'],
-              ['group', '그룹'],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setFeedType(id)}
-              className={`flex-1 rounded-full py-1.5 text-[13px] font-semibold ${
-                feedType === id
-                  ? 'bg-nl-card text-tg-text shadow-sm ring-1 ring-nl-line dark:bg-nl-elev dark:ring-white/10'
-                  : 'text-tg-hint'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-3">
           {feedLoading && feed.length === 0
             ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-[76px] animate-pulse rounded-2xl bg-nl-card" />
+                <div key={i} className="h-[180px] animate-pulse rounded-2xl bg-nl-card" />
               ))
             : feed.map((item) => (
                 <FeedCard key={item.id} item={item} onOpen={() => goChannel(item)} />
@@ -700,12 +678,34 @@ function TopChip({ rank, item, onOpen }: { rank: number; item: HomeCard; onOpen:
   );
 }
 
+const MEDIA_LABEL: Record<string, string> = {
+  photo: '📷 사진 포함',
+  video: '🎬 영상 포함',
+  document: '📎 파일 포함',
+  audio: '🎵 음성 포함',
+  poll: '📊 투표',
+  sticker: '스티커',
+};
+
+const MEDIA_ONLY_LABEL: Record<string, string> = {
+  photo: '📷 사진 게시글',
+  video: '🎬 영상 게시글',
+  document: '📎 파일 게시글',
+  audio: '🎵 음성 게시글',
+  poll: '📊 투표 게시글',
+  sticker: '스티커',
+};
+
 function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) {
   // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다
   const deltaLine = formatDeltaLine(
     '7일',
     resolveMemberDelta(item.memberDelta7d, item.memberCount, item.growth7d),
   );
+  const post = item.latestPost ?? null;
+  const [showOriginal, setShowOriginal] = useState(false);
+  const postUrl = post && item.username ? `https://t.me/${item.username}/${post.messageId}` : null;
+  const mediaLabel = post ? MEDIA_LABEL[post.mediaType] : undefined;
   return (
     // 등급 배지가 버튼이라 카드는 button 이 아니라 role="link" 로 둔다 (버튼 안 버튼 방지)
     <div
@@ -719,29 +719,97 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
           onOpen();
         }
       }}
-      className="flex w-full cursor-pointer items-center gap-3 rounded-[20px] bg-nl-card px-3.5 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line active:scale-[0.99]"
+      className="w-full cursor-pointer overflow-hidden rounded-[20px] bg-nl-card text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line"
     >
-      <Avatar channel={item} size="lg" />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
-          <span className="min-w-0 truncate text-[14px] font-semibold">{item.title}</span>
-          <GradeBadge
-            grade={item.grade}
-            size="sm"
-            channelId={item.id}
-            linkType={item.linkType}
-            score={item.score}
-          />
+      <div className="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
+        <Avatar channel={item} size="lg" />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5">
+            <span className="min-w-0 truncate text-[14px] font-semibold">{item.title}</span>
+            <GradeBadge
+              grade={item.grade}
+              size="sm"
+              channelId={item.id}
+              linkType={item.linkType}
+              score={item.score}
+            />
+          </span>
+          <span className="mt-0.5 block truncate text-[11px] text-nl-muted">
+            {item.username ? `@${item.username} · ` : ''}
+            {item.category} · {formatMembers(item.memberCount)}
+            {deltaLine ? ` · ${deltaLine}` : ''}
+          </span>
         </span>
-        <span className="mt-0.5 block truncate text-[11px] text-nl-muted">
-          {item.category} · {formatMembers(item.memberCount)}
-          {deltaLine ? ` · ${deltaLine}` : ''}
-        </span>
-        <span className="text-[11px] text-nl-muted">
+        <ChannelQuickActions channelId={item.id} link={item.link} title={item.title} />
+      </div>
+
+      {post ? (
+        <div className="border-t border-nl-line px-4 pt-3 pb-3">
+          {post.text ? (
+            <p className="line-clamp-4 whitespace-pre-line text-[14px] leading-relaxed text-tg-text">
+              {post.text.replace(/\n{2,}/g, '\n').trim()}
+            </p>
+          ) : (
+            <p className="text-[13px] text-nl-muted">{MEDIA_ONLY_LABEL[post.mediaType] ?? '글 내용 없는 게시글'}</p>
+          )}
+          <div className="mt-2.5 flex items-center gap-2 text-[12px] text-nl-muted">
+            {mediaLabel && post.text && (
+              <span className="rounded-full bg-nl-elev px-2 py-0.5 ring-1 ring-nl-line">{mediaLabel}</span>
+            )}
+            {post.views != null && <span>👁 {post.views.toLocaleString('ko-KR')}</span>}
+            <span>{formatRelativeKo(post.postedAt)}</span>
+            {postUrl && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowOriginal((v) => !v);
+                }}
+                className="ml-auto rounded-full bg-tg-open-bg px-3 py-1 text-[12px] font-semibold text-tg-open-text"
+              >
+                {showOriginal ? '원본 닫기 ▴' : '원본 보기 ▾'}
+              </button>
+            )}
+          </div>
+          {showOriginal && postUrl && <TelegramPostEmbed url={postUrl} />}
+        </div>
+      ) : (
+        <p className="border-t border-nl-line px-4 py-2.5 text-[11px] text-nl-muted">
           {item.activityKind === 'members' ? '인원 수 갱신' : '게시글'} · {formatRelativeKo(item.lastPostAt)}
-        </span>
-      </span>
-      <ChannelQuickActions channelId={item.id} link={item.link} title={item.title} />
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** 텔레그램 공식 게시글 미리보기 (사진·영상·전체 글). 우리 서버에는 저장하지 않는다 */
+function TelegramPostEmbed({ url }: { url: string }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(360);
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== 'https://t.me' || event.source !== ref.current?.contentWindow) return;
+      try {
+        const data = typeof event.data === 'string' ? (JSON.parse(event.data) as { event?: string; height?: number }) : null;
+        if (data?.event === 'resize' && data.height) setHeight(Math.min(2000, Math.max(120, data.height)));
+      } catch {
+        // 다른 메시지는 무시
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+  const dark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  return (
+    <div className="mt-3" onClick={(event) => event.stopPropagation()}>
+      <iframe
+        ref={ref}
+        title="텔레그램 원본 게시글"
+        src={`${url}?embed=1&userpic=false${dark ? '&dark=1' : ''}`}
+        loading="lazy"
+        className="w-full rounded-xl border-0"
+        style={{ height }}
+      />
     </div>
   );
 }

@@ -570,6 +570,12 @@ export class PublicStatsService {
         ? `${last.lastPostAt.toISOString()}::${last.channel.id}`
         : null;
 
+    const latestPosts = await this.latestPostsFor(
+      slice
+        .filter((r) => r.channel.linkType === LinkType.CHANNEL)
+        .map((r) => r.channel.id),
+    );
+
     const data = {
       items: slice.map(({ channel, lastPostAt, activityKind }) => ({
         id: channel.id,
@@ -587,6 +593,8 @@ export class PublicStatsService {
         score: channel.score,
         lastPostAt: (lastPostAt as Date).toISOString(),
         activityKind,
+        // 채널의 최근 글 하나 (앞부분 200자만 저장돼 있음, 그룹은 글을 저장하지 않음)
+        latestPost: latestPosts.get(channel.id) ?? null,
       })),
       nextCursor,
     };
@@ -595,6 +603,50 @@ export class PublicStatsService {
       data,
     });
     return data;
+  }
+
+  /** 채널마다 지워지지 않은 가장 최근 글 하나 */
+  private async latestPostsFor(channelIds: string[]) {
+    const map = new Map<
+      string,
+      {
+        messageId: number;
+        text: string | null;
+        mediaType: string;
+        views: number | null;
+        postedAt: string;
+      }
+    >();
+    if (channelIds.length === 0) return map;
+    const posts = await this.postRepository
+      .createQueryBuilder('post')
+      .select([
+        'post.channelId',
+        'post.messageId',
+        'post.textExcerpt',
+        'post.mediaType',
+        'post.views',
+        'post.postedAt',
+      ])
+      .where('post.channelId IN (:...ids)', { ids: channelIds })
+      .andWhere('post.deletedAt IS NULL')
+      .andWhere('post.postedAt >= :since', {
+        since: new Date(Date.now() - 30 * 86_400_000),
+      })
+      .orderBy('post.postedAt', 'DESC')
+      .addOrderBy('post.messageId', 'DESC')
+      .getMany();
+    for (const post of posts) {
+      if (map.has(post.channelId)) continue;
+      map.set(post.channelId, {
+        messageId: post.messageId,
+        text: post.textExcerpt,
+        mediaType: post.mediaType,
+        views: post.views,
+        postedAt: new Date(post.postedAt).toISOString(),
+      });
+    }
+    return map;
   }
 
   private toHomeCard(item: {

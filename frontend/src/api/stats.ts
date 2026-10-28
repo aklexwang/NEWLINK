@@ -111,6 +111,14 @@ export interface HomeFeedItem {
   score: number | null;
   lastPostAt: string;
   activityKind?: 'post' | 'members';
+  /** 채널의 최근 글 하나 (앞부분 200자) */
+  latestPost?: {
+    messageId: number;
+    text: string | null;
+    mediaType: string;
+    views: number | null;
+    postedAt: string;
+  } | null;
 }
 
 export interface HomeFeedPage {
