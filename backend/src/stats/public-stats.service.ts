@@ -644,6 +644,8 @@ export class PublicStatsService {
       .getMany();
     for (const post of posts) {
       if (map.has(post.channelId)) continue;
+      // 고정·사진 변경 같은 "Service message"(글도 사진도 없는 알림)는 건너뛰고 그 전 글을 쓴다
+      if (post.mediaType === 'text' && !post.textExcerpt?.trim()) continue;
       map.set(post.channelId, {
         messageId: post.messageId,
         text: post.textExcerpt,
