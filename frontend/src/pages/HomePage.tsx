@@ -37,13 +37,14 @@ function Avatar({
   size = 'md',
 }: {
   channel: { avatarUrl?: string | null; link: string; title: string };
-  size?: 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg';
 }) {
   const sources = useMemo(() => getChannelAvatarSources(channel), [channel]);
   const [i, setI] = useState(0);
   const [failed, setFailed] = useState(false);
   const src = failed ? undefined : sources[i];
-  const box = size === 'lg' ? 'h-14 w-14 rounded-2xl' : 'h-11 w-11 rounded-full';
+  const box =
+    size === 'lg' ? 'h-14 w-14 rounded-2xl' : size === 'sm' ? 'h-7 w-7 rounded-lg' : 'h-11 w-11 rounded-full';
   return (
     <div className={`${box} shrink-0 overflow-hidden bg-nl-elev ring-1 ring-nl-line`}>
       {src ? (
@@ -64,7 +65,7 @@ function Avatar({
           }}
         />
       ) : (
-        <InitialAvatar title={channel.title} seed={channel.link} textClass={size === 'lg' ? 'text-[18px]' : 'text-[15px]'} />
+        <InitialAvatar title={channel.title} seed={channel.link} textClass={size === 'lg' ? 'text-[18px]' : size === 'sm' ? 'text-[11px]' : 'text-[15px]'} />
       )}
     </div>
   );
@@ -720,8 +721,8 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
       }}
       className="w-full cursor-pointer overflow-hidden rounded-[20px] bg-nl-card text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line"
     >
-      <div className="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
-        <Avatar channel={item} size="lg" />
+      <div className="flex items-center gap-2.5 px-3.5 pt-2.5 pb-2">
+        <Avatar channel={item} size="sm" />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
             <span className="min-w-0 truncate text-[14px] font-semibold">{item.title}</span>
@@ -739,7 +740,7 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
             {deltaLine ? ` · ${deltaLine}` : ''}
           </span>
         </span>
-        <ChannelQuickActions channelId={item.id} link={item.link} title={item.title} />
+        <ChannelQuickActions channelId={item.id} link={item.link} title={item.title} compact />
       </div>
 
       {post && postUrl ? (
