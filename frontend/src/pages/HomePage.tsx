@@ -433,7 +433,7 @@ export function HomePage() {
         <button
           type="button"
           onClick={() => navigate('/my')}
-          className="nl-my-btn flex h-9 shrink-0 items-center justify-center rounded-xl px-4 text-[14px] font-extrabold text-white"
+          className={`nl-my-btn flex shrink-0 items-center justify-center rounded-full font-extrabold text-white ${isLoggedIn ? 'h-10 w-10 text-[13px]' : 'h-10 px-4 text-[14px]'}`}
         >
           {isLoggedIn ? 'MY' : '로그인'}
         </button>

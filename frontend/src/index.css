@@ -118,7 +118,7 @@ html.dark .nl-orb-tg {
   box-shadow: 0 5px 14px rgba(0, 0, 0, 0.5), inset 0 -3px 6px rgba(0, 0, 0, 0.2);
 }
 
-/* 홈 위 오른쪽 MY / 로그인: 텔레그램 파랑 입체 버튼 (시안 MY-2) */
+/* 홈 위 오른쪽 MY / 로그인: 텔레그램 파랑 입체 원형 버튼 */
 .nl-my-btn {
   background: linear-gradient(180deg, #37b9f5, #1e96d6);
   box-shadow: 0 3px 0 #1679ad, 0 6px 12px rgba(30, 150, 214, 0.35);
