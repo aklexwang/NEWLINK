@@ -63,6 +63,8 @@ export class AdminDashboardService {
       latest,
       privateRows,
       inviteQueueRows,
+      todayKinds,
+      weekKinds,
       adminRecent,
     ] = await Promise.all([
       this.channelRepository
@@ -135,6 +137,39 @@ export class AdminDashboardService {
           "SELECT COUNT(*) AS cnt FROM discovered_usernames WHERE source = 'invite' AND result = 'queued'",
         )
         .catch(() => [{ cnt: 0 }]) as Promise<CountRow[]>,
+      // 등록 경로별: 공개 채널 / 비공개 채널 / 그룹
+      this.channelRepository
+        .createQueryBuilder('channel')
+        .select(sourceExpr, 'source')
+        .addSelect('channel.linkType', 'linkType')
+        .addSelect(
+          "CASE WHEN channel.link LIKE '%t.me/+%' OR channel.link LIKE '%/joinchat/%' THEN 1 ELSE 0 END",
+          'priv',
+        )
+        .addSelect('COUNT(*)', 'cnt')
+        .where('channel.createdAt >= :since', { since: todayStart })
+        .groupBy(sourceExpr)
+        .addGroupBy('channel.linkType')
+        .addGroupBy(
+          "CASE WHEN channel.link LIKE '%t.me/+%' OR channel.link LIKE '%/joinchat/%' THEN 1 ELSE 0 END",
+        )
+        .getRawMany<CountRow>(),
+      this.channelRepository
+        .createQueryBuilder('channel')
+        .select(sourceExpr, 'source')
+        .addSelect('channel.linkType', 'linkType')
+        .addSelect(
+          "CASE WHEN channel.link LIKE '%t.me/+%' OR channel.link LIKE '%/joinchat/%' THEN 1 ELSE 0 END",
+          'priv',
+        )
+        .addSelect('COUNT(*)', 'cnt')
+        .where('channel.createdAt >= :since', { since: weekStart })
+        .groupBy(sourceExpr)
+        .addGroupBy('channel.linkType')
+        .addGroupBy(
+          "CASE WHEN channel.link LIKE '%t.me/+%' OR channel.link LIKE '%/joinchat/%' THEN 1 ELSE 0 END",
+        )
+        .getRawMany<CountRow>(),
       // 링크 등록(어드민)으로 최근 7일 넣은 방: 회원 노출 여부까지 센다
       this.channelRepository.find({
         select: [
@@ -227,6 +262,10 @@ export class AdminDashboardService {
         today: fillSourceCounts(todayRows),
         last7d: fillSourceCounts(weekRows),
       },
+      registeredKinds: {
+        today: kindBreakdown(todayKinds),
+        last7d: kindBreakdown(weekKinds),
+      },
       adminRegistered: {
         today: countAdminVisibility(
           adminRecent.filter((row) => row.createdAt >= todayStart),
@@ -277,6 +316,29 @@ function countAdminVisibility(rows: Channel[]): {
     if (describeAdminMemberVisibility(row).visible) visible += 1;
   }
   return { total: rows.length, visible, hidden: rows.length - visible };
+}
+
+type Kinds = { channelPublic: number; channelPrivate: number; group: number };
+
+/** 등록 경로(auto/admin/report)마다 공개 채널·비공개 채널·그룹 수 */
+function kindBreakdown(
+  rows: CountRow[],
+): Record<'auto' | 'admin' | 'report', Kinds> {
+  const empty = (): Kinds => ({
+    channelPublic: 0,
+    channelPrivate: 0,
+    group: 0,
+  });
+  const out = { auto: empty(), admin: empty(), report: empty() };
+  for (const row of rows) {
+    const source = asText(row.source ?? '') as keyof typeof out;
+    if (!(source in out)) continue;
+    const n = toCount(row);
+    if (String(row.linkType) === 'group') out[source].group += n;
+    else if (Number(row.priv) === 1) out[source].channelPrivate += n;
+    else out[source].channelPublic += n;
+  }
+  return out;
 }
 
 function toCount(row: CountRow): number {

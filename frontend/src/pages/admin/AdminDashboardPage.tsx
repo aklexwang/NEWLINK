@@ -38,7 +38,7 @@ function StatCard({
   value: number | string;
   icon?: ReactNode;
   /** 숫자 아래 작은 설명 */
-  sub?: string;
+  sub?: ReactNode;
 }) {
   const long = typeof value === 'string' && value.length > 12;
   return (
@@ -54,10 +54,28 @@ function StatCard({
           <p className={long ? 'mt-1 text-[15px] leading-snug font-bold' : 'mt-1 text-2xl font-bold'}>
             {typeof value === 'number' ? value.toLocaleString('ko-KR') : value}
           </p>
-          {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+          {sub && <div className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">{sub}</div>}
         </div>
       </Card>
     </Link>
+  );
+}
+
+function kindsLine(k?: { channelPublic: number; channelPrivate: number; group: number }): string | undefined {
+  if (!k) return undefined;
+  const f = (n: number) => n.toLocaleString('ko-KR');
+  return `채널 [공개 ${f(k.channelPublic)} / 비공개 ${f(k.channelPrivate)}] · 그룹 ${f(k.group)}`;
+}
+
+function subLines(...lines: Array<string | undefined>) {
+  const list = lines.filter(Boolean) as string[];
+  if (list.length === 0) return undefined;
+  return (
+    <>
+      {list.map((l) => (
+        <p key={l}>{l}</p>
+      ))}
+    </>
   );
 }
 
@@ -128,12 +146,12 @@ export function AdminDashboardPage() {
           <section className="mt-8">
             <h3 className="text-sm font-semibold">오늘 / 7일 등록 경로</h3>
             <div className="mt-3 grid grid-cols-2 gap-3 md:gap-5 sm:grid-cols-3">
-              <StatCard to="/admin/links?createdFrom=today&source=auto" label="오늘 자동" icon={<Bot />} value={data.registered.today.auto} />
-              <StatCard to="/admin/links?createdFrom=today&source=admin" label="오늘 링크 등록 (어드민)" icon={<UserCog />} value={data.registered.today.admin} sub={adminSub(data.adminRegistered?.today)} />
-              <StatCard to="/admin/links?createdFrom=today&source=report" label="오늘 제보" icon={<Megaphone />} value={data.registered.today.report} />
-              <StatCard to="/admin/links?createdFrom=7d&source=auto" label="7일 자동" icon={<Bot />} value={data.registered.last7d.auto} />
-              <StatCard to="/admin/links?createdFrom=7d&source=admin" label="7일 링크 등록 (어드민)" icon={<UserCog />} value={data.registered.last7d.admin} sub={adminSub(data.adminRegistered?.last7d)} />
-              <StatCard to="/admin/links?createdFrom=7d&source=report" label="7일 제보" icon={<Megaphone />} value={data.registered.last7d.report} />
+              <StatCard to="/admin/links?createdFrom=today&source=auto" label="오늘 자동" icon={<Bot />} value={data.registered.today.auto} sub={subLines(kindsLine(data.registeredKinds?.today.auto))} />
+              <StatCard to="/admin/links?createdFrom=today&source=admin" label="오늘 링크 등록 (어드민)" icon={<UserCog />} value={data.registered.today.admin} sub={subLines(kindsLine(data.registeredKinds?.today.admin), adminSub(data.adminRegistered?.today))} />
+              <StatCard to="/admin/links?createdFrom=today&source=report" label="오늘 제보" icon={<Megaphone />} value={data.registered.today.report} sub={subLines(kindsLine(data.registeredKinds?.today.report))} />
+              <StatCard to="/admin/links?createdFrom=7d&source=auto" label="7일 자동" icon={<Bot />} value={data.registered.last7d.auto} sub={subLines(kindsLine(data.registeredKinds?.last7d.auto))} />
+              <StatCard to="/admin/links?createdFrom=7d&source=admin" label="7일 링크 등록 (어드민)" icon={<UserCog />} value={data.registered.last7d.admin} sub={subLines(kindsLine(data.registeredKinds?.last7d.admin), adminSub(data.adminRegistered?.last7d))} />
+              <StatCard to="/admin/links?createdFrom=7d&source=report" label="7일 제보" icon={<Megaphone />} value={data.registered.last7d.report} sub={subLines(kindsLine(data.registeredKinds?.last7d.report))} />
             </div>
           </section>
 
