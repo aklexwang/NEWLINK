@@ -32,6 +32,16 @@ const RESULT_LABEL: Record<AdminInspectItemResult, string> = {
 const REACTIVATE_CONFIRM =
   '이전에 거절된 링크입니다. 새로 만들지 않고 그 행을 다시 활성화할까요?';
 
+const PERSONAL_ACCOUNT_MESSAGE =
+  '이 주소는 채널·그룹이 아니라 개인 계정(또는 봇)이에요. 방이 아니라서 등록할 수 없어요. 그 사람이 운영하는 채널·그룹 링크를 넣어 주세요.';
+
+/** t.me/아이디 · @아이디 · 아이디 모양인지 (초대 링크 제외) */
+function looksLikeUsernameLink(raw: string): boolean {
+  const v = raw.trim().replace(/^https?:\/\//i, '');
+  const m = v.match(/^(?:t\.me\/|telegram\.me\/)?@?([a-zA-Z][a-zA-Z0-9_]{3,31})\/?$/i);
+  return Boolean(m);
+}
+
 const NOT_FOUND_MESSAGE =
   '이 링크로 방을 찾지 못했습니다. 링크(대소문자 포함)를 다시 확인하세요';
 
@@ -111,7 +121,10 @@ export function AdminLinkRegisterPage() {
       if (suggested && categories.some((item) => item.name === suggested)) {
         setCategory(suggested);
       }
-      if (!result.title.trim()) {
+      if (result.result === 'invalid_format' && looksLikeUsernameLink(keyword)) {
+        // 주소 모양은 맞는데 채널·그룹이 아님 → 개인 계정이나 봇
+        setError(PERSONAL_ACCOUNT_MESSAGE);
+      } else if (!result.title.trim()) {
         setError(NOT_FOUND_MESSAGE);
       } else if (result.alreadyRegistered && result.existingStatus === 'rejected') {
         setError('이전에 거절된 링크입니다. 등록하면 새로 만들지 않고 그 행을 다시 활성화합니다.');
