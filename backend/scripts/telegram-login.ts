@@ -66,36 +66,39 @@ async function readMasked(prompt: string): Promise<string> {
     const stdin = process.stdin;
     const previousRaw = stdin.isRaw;
     if (stdin.setRawMode) stdin.setRawMode(true);
-    if (!stdin.readable) stdin.resume();
+    stdin.resume(); // readline 을 닫으면 입력이 멈춰 있으므로 다시 받는다
     let value = '';
     const onData = (chunk: Buffer) => {
-      const s = chunk.toString('utf8');
-      if (s === '\u0003') {
-        cleanup();
-        process.stdout.write('\n');
-        reject(new Error('SIGINT'));
-        return;
-      }
-      if (s === '\r' || s === '\n') {
-        cleanup();
-        process.stdout.write('\n');
-        resolve(value);
-        return;
-      }
-      if (s === '\u007f' || s === '\b') {
-        if (value.length > 0) {
-          value = value.slice(0, -1);
-          process.stdout.write('\b \b');
+      // 윈도우 터미널은 여러 글자가 한 번에 올 수 있어 한 글자씩 처리한다
+      for (const ch of chunk.toString('utf8')) {
+        if (ch === '\u0003') {
+          cleanup();
+          process.stdout.write('\n');
+          reject(new Error('SIGINT'));
+          return;
         }
-        return;
+        if (ch === '\r' || ch === '\n') {
+          cleanup();
+          process.stdout.write('\n');
+          resolve(value);
+          return;
+        }
+        if (ch === '\u007f' || ch === '\b') {
+          if (value.length > 0) {
+            value = value.slice(0, -1);
+            process.stdout.write('\b \b');
+          }
+          continue;
+        }
+        if (ch < ' ') continue;
+        value += ch;
+        process.stdout.write('*');
       }
-      if (s < ' ') return;
-      value += s;
-      process.stdout.write('*'.repeat([...s].length));
     };
     function cleanup() {
       stdin.off('data', onData);
       if (stdin.setRawMode) stdin.setRawMode(Boolean(previousRaw));
+      stdin.pause();
     }
     stdin.on('data', onData);
   });
@@ -274,6 +277,8 @@ async function run(): Promise<void> {
 
   try {
     if (useQr) {
+      // 열린 입력 줄(readline)이 있으면 비밀번호 글자가 화면에 그대로 찍힌다 → QR 로그인에서는 닫는다
+      rl.close();
       await runQrLogin(client, apiId, apiHash, rl);
       return;
     }
@@ -328,6 +333,7 @@ async function run(): Promise<void> {
       } catch (error) {
         const name = telegramErrorName(error);
         if (name === 'SESSION_PASSWORD_NEEDED') {
+          rl.close(); // 비밀번호가 화면에 찍히지 않게
           const pwd = (await readMasked('2단계 비밀번호(없으면 엔터): ')).trim();
           if (!pwd) {
             console.error('SESSION_PASSWORD_NEEDED');
