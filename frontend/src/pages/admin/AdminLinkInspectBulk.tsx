@@ -256,6 +256,10 @@ export function AdminLinkInspectBulk() {
   };
 
   const registerSelected = async () => {
+    if (job?.status !== 'completed') {
+      setError('확인이 다 끝난 뒤에 등록할 수 있어요.');
+      return;
+    }
     if (selected.size === 0) {
       setError('등록할 항목을 선택해 주세요.');
       return;
@@ -419,13 +423,18 @@ export function AdminLinkInspectBulk() {
               </button>
               <button
                 type="button"
-                disabled={busy || selected.size === 0}
+                disabled={busy || selected.size === 0 || job.status !== 'completed'}
+                title={job.status !== 'completed' ? '확인이 다 끝난 뒤에 등록할 수 있어요' : undefined}
                 onClick={() => void registerSelected()}
                 className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
               >
                 {registerProgress
                   ? `등록 중… ${registerProgress.done}/${registerProgress.total}`
-                  : `선택 등록 (${selected.size}/${REGISTER_MAX})`}
+                  : job.status === 'running'
+                    ? '확인이 끝나면 등록 가능'
+                    : job.status === 'interrupted'
+                      ? '이어서 확인을 먼저 끝내 주세요'
+                      : `선택 등록 (${selected.size}/${REGISTER_MAX})`}
               </button>
             </div>
           </div>
