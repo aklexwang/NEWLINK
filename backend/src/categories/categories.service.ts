@@ -1,14 +1,18 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChannelImportCandidate } from '../auto-manage/channel-import-candidate.entity';
 import { Channel } from '../channels/channel.entity';
 import { CategoryEntity } from './category.entity';
+import { StoredImagesService } from '../stored-images/stored-images.service';
+import { BUNDLED_CATEGORY_ICONS } from './bundled-category-icons';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import {
   DEFAULT_CATEGORIES,
@@ -29,16 +33,41 @@ export class CategoriesService implements OnModuleInit {
     private readonly channelRepository: Repository<Channel>,
     @InjectRepository(ChannelImportCandidate)
     private readonly candidateRepository: Repository<ChannelImportCandidate>,
+    @Optional() private readonly storedImages?: StoredImagesService,
   ) {}
+
+  private readonly logger = new Logger(CategoriesService.name);
 
   async onModuleInit() {
     try {
       await this.ensureDefaults();
+      await this.applyBundledIcons();
     } catch (error) {
       console.error(
         '카테고리 초기화 실패(서버는 계속 기동):',
         error instanceof Error ? error.message : error,
       );
+    }
+  }
+
+  /** 서버에 같이 넣어 둔 아이콘: 이름이 맞고 아이콘이 비어 있는 카테고리에만 한 번 넣는다 */
+  async applyBundledIcons() {
+    if (!this.storedImages) return;
+    const categories = await this.categoryRepository.find();
+    for (const icon of BUNDLED_CATEGORY_ICONS) {
+      for (const category of categories) {
+        if (category.iconUrl) continue;
+        if (!category.name.includes(icon.nameIncludes)) continue;
+        const buffer = Buffer.from(icon.base64, 'base64');
+        const url = await this.storedImages.save('category-icon', {
+          buffer,
+          mimetype: icon.mime,
+          size: buffer.length,
+        });
+        category.iconUrl = url;
+        await this.categoryRepository.save(category);
+        this.logger.log(`카테고리 아이콘을 넣었습니다: ${category.name}`);
+      }
     }
   }
 
