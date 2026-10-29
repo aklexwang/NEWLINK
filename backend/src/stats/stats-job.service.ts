@@ -73,6 +73,9 @@ export interface StatsJobStatus {
   };
 }
 
+/** light 회차에서 새 그룹·초대방 첫 수집에 쓰는 최대 시간 */
+const LIGHT_FIRST_COLLECT_BUDGET_MS = 5 * 60 * 1000;
+
 @Injectable()
 export class StatsJobService implements OnModuleInit {
   private readonly logger = new Logger(StatsJobService.name);
@@ -384,6 +387,8 @@ export class StatsJobService implements OnModuleInit {
   private async runLightPipeline() {
     this.logger.log('light 수집 시작: t.me/s 미리보기 → 공개 캐시 비우기');
     try {
+      // 새로 들어온 그룹·초대방은 light 미리보기로 못 읽어 새벽까지 회원 페이지에 안 보인다 → 먼저 첫 수집
+      await this.collectFirstSeenGroupsAndInvites();
       await this.collector.collectLightAll(
         (progress) => this.noteProgress(progress),
         { deadlineMs: this.collectDeadline('light') },
@@ -394,6 +399,25 @@ export class StatsJobService implements OnModuleInit {
       this.logger.error(
         `light 수집 실패: ${error instanceof Error ? error.message : error}`,
         error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
+  /** light 앞부분 최대 5분: 새 그룹·초대방 첫 수집 → 언어·점수 바로 계산(노출 판정용) */
+  private async collectFirstSeenGroupsAndInvites() {
+    try {
+      const { ids } = await this.collector.collectFirstSeenNonLight({
+        deadlineMs: Date.now() + LIGHT_FIRST_COLLECT_BUDGET_MS,
+      });
+      for (const id of ids) {
+        const channel = await this.channelRepository.findOneBy({ id });
+        if (!channel) continue;
+        await this.languages.classifyOne(channel);
+        await this.metrics.computeOne(id);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `새 그룹·초대방 첫 수집 실패: ${error instanceof Error ? error.message : error}`,
       );
     }
   }

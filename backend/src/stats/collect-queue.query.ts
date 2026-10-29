@@ -71,3 +71,56 @@ export async function selectDueChannels(
     .limit(limit)
     .getMany();
 }
+
+/** light 회차마다 먼저 첫 수집해 주는 새 그룹·초대방 최대 수 (MTProto 한도 보호) */
+export const LIGHT_FIRST_COLLECT_MAX_DEFAULT = 60;
+const FIRST_COLLECT_RETRY_MS = 12 * 60 * 60 * 1000;
+
+export function lightFirstCollectMax(raw?: string | null): number {
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 0) return Math.floor(n);
+  return LIGHT_FIRST_COLLECT_MAX_DEFAULT;
+}
+
+/**
+ * light 가 못 읽는 방(그룹·초대 링크) 중 한 번도 수집 안 된 것.
+ * 첫 수집 전에는 회원 페이지에 안 보이므로, 새벽 full 을 기다리지 않고 낮 light 회차에서 먼저 읽는다.
+ * 한 번도 시도 안 한 방 먼저, 그다음 오래 기다린(먼저 등록된) 순.
+ */
+export async function selectFirstSeenNonLight(
+  repository: Repository<Channel>,
+  limit: number,
+  now: Date = new Date(),
+): Promise<Channel[]> {
+  if (limit <= 0) return [];
+  // 실패한 방은 12시간 뒤에 다시 (실패 방이 매 회차 자리를 차지해 새 방이 밀리지 않게)
+  const retryCutoff = new Date(now.getTime() - FIRST_COLLECT_RETRY_MS);
+  return repository
+    .createQueryBuilder('c')
+    .select(COLLECT_QUEUE_COLUMNS.map((column) => `c.${column}`))
+    .where('c.status = :active', { active: ChannelStatus.ACTIVE })
+    .andWhere('c.firstObservedAt IS NULL')
+    .andWhere(
+      '(c.collectStatus IS NULL OR c.collectStatus NOT IN (:...skip))',
+      { skip: ['merged', 'invalid', 'gone', 'invite_expired'] },
+    )
+    .andWhere(
+      '(c.linkType = :group OR c.link LIKE :invitePlus OR c.link LIKE :inviteJoinchat)',
+      {
+        group: LinkType.GROUP,
+        invitePlus: '%/+%',
+        inviteJoinchat: '%/joinchat/%',
+      },
+    )
+    .andWhere(
+      '(c.lastCollectedAt IS NULL OR c.lastCollectedAt <= :retryCutoff)',
+      {
+        retryCutoff,
+      },
+    )
+    .orderBy('(CASE WHEN c.lastCollectedAt IS NULL THEN 0 ELSE 1 END)', 'ASC')
+    .addOrderBy('c.createdAt', 'ASC')
+    .addOrderBy('c.id', 'ASC')
+    .limit(limit)
+    .getMany();
+}

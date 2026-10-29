@@ -40,7 +40,12 @@ import {
   nextCollectAtAfterSuccess,
   nextFullWindowAt,
 } from './collect-queue.logic';
-import { collectQueueLimit, selectDueChannels } from './collect-queue.query';
+import {
+  collectQueueLimit,
+  lightFirstCollectMax,
+  selectDueChannels,
+  selectFirstSeenNonLight,
+} from './collect-queue.query';
 import {
   needsExactMemberFetch,
   resolveMemberCount,
@@ -193,6 +198,55 @@ export class ChannelCollectorService {
       `light 수집 완료: 성공 ${result.ok} / 실패 ${result.fail} (대상 ${channels.length}, 남은 ${result.remaining})`,
     );
     return result;
+  }
+
+  /**
+   * light 회차 앞부분: 한 번도 수집 안 된 새 그룹·초대방을 공개 페이지(초대방은 회원이면 MTProto)로 먼저 읽는다.
+   * 첫 수집이 되어야 회원 페이지에 보이므로 새벽 full 까지 기다리지 않게 한다. 읽은 방 id 를 돌려준다.
+   */
+  async collectFirstSeenNonLight(options?: {
+    deadlineMs?: number;
+  }): Promise<{ ok: number; fail: number; ids: string[] }> {
+    const limit = lightFirstCollectMax(
+      this.configService.get<string>('LIGHT_FIRST_COLLECT_MAX'),
+    );
+    const channels = await selectFirstSeenNonLight(
+      this.channelRepository,
+      limit,
+    );
+    let ok = 0;
+    let fail = 0;
+    const ids: string[] = [];
+    for (let i = 0; i < channels.length; i += 1) {
+      if (i > 0 && isCollectBudgetOver(options?.deadlineMs)) {
+        this.logger.log(
+          `새 그룹·초대방 첫 수집 시간 예산 종료. 남은 ${channels.length - i}건`,
+        );
+        break;
+      }
+      try {
+        const result = await withTimeout(
+          this.collectPublicPageNow(channels[i]),
+          CHANNEL_COLLECT_TIMEOUT_MS,
+          'timeout:channel',
+        );
+        if (result.ok) ok += 1;
+        else fail += 1;
+        ids.push(channels[i].id);
+      } catch (error) {
+        fail += 1;
+        this.logger.warn(
+          `새 방 첫 수집 실패(${channels[i].id}): ${error instanceof Error ? error.message : error}`,
+        );
+      }
+      if (i < channels.length - 1) await sleep(CHANNEL_GAP_MS);
+    }
+    if (channels.length > 0) {
+      this.logger.log(
+        `새 그룹·초대방 첫 수집: 성공 ${ok} / 실패 ${fail} (대상 ${channels.length})`,
+      );
+    }
+    return { ok, fail, ids };
   }
 
   private async collectQueued(
