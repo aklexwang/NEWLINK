@@ -1,6 +1,8 @@
 import { CategoryIcon } from '../CategoryIcon';
 import type { CategoryItem } from '../../types/categoryItem';
 
+const PENDING = '분류대기';
+
 interface AdminCategoryChipBarProps {
   categories: CategoryItem[];
   selected: string;
@@ -52,20 +54,25 @@ export function AdminCategoryChipBar({
           )}
         </button>
         {[...categories]
-          // 방 많은 카테고리부터
+          // 분류대기는 늘 [전체] 바로 옆, 나머지는 방 많은 카테고리부터
           .sort(
             (a, b) =>
-              (counts?.[b.name] ?? 0) - (counts?.[a.name] ?? 0) || a.name.localeCompare(b.name, 'ko'),
+              Number(b.name === PENDING) - Number(a.name === PENDING) ||
+              (counts?.[b.name] ?? 0) - (counts?.[a.name] ?? 0) ||
+              a.name.localeCompare(b.name, 'ko'),
           )
           .map((category) => {
           const active = selected === category.name;
           const count = counts?.[category.name] ?? 0;
+          const pending = category.name === PENDING;
           return (
             <button
               key={category.id}
               type="button"
               onClick={() => onSelect(category.name)}
-              className={chipClass(active)}
+              className={`${chipClass(active)} ${
+                pending ? (active ? 'ring-2 ring-amber-300' : '!ring-2 !ring-amber-400 !text-amber-500') : ''
+              }`}
             >
               <CategoryIcon emoji={category.emoji} iconUrl={category.iconUrl} size="sm" className="!h-5 !w-5 !text-sm" />
               <span>{category.name}</span>
