@@ -136,13 +136,17 @@ export function findTelegramInText(text: string): FoundRow[] {
   const linkRe = /(?:https?:\/\/)?(?:www\.)?(?:t\.me|telegram\.me)\/(?:s\/)?(\+[A-Za-z0-9_-]{6,}|joinchat\/[A-Za-z0-9_-]{6,}|[A-Za-z][A-Za-z0-9_]{3,31})/gi;
   const atRe = /(^|[^A-Za-z0-9_.@])@([A-Za-z][A-Za-z0-9_]{3,31})(?![A-Za-z0-9_.]*\.[A-Za-z]{2,})/g;
   lines.forEach((line, index) => {
+    // 화면에서 잘린 아이디(@taniatr… 처럼 말줄임표가 붙은 것)는 틀린 아이디라 뺀다
+    const cut = (m: RegExpMatchArray) => /^(?:…|\.\.\.)/.test(line.slice((m.index ?? 0) + m[0].length));
     for (const m of line.matchAll(linkRe)) {
+      if (cut(m)) continue;
       const raw = m[1];
       if (!raw.startsWith('+') && !raw.toLowerCase().startsWith('joinchat/') && TEXT_SKIP.has(raw.toLowerCase())) continue;
       const entry = toTelegramEntry(`t.me/${raw}`);
       if (entry) out.push({ key: 'telegram', value: entry, line: index + 1 });
     }
     for (const m of line.matchAll(atRe)) {
+      if (cut(m)) continue;
       const name = m[2];
       if (TEXT_SKIP.has(name.toLowerCase())) continue;
       const entry = toTelegramEntry(name);

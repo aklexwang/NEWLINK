@@ -76,6 +76,7 @@ describe('keywordFinder', () => {
       '문의: help@naver.com / https://t.me/share/url?x=1',
       '코인 정보 t.me/coin_news_kr  비공개 https://t.me/+AbCdEf12345',
       '@ab 너무 짧음, @faststocknews 중복',
+      '잘린 아이디 @taniatr… 와 t.me/longchann...',
     ].join('\n');
     const values = collectTelegramEntries(findTelegramInText(page));
     assert.deepEqual(values, ['faststocknews', 'coin_news_kr', 'https://t.me/+AbCdEf12345']);
