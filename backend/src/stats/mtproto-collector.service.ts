@@ -104,6 +104,8 @@ export type MtprotoPublicStatus = {
   requestsToday: number;
   resolvesToday: number;
   searchesToday: number;
+  invitesToday: number;
+  inviteDailyLimit: number;
   joinsToday: number;
   joinDailyLimit: number;
   joinedTotal: number;
@@ -159,6 +161,8 @@ type HistoryPost = {
 };
 
 const MTPROTO_DAILY_KEY = 'mtproto';
+/** 초대 링크 확인(CheckChatInvite) 하루 기본 한도. resolve(50)와 따로 */
+const INVITE_CHECK_DAILY_LIMIT_DEFAULT = 40;
 const MTPROTO_JOIN_DAILY_KEY = 'mtproto-join';
 
 @Injectable()
@@ -177,6 +181,8 @@ export class MtprotoCollectorService implements OnModuleInit {
   private searchesToday = 0;
   private floodWaitUntil: Date | null = null;
   private joinsToday = 0;
+  /** CheckChatInvite(초대 링크 확인) 오늘 수. resolve 한도와 따로 센다 */
+  private invitesToday = 0;
   private joinDay = '';
   private joinedTotal = 0;
   private lastJoinAt = 0;
@@ -229,6 +235,8 @@ export class MtprotoCollectorService implements OnModuleInit {
       requestsToday: this.requestsToday,
       resolvesToday: this.resolvesToday,
       searchesToday: this.searchesToday,
+      invitesToday: this.invitesToday,
+      inviteDailyLimit: this.inviteCheckDailyLimit(),
       joinsToday: this.currentJoinsToday(),
       joinDailyLimit: this.joinDailyLimit(),
       joinedTotal: this.joinedTotal,
@@ -384,7 +392,9 @@ export class MtprotoCollectorService implements OnModuleInit {
         }
       }
       if (!resolved) {
-        if (!canSpendResolve(this.resolvesToday, this.resolveDailyLimit())) {
+        // 초대 링크 확인은 resolve(아이디 조회) 한도와 따로 센다.
+        // 같이 세면 새벽 발견이 resolve 를 다 써서 낮에는 비공개 채널 확인·가입이 막힌다
+        if (this.invitesToday >= this.inviteCheckDailyLimit()) {
           return { ok: false, reason: 'skipped' };
         }
         const invite = await this.call(
@@ -1330,6 +1340,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       this.lastResolveOrSearchAt = this.lastCallAt;
       if (method === 'contacts.ResolveUsername') this.resolvesToday += 1;
       if (method === 'contacts.Search') this.searchesToday += 1;
+      if (method === 'messages.CheckChatInvite') this.invitesToday += 1;
     }
     this.saveDailyCounters();
 
@@ -1380,6 +1391,13 @@ export class MtprotoCollectorService implements OnModuleInit {
     this.lastError = reason;
     this.logger.warn(
       `이번 run 에서 MTProto를 끄고 t.me 방식으로 계속합니다. 이유=${reason}`,
+    );
+  }
+
+  private inviteCheckDailyLimit(): number {
+    return envPositiveInt(
+      this.configService.get<string>('INVITE_CHECK_DAILY_LIMIT'),
+      INVITE_CHECK_DAILY_LIMIT_DEFAULT,
     );
   }
 
@@ -1453,6 +1471,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       requests: number;
       resolves: number;
       searches: number;
+      invites?: number;
     }>(MTPROTO_DAILY_KEY);
     this.rollDailyCounter();
     if (!saved) return;
@@ -1468,6 +1487,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       this.searchesToday,
       safeCount(saved.searches),
     );
+    this.invitesToday = Math.max(this.invitesToday, safeCount(saved.invites));
     if (!canSpendMtprotoRequest(this.requestsToday, this.dailyLimit())) {
       this.lastError = 'daily_limit';
       this.stopped = true;
@@ -1483,6 +1503,7 @@ export class MtprotoCollectorService implements OnModuleInit {
           requests: this.requestsToday,
           resolves: this.resolvesToday,
           searches: this.searchesToday,
+          invites: this.invitesToday,
         },
       };
     });
@@ -1495,6 +1516,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       this.requestsToday = 0;
       this.resolvesToday = 0;
       this.searchesToday = 0;
+      this.invitesToday = 0;
       if (this.lastError === 'daily_limit') {
         this.stopped = false;
         this.lastError = null;

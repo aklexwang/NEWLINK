@@ -159,6 +159,8 @@ export interface AdminStatsOps {
     searchesToday: number;
     searchDailyLimit: number;
     /** 비공개 채널 자동 가입 (예전 서버면 없음) */
+    invitesToday?: number;
+    inviteDailyLimit?: number;
     joinsToday?: number;
     joinDailyLimit?: number;
     joinedTotal?: number;

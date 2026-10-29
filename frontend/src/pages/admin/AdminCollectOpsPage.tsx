@@ -170,7 +170,8 @@ export function AdminCollectOpsPage() {
                 {ops.mtproto.joinsToday ?? 0}/{ops.mtproto.joinDailyLimit ?? 0}
               </CardTitle>
               <p className="text-[11px] text-muted-foreground">
-                전체 {ops.mtproto.joinedTotal ?? 0}/{ops.mtproto.joinTotalMax ?? 950} · 오늘 수는 매일 0시 초기화
+                전체 {ops.mtproto.joinedTotal ?? 0}/{ops.mtproto.joinTotalMax ?? 950} · 초대 링크 확인{' '}
+                {ops.mtproto.invitesToday ?? 0}/{ops.mtproto.inviteDailyLimit ?? 40} · 매일 0시 초기화
               </p>
             </CardHeader>
           </Card>

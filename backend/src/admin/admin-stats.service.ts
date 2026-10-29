@@ -102,6 +102,8 @@ export class AdminStatsService {
           'KEYWORD_SEARCH_DAILY_LIMIT',
           KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
         ),
+        invitesToday: mtproto.invitesToday,
+        inviteDailyLimit: mtproto.inviteDailyLimit,
         joinsToday: mtproto.joinsToday,
         joinDailyLimit: mtproto.joinDailyLimit,
         joinedTotal: mtproto.joinedTotal,
