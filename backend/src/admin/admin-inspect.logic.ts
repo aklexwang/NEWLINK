@@ -23,7 +23,8 @@ import type { AdminInspectItemResult } from './admin-inspect-item.entity';
 export const ADMIN_INSPECT_MAX_LINES = 500;
 export const ADMIN_REGISTER_MANY_MAX = 100;
 export const ADMIN_INSPECT_JOB_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-export const ADMIN_INSPECT_BUSY_COLLECT = '이미 수집이 돌고 있습니다';
+export const ADMIN_INSPECT_BUSY_COLLECT =
+  '새벽 전체 수집이 돌고 있어요. 끝난 뒤(보통 30~90분) 다시 [확인]을 눌러 주세요';
 export const ADMIN_INSPECT_BUSY_JOB = '이미 확인 작업이 진행 중입니다';
 
 export type ParsedInspectLine = {

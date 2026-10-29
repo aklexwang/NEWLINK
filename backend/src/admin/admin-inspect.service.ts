@@ -25,6 +25,7 @@ import { describeMemberPageVisibility } from '../stats/public-list-visibility.lo
 import { StatsRun } from '../stats/stats-run.entity';
 import { AdminNotificationService } from '../notifications/admin-notification.service';
 import { shouldBlockAdminCollect } from './admin-collect.logic';
+import { getTmeGate } from '../stats/tme-gate';
 import {
   AdminInspectJob,
   type AdminInspectJobStatus,
@@ -618,6 +619,11 @@ export class AdminInspectService implements OnModuleInit {
     if (running > 0) {
       throw new ConflictException(ADMIN_INSPECT_BUSY_JOB);
     }
+    // 3시간마다 도는 light 수집 중에도 대량 확인은 할 수 있게 한다.
+    // 둘 다 같은 t.me 게이트(동시 수·간격·429 쿨다운)를 거쳐 텔레그램에 무리가 가지 않는다.
+    // 새벽 full 수집(MTProto·발견까지 도는 큰 작업) 중에만 막는다.
+    const gateRun = getTmeGate().snapshot().run;
+    if (this.statsJob.isRunning() && gateRun?.mode === 'light') return;
     const open = await this.runRepository.find({
       where: { finishedAt: IsNull() },
       select: ['id', 'startedAt', 'finishedAt'],
