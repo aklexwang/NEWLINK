@@ -391,6 +391,11 @@ export class MtprotoCollectorService implements OnModuleInit {
           });
         }
       }
+      if (!resolved && channel.linkType === LinkType.GROUP) {
+        // 그룹은 가입하지 않고(대화 저장 금지) 수집 계정이 회원일 일도 거의 없다.
+        // 하루 40번인 초대 링크 확인을 그룹에 쓰면 정작 가입할 채널 확인이 밀린다
+        return { ok: false, reason: 'not_member' };
+      }
       if (!resolved) {
         // 초대 링크 확인은 resolve(아이디 조회) 한도와 따로 센다.
         // 같이 세면 새벽 발견이 resolve 를 다 써서 낮에는 비공개 채널 확인·가입이 막힌다
