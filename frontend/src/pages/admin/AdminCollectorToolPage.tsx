@@ -286,15 +286,15 @@ function CollectorTool() {
           />
           <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <label className="flex items-center gap-2">
-              <input type="radio" checked={mode === 'key'} onChange={() => setMode('key')} />
+              <input type="radio" checked={mode === 'key'} onChange={() => { setMode('key'); setRows(null); setNotice(''); }} />
               키 이름으로 값 찾기 <span className="text-muted-foreground">(username → holdemlove)</span>
             </label>
             <label className="flex items-center gap-2">
-              <input type="radio" checked={mode === 'line'} onChange={() => setMode('line')} />
+              <input type="radio" checked={mode === 'line'} onChange={() => { setMode('line'); setRows(null); setNotice(''); }} />
               키워드가 들어간 줄 찾기
             </label>
             <label className="flex items-center gap-2" title="사이트 목록 화면을 통째로 복사해 붙여 넣었을 때. 키 이름은 안 넣어도 돼요">
-              <input type="radio" checked={mode === 'tg'} onChange={() => setMode('tg')} />
+              <input type="radio" checked={mode === 'tg'} onChange={() => { setMode('tg'); setRows(null); setNotice(''); }} />
               글에서 텔레그램 주소 뽑기 <span className="text-muted-foreground">(@아이디·t.me 링크)</span>
             </label>
             <label className="ml-auto flex items-center gap-2">
