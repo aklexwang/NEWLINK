@@ -129,7 +129,18 @@ export function AdminDashboardPage() {
               }
             />
             <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" icon={<Eye />} value={data.memberVisible} sub={data.memberAdultOnly ? `성인 카테고리 ${data.memberAdultOnly.toLocaleString('ko-KR')} 포함` : undefined} />
-            <StatCard to="/admin/links?memberPage=no" label="회원 페이지 숨김" icon={<EyeOff />} value={data.memberHidden} />
+            <StatCard
+              to="/admin/links?memberPage=no"
+              label="회원 페이지 미노출"
+              icon={<EyeOff />}
+              value={data.memberHidden}
+              sub={(() => {
+                // 첫 수집 전인 방은 수집되면 자동으로 노출된다 → 진짜 숨김과 나눠 보여 준다
+                const waiting = data.hiddenReasons['아직 수집되지 않음'] ?? 0;
+                const hidden = Math.max(0, data.memberHidden - waiting);
+                return `⏳ 수집 대기 ${waiting.toLocaleString('ko-KR')} (자동 노출 예정) · 🚫 숨김 ${hidden.toLocaleString('ko-KR')}`;
+              })()}
+            />
             <StatCard to="/admin/links?status=pending" label="승인 대기" icon={<ClipboardList />} value={data.pendingCount} />
             <StatCard to="/admin/links?createdFrom=today" label="오늘 등록" icon={<CalendarPlus />} value={data.registered.today.total} />
             <StatCard to="/admin/links?createdFrom=7d" label="최근 7일 등록" icon={<CalendarDays />} value={data.registered.last7d.total} />
