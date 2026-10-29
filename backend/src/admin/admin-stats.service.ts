@@ -158,7 +158,35 @@ export class AdminStatsService {
       // 메모리 기준이라 서버가 다시 뜨면 0부터 센다
       collectGate: getTmeGate().snapshot(),
       queue,
+      failures: await this.getFailureSummary(),
       running: this.statsJob.isRunning(),
+    };
+  }
+
+  /** 지금 수집 실패 상태인 방을 실패 이유별로 센다 (반복 실패 = 3회 이상) */
+  private async getFailureSummary() {
+    const rows = await this.channelRepository
+      .createQueryBuilder('c')
+      .select("COALESCE(c.collectError, '(없음)')", 'reason')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect(
+        'SUM(CASE WHEN c.collectFailCount >= 3 THEN 1 ELSE 0 END)',
+        'repeated',
+      )
+      .where('c.status = :active', { active: ChannelStatus.ACTIVE })
+      .andWhere("c.collectStatus = 'failed'")
+      .groupBy("COALESCE(c.collectError, '(없음)')")
+      .orderBy('COUNT(*)', 'DESC')
+      .limit(12)
+      .getRawMany<{ reason: string; count: string; repeated: string | null }>();
+    const reasons = rows.map((row) => ({
+      reason: row.reason,
+      count: Number(row.count) || 0,
+      repeated: Number(row.repeated) || 0,
+    }));
+    return {
+      total: reasons.reduce((sum, r) => sum + r.count, 0),
+      reasons,
     };
   }
 

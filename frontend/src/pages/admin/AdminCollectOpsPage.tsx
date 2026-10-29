@@ -270,6 +270,50 @@ export function AdminCollectOpsPage() {
         </section>
       )}
 
+      {ops?.failures && (
+        <Card className="mt-6 py-0">
+          <CardHeader className="px-4 pt-4">
+            <CardDescription>수집 실패 이유 (지금 실패 상태인 방)</CardDescription>
+            <CardTitle className="text-base">
+              실패 {ops.failures.total.toLocaleString('ko-KR')}개 · 3번 이상 반복{' '}
+              {ops.failures.reasons.reduce((sum, r) => sum + r.repeated, 0).toLocaleString('ko-KR')}개
+            </CardTitle>
+          </CardHeader>
+          <div className="overflow-x-auto px-2 pb-3">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="px-2 py-1.5 font-medium">이유</th>
+                  <th className="px-2 py-1.5 text-right font-medium">방 수</th>
+                  <th className="px-2 py-1.5 text-right font-medium">3번 이상</th>
+                  <th className="px-2 py-1.5 font-medium">뜻</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ops.failures.reasons.map((row) => (
+                  <tr key={row.reason} className="border-t border-border">
+                    <td className="px-2 py-1.5 font-mono text-xs">{row.reason}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{row.count.toLocaleString('ko-KR')}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{row.repeated.toLocaleString('ko-KR')}</td>
+                    <td className="px-2 py-1.5 text-xs text-muted-foreground">{failureReasonLabel(row.reason)}</td>
+                  </tr>
+                ))}
+                {ops.failures.reasons.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-2 py-3 text-center text-muted-foreground">
+                      지금 실패 상태인 방이 없어요
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <p className="px-2 pt-2 text-[11px] text-muted-foreground">
+              채널·그룹 관리에서 수집 상태 "실패 묶음"으로 걸러 보면 방마다 수집 메모가 보여요.
+            </p>
+          </div>
+        </Card>
+      )}
+
       {ops && (
         <Card className="mt-6 py-0">
           <CardHeader className="px-4 pt-4">
@@ -357,4 +401,25 @@ export function AdminCollectOpsPage() {
       </Card>
     </div>
   );
+}
+
+/** 수집 실패 코드 → 한국어 뜻 */
+function failureReasonLabel(reason: string): string {
+  const r = reason.toLowerCase();
+  if (r.startsWith('fetch:timeout') || r.includes('timeout')) return '텔레그램 페이지 응답이 늦음 (일시적)';
+  if (r.startsWith('fetch:429') || r.includes('429')) return '요청이 많아 텔레그램이 잠시 막음 (일시적)';
+  if (r.startsWith('fetch:network')) return '네트워크 오류 (일시적)';
+  if (r.startsWith('fetch:empty')) return '빈 응답 (일시적)';
+  if (r.includes('not_found')) return '방을 찾을 수 없음 (사라졌을 수 있음)';
+  if (r.includes('private')) return '비공개로 바뀜';
+  if (r.includes('no_posts')) return '공개 글이 안 보임';
+  if (r.includes('no_username')) return '아이디가 없음';
+  if (r.startsWith('page:user')) return '개인 계정';
+  if (r.startsWith('page:bot')) return '봇 계정';
+  if (r.includes('http_')) return '텔레그램 페이지 오류 응답';
+  if (r.includes('mtproto')) return 'MTProto 수집 오류';
+  if (r.includes('bot:')) return '봇 수집 오류';
+  if (r.startsWith('fetch:')) return '텔레그램 접속 오류 (일시적)';
+  if (r === '(없음)') return '이유 기록 없음';
+  return '';
 }

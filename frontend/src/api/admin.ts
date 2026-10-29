@@ -202,6 +202,11 @@ export interface AdminStatsOps {
   };
   /** 수집 큐 현황 (next_collect_at 기준) */
   queue: AdminCollectQueue;
+  /** 수집 실패 상태인 방의 이유별 수 (예전 서버면 없음) */
+  failures?: {
+    total: number;
+    reasons: Array<{ reason: string; count: number; repeated: number }>;
+  };
   running: boolean;
 }
 
