@@ -54,7 +54,7 @@ function StatCard({
           <p className={long ? 'mt-1 text-[15px] leading-snug font-bold' : 'mt-1 text-2xl font-bold'}>
             {typeof value === 'number' ? value.toLocaleString('ko-KR') : value}
           </p>
-          {sub && <div className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">{sub}</div>}
+          {sub && <div className="mt-1 space-y-0.5 text-sm font-medium text-foreground/75">{sub}</div>}
         </div>
       </Card>
     </Link>
