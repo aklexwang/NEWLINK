@@ -102,6 +102,10 @@ export class AdminStatsService {
           'KEYWORD_SEARCH_DAILY_LIMIT',
           KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
         ),
+        joinsToday: mtproto.joinsToday,
+        joinDailyLimit: mtproto.joinDailyLimit,
+        joinedTotal: mtproto.joinedTotal,
+        joinTotalMax: mtproto.joinTotalMax,
         lastError: mtproto.lastError,
         countersFromMemory: true,
         floodWait: {

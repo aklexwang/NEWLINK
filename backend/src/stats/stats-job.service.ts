@@ -17,7 +17,10 @@ import {
 import { ChannelLanguageService } from './channel-language.service';
 import { ChannelCategoryService } from './channel-category.service';
 import { CategorySuggestionService } from './category-suggestion.service';
-import { MtprotoCollectorService } from './mtproto-collector.service';
+import {
+  MtprotoCollectorService,
+  type MtprotoPublicStatus,
+} from './mtproto-collector.service';
 import { ChannelMetricsService } from './channel-metrics.service';
 import { PublicStatsService } from './public-stats.service';
 import {
@@ -64,13 +67,7 @@ export interface StatsJobStatus {
     processed: number;
     total: number;
   } | null;
-  mtproto: {
-    enabled: boolean;
-    requestsToday: number;
-    resolvesToday: number;
-    searchesToday: number;
-    lastError: string | null;
-  };
+  mtproto: MtprotoPublicStatus;
 }
 
 /** light 회차에서 새 그룹·초대방 첫 수집에 쓰는 최대 시간 */

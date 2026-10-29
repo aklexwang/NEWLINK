@@ -165,6 +165,17 @@ export function AdminCollectOpsPage() {
           </Card>
           <Card className="py-4">
             <CardHeader className="px-4">
+              <CardDescription>비공개 채널 가입</CardDescription>
+              <CardTitle>
+                {ops.mtproto.joinsToday ?? 0}/{ops.mtproto.joinDailyLimit ?? 0}
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground">
+                전체 {ops.mtproto.joinedTotal ?? 0}/{ops.mtproto.joinTotalMax ?? 950} · 오늘 수는 매일 0시 초기화
+              </p>
+            </CardHeader>
+          </Card>
+          <Card className="py-4">
+            <CardHeader className="px-4">
               <CardDescription>FLOOD_WAIT</CardDescription>
               <CardTitle className="text-sm">{floodLabel}</CardTitle>
             </CardHeader>

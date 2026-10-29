@@ -158,6 +158,11 @@ export interface AdminStatsOps {
     resolveDailyLimit: number;
     searchesToday: number;
     searchDailyLimit: number;
+    /** 비공개 채널 자동 가입 (예전 서버면 없음) */
+    joinsToday?: number;
+    joinDailyLimit?: number;
+    joinedTotal?: number;
+    joinTotalMax?: number;
     lastError: string | null;
     countersFromMemory: boolean;
     floodWait: {

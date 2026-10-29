@@ -89,12 +89,25 @@ import {
   joinMentionedUsernames,
 } from './telegram-preview-html';
 import { asText } from '../common/as-text';
+import { AppSetting } from '../ads/app-setting.entity';
+import {
+  canJoinAnother,
+  isJoinableChannelInvite,
+  joinedChannelFromUpdates,
+  MTPROTO_JOIN_TOTAL_KEY,
+  MTPROTO_JOIN_TOTAL_MAX,
+  parseJoinDaily,
+} from './mtproto-join.logic';
 
 export type MtprotoPublicStatus = {
   enabled: boolean;
   requestsToday: number;
   resolvesToday: number;
   searchesToday: number;
+  joinsToday: number;
+  joinDailyLimit: number;
+  joinedTotal: number;
+  joinTotalMax: number;
   lastError: string | null;
 };
 
@@ -146,6 +159,7 @@ type HistoryPost = {
 };
 
 const MTPROTO_DAILY_KEY = 'mtproto';
+const MTPROTO_JOIN_DAILY_KEY = 'mtproto-join';
 
 @Injectable()
 export class MtprotoCollectorService implements OnModuleInit {
@@ -162,6 +176,12 @@ export class MtprotoCollectorService implements OnModuleInit {
   private resolvesToday = 0;
   private searchesToday = 0;
   private floodWaitUntil: Date | null = null;
+  private joinsToday = 0;
+  private joinDay = '';
+  private joinedTotal = 0;
+  private lastJoinAt = 0;
+  /** CHANNELS_TOO_MUCH 등으로 더 가입하면 안 될 때 */
+  private joinBlocked = false;
 
   constructor(
     private readonly configService: ConfigService,
@@ -180,10 +200,14 @@ export class MtprotoCollectorService implements OnModuleInit {
     private readonly discoveredRepository: Repository<DiscoveredUsername>,
     @Optional() private readonly dailyStore?: DailyCounterStore,
     @Optional() private readonly inviteQueue?: InviteDiscoveryQueueService,
+    @Optional()
+    @InjectRepository(AppSetting)
+    private readonly settings?: Repository<AppSetting>,
   ) {}
 
   async onModuleInit() {
     await this.restoreDailyCounters();
+    await this.restoreJoinCounters();
     await this.refreshFloodWaitFromDb();
     if (isFloodWaitBlocking(this.floodWaitUntil)) {
       this.stopped = true;
@@ -205,6 +229,10 @@ export class MtprotoCollectorService implements OnModuleInit {
       requestsToday: this.requestsToday,
       resolvesToday: this.resolvesToday,
       searchesToday: this.searchesToday,
+      joinsToday: this.currentJoinsToday(),
+      joinDailyLimit: this.joinDailyLimit(),
+      joinedTotal: this.joinedTotal,
+      joinTotalMax: MTPROTO_JOIN_TOTAL_MAX,
       lastError: this.lastError,
     };
   }
@@ -363,7 +391,11 @@ export class MtprotoCollectorService implements OnModuleInit {
           'messages.CheckChatInvite',
           new Api.messages.CheckChatInvite({ hash }),
         );
-        const chat = memberChatFromInvite(invite);
+        let chat = memberChatFromInvite(invite);
+        if (!chat && isJoinableChannelInvite(invite)) {
+          // 비공개 채널: 하루 한도·전체 950·간격 3분 안에서 가입하고 글까지 읽는다
+          chat = await this.tryJoinInvite(Api, hash, channel.id);
+        }
         if (!chat) return { ok: false, reason: 'not_member' };
         resolved = await this.fetchFullFromInput(
           Api,
@@ -406,6 +438,107 @@ export class MtprotoCollectorService implements OnModuleInit {
       );
       return { ok: false, reason: 'failed' };
     }
+  }
+
+  private joinDailyLimit(): number {
+    return parseJoinDaily(this.configService.get<string>('MTPROTO_JOIN_DAILY'));
+  }
+
+  private currentJoinsToday(): number {
+    const today = formatKstYmd();
+    if (this.joinDay !== today) {
+      this.joinDay = today;
+      this.joinsToday = 0;
+    }
+    return this.joinsToday;
+  }
+
+  /** 가입 1건. 실패·한도면 null (회원 아님으로 처리 → 공개 초대 페이지만 읽음) */
+  private async tryJoinInvite(
+    Api: typeof import('telegram').Api,
+    hash: string,
+    channelId: string,
+  ): Promise<ReturnType<typeof joinedChannelFromUpdates>> {
+    if (
+      !canJoinAnother({
+        joinsToday: this.currentJoinsToday(),
+        dailyMax: this.joinDailyLimit(),
+        joinedTotal: this.joinedTotal,
+        lastJoinAt: this.lastJoinAt,
+        now: Date.now(),
+        blocked: this.joinBlocked,
+      })
+    ) {
+      return null;
+    }
+    this.lastJoinAt = Date.now();
+    try {
+      const result = await this.call(
+        'messages.ImportChatInvite',
+        new Api.messages.ImportChatInvite({ hash }),
+      );
+      this.joinsToday += 1;
+      this.joinedTotal += 1;
+      this.saveJoinCounters();
+      const chat = joinedChannelFromUpdates(result);
+      this.logger.log(
+        `비공개 채널 가입(${channelId}): 오늘 ${this.joinsToday} / 전체 ${this.joinedTotal}`,
+      );
+      return chat;
+    } catch (error) {
+      const code = mtprotoErrorCode(error);
+      if (code === 'CHANNELS_TOO_MUCH') {
+        this.joinBlocked = true;
+        this.logger.warn('가입 채널 수 한도에 닿아 자동 가입을 멈춥니다.');
+        return null;
+      }
+      if (code === 'USER_ALREADY_PARTICIPANT') return null;
+      if (
+        code === 'INVITE_REQUEST_SENT' ||
+        code === 'INVITE_HASH_EXPIRED' ||
+        code === 'INVITE_HASH_INVALID'
+      ) {
+        return null;
+      }
+      // 시간 초과·FloodWait·인증 오류는 원래 흐름에서 처리
+      throw error;
+    }
+  }
+
+  private async restoreJoinCounters(): Promise<void> {
+    try {
+      if (this.dailyStore) {
+        const saved = await this.dailyStore.load<{ joins: number }>(
+          MTPROTO_JOIN_DAILY_KEY,
+        );
+        this.currentJoinsToday();
+        if (saved) {
+          this.joinsToday = Math.max(this.joinsToday, safeCount(saved.joins));
+        }
+      }
+      const row = await this.settings?.findOneBy({
+        key: MTPROTO_JOIN_TOTAL_KEY,
+      });
+      if (row) this.joinedTotal = safeCount(Number(row.value));
+    } catch (error) {
+      this.logger.warn(
+        `가입 수 불러오기 실패: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
+
+  private saveJoinCounters(): void {
+    this.dailyStore?.schedule(MTPROTO_JOIN_DAILY_KEY, () => {
+      this.currentJoinsToday();
+      return { date: this.joinDay, values: { joins: this.joinsToday } };
+    });
+    void this.settings
+      ?.save({ key: MTPROTO_JOIN_TOTAL_KEY, value: String(this.joinedTotal) })
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `가입 전체 수 저장 실패: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
   }
 
   /**
