@@ -566,6 +566,30 @@ export function AdminLinksManagePage() {
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
+          {channels.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const allOnPage = channels.every((c) => selectedIds.has(c.id));
+                setSelectedIds((prev) => {
+                  const next = new Set(prev);
+                  for (const c of channels) {
+                    if (allOnPage) next.delete(c.id);
+                    else next.add(c.id);
+                  }
+                  return next;
+                });
+              }}
+              className="rounded-xl bg-card px-4 py-2 text-sm font-medium ring-1 ring-border hover:bg-muted"
+            >
+              {channels.every((c) => selectedIds.has(c.id))
+                ? `이 페이지 선택 해제 (${channels.length})`
+                : `이 페이지 전체 선택 (${channels.length})`}
+            </button>
+          )}
+          {selectedList.length > 0 && (
+            <span className="text-sm font-semibold text-primary">{selectedList.length}개 선택됨</span>
+          )}
           <button type="button" disabled={bulkDisabled} onClick={() => void handleBulkVisibility(true)} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">노출 켜기</button>
           <button type="button" disabled={bulkDisabled} onClick={() => void handleBulkVisibility(false)} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">노출 끄기</button>
           <select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)} className="rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-border">

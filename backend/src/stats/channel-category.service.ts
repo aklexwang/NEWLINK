@@ -29,7 +29,7 @@ export class ChannelCategoryService {
 
   async classifyOne(
     channel: Channel,
-    options: { force?: boolean } = {},
+    options: { force?: boolean; minConfidence?: number } = {},
   ): Promise<Channel> {
     if (channel.categoryLocked) return channel;
     const posts =
@@ -57,6 +57,7 @@ export class ChannelCategoryService {
     const resolved = resolveCategoryWithConfidence(
       classified.category,
       classified.confidence,
+      options.minConfidence,
     );
     const prev = channel.category;
     channel.category = resolved.category;

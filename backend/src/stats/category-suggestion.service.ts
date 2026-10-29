@@ -16,6 +16,10 @@ import {
 } from './category-suggestion.logic';
 
 /** 새 카테고리 후보(AI 가 "목록에 맞는 게 없다"며 제안한 이름) 모아 보기·알림·다시 분류 */
+const PENDING_CATEGORY_NAME = '분류대기';
+/** 분류대기 [AI로 분류하기] 버튼: 이 확신 이상이면 AI 추측 카테고리로 옮긴다 */
+const MANUAL_PENDING_MIN_CONFIDENCE = 0.5;
+
 @Injectable()
 export class CategorySuggestionService {
   private readonly logger = new Logger(CategorySuggestionService.name);
@@ -96,6 +100,11 @@ export class CategorySuggestionService {
       const before = channel.category;
       const next = await this.channelCategory.classifyOne(channel, {
         force: true,
+        // 어드민이 분류대기에서 직접 누른 경우만 50% 확신이면 옮긴다(자동 분류는 70% 그대로)
+        minConfidence:
+          name === PENDING_CATEGORY_NAME
+            ? MANUAL_PENDING_MIN_CONFIDENCE
+            : undefined,
       });
       if (next.category !== before) {
         changed.push({ title: channel.title, from: before, to: next.category });
