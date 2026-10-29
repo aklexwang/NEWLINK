@@ -8,8 +8,8 @@ import {
 } from './mtproto-budget.logic';
 
 describe('키워드 검색 상한', () => {
-  it('하루 기본 상한은 10이다', () => {
-    expect(KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT).toBe(10);
+  it('하루 기본 상한은 20이다', () => {
+    expect(KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT).toBe(20);
     expect(canRunAnotherKeywordSearch(9, 10)).toBe(true);
     expect(canRunAnotherKeywordSearch(10, 10)).toBe(false);
   });
@@ -45,14 +45,14 @@ describe('splitRemainingAfterCollect', () => {
     expect(split.keywordSearches).toBe(0);
   });
 
-  it('기본 상한 10이면 수집 이후 남은 예산에서 검색 10을 남긴다', () => {
+  it('기본 상한 20이면 수집 이후 남은 예산에서 검색 20을 남긴다', () => {
     const split = splitRemainingAfterCollect({
       remaining: 320,
       discoveryInspectCap: DISCOVERY_MAX_PER_DAY,
     });
-    expect(split.keywordSearches).toBe(10);
-    expect(split.discoveryInspects).toBe(155);
-    expect(split.discoveryRequests).toBe(310);
+    expect(split.keywordSearches).toBe(20);
+    expect(split.discoveryInspects).toBe(150);
+    expect(split.discoveryRequests).toBe(300);
   });
 
   it('수집이 없으면 눈덩이 200회·키워드 100회로 남긴다', () => {

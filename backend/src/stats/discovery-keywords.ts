@@ -191,3 +191,89 @@ export function rotateDiscoveryKeywords(
   }
   return out;
 }
+
+/**
+ * 2차 추가 키워드 (2026-10-29). 처음 시드 뒤에 한 번만 없는 단어를 넣는다(app_settings 표시).
+ * 관리자가 지운 단어는 표시가 있으면 다시 넣지 않는다.
+ */
+export const DISCOVERY_KEYWORD_SEED_V2_KEY = 'discovery-keywords:seed-v2';
+
+export const DISCOVERY_KEYWORD_GROUPS_V2: DiscoveryKeywordGroup[] = [
+  { category: '뉴스', keywords: ['뉴스속보', '국내뉴스', '정치', '사건사고'] },
+  {
+    category: '경제',
+    keywords: ['경제뉴스', '미국주식', '배당', '금리', '부업', '짠테크'],
+  },
+  {
+    category: '암호화폐',
+    keywords: [
+      '리플',
+      '이더리움',
+      '밈코인',
+      '에어드랍',
+      '바이낸스',
+      '선물거래',
+    ],
+  },
+  { category: '쇼핑', keywords: ['특가', '최저가', '무료나눔', '직구'] },
+  { category: '교육', keywords: ['영어공부', '토익', '공무원', '수능'] },
+  {
+    category: '기술',
+    keywords: ['아이폰', '갤럭시', '챗GPT', 'IT뉴스', '앱테크'],
+  },
+  {
+    category: '엔터테인먼트',
+    keywords: ['유튜브', '넷플릭스', '연예인', '아이돌정보'],
+  },
+  { category: '음악', keywords: ['음악추천', '힙합'] },
+  { category: '게임', keywords: ['리니지', '메이플', '배그', '게임정보'] },
+  {
+    category: '스포츠',
+    keywords: ['해외축구', '프로야구', '손흥민', '스포츠뉴스'],
+  },
+  {
+    category: '커뮤니티',
+    keywords: ['친목', '소통방', '대화방', '지역모임', '동호회'],
+  },
+  { category: '여행', keywords: ['국내여행', '캠핑', '일본여행'] },
+  { category: '맛집', keywords: ['레시피', '요리'] },
+  { category: '건강', keywords: ['건강정보', '러닝'] },
+  { category: '부동산', keywords: ['부동산정보', '경매'] },
+  { category: '구인구직', keywords: ['일자리', '재택부업'] },
+  { category: '웹툰', keywords: ['웹툰추천', '애니'] },
+  {
+    category: '기타',
+    keywords: ['한국', '대한민국', '공지방', '채널추천', '텔레그램채널'],
+  },
+];
+
+/** 이미 있는 단어는 빼고, 기존 sort 뒤에 이어 붙일 행 */
+export function discoveryKeywordV2InsertRows(
+  existingWords: Iterable<string>,
+  startSort: number,
+  now = new Date(),
+) {
+  const seen = new Set([...existingWords].map((w) => w.trim()));
+  let sort = startSort;
+  const out: ReturnType<typeof newDiscoveryKeywordInsertRows> = [];
+  for (const group of DISCOVERY_KEYWORD_GROUPS_V2) {
+    for (const raw of group.keywords) {
+      const word = raw.trim();
+      if (!word || seen.has(word)) continue;
+      seen.add(word);
+      out.push({
+        id: randomUUID(),
+        word,
+        category: group.category,
+        enabled: true,
+        sort,
+        createdAt: now,
+        lastSearchedAt: null,
+        lastFoundCount: null,
+        totalNewCount: 0,
+      });
+      sort += 1;
+    }
+  }
+  return out;
+}

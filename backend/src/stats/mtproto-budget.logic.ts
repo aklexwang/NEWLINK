@@ -6,7 +6,7 @@ export const MTPROTO_INSPECT_COST = 2;
 /** contacts.Search 1회 */
 export const MTPROTO_KEYWORD_SEARCH_COST = 1;
 
-export const KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT = 10;
+export const KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT = 20;
 export const KEYWORD_SEARCH_GAP_MS = 10_000;
 
 export function envPositiveInt(

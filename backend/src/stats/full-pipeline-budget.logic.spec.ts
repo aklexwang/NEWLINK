@@ -14,8 +14,8 @@ describe('full 파이프라인 최악 시간', () => {
     expect(msToMinutes(discoveryUncappedWorstMs())).toBe(50);
   });
 
-  it('키워드 검색 기본 10회·간격 10초는 5분 이하라 예산을 안 건다', () => {
-    expect(msToMinutes(keywordSearchUncappedWorstMs())).toBe(2);
+  it('키워드 검색 기본 20회·간격 10초는 5분 이하라 예산을 안 건다', () => {
+    expect(msToMinutes(keywordSearchUncappedWorstMs())).toBe(4.2);
     expect(keywordSearchNeedsTimeBudget()).toBe(false);
   });
 
@@ -25,7 +25,7 @@ describe('full 파이프라인 최악 시간', () => {
   });
 
   it('예산 적용 후 full 최악은 100분 이하다', () => {
-    expect(fullPipelineBudgetedWorstMinutes()).toBe(97);
+    expect(fullPipelineBudgetedWorstMinutes()).toBe(99.2);
     expect(fullPipelineBudgetedWorstMinutes()).toBeLessThanOrEqual(100);
   });
 });

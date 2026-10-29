@@ -1,5 +1,6 @@
 import {
   DISCOVERY_KEYWORD_GROUPS,
+  discoveryKeywordV2InsertRows,
   flattenDiscoveryKeywordSeed,
   flattenDiscoveryKeywords,
   pickKeywordsForSearch,
@@ -81,5 +82,23 @@ describe('discovery-keywords', () => {
     expect(day1[0]).toBe(all[0]);
     expect(day2[0]).toBe(all[100]);
     expect(day2).toContain('웹툰');
+  });
+});
+
+describe('2차 키워드', () => {
+  it('이미 있는 단어는 빼고 sort 를 이어 붙인다', () => {
+    const rows = discoveryKeywordV2InsertRows(['정치', '리플'], 200);
+    const words = rows.map((r) => r.word);
+    expect(words).not.toContain('정치');
+    expect(words).not.toContain('리플');
+    expect(words).toContain('미국주식');
+    expect(rows[0].sort).toBe(200);
+    expect(new Set(words).size).toBe(words.length);
+  });
+
+  it('1차 키워드와 겹치지 않는다', () => {
+    const first = new Set(flattenDiscoveryKeywords());
+    const v2 = discoveryKeywordV2InsertRows([], 0).map((r) => r.word);
+    expect(v2.filter((w) => first.has(w))).toEqual([]);
   });
 });
