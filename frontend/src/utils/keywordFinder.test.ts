@@ -6,6 +6,7 @@ import {
   collectTelegramEntries,
   dedupeRows,
   findLinesWithKeywords,
+  findTelegramInText,
   findValuesByKey,
   parseKeys,
   toTelegramEntry,
@@ -67,6 +68,17 @@ describe('keywordFinder', () => {
     assert.equal(toTelegramEntry('513393'), null);
     assert.equal(toTelegramEntry('_c3410440091'), null);
     assert.equal(toTelegramEntry('abc'), null);
+  });
+
+  it('사이트 목록 글에서 텔레그램 주소만 뽑기', () => {
+    const page = [
+      '급등일보 미국주식 @faststocknews 구독자 1.2만',
+      '문의: help@naver.com / https://t.me/share/url?x=1',
+      '코인 정보 t.me/coin_news_kr  비공개 https://t.me/+AbCdEf12345',
+      '@ab 너무 짧음, @faststocknews 중복',
+    ].join('\n');
+    const values = collectTelegramEntries(findTelegramInText(page));
+    assert.deepEqual(values, ['faststocknews', 'coin_news_kr', 'https://t.me/+AbCdEf12345']);
   });
 
   it('보낼 목록은 아이디만, 중복 없이', () => {

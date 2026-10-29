@@ -8,6 +8,7 @@ import {
   collectTelegramEntries,
   dedupeRows,
   findLinesWithKeywords,
+  findTelegramInText,
   findValuesByKey,
   parseKeys,
   rowsToCsv,
@@ -85,7 +86,7 @@ function CollectorTool() {
   const [data, setData] = useState('');
   const [fileName, setFileName] = useState('');
   const [keys, setKeys] = useState('username');
-  const [mode, setMode] = useState<'key' | 'line'>('key');
+  const [mode, setMode] = useState<'key' | 'line' | 'tg'>('key');
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [unique, setUnique] = useState(true);
   /** _c3285789158 처럼 _ 로 시작하는 값(아이디 없는 방 번호)은 결과에서 뺀다 */
@@ -116,7 +117,7 @@ function CollectorTool() {
     () => (filtered && unique ? dedupeRows(filtered, caseSensitive) : filtered),
     [filtered, unique, caseSensitive],
   );
-  const entries = useMemo(() => (shown && mode === 'key' ? collectTelegramEntries(shown) : []), [shown, mode]);
+  const entries = useMemo(() => (shown && mode !== 'line' ? collectTelegramEntries(shown) : []), [shown, mode]);
 
   const loadFiles = async (files: FileList | File[] | null) => {
     const list = files ? Array.from(files) : [];
@@ -140,14 +141,16 @@ function CollectorTool() {
       setNotice('데이터를 먼저 넣어 주세요.');
       return;
     }
-    if (keyList.length === 0) {
+    if (mode !== 'tg' && keyList.length === 0) {
       setNotice('찾을 키 이름을 넣어 주세요.');
       return;
     }
     const found =
-      mode === 'key'
-        ? findValuesByKey(data, keyList, caseSensitive)
-        : findLinesWithKeywords(data, keyList, caseSensitive);
+      mode === 'tg'
+        ? findTelegramInText(data)
+        : mode === 'key'
+          ? findValuesByKey(data, keyList, caseSensitive)
+          : findLinesWithKeywords(data, keyList, caseSensitive);
     setRows(found);
     setSentOffset(0);
     setNotice(found.length === 0 ? '찾은 값이 없어요.' : '');
@@ -290,6 +293,10 @@ function CollectorTool() {
               <input type="radio" checked={mode === 'line'} onChange={() => setMode('line')} />
               키워드가 들어간 줄 찾기
             </label>
+            <label className="flex items-center gap-2" title="사이트 목록 화면을 통째로 복사해 붙여 넣었을 때. 키 이름은 안 넣어도 돼요">
+              <input type="radio" checked={mode === 'tg'} onChange={() => setMode('tg')} />
+              글에서 텔레그램 주소 뽑기 <span className="text-muted-foreground">(@아이디·t.me 링크)</span>
+            </label>
             <label className="ml-auto flex items-center gap-2">
               <input type="checkbox" checked={caseSensitive} onChange={(e) => setCaseSensitive(e.target.checked)} />
               대소문자 구분
@@ -347,7 +354,7 @@ function CollectorTool() {
               </button>
             </div>
 
-            {mode === 'key' && (
+            {mode !== 'line' && (
               <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-emerald-500/10 px-4 py-3 ring-1 ring-emerald-500/30">
                 <p className="mr-auto text-sm">
                   이 중 텔레그램 아이디로 쓸 수 있는 값 <b>{entries.length.toLocaleString('ko-KR')}개</b>

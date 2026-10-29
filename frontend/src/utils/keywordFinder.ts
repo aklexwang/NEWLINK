@@ -122,6 +122,36 @@ export function toTelegramEntry(value: string): string | null {
   return name;
 }
 
+/** 사이트 목록을 통째로 복사한 글에서 빼면 안 되는 흔한 단어(텔레그램 자체 주소 등) */
+const TEXT_SKIP = new Set(['share', 'joinchat', 'addstickers', 'proxy', 'socks', 'iv', 'setlanguage', 'telegram', 'contact']);
+
+/**
+ * 아무 글(사이트 목록 화면을 통째로 복사한 것)에서 텔레그램 주소만 뽑기.
+ * - t.me/아이디, telegram.me/아이디, t.me/+초대코드, @아이디
+ * - 이메일(abc@naver.com) 은 빼고, 봇(…bot)은 그대로 둔다(등록 확인에서 걸러짐)
+ */
+export function findTelegramInText(text: string): FoundRow[] {
+  const out: FoundRow[] = [];
+  const lines = text.split('\n');
+  const linkRe = /(?:https?:\/\/)?(?:www\.)?(?:t\.me|telegram\.me)\/(?:s\/)?(\+[A-Za-z0-9_-]{6,}|joinchat\/[A-Za-z0-9_-]{6,}|[A-Za-z][A-Za-z0-9_]{3,31})/gi;
+  const atRe = /(^|[^A-Za-z0-9_.@])@([A-Za-z][A-Za-z0-9_]{3,31})(?![A-Za-z0-9_.]*\.[A-Za-z]{2,})/g;
+  lines.forEach((line, index) => {
+    for (const m of line.matchAll(linkRe)) {
+      const raw = m[1];
+      if (!raw.startsWith('+') && !raw.toLowerCase().startsWith('joinchat/') && TEXT_SKIP.has(raw.toLowerCase())) continue;
+      const entry = toTelegramEntry(`t.me/${raw}`);
+      if (entry) out.push({ key: 'telegram', value: entry, line: index + 1 });
+    }
+    for (const m of line.matchAll(atRe)) {
+      const name = m[2];
+      if (TEXT_SKIP.has(name.toLowerCase())) continue;
+      const entry = toTelegramEntry(name);
+      if (entry) out.push({ key: 'telegram', value: entry, line: index + 1 });
+    }
+  });
+  return out;
+}
+
 export function collectTelegramEntries(rows: FoundRow[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
