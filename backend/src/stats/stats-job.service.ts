@@ -167,11 +167,11 @@ export class StatsJobService implements OnModuleInit {
   }
 
   /**
-   * 매주 월요일 KST 04:00. 분류대기 채널을 게시글 본문으로 다시 분류합니다.
-   * 무료 서버가 잠들어 있으면 이 크론이 안 돌 수 있어, GitHub Actions 가
-   * POST /internal/stats/reclassify 로도 깨워서 부릅니다(겹치면 한 번만 돈다).
+   * 매일 KST 05:20 (새벽 full 수집이 게시글을 모은 뒤). 분류대기 채널을 게시글 본문으로 다시 분류합니다.
+   * 대상은 분류대기 방뿐이고 AI 하루 한도(AI_DAILY_LIMIT)를 넘지 않는다.
+   * GitHub Actions 가 월요일에 POST /internal/stats/reclassify 로도 부른다(겹치면 한 번만 돈다).
    */
-  @Cron('0 4 * * 1', { timeZone: 'Asia/Seoul' })
+  @Cron('20 5 * * *', { timeZone: 'Asia/Seoul' })
   handleWeeklyCategoryCron() {
     if (envFalsy(this.configService.get<string>('STATS_CRON_ENABLED'))) {
       return;

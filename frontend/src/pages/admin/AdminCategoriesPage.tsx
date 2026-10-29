@@ -337,7 +337,7 @@ export function AdminCategoriesPage() {
               <h3 className="text-base font-bold">등록된 카테고리 ({sortedCategories.length})</h3>
               {pendingTotal > 0 && (
                 <p className="mt-0.5 text-xs text-subtle">
-                  ⏳ 분류대기 {pendingTotal.toLocaleString()}개 — 매주 월요일 새벽 AI가 자동으로 카테고리를 정해요
+                  ⏳ 분류대기 {pendingTotal.toLocaleString()}개 — 매일 새벽 5시 20분 AI가 자동으로 카테고리를 다시 정해요
                 </p>
               )}
             </div>
