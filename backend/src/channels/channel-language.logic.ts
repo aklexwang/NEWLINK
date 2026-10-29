@@ -139,6 +139,32 @@ function detectDistinctForeignScript(
   return best?.reason ?? null;
 }
 
+/**
+ * 제목(또는 제목+소개)이 한국어로 쓰였는지.
+ * 한국인 대상 방은 게시글이 영어·이미지 위주여도 제목은 한글인 경우가 많아,
+ * 게시글 본문만 보고 외국어로 숨기던 오판을 막는다.
+ */
+export function headerLooksKorean(
+  title: string | null | undefined,
+  description: string | null | undefined,
+): boolean {
+  const t = (title ?? '').trim();
+  const titleCount = countLetters(t);
+  if (
+    titleCount.hangul >= 2 &&
+    titleCount.letters > 0 &&
+    titleCount.hangul / titleCount.letters >= 0.3
+  ) {
+    return true;
+  }
+  const header = [t, (description ?? '').trim()].filter(Boolean).join('\n');
+  const headerCount = countLetters(header);
+  return (
+    headerCount.letters >= LANGUAGE_MIN_LETTERS &&
+    headerCount.hangul / headerCount.letters >= LANGUAGE_KO_MIN_RATIO
+  );
+}
+
 export type LanguageDetectInput = {
   title?: string | null;
   description?: string | null;
@@ -164,6 +190,11 @@ export function detectChannelLanguageResult(
     }
   } else if (hasHangul(header)) {
     return { language: 'unknown', reason: 'sparse' };
+  }
+
+  // 제목·소개가 한국어면 게시글이 외국어여도 외국어로 숨기지 않는다
+  if (headerLooksKorean(title, description)) {
+    return { language: 'ko', reason: 'hangul' };
   }
 
   const script = detectDistinctForeignScript(header);
@@ -209,6 +240,8 @@ export function detectGroupLanguageFromStoredRatio(input: {
     .filter(Boolean)
     .join('\n');
   if (input.hangulRatio >= LANGUAGE_KO_MIN_RATIO) return 'ko';
+  // 그룹 대화가 외국어·봇 위주여도 제목·소개가 한국어면 한국 방으로 본다
+  if (headerLooksKorean(input.title, input.description)) return 'ko';
   const script = detectDistinctForeignScript(header);
   if (script) return 'foreign';
   if (input.hangulRatio <= LANGUAGE_FOREIGN_MAX_RATIO) return 'foreign';

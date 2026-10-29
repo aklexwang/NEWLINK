@@ -2,6 +2,7 @@ import {
   detectChannelLanguage,
   detectChannelLanguageResult,
   detectGroupLanguageFromStoredRatio,
+  headerLooksKorean,
   foreignReasonLabel,
   hangulRatio,
   isDefaultPublicLanguage,
@@ -212,5 +213,51 @@ describe('isKoreanChannelText 기준 맞춤', () => {
     expect(isKoreanChannelText('Telegram News', 'Official updates')).toBe(
       false,
     );
+  });
+});
+
+describe('제목이 한국어인 방', () => {
+  const englishPosts = Array.from(
+    { length: 10 },
+    (_, i) => `BTC long signal entry ${i} target profit stop loss update`,
+  );
+
+  it('게시글이 영어여도 제목이 한글이면 ko 이다', () => {
+    expect(
+      detectChannelLanguageResult({
+        title: '코인 시그널 공유방',
+        description: '',
+        excerpts: englishPosts,
+      }),
+    ).toEqual({ language: 'ko', reason: 'hangul' });
+  });
+
+  it('그룹 대화 한글 비율이 낮아도 제목이 한글이면 ko 이다', () => {
+    expect(
+      detectGroupLanguageFromStoredRatio({
+        title: '부산 맛집 모임',
+        description: null,
+        hangulRatio: 0.01,
+      }),
+    ).toBe('ko');
+  });
+
+  it('영어 제목에 한글 한 글자만 섞이면 한국어로 보지 않는다', () => {
+    expect(headerLooksKorean('Crypto Signals Official 방', '')).toBe(false);
+    expect(
+      detectChannelLanguage({
+        title: 'Crypto Signals Official 방',
+        excerpts: englishPosts,
+      }),
+    ).toBe('foreign');
+  });
+
+  it('제목은 영어라도 소개가 한국어면 한국어로 본다', () => {
+    expect(
+      headerLooksKorean(
+        'VIP Club',
+        '매일 오전 국내 주식 종목 분석을 올려 드립니다',
+      ),
+    ).toBe(true);
   });
 });
