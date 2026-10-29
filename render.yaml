@@ -1,14 +1,15 @@
-# NEWLINK — Render 배포 (무료 티어로 먼저 올리기)
-# 주의: Free Web은 약 15분 미사용 시 잠들었다가 첫 요청에 늦게 깨어납니다.
-# 상시 가동이 필요하면 plan을 starter / basic-256mb 로 올리고 카드를 등록하세요.
+# NEWLINK — Render 배포 (유료: Web Starter 0.5 CPU·512MB / DB Basic-256mb·1GB, 2026-10 기준)
+# 서버가 잠들지 않으므로 서버 안 크론(light 3시간·full 03:05·분류대기 05:20)이 직접 돈다.
+# GitHub Actions(stats-cron)도 같은 시각에 깨우지만 겹치면 한 번만 돈다.
 #
 # DB 연결: Blueprint의 connectionString 은 내부망 주소입니다.
-# Free Web에서 ENOTFOUND 가 나면 newlink-db → Info → External Database URL 을
+# ENOTFOUND 가 나면 newlink-db → Info → External Database URL 을
 # newlink-api Environment 의 DATABASE_URL 에 직접 넣어 주세요.
 
 databases:
   - name: newlink-db
-    plan: free
+    plan: basic-256mb
+    diskSizeGB: 1
     databaseName: newlink
     user: newlink
     region: oregon
@@ -17,7 +18,7 @@ services:
   - type: web
     name: newlink-api
     runtime: node
-    plan: free
+    plan: starter
     region: oregon
     rootDir: backend
     # NODE_ENV=production 이어도 nest/typescript(devDependency)를 설치해야 빌드됩니다.
@@ -74,7 +75,7 @@ services:
         sync: false
       - key: TGSTAT_LANGUAGE
         value: korean
-      # Render Free는 잠들어서 프로세스 크론이 안 돕니다. GitHub Actions가 깨웁니다.
+      # 예전 무료 서버 시절 설정. 지금은 서버 크론도 돌고 GitHub Actions 도 깨운다.
       - key: STATS_CRON_ENABLED
         value: "false"
       - key: INTERNAL_CRON_TOKEN
