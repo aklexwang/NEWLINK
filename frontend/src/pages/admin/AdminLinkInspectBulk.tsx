@@ -248,6 +248,15 @@ export function AdminLinkInspectBulk() {
     setText('');
     setAskContinue(null);
     setRegisteredTotal(0);
+    if (total === 0) {
+      // 하나도 등록 안 하고 지운 경우: "등록 완료" 창 없이 결과만 한 줄
+      setMessage(
+        summary
+          .replace(/^✅ 등록이 완료되었습니다\. 새로 등록 0개 · ?/, '🧹 확인 목록을 지웠어요. ')
+          .replace(/ \(확인 목록은 지웠어요\)$/, ''),
+      );
+      return;
+    }
     setMessage(summary);
     setDoneSummary(summary.replace(/^✅ 등록이 완료되었습니다\. /, ''));
   };
@@ -498,6 +507,25 @@ export function AdminLinkInspectBulk() {
               {job.status === 'completed' ? ' · 완료' : ''}
             </p>
             <div className="flex flex-wrap items-center gap-2">
+              {job.status === 'completed' && selectable.length === 0 && !registerProgress && (
+                <span className="text-sm font-semibold text-amber-600">
+                  등록할 정상 항목이 없어요. 목록을 지우고 새 링크를 넣어 주세요 →
+                </span>
+              )}
+              {job.status !== 'running' && !registerProgress && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void stopAndClear()}
+                  className={`rounded-xl px-3 py-2 text-sm ring-1 ring-border hover:bg-muted disabled:opacity-50 ${
+                    job.status === 'completed' && selectable.length === 0
+                      ? 'admin-guide-blink bg-amber-500 font-bold text-white hover:bg-amber-600'
+                      : 'bg-card text-subtle'
+                  }`}
+                >
+                  목록 지우기
+                </button>
+              )}
               {guide && (
                 <span className="text-sm font-bold text-emerald-600">
                   👉 다음: {guide === 'select' ? '[정상만 선택]을 누르세요' : '[선택 등록]을 누르세요'}
