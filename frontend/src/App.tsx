@@ -6,16 +6,24 @@ import { NewVersionBanner } from './components/NewVersionBanner';
 import { AuthProvider } from './providers/AuthProvider';
 import { ThemeProvider } from './providers/ThemeProvider';
 import { AppToastProvider } from './providers/AppToastProvider';
-import { TonConnectProvider } from './providers/TonConnectProvider';
-import { ChannelDetailPage } from './pages/ChannelDetailPage';
-import { ComparePage } from './pages/ComparePage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { HomePage } from './pages/HomePage';
-import { FavoritesPage } from './pages/FavoritesPage';
-import { MyPage } from './pages/MyPage';
-import { RankingPage } from './pages/RankingPage';
-import { SubmitPage } from './pages/SubmitPage';
-import { WeeklyPage } from './pages/WeeklyPage';
+import type { ReactNode } from 'react';
+
+// 첫 화면(홈·카테고리) 말고는 필요할 때 불러온다. 차트(recharts)·TON 지갑이 무거워서
+const ChannelDetailPage = lazy(() =>
+  import('./pages/ChannelDetailPage').then((m) => ({ default: m.ChannelDetailPage })),
+);
+const ComparePage = lazy(() => import('./pages/ComparePage').then((m) => ({ default: m.ComparePage })));
+const FavoritesPage = lazy(() => import('./pages/FavoritesPage').then((m) => ({ default: m.FavoritesPage })));
+const MyPage = lazy(() => import('./pages/MyPage').then((m) => ({ default: m.MyPage })));
+const RankingPage = lazy(() => import('./pages/RankingPage').then((m) => ({ default: m.RankingPage })));
+const WeeklyPage = lazy(() => import('./pages/WeeklyPage').then((m) => ({ default: m.WeeklyPage })));
+const SubmitRoute = lazy(() => import('./pages/SubmitRoute'));
+
+function Lazy({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<div className="min-h-[60vh]" />}>{children}</Suspense>;
+}
 
 const AdminRoutes = lazy(() => import('./admin/AdminRoutes'));
 
@@ -24,7 +32,6 @@ export default function App() {
     <BrowserRouter>
       <AppToastProvider>
         <AppErrorBoundary>
-          <TonConnectProvider>
             <ThemeProvider>
             <AuthProvider>
               <Routes>
@@ -48,21 +55,20 @@ export default function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/categories" element={<CategoriesPage />} />
-                  <Route path="/c/id/:id" element={<ChannelDetailPage />} />
-                  <Route path="/c/:username" element={<ChannelDetailPage />} />
-                  <Route path="/ranking" element={<RankingPage />} />
-                  <Route path="/weekly" element={<WeeklyPage />} />
-                  <Route path="/compare" element={<ComparePage />} />
+                  <Route path="/c/id/:id" element={<Lazy><ChannelDetailPage /></Lazy>} />
+                  <Route path="/c/:username" element={<Lazy><ChannelDetailPage /></Lazy>} />
+                  <Route path="/ranking" element={<Lazy><RankingPage /></Lazy>} />
+                  <Route path="/weekly" element={<Lazy><WeeklyPage /></Lazy>} />
+                  <Route path="/compare" element={<Lazy><ComparePage /></Lazy>} />
                   <Route path="/search" element={<Navigate to="/" replace />} />
-                  <Route path="/favorites" element={<FavoritesPage />} />
-                  <Route path="/submit" element={<SubmitPage />} />
-                  <Route path="/my" element={<MyPage />} />
+                  <Route path="/favorites" element={<Lazy><FavoritesPage /></Lazy>} />
+                  <Route path="/submit" element={<Lazy><SubmitRoute /></Lazy>} />
+                  <Route path="/my" element={<Lazy><MyPage /></Lazy>} />
                 </Route>
               </Routes>
               <NewVersionBanner />
             </AuthProvider>
             </ThemeProvider>
-          </TonConnectProvider>
         </AppErrorBoundary>
       </AppToastProvider>
     </BrowserRouter>

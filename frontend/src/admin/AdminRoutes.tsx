@@ -15,6 +15,7 @@ import { AdminUsersPage } from '../pages/admin/AdminUsersPage';
 import { AdminCollectorToolPage } from '../pages/admin/AdminCollectorToolPage';
 import { AdminServerStatusPage } from '../pages/admin/AdminServerStatusPage';
 import { AdminFeedFilterPage } from '../pages/admin/AdminFeedFilterPage';
+import { TonConnectProvider } from '../providers/TonConnectProvider';
 
 export default function AdminRoutes() {
   return (
@@ -26,7 +27,15 @@ export default function AdminRoutes() {
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="collect" element={<AdminCollectOpsPage />} />
         <Route path="links" element={<AdminLinksManagePage />} />
-        <Route path="pending" element={<AdminPendingPage />} />
+        {/* TON 지갑 연결은 보상 지급 화면에서만 쓴다 (회원 화면 첫 로딩을 가볍게) */}
+        <Route
+          path="pending"
+          element={
+            <TonConnectProvider>
+              <AdminPendingPage />
+            </TonConnectProvider>
+          }
+        />
         <Route path="register-link" element={<AdminManualRegisterPage />} />
         <Route path="discovery" element={<AdminDiscoveryPage />} />
         <Route path="ads" element={<AdminAdsHubPage />} />
