@@ -84,3 +84,23 @@ export async function recheckCategoryWithAi(
   );
   return data;
 }
+
+export type CategoryRecheckProgress = {
+  running: boolean;
+  name: string;
+  done: number;
+  total: number;
+  changed: number;
+  error: string | null;
+  finishedAt: string | null;
+};
+
+export async function startCategoryRecheck(name: string): Promise<{ started: boolean }> {
+  const { data } = await apiClient.post('/admin/reclassify/category/start', { name }, { headers: getAdminAuthHeaders() });
+  return data;
+}
+
+export async function getCategoryRecheckProgress(): Promise<CategoryRecheckProgress> {
+  const { data } = await apiClient.get('/admin/reclassify/category/progress', { headers: getAdminAuthHeaders() });
+  return data;
+}

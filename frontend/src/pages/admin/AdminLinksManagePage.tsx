@@ -16,7 +16,7 @@ import {
   updateAdminChannel,
 } from '../../api/admin';
 import { AdminCategoryChipBar } from '../../components/admin/AdminCategoryChipBar';
-import { recheckCategoryWithAi } from '../../api/notifications';
+import { startCategoryRecheck, getCategoryRecheckProgress } from '../../api/notifications';
 import { AdClientDetail } from '../../components/admin/AdClientInfo';
 import { AdminChannelOpens } from '../../components/admin/AdminChannelOpens';
 import { ChannelAvatarEditor } from '../../components/admin/ChannelAvatarEditor';
@@ -1075,25 +1075,39 @@ function PendingAiPanel({ onDone }: { onDone: () => void }) {
   }, [running]);
 
   const left = ai ? (ai.stopped ? 0 : Math.max(0, ai.dailyMax - ai.today)) : null;
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const run = async () => {
     setRunning(true);
     setResult('');
+    setProgress({ done: 0, total: 0 });
     try {
-      const r = await recheckCategoryWithAi('분류대기');
-      setResult(
-        r.total === 0
-          ? '분류할 방이 없어요.'
-          : `${r.total}개 중 ${r.changed.length}개를 카테고리로 옮겼어요.${
-              r.changed.length < r.total ? ' 나머지는 AI도 확신하지 못해 분류대기로 남았어요.' : ''
-            }`,
-      );
+      await startCategoryRecheck('분류대기');
+      // 서버가 하나씩 분류하는 동안 진행률을 읽어 온다
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const p = await getCategoryRecheckProgress();
+        setProgress({ done: p.done, total: p.total });
+        if (!p.running) {
+          if (p.error) throw new Error(p.error);
+          setResult(
+            p.total === 0
+              ? '분류할 방이 없어요.'
+              : `${p.total}개 중 ${p.changed}개를 카테고리로 옮겼어요.${
+                  p.changed < p.total ? ' 나머지는 AI도 확신하지 못해 분류대기로 남았어요.' : ''
+                }`,
+          );
+          break;
+        }
+      }
       onDone();
     } catch {
       setResult('AI 분류 중 오류가 났어요. 잠시 뒤 다시 눌러 주세요.');
     } finally {
       setRunning(false);
+      setProgress(null);
     }
   };
+  const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-violet-500/10 px-4 py-3 ring-1 ring-violet-500/30">
@@ -1108,13 +1122,24 @@ function PendingAiPanel({ onDone }: { onDone: () => void }) {
           {result && <span className="ml-2 font-semibold text-foreground">{result}</span>}
         </p>
       </div>
+      {running && progress && (
+        <div className="flex min-w-[220px] items-center gap-2">
+          <div className="h-2 w-40 overflow-hidden rounded-full bg-foreground/10">
+            <div className="h-full rounded-full bg-violet-500 transition-[width] duration-500" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="text-sm font-bold tabular-nums text-foreground">{pct}%</span>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {progress.done}/{progress.total || '…'}
+          </span>
+        </div>
+      )}
       <button
         type="button"
         disabled={running || !ai?.configured || left === 0}
         onClick={() => void run()}
         className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
       >
-        {running ? 'AI 분류 중… (몇 분 걸려요)' : left === 0 ? '오늘 AI 한도 다 씀' : 'AI로 분류하기'}
+        {running ? 'AI 분류 중…' : left === 0 ? '오늘 AI 한도 다 씀' : 'AI로 분류하기'}
       </button>
     </div>
   );

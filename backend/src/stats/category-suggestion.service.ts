@@ -82,6 +82,25 @@ export class CategorySuggestionService {
    * 한 카테고리 안의 방들을 AI 로 다시 확인한다(잘못 들어간 방 고치기). 최대 300개.
    * 관리자가 직접 고정한 방(category_locked)은 건드리지 않는다.
    */
+  /** [AI로 분류하기] 진행 상황 (서버 메모리) */
+  private categoryRun: {
+    running: boolean;
+    name: string;
+    done: number;
+    total: number;
+    changed: number;
+    error: string | null;
+    finishedAt: string | null;
+  } = {
+    running: false,
+    name: '',
+    done: 0,
+    total: 0,
+    changed: 0,
+    error: null,
+    finishedAt: null,
+  };
+
   async reclassifyCategory(name: string): Promise<{
     total: number;
     changed: Array<{ title: string; from: string; to: string }>;
@@ -96,7 +115,17 @@ export class CategorySuggestionService {
       take: 300,
     });
     const changed: Array<{ title: string; from: string; to: string }> = [];
+    this.categoryRun = {
+      running: true,
+      name,
+      done: 0,
+      total: channels.length,
+      changed: 0,
+      error: null,
+      finishedAt: null,
+    };
     for (const channel of channels) {
+      this.categoryRun.done += 1;
       const before = channel.category;
       const next = await this.channelCategory.classifyOne(channel, {
         force: true,
@@ -117,7 +146,40 @@ export class CategorySuggestionService {
     this.logger.log(
       `카테고리 "${name}" AI 재확인: ${changed.length}/${channels.length} 바뀜`,
     );
+    this.categoryRun = {
+      ...this.categoryRun,
+      running: false,
+      changed: changed.length,
+      finishedAt: new Date().toISOString(),
+    };
     return { total: channels.length, changed };
+  }
+
+  /** 진행 상황 보기용: 백그라운드로 시작만 하고 바로 돌려준다 */
+  startReclassifyCategory(name: string): { started: boolean } {
+    if (this.categoryRun.running) return { started: false };
+    this.categoryRun = {
+      running: true,
+      name,
+      done: 0,
+      total: 0,
+      changed: 0,
+      error: null,
+      finishedAt: null,
+    };
+    void this.reclassifyCategory(name).catch((error: unknown) => {
+      this.categoryRun = {
+        ...this.categoryRun,
+        running: false,
+        error: error instanceof Error ? error.message : String(error),
+        finishedAt: new Date().toISOString(),
+      };
+    });
+    return { started: true };
+  }
+
+  reclassifyCategoryProgress() {
+    return { ...this.categoryRun };
   }
 
   /** 카테고리별 채널 수: 등록된 전체(활성) / 회원 화면에 보이는 수 */

@@ -46,6 +46,20 @@ export class AdminReclassifyController {
     return this.suggestions.reclassifyCategory(name);
   }
 
+  /** 진행률을 보여 주려고 백그라운드로 시작 */
+  @Post('category/start')
+  startCategory(@Body() body: { name?: unknown }) {
+    const name =
+      typeof body?.name === 'string' ? body.name.trim().slice(0, 50) : '';
+    if (!name) return { started: false };
+    return this.suggestions.startReclassifyCategory(name);
+  }
+
+  @Get('category/progress')
+  categoryProgress() {
+    return this.suggestions.reclassifyCategoryProgress();
+  }
+
   /** 카테고리별 채널 수(전체 / 회원 화면에 보이는 수) */
   @Get('category-counts')
   categoryCounts() {
