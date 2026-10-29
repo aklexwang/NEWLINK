@@ -72,6 +72,8 @@ export interface StatsJobStatus {
 
 /** light 회차에서 새 그룹·초대방 첫 수집에 쓰는 최대 시간 */
 const LIGHT_FIRST_COLLECT_BUDGET_MS = 5 * 60 * 1000;
+/** light 회차마다 검사할 대기 초대 링크 수 (하루 8회 × 40 = 320) */
+const LIGHT_INVITE_INSPECT_MAX_DEFAULT = 40;
 
 @Injectable()
 export class StatsJobService implements OnModuleInit {
@@ -385,6 +387,7 @@ export class StatsJobService implements OnModuleInit {
     this.logger.log('light 수집 시작: t.me/s 미리보기 → 공개 캐시 비우기');
     try {
       // 새로 들어온 그룹·초대방은 light 미리보기로 못 읽어 새벽까지 회원 페이지에 안 보인다 → 먼저 첫 수집
+      await this.inspectQueuedInvitesLight();
       await this.collectFirstSeenGroupsAndInvites();
       await this.collector.collectLightAll(
         (progress) => this.noteProgress(progress),
@@ -396,6 +399,27 @@ export class StatsJobService implements OnModuleInit {
       this.logger.error(
         `light 수집 실패: ${error instanceof Error ? error.message : error}`,
         error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
+  /** light 맨 앞 최대 5분: 대기 중인 비공개 초대 링크 검사(공개 페이지만, 기본 40개) */
+  private async inspectQueuedInvitesLight() {
+    try {
+      const raw = Number(
+        this.configService.get<string>('LIGHT_INVITE_INSPECT_MAX'),
+      );
+      const limit =
+        Number.isFinite(raw) && raw >= 0
+          ? Math.floor(raw)
+          : LIGHT_INVITE_INSPECT_MAX_DEFAULT;
+      await this.discovery.inspectQueuedInvites({
+        limit,
+        deadlineMs: Date.now() + LIGHT_FIRST_COLLECT_BUDGET_MS,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `초대 링크 낮 검사 실패: ${error instanceof Error ? error.message : error}`,
       );
     }
   }

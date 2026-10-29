@@ -48,6 +48,7 @@ import {
   toDiscoveryResult,
 } from './public-channel-inspect.logic';
 import { createPublicTelegramFetcher } from './public-telegram-fetch.logic';
+import { DISCOVERY_SOURCE_INVITE } from './invite-discovery-queue.service';
 import {
   isPrivateChannelHtml,
   parsePublicUsernamePage,
@@ -171,6 +172,42 @@ export class ChannelDiscoveryService {
     this.logger.log(
       `발견 끝: 검사 ${checked} / 추가 ${added} (언급 ${mentions.length}, 대기 ${queued.length})`,
     );
+    return { checked, added };
+  }
+
+  /**
+   * light 회차용: 대기 중인 비공개 초대 링크(+해시)만 조금씩 검사한다.
+   * 공개 초대 페이지만 읽어 MTProto 한도를 쓰지 않는다. 새벽 full 은 그대로 따로 검사한다.
+   */
+  async inspectQueuedInvites(options: {
+    limit: number;
+    deadlineMs?: number;
+  }): Promise<{ checked: number; added: number }> {
+    if (options.limit <= 0) return { checked: 0, added: 0 };
+    const rows = await this.discoveredRepository.find({
+      where: { result: 'queued', source: DISCOVERY_SOURCE_INVITE },
+      order: { checkedAt: 'ASC' },
+      take: options.limit,
+    });
+    let checked = 0;
+    let added = 0;
+    for (let i = 0; i < rows.length; i += 1) {
+      if (i > 0 && isCollectBudgetOver(options.deadlineMs)) break;
+      const username = rows[i].username.trim();
+      if (!username.startsWith('+')) continue;
+      const result = await this.inspectInvite({
+        username,
+        sourceChannelIds: [],
+        mentionCount: rows[i].mentionCount ?? 0,
+        source: 'other',
+      });
+      checked += 1;
+      if (result === 'added') added += 1;
+      if (i < rows.length - 1) await sleep(DISCOVERY_DELAY_MS);
+    }
+    if (checked > 0) {
+      this.logger.log(`초대 링크 낮 검사: 검사 ${checked} / 등록 ${added}`);
+    }
     return { checked, added };
   }
 
