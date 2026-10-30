@@ -15,11 +15,13 @@ import {
   ChannelStatsQueryDto,
 } from './dto/public-stats.dto';
 import { PublicStatsService } from './public-stats.service';
+import { PostPreviewService } from './post-preview.service';
 
 @Controller('channels')
 export class PublicChannelStatsController {
   constructor(
     private readonly publicStatsService: PublicStatsService,
+    private readonly postPreview: PostPreviewService,
     @Optional() private readonly memberActivity?: MemberActivityService,
   ) {}
 
@@ -40,6 +42,12 @@ export class PublicChannelStatsController {
     const detail = await this.publicStatsService.getDetailById(id);
     this.memberActivity?.recordFromRequest(req, 'view', { channelId: id });
     return detail;
+  }
+
+  /** 홈 피드: 텔레그램 글 하나를 직접 그릴 정보(글·사진·조회수) */
+  @Get(':id/post-preview')
+  postPreviewOf(@Param('id', ParseUUIDPipe) id: string, @Query('m') m: string) {
+    return this.postPreview.get(id, Number(m));
   }
 
   @Get(':id/stats')

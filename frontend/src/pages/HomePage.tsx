@@ -3,7 +3,15 @@ import { InitialAvatar } from '../components/InitialAvatar';
 import { isBlankAvatarImage } from '../utils/avatarFallback';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { searchChannels } from '../api/channels';
-import { getHomeDashboard, getHomeFeed, type HomeCard, type HomeDashboard, type HomeFeedItem } from '../api/stats';
+import {
+  getHomeDashboard,
+  getHomeFeed,
+  getPostPreview,
+  type HomeCard,
+  type HomeDashboard,
+  type HomeFeedItem,
+  type PostPreview,
+} from '../api/stats';
 import { ChannelList } from '../components/ChannelList';
 import { PublicPrivateBadge } from '../components/PublicPrivateBadge';
 import { GradeBadge } from '../components/GradeBadge';
@@ -766,7 +774,7 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
           link={item.link}
           title={item.title}
           compact
-          hideTelegram={Boolean(post && postUrl)}
+          hideTelegram={Boolean(post && (postUrl || (ios && item.username)))}
         />
       </div>
 
@@ -774,6 +782,11 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
         // 텔레그램 공식 미리보기를 처음부터 보여 준다 (화면에 가까워질 때 불러옴)
         <div className="border-t border-nl-line px-3 pt-2 pb-3">
           <TelegramPostEmbed url={postUrl} onOpenRoom={openRoom} title={item.title} />
+        </div>
+      ) : post && ios && item.username ? (
+        // 아이폰: 텔레그램 상자 대신 글·사진을 직접 그린다. 로고 버튼만 방으로 이동, 나머지는 눌러도 아무 일 없음
+        <div className="border-t border-nl-line px-3 pt-2 pb-3">
+          <OwnPostPreview item={item} onOpenRoom={openRoom} />
         </div>
       ) : post ? (
         <div className="border-t border-nl-line px-4 pt-3 pb-3">
@@ -797,6 +810,147 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
           {item.activityKind === 'members' ? '인원 수 갱신' : '게시글'} · {formatRelativeKo(item.lastPostAt)}
         </p>
       )}
+    </div>
+  );
+}
+
+const TG_PATH =
+  'M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z';
+
+/**
+ * 아이폰용 게시글 미리보기: 서버가 텔레그램 공개 글에서 읽은 글·사진을 우리 화면에 그린다.
+ * 링크가 하나도 없어서 어디를 눌러도 이동하지 않고, 오른쪽 위 텔레그램 로고만 방을 연다.
+ */
+function OwnPostPreview({ item, onOpenRoom }: { item: HomeFeedItem; onOpenRoom: () => void }) {
+  const post = item.latestPost!;
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined');
+  const [preview, setPreview] = useState<PostPreview | null | undefined>(undefined);
+  const [expanded, setExpanded] = useState(false);
+  const [brokenImages, setBrokenImages] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || visible) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '600px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    let alive = true;
+    getPostPreview(item.id, post.messageId)
+      .then((data) => {
+        if (alive) setPreview(data);
+      })
+      .catch(() => {
+        if (alive) setPreview(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [visible, item.id, post.messageId]);
+
+  const text = (preview?.text || post.text || '').replace(/\n{3,}/g, '\n\n').trim();
+  const images = (preview?.images ?? []).filter((src) => !brokenImages.has(src)).slice(0, 4);
+  const views = preview?.views ?? post.views;
+  const long = text.length > 220 || text.split('\n').length > 6;
+  const mediaLabel = MEDIA_LABEL[post.mediaType];
+
+  return (
+    <div
+      ref={boxRef}
+      className="relative select-none overflow-hidden rounded-xl bg-nl-elev ring-1 ring-nl-line"
+      // 상자 안 어디를 눌러도 상세 페이지·텔레그램으로 넘어가지 않게 막는다
+      onClick={(event) => {
+        event.stopPropagation();
+        event.preventDefault();
+      }}
+    >
+      <button
+        type="button"
+        aria-label={`${item.title} 텔레그램에서 열기`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenRoom();
+        }}
+        className="nl-orb-tg absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full text-white shadow"
+      >
+        <svg viewBox="0 0 24 24" className="-ml-px h-4 w-4" fill="currentColor" aria-hidden>
+          <path d={TG_PATH} />
+        </svg>
+      </button>
+
+      {preview === undefined && post.mediaType !== 'text' ? (
+        <div className="h-44 w-full animate-pulse bg-nl-line/60" />
+      ) : images.length > 0 ? (
+        <div className={`grid gap-0.5 ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {images.map((src, i) => (
+            <div key={src} className="relative">
+              <img
+                src={src}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                draggable={false}
+                onError={() => setBrokenImages((prev) => new Set(prev).add(src))}
+                className={`pointer-events-none block w-full object-cover ${
+                  images.length === 1 ? 'max-h-[420px]' : images.length === 3 && i === 0 ? 'col-span-2 h-48' : 'h-36'
+                }`}
+              />
+              {preview?.hasVideo && i === 0 && (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-[20px] text-white">
+                    ▶
+                  </span>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="px-3 pt-2.5 pb-2.5 pr-12">
+        {text ? (
+          <p
+            className={`whitespace-pre-line break-words text-[14px] leading-relaxed text-tg-text ${
+              expanded ? '' : 'line-clamp-6'
+            }`}
+          >
+            {text}
+          </p>
+        ) : (
+          <p className="text-[13px] text-nl-muted">{MEDIA_ONLY_LABEL[post.mediaType] ?? '글 내용 없는 게시글'}</p>
+        )}
+        {long && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setExpanded((v) => !v);
+            }}
+            className="mt-1 text-[12px] font-semibold text-tg-link"
+          >
+            {expanded ? '접기' : '더 보기'}
+          </button>
+        )}
+        <div className="mt-2 flex items-center gap-2 text-[12px] text-nl-muted">
+          {mediaLabel && images.length === 0 && text && (
+            <span className="rounded-full bg-nl-card px-2 py-0.5 ring-1 ring-nl-line">{mediaLabel}</span>
+          )}
+          {views != null && <span>👁 {views.toLocaleString('ko-KR')}</span>}
+          <span>{formatRelativeKo(preview?.postedAt ?? post.postedAt)}</span>
+        </div>
+      </div>
     </div>
   );
 }

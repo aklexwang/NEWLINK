@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
+import { PostPreviewService } from './post-preview.service';
 import { CategoryEntity } from '../categories/category.entity';
 import { ChannelImportCandidate } from '../auto-manage/channel-import-candidate.entity';
 import { Channel } from '../channels/channel.entity';
@@ -70,6 +71,7 @@ import { StatsService } from './stats.service';
     PublicStatsController,
   ],
   providers: [
+    PostPreviewService,
     ChannelQuickPreviewService,
     StatsService,
     ChannelCollectorService,

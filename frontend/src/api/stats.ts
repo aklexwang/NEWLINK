@@ -184,3 +184,19 @@ export async function getChannelSummaries(ids: string[]): Promise<ChannelSummary
   });
   return data;
 }
+
+/** 홈 피드: 게시글 하나를 직접 그릴 정보 (아이폰용) */
+export type PostPreview = {
+  text: string;
+  images: string[];
+  hasVideo: boolean;
+  views: number | null;
+  postedAt: string | null;
+};
+
+export async function getPostPreview(channelId: string, messageId: number): Promise<PostPreview | null> {
+  const { data } = await apiClient.get<PostPreview | null>(`/channels/${channelId}/post-preview`, {
+    params: { m: messageId },
+  });
+  return data && typeof data === 'object' ? data : null;
+}
