@@ -699,6 +699,16 @@ const MEDIA_ONLY_LABEL: Record<string, string> = {
   sticker: '스티커',
 };
 
+function isIosDevice(webApp: { platform?: string }): boolean {
+  try {
+    if (webApp.platform === 'ios') return true;
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    return /iPhone|iPad|iPod/i.test(ua);
+  } catch {
+    return false;
+  }
+}
+
 function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) {
   // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다
   const deltaLine = formatDeltaLine(
@@ -711,7 +721,10 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
     openTelegramChannel(webApp, isLocalBrowser, item.link);
     trackTelegramOpen(item.id);
   };
-  const postUrl = post && item.username ? `https://t.me/${item.username}/${post.messageId}` : null;
+  // 아이폰은 텔레그램 게시글 상자(iframe)가 스크롤 손가락까지 눌림으로 받아 방으로 넘어가고, 하얗게 비기도 한다
+  // → 아이폰에서는 상자 대신 우리가 그리는 미리보기(글·사진 포함·조회수·시간)를 쓴다
+  const ios = isIosDevice(webApp);
+  const postUrl = post && item.username && !ios ? `https://t.me/${item.username}/${post.messageId}` : null;
   const mediaLabel = post ? MEDIA_LABEL[post.mediaType] : undefined;
   return (
     // 등급 배지가 버튼이라 카드는 button 이 아니라 role="link" 로 둔다 (버튼 안 버튼 방지)
