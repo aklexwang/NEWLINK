@@ -104,14 +104,14 @@ export class RankingQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(50)
   @IsOptional()
   limit?: number = 50;
 
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  @Max(20_000)
+  @Max(5_000)
   @IsOptional()
   offset?: number = 0;
 }

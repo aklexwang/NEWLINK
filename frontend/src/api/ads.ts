@@ -1,4 +1,4 @@
-import { API_BASE, apiClient } from './client';
+import { API_BASE, apiClient, gateHeaders } from './client';
 import { getAdminAuthHeaders } from '../utils/adminAccess';
 
 export type PublicBanner = { id: string; title: string; link: string; imageUrl: string };
@@ -38,6 +38,7 @@ export function trackBannerClick(id: string): void {
     void fetch(`${API_BASE}/ads/banners/${encodeURIComponent(id)}/click`, {
       method: 'POST',
       keepalive: true,
+      headers: gateHeaders(),
     }).catch(() => undefined);
   } catch {
     /* 기록 실패는 무시 */
@@ -125,7 +126,7 @@ export function trackAdImpressions(kind: 'banner' | 'rank', ids: string[]): void
     void fetch(`${API_BASE}/ads/impressions`, {
       method: 'POST',
       keepalive: true,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...gateHeaders() },
       body: JSON.stringify(kind === 'banner' ? { banners: fresh } : { rank: fresh }),
     }).catch(() => undefined);
   } catch {

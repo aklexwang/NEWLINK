@@ -141,6 +141,29 @@ export function AdminCollectOpsPage() {
         </div>
       )}
 
+      {ops?.miniAppGate && (
+        <div className="mt-4 rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
+          <p className="text-sm font-semibold text-foreground">
+            🔒 공개 API 미니앱 전용 문지기 ·{' '}
+            {ops.miniAppGate.mode === 'block'
+              ? '막는 중'
+              : ops.miniAppGate.mode === 'watch'
+                ? '지켜보는 중 (아직 막지 않음)'
+                : '꺼짐'}
+          </p>
+          <p className="mt-1 text-sm text-foreground/80">
+            서명 있음(미니앱) {ops.miniAppGate.signed.toLocaleString('ko-KR')} · 관리자{' '}
+            {ops.miniAppGate.admin.toLocaleString('ko-KR')} · 서명 없음(미니앱 밖){' '}
+            {ops.miniAppGate.unsigned.toLocaleString('ko-KR')}
+            {ops.miniAppGate.mode === 'block' &&
+              ` · 막음 ${ops.miniAppGate.blocked.toLocaleString('ko-KR')} · 너무 잦아 막음 ${ops.miniAppGate.rateLimited.toLocaleString('ko-KR')}`}
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            서버가 켜진 뒤부터 센 수예요. 미니앱으로 써 보고 "서명 있음"이 오르면 Render 의 MINIAPP_ONLY 를 true 로 바꿔 막기를 켜요.
+          </p>
+        </div>
+      )}
+
       {loading || !ops ? (
         <Skeleton className="mt-6 h-32 w-full" />
       ) : (

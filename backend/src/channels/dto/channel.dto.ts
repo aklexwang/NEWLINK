@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Max,
   Min,
   Validate,
   ValidatorConstraint,
@@ -68,12 +69,15 @@ export class SearchChannelDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(50)
   @IsOptional()
   page?: number = 1;
 
+  /** 한 번에 가져가는 양 제한 (목록 통째 긁기 방지) */
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(50)
   @IsOptional()
   limit?: number = 20;
 

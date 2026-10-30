@@ -47,9 +47,15 @@ describe('AppModule 부팅 - 검색 금지어·이동 기록', () => {
     'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36';
   let app: INestApplication | undefined;
   const savedSecret = process.env.ANALYTICS_HASH_SECRET;
+  const savedGate = process.env.MINIAPP_ONLY;
 
-  async function bootWith(secret: string): Promise<INestApplication> {
+  async function bootWith(
+    secret: string,
+    gate = false,
+  ): Promise<INestApplication> {
     process.env.ANALYTICS_HASH_SECRET = secret;
+    // 이 테스트들은 검색·이동 기록을 보는 것이라 미니앱 문지기는 끈다(문지기 자체는 아래 따로)
+    process.env.MINIAPP_ONLY = gate ? 'true' : 'false';
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -89,6 +95,8 @@ describe('AppModule 부팅 - 검색 금지어·이동 기록', () => {
     }
     if (savedSecret === undefined) delete process.env.ANALYTICS_HASH_SECRET;
     else process.env.ANALYTICS_HASH_SECRET = savedSecret;
+    if (savedGate === undefined) delete process.env.MINIAPP_ONLY;
+    else process.env.MINIAPP_ONLY = savedGate;
   });
 
   it('키가 있으면 부팅되고 이동 기록 요청은 204 이며 채널별 일별 수가 올라간다', async () => {
@@ -110,6 +118,21 @@ describe('AppModule 부팅 - 검색 금지어·이동 기록', () => {
       .find();
     expect(rows).toHaveLength(1);
     expect(rows[0].openCount).toBe(1);
+  }, 30_000);
+
+  it('미니앱 문지기가 켜지면 텔레그램 서명 없는 공개 API 는 403 miniapp_only', async () => {
+    const created = await bootWith('k'.repeat(64), true);
+    const res = await request(created.getHttpServer())
+      .get('/api/channels/search?q=abc')
+      .set('User-Agent', HUMAN_UA)
+      .expect(403);
+    expect(res.body.code).toBe('miniapp_only');
+    await request(created.getHttpServer()).get('/api/categories').expect(403);
+    // 관리자·내부·로그인 경로는 문지기가 막지 않는다(각자 인증)
+    const admin = await request(created.getHttpServer()).get(
+      '/api/admin/stats/ops',
+    );
+    expect(admin.status).not.toBe(403);
   }, 30_000);
 
   it('키가 없으면 정상 부팅하고 이동 기록만 건너뛰며 경고는 한 번만 남긴다', async () => {

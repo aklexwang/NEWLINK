@@ -15,7 +15,7 @@ import {
   type SitemapEntry,
 } from './sitemap-select.logic';
 
-const DEFAULT_SITE = 'https://global-spay.com';
+const DEFAULT_SITE = 'https://newlink-bez.pages.dev';
 /** 노출 판정이 무거워 크롤러가 여러 페이지를 연달아 받을 때 한 번만 계산한다 */
 const SITEMAP_CACHE_MS = 10 * 60 * 1000;
 

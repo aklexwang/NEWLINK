@@ -38,6 +38,10 @@ import {
 } from './admin-stats.logic';
 import { shouldBlockAdminCollect } from './admin-collect.logic';
 import { checkServerConfig } from './config-health.logic';
+import {
+  miniAppGateCounters,
+  miniAppGateMode,
+} from '../security/miniapp-gate.logic';
 import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
 
 @Injectable()
@@ -202,6 +206,10 @@ export class AdminStatsService implements OnModuleInit {
       collectGate: getTmeGate().snapshot(),
       queue,
       configWarnings: this.configWarnings(),
+      miniAppGate: {
+        mode: miniAppGateMode(this.configService.get<string>('MINIAPP_ONLY')),
+        ...miniAppGateCounters,
+      },
       failures: await this.getFailureSummary(),
       running: this.statsJob.isRunning(),
     };

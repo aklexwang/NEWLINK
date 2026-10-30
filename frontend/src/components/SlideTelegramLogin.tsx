@@ -58,8 +58,8 @@ function loadWidgetSdk(): Promise<TelegramWidgetLogin> {
 
 function assertLoginHost() {
   const host = window.location.hostname.replace(/^www\./, '');
-  if (host !== 'global-spay.com') {
-    throw new Error('웹 로그인은 https://global-spay.com 에서만 가능합니다.');
+  if (host !== 'newlink-bez.pages.dev') {
+    throw new Error('웹 로그인은 https://newlink-bez.pages.dev 에서만 가능합니다.');
   }
 }
 

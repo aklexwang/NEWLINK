@@ -29,7 +29,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: PUBLIC_SITE_URL
-        value: https://global-spay.com
+        value: https://newlink-bez.pages.dev
       - key: TYPEORM_SYNC
         value: "false"
       # Blueprint 내부 URL (실패 시 대시보드에서 External URL로 덮어쓰기)

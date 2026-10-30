@@ -1,4 +1,4 @@
-export const SITE_ORIGIN = 'https://global-spay.com';
+export const SITE_ORIGIN = 'https://newlink-bez.pages.dev';
 export const CACHE_CONTROL = 'public, max-age=3600';
 
 export interface PagesEnv {

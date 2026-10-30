@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiniAppGateMiddleware } from './security/miniapp-gate.middleware';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module';
@@ -257,4 +258,9 @@ function truthy(value: string | undefined): boolean {
   ],
   controllers: [AppController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /** 공개 API 는 텔레그램 미니앱(서명)·관리자만 — 목록 대량 수집 막기 */
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(MiniAppGateMiddleware).forRoutes('*');
+  }
+}

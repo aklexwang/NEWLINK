@@ -6,7 +6,7 @@ const BOT_USERNAME =
   'telllink_bot';
 
 /** Always use production HTTPS manifest — Mini App origin quirks can break relative URLs. */
-const MANIFEST_URL = 'https://global-spay.com/tonconnect-manifest.json';
+const MANIFEST_URL = 'https://newlink-bez.pages.dev/tonconnect-manifest.json';
 
 interface TonConnectProviderProps {
   children: ReactNode;

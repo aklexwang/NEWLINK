@@ -248,6 +248,16 @@ export interface AdminStatsOps {
   };
   /** 수집 큐 현황 (next_collect_at 기준) */
   queue: AdminCollectQueue;
+  /** 미니앱 전용 문지기 상태 (예전 서버면 없음) */
+  miniAppGate?: {
+    mode: 'off' | 'watch' | 'block';
+    since: string;
+    signed: number;
+    admin: number;
+    unsigned: number;
+    blocked: number;
+    rateLimited: number;
+  };
   /** 서버 설정 점검 경고 (예전 서버면 없음) */
   configWarnings?: Array<{ level: 'error' | 'warn'; text: string }>;
   /** 수집 실패 상태인 방의 이유별 수 (예전 서버면 없음) */

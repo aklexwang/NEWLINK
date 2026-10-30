@@ -45,6 +45,16 @@ export class ChannelsController {
    */
   @Get('search')
   async search(@Query() dto: SearchChannelDto, @Req() req: Request) {
+    // 검색어 없는 "전체 목록" 은 공개 검색으로 주지 않는다 (목록 통째 긁기 방지)
+    if (!dto.q?.trim()) {
+      return {
+        items: [],
+        total: 0,
+        page: dto.page ?? 1,
+        limit: dto.limit ?? 20,
+        totalPages: 0,
+      };
+    }
     const check = await this.searchTerms.check(dto.q);
     if (check.blocked) {
       if (dto.record) {

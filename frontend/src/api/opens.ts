@@ -1,4 +1,4 @@
-import { API_BASE, apiClient } from './client';
+import { API_BASE, apiClient, gateHeaders } from './client';
 
 /**
  * "텔레그램에서 열기" 클릭을 서버에 알린다.
@@ -10,7 +10,7 @@ export function trackTelegramOpen(channelId: string | undefined | null): void {
   if (!channelId) return;
   try {
     const common = apiClient.defaults.headers.common as Record<string, unknown>;
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...gateHeaders() };
     const authorization = common.Authorization;
     const initData = common['X-Telegram-Init-Data'];
     if (typeof authorization === 'string' && authorization) headers.Authorization = authorization;
