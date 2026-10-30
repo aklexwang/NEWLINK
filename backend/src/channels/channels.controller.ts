@@ -14,6 +14,7 @@ import {
 import { ModuleRef } from '@nestjs/core';
 import type { Request } from 'express';
 import { SearchLogService } from '../analytics/search-log.service';
+import { toPublicChannels } from './public-channel.logic';
 import { MemberActivityService } from '../member-activity/member-activity.service';
 import { SearchTermsService } from '../analytics/search-terms.service';
 import { SEARCH_BLOCKED_MESSAGE } from '../analytics/search-text.logic';
@@ -73,12 +74,12 @@ export class ChannelsController {
       });
       this.memberActivity?.recordFromRequest(req, 'search', { keyword: dto.q });
     }
-    return result;
+    return { ...result, items: toPublicChannels(result.items) };
   }
 
   @Get('promoted')
-  promoted() {
-    return this.channelsService.findActivePromoted();
+  async promoted() {
+    return toPublicChannels(await this.channelsService.findActivePromoted());
   }
 
   @Get('my-recommendations')
@@ -95,7 +96,9 @@ export class ChannelsController {
     @Query('category') category?: string,
   ) {
     await this.usersService.assertActiveByTelegramId(user.id);
-    return this.channelsService.findFavorites(user.id, category);
+    return toPublicChannels(
+      await this.channelsService.findFavorites(user.id, category),
+    );
   }
 
   @Get('my-favorite-ids')
