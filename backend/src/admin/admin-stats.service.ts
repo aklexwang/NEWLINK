@@ -105,6 +105,8 @@ export class AdminStatsService {
         invitesToday: mtproto.invitesToday,
         inviteDailyLimit: mtproto.inviteDailyLimit,
         joinsToday: mtproto.joinsToday,
+        joinOutcomes: mtproto.joinOutcomes,
+        dailyLimit: mtproto.dailyLimit,
         joinDailyLimit: mtproto.joinDailyLimit,
         joinedTotal: mtproto.joinedTotal,
         joinTotalMax: mtproto.joinTotalMax,

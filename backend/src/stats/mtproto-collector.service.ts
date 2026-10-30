@@ -92,6 +92,7 @@ import { asText } from '../common/as-text';
 import { AppSetting } from '../ads/app-setting.entity';
 import {
   canJoinAnother,
+  describeUnjoinableInvite,
   isJoinableChannelInvite,
   joinedChannelFromUpdates,
   MTPROTO_JOIN_TOTAL_KEY,
@@ -107,6 +108,10 @@ export type MtprotoPublicStatus = {
   invitesToday: number;
   inviteDailyLimit: number;
   joinsToday: number;
+  /** 오늘 초대 링크 확인 결과별 수 (서버 메모리, 재시작하면 0) */
+  joinOutcomes: Record<string, number>;
+  /** MTProto 하루 요청 한도 */
+  dailyLimit: number;
   joinDailyLimit: number;
   joinedTotal: number;
   joinTotalMax: number;
@@ -186,6 +191,9 @@ export class MtprotoCollectorService implements OnModuleInit {
   private joinDay = '';
   private joinedTotal = 0;
   private lastJoinAt = 0;
+  /** 오늘 초대 링크 확인 결과별 수 (왜 가입이 안 됐는지 화면에서 보려고) */
+  private joinOutcomes: Record<string, number> = {};
+  private joinOutcomeDay = '';
   /** CHANNELS_TOO_MUCH 등으로 더 가입하면 안 될 때 */
   private joinBlocked = false;
 
@@ -238,6 +246,8 @@ export class MtprotoCollectorService implements OnModuleInit {
       invitesToday: this.invitesToday,
       inviteDailyLimit: this.inviteCheckDailyLimit(),
       joinsToday: this.currentJoinsToday(),
+      joinOutcomes: this.todayJoinOutcomes(),
+      dailyLimit: this.dailyLimit(),
       joinDailyLimit: this.joinDailyLimit(),
       joinedTotal: this.joinedTotal,
       joinTotalMax: MTPROTO_JOIN_TOTAL_MAX,
@@ -407,9 +417,13 @@ export class MtprotoCollectorService implements OnModuleInit {
           new Api.messages.CheckChatInvite({ hash }),
         );
         let chat = memberChatFromInvite(invite);
-        if (!chat && isJoinableChannelInvite(invite)) {
+        if (chat) {
+          this.noteJoinOutcome('이미 회원');
+        } else if (isJoinableChannelInvite(invite)) {
           // 비공개 채널: 하루 한도·전체 950·간격 3분 안에서 가입하고 글까지 읽는다
           chat = await this.tryJoinInvite(Api, hash, channel.id);
+        } else {
+          this.noteJoinOutcome(describeUnjoinableInvite(invite));
         }
         if (!chat) return { ok: false, reason: 'not_member' };
         resolved = await this.fetchFullFromInput(
@@ -455,6 +469,21 @@ export class MtprotoCollectorService implements OnModuleInit {
     }
   }
 
+  private noteJoinOutcome(label: string): void {
+    const today = formatKstYmd();
+    if (this.joinOutcomeDay !== today) {
+      this.joinOutcomeDay = today;
+      this.joinOutcomes = {};
+    }
+    this.joinOutcomes[label] = (this.joinOutcomes[label] ?? 0) + 1;
+  }
+
+  private todayJoinOutcomes(): Record<string, number> {
+    return this.joinOutcomeDay === formatKstYmd()
+      ? { ...this.joinOutcomes }
+      : {};
+  }
+
   private joinDailyLimit(): number {
     return parseJoinDaily(this.configService.get<string>('MTPROTO_JOIN_DAILY'));
   }
@@ -484,6 +513,13 @@ export class MtprotoCollectorService implements OnModuleInit {
         blocked: this.joinBlocked,
       })
     ) {
+      this.noteJoinOutcome(
+        this.joinBlocked
+          ? '가입 수 한도'
+          : this.currentJoinsToday() >= this.joinDailyLimit()
+            ? '오늘 가입 한도'
+            : '간격 3분 대기',
+      );
       return null;
     }
     this.lastJoinAt = Date.now();
@@ -496,12 +532,14 @@ export class MtprotoCollectorService implements OnModuleInit {
       this.joinedTotal += 1;
       this.saveJoinCounters();
       const chat = joinedChannelFromUpdates(result);
+      this.noteJoinOutcome(chat ? '가입 성공' : '가입했지만 채널 정보 없음');
       this.logger.log(
         `비공개 채널 가입(${channelId}): 오늘 ${this.joinsToday} / 전체 ${this.joinedTotal}`,
       );
       return chat;
     } catch (error) {
       const code = mtprotoErrorCode(error);
+      this.noteJoinOutcome(`가입 오류 ${code}`);
       if (code === 'CHANNELS_TOO_MUCH') {
         this.joinBlocked = true;
         this.logger.warn('가입 채널 수 한도에 닿아 자동 가입을 멈춥니다.');

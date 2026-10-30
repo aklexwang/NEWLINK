@@ -162,6 +162,8 @@ export interface AdminStatsOps {
     invitesToday?: number;
     inviteDailyLimit?: number;
     joinsToday?: number;
+    joinOutcomes?: Record<string, number>;
+    dailyLimit?: number;
     joinDailyLimit?: number;
     joinedTotal?: number;
     joinTotalMax?: number;

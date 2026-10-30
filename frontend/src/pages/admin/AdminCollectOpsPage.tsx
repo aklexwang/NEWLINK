@@ -136,12 +136,18 @@ export function AdminCollectOpsPage() {
             <CardHeader className="px-4">
               <CardDescription>MTProto</CardDescription>
               <CardTitle>{ops.mtproto.enabled ? '켜짐' : '꺼짐'}</CardTitle>
+              {!ops.mtproto.enabled && (
+                <p className="text-[12px] font-medium text-amber-500">{mtprotoOffReason(ops.mtproto.lastError, ops.mtproto.dailyLimit)}</p>
+              )}
             </CardHeader>
           </Card>
           <Card className="py-4">
             <CardHeader className="px-4">
               <CardDescription>오늘 요청</CardDescription>
-              <CardTitle>{ops.mtproto.requestsToday}</CardTitle>
+              <CardTitle>
+                {ops.mtproto.requestsToday}
+                {ops.mtproto.dailyLimit ? `/${ops.mtproto.dailyLimit}` : ''}
+              </CardTitle>
               <p className="text-[11px] text-muted-foreground">매일 0시(한국) 초기화</p>
             </CardHeader>
           </Card>
@@ -173,6 +179,14 @@ export function AdminCollectOpsPage() {
                 전체 {ops.mtproto.joinedTotal ?? 0}/{ops.mtproto.joinTotalMax ?? 950} · 초대 링크 확인{' '}
                 {ops.mtproto.invitesToday ?? 0}/{ops.mtproto.inviteDailyLimit ?? 40} · 매일 0시 초기화
               </p>
+              {ops.mtproto.joinOutcomes && Object.keys(ops.mtproto.joinOutcomes).length > 0 && (
+                <p className="text-[12px] text-foreground/80">
+                  오늘 결과:{' '}
+                  {Object.entries(ops.mtproto.joinOutcomes)
+                    .map(([k, v]) => `${k} ${v}`)
+                    .join(' · ')}
+                </p>
+              )}
             </CardHeader>
           </Card>
           <Card className="py-4">
@@ -423,4 +437,13 @@ function failureReasonLabel(reason: string): string {
   if (r.startsWith('fetch:')) return '텔레그램 접속 오류 (일시적)';
   if (r === '(없음)') return '이유 기록 없음';
   return '';
+}
+
+/** MTProto 가 꺼진 이유 */
+function mtprotoOffReason(code: string | null, dailyLimit?: number): string {
+  if (!code) return 'MTPROTO_ENABLED 설정이 꺼져 있거나 세션이 없어요';
+  if (code === 'daily_limit') return `오늘 요청 한도${dailyLimit ? `(${dailyLimit})` : ''}를 다 써서 0시까지 멈춤`;
+  if (code === 'flood_wait') return '텔레그램 속도 제한(FLOOD_WAIT)으로 잠시 멈춤';
+  if (/AUTH|SESSION|DEACTIVATED|BANNED|RESTRICTED/i.test(code)) return `계정·세션 문제(${code}) — 확인 필요`;
+  return `멈춘 이유: ${code}`;
 }

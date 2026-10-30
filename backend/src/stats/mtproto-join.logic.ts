@@ -85,3 +85,19 @@ export function joinedChannelFromUpdates(result: unknown): {
   }
   return null;
 }
+
+/** 가입하지 않은 이유(화면 표시용) */
+export function describeUnjoinableInvite(result: unknown): string {
+  if (!result || typeof result !== 'object') return '확인 결과 없음';
+  const r = result as {
+    className?: string;
+    broadcast?: boolean;
+    megagroup?: boolean;
+    requestNeeded?: boolean;
+  };
+  if (r.className !== 'ChatInvite')
+    return `확인 결과 ${r.className ?? '알 수 없음'}`;
+  if (r.requestNeeded) return '가입 승인 필요';
+  if (r.megagroup || r.broadcast !== true) return '그룹(가입 안 함)';
+  return '기타';
+}
