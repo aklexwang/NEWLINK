@@ -79,6 +79,50 @@ export class TelegramAdminNotifyService {
     );
   }
 
+  /** 서버 설정 점검 경고 (시작할 때 한 번). 비밀 값은 넣지 않는다 */
+  async notifyConfigWarnings(lines: string[]): Promise<void> {
+    const token = (
+      this.configService.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
+    ).trim();
+    if (!token || token.includes('placeholder') || token.includes('your_bot')) {
+      return;
+    }
+    const adminIds = (
+      this.configService.get<string>('TELEGRAM_ADMIN_IDS') ?? ''
+    )
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (adminIds.length === 0 || lines.length === 0) return;
+    const text = [
+      '⚠ <b>서버 설정 확인 필요</b>',
+      '',
+      ...lines.map((line) => `• ${this.escape(line)}`),
+      '',
+      'Render → newlink-api → Environment 에서 고쳐 주세요.',
+    ].join('\n');
+    await Promise.all(
+      adminIds.map(async (chatId) => {
+        try {
+          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text,
+              parse_mode: 'HTML',
+              disable_web_page_preview: true,
+            }),
+          });
+        } catch (error) {
+          this.logger.warn(
+            `config notify error (${chatId}): ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }),
+    );
+  }
+
   /** MTProto 세션 문제 등. 세션 문자열은 넣지 마세요. */
   async notifyMtprotoStopped(reasonCode: string): Promise<void> {
     const token = (

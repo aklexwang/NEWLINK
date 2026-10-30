@@ -1,4 +1,10 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
@@ -31,9 +37,13 @@ import {
   remainingOf,
 } from './admin-stats.logic';
 import { shouldBlockAdminCollect } from './admin-collect.logic';
+import { checkServerConfig } from './config-health.logic';
+import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
 
 @Injectable()
-export class AdminStatsService {
+export class AdminStatsService implements OnModuleInit {
+  private readonly logger = new Logger(AdminStatsService.name);
+
   constructor(
     private readonly statsJob: StatsJobService,
     private readonly discovery: ChannelDiscoveryService,
@@ -45,7 +55,35 @@ export class AdminStatsService {
     private readonly runRepository: Repository<StatsRun>,
     @InjectRepository(MtprotoState)
     private readonly mtprotoStateRepository: Repository<MtprotoState>,
+    @Optional() private readonly adminNotify?: TelegramAdminNotifyService,
   ) {}
+
+  /** 서버 설정 점검: 코드가 기대하는 값과 다르면 화면에 보여 주고 시작할 때 텔레그램으로 알린다 */
+  configWarnings() {
+    const mtproto = this.statsJob.getStatus().mtproto;
+    const keys = [
+      'STATS_CRON_ENABLED',
+      'MTPROTO_ENABLED',
+      'AI_API_KEY',
+      'OPENAI_API_KEY',
+    ];
+    const env: Record<string, string | undefined> = {};
+    for (const key of keys) env[key] = this.configService.get<string>(key);
+    return checkServerConfig({
+      env,
+      mtprotoDailyLimit: mtproto.dailyLimit,
+      mtprotoReserve: mtproto.specialReserve,
+    });
+  }
+
+  onModuleInit() {
+    const warnings = this.configWarnings();
+    if (warnings.length === 0) return;
+    for (const w of warnings) this.logger.warn(`설정 점검: ${w.text}`);
+    void this.adminNotify
+      ?.notifyConfigWarnings(warnings.map((w) => w.text))
+      .catch(() => undefined);
+  }
 
   async listRuns(limit = 30) {
     const take = Math.min(Math.max(limit, 1), 30);
@@ -107,6 +145,7 @@ export class AdminStatsService {
         joinsToday: mtproto.joinsToday,
         joinOutcomes: mtproto.joinOutcomes,
         dailyLimit: mtproto.dailyLimit,
+        specialReserve: mtproto.specialReserve,
         joinDailyLimit: mtproto.joinDailyLimit,
         joinedTotal: mtproto.joinedTotal,
         joinTotalMax: mtproto.joinTotalMax,
@@ -162,6 +201,7 @@ export class AdminStatsService {
       // 메모리 기준이라 서버가 다시 뜨면 0부터 센다
       collectGate: getTmeGate().snapshot(),
       queue,
+      configWarnings: this.configWarnings(),
       failures: await this.getFailureSummary(),
       running: this.statsJob.isRunning(),
     };

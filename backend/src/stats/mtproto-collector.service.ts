@@ -91,6 +91,10 @@ import {
 import { asText } from '../common/as-text';
 import { AppSetting } from '../ads/app-setting.entity';
 import {
+  canSpendForCollect,
+  mtprotoSpecialReserve,
+} from './mtproto-reserve.logic';
+import {
   canJoinAnother,
   describeUnjoinableInvite,
   isJoinableChannelInvite,
@@ -112,6 +116,8 @@ export type MtprotoPublicStatus = {
   joinOutcomes: Record<string, number>;
   /** MTProto 하루 요청 한도 */
   dailyLimit: number;
+  /** 그중 검색·초대 확인·가입·발견용으로 남겨 두는 수 */
+  specialReserve: number;
   joinDailyLimit: number;
   joinedTotal: number;
   joinTotalMax: number;
@@ -248,6 +254,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       joinsToday: this.currentJoinsToday(),
       joinOutcomes: this.todayJoinOutcomes(),
       dailyLimit: this.dailyLimit(),
+      specialReserve: this.specialReserve(),
       joinDailyLimit: this.joinDailyLimit(),
       joinedTotal: this.joinedTotal,
       joinTotalMax: MTPROTO_JOIN_TOTAL_MAX,
@@ -305,8 +312,24 @@ export class MtprotoCollectorService implements OnModuleInit {
     }
   }
 
+  /** 키워드 검색·초대 링크 확인·가입·발견용으로 남겨 두는 요청 수 */
+  specialReserve(): number {
+    return mtprotoSpecialReserve({
+      inviteCheckDaily: this.inviteCheckDailyLimit(),
+      joinDaily: this.joinDailyLimit(),
+      keywordSearchDaily: this.searchDailyLimit(),
+      resolveDaily: this.resolveDailyLimit(),
+    });
+  }
+
+  /** 수집(채널 정보·글 읽기)은 예비분을 남기고 쓴다 */
+  private canSpendCollect(): boolean {
+    return canSpendForCollect(this.remainingRequests(), this.specialReserve());
+  }
+
   canCollect(channel: Channel): boolean {
     if (!this.canUseMtproto()) return false;
+    if (!this.canSpendCollect()) return false;
     if (isInviteOnlyLink(channel.link)) return false;
     if (channel.collectStatus === 'invite_expired') return false;
     return Boolean(this.resolveUsername(channel));
@@ -386,6 +409,10 @@ export class MtprotoCollectorService implements OnModuleInit {
       const Api = await this.api();
       const stored = await this.loadStoredAccess(channel.id);
       let resolved: ResolvedPublicChannel | null = null;
+      if (stored && canReuseStoredAccess(stored) && !this.canSpendCollect()) {
+        // 이미 가입한 방 다시 읽기는 "수집"이라 예비분을 건드리지 않는다
+        return { ok: false, reason: 'skipped' };
+      }
       if (stored && canReuseStoredAccess(stored)) {
         try {
           resolved = await this.fetchFullFromInput(

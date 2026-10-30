@@ -128,6 +128,19 @@ export function AdminCollectOpsPage() {
       </div>
       {message && <AdminMessage message={message} />}
 
+      {ops?.configWarnings && ops.configWarnings.length > 0 && (
+        <div className="mt-6 rounded-2xl bg-red-500/10 px-4 py-3 ring-2 ring-red-500/50">
+          <p className="text-base font-bold text-red-500">⚠ 서버 설정 확인 필요 (Render → newlink-api → Environment)</p>
+          <ul className="mt-2 space-y-1 text-sm text-foreground">
+            {ops.configWarnings.map((w) => (
+              <li key={w.text}>
+                {w.level === 'error' ? '🔴' : '🟡'} {w.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {loading || !ops ? (
         <Skeleton className="mt-6 h-32 w-full" />
       ) : (
@@ -148,6 +161,11 @@ export function AdminCollectOpsPage() {
                 {ops.mtproto.requestsToday}
                 {ops.mtproto.dailyLimit ? `/${ops.mtproto.dailyLimit}` : ''}
               </CardTitle>
+              {ops.mtproto.specialReserve != null && (
+                <p className="text-[11px] text-muted-foreground">
+                  그중 {ops.mtproto.specialReserve}은 검색·초대 확인·가입·발견용으로 남겨 둠
+                </p>
+              )}
               <p className="text-[11px] text-muted-foreground">매일 0시(한국) 초기화</p>
             </CardHeader>
           </Card>

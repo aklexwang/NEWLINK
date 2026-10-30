@@ -14,7 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getAdminDashboard, type AdminDashboard } from '../../api/admin';
+import { getAdminDashboard, getAdminStatsOps, type AdminDashboard } from '../../api/admin';
 import { AdminMessage } from '../../components/admin/AdminTable';
 import { Badge } from '@/components/admin/ui/badge';
 import { Card, CardHeader, CardTitle } from '@/components/admin/ui/card';
@@ -88,10 +88,16 @@ export function AdminDashboardPage() {
   const [data, setData] = useState<AdminDashboard | null>(null);
   const [message, setMessage] = useState('');
 
+  const [configWarnings, setConfigWarnings] = useState<Array<{ level: string; text: string }>>([]);
+
   useEffect(() => {
     void getAdminDashboard()
       .then(setData)
       .catch(() => setMessage('대시보드를 불러오지 못했습니다.'));
+    // 서버 설정이 잘못돼 수집이 멈추는 일을 바로 보이게 (수집 운영과 같은 점검)
+    void getAdminStatsOps()
+      .then((ops) => setConfigWarnings(ops.configWarnings ?? []))
+      .catch(() => undefined);
   }, []);
 
   const run = data?.lastCollectRun;
@@ -110,6 +116,15 @@ export function AdminDashboardPage() {
     <div className="flex-1 overflow-y-auto px-4 pb-8 md:px-7">
       <p className="text-sm text-muted-foreground">숫자를 누르면 해당 조건의 목록으로 갑니다.</p>
       {message && <AdminMessage message={message} />}
+      {configWarnings.length > 0 && (
+        <Link
+          to="/admin/collect"
+          className="mt-4 block rounded-2xl bg-red-500/10 px-4 py-3 ring-2 ring-red-500/50 hover:bg-red-500/15"
+        >
+          <p className="text-base font-bold text-red-500">⚠ 서버 설정 확인 필요 {configWarnings.length}건 — 눌러서 보기</p>
+          <p className="mt-1 text-sm text-foreground">{configWarnings[0].text}</p>
+        </Link>
+      )}
       {!data ? (
         <Skeleton className="mt-6 h-32 w-full" />
       ) : (
