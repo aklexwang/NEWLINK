@@ -818,6 +818,17 @@ function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onOpenRoom
         className="pointer-events-none w-full rounded-xl border-0"
         style={{ height }}
       />
+      {/* 투명 덮개: 아이폰은 iframe 에 pointer-events-none 이 안 먹어 상자 어디를 눌러도 텔레그램 글로 이동했다.
+          덮개가 터치를 먼저 받아 아무 일도 하지 않는다(로고 자리만 아래 버튼으로 연다) */}
+      <div
+        aria-hidden
+        className="absolute inset-0 z-10 rounded-xl"
+        onClick={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+        }}
+        onTouchEnd={(event) => event.stopPropagation()}
+      />
       {/* 상자 오른쪽 위 텔레그램 로고 자리: 누르면 이 방을 텔레그램 앱으로 연다 */}
       <button
         type="button"
@@ -826,7 +837,7 @@ function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onOpenRoom
           event.stopPropagation();
           onOpenRoom();
         }}
-        className="absolute top-0 right-0 h-12 w-14 rounded-tr-xl"
+        className="absolute top-0 right-0 z-20 h-12 w-14 rounded-tr-xl"
       />
     </div>
   );
