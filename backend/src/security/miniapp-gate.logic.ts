@@ -73,7 +73,45 @@ export const miniAppGateCounters = {
   unsigned: 0,
   blocked: 0,
   rateLimited: 0,
+  /** 서명 없는 요청 최근 표본 (어디서 오는지 보려고, 개인정보 없이 경로·종류만) */
+  unsignedSamples: [] as Array<{ at: string; path: string; client: string }>,
 };
+
+/** User-Agent 를 사람이 읽을 종류로만 줄인다 (원문은 저장하지 않음) */
+export function describeClient(ua: string | undefined): string {
+  const v = (ua ?? '').toLowerCase();
+  if (!v) return '알 수 없음';
+  if (
+    /telegrambot|twitterbot|facebookexternalhit|slackbot|discordbot|kakaotalk-scrap/.test(
+      v,
+    )
+  )
+    return '링크 미리보기 봇';
+  if (
+    /bot|crawler|spider|curl|wget|python|axios|node-fetch|go-http|java\//.test(
+      v,
+    )
+  )
+    return '봇·스크립트';
+  if (/telegram/.test(v)) return '텔레그램 앱 내 브라우저';
+  if (/iphone|ipad/.test(v)) return '아이폰 브라우저';
+  if (/android/.test(v)) return '안드로이드 브라우저';
+  if (/windows|macintosh|linux/.test(v)) return 'PC 브라우저';
+  return '기타';
+}
+
+export function noteUnsignedSample(path: string, ua: string | undefined) {
+  const list = miniAppGateCounters.unsignedSamples;
+  list.unshift({
+    at: new Date().toISOString(),
+    path: path
+      .split('?')[0]
+      .replace(/[0-9a-f-]{36}/gi, ':id')
+      .slice(0, 80),
+    client: describeClient(ua),
+  });
+  if (list.length > 30) list.length = 30;
+}
 
 /** 같은 사람(텔레그램 ID 또는 IP)이 1분에 이만큼 넘게 부르면 잠시 막는다 */
 export const PUBLIC_RATE_LIMIT_PER_MIN = 180;

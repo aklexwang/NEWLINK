@@ -158,6 +158,29 @@ export function AdminCollectOpsPage() {
             {ops.miniAppGate.mode === 'block' &&
               ` · 막음 ${ops.miniAppGate.blocked.toLocaleString('ko-KR')} · 너무 잦아 막음 ${ops.miniAppGate.rateLimited.toLocaleString('ko-KR')}`}
           </p>
+          {ops.miniAppGate.unsignedSamples && ops.miniAppGate.unsignedSamples.length > 0 && (
+            <details className="mt-2 text-sm">
+              <summary className="cursor-pointer text-foreground/80">
+                서명 없는 요청은 어디서? (최근 {ops.miniAppGate.unsignedSamples.length}건, 종류별{' '}
+                {Object.entries(
+                  ops.miniAppGate.unsignedSamples.reduce<Record<string, number>>((acc, x) => {
+                    acc[x.client] = (acc[x.client] ?? 0) + 1;
+                    return acc;
+                  }, {}),
+                )
+                  .map(([k, v]) => `${k} ${v}`)
+                  .join(' · ')}
+                )
+              </summary>
+              <ul className="mt-1 space-y-0.5 font-mono text-xs text-muted-foreground">
+                {ops.miniAppGate.unsignedSamples.map((x, i) => (
+                  <li key={`${x.at}-${i}`}>
+                    {new Date(x.at).toLocaleTimeString('ko-KR')} · {x.client} · {x.path}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             서버가 켜진 뒤부터 센 수예요. 미니앱으로 써 보고 "서명 있음"이 오르면 Render 의 MINIAPP_ONLY 를 true 로 바꿔 막기를 켜요.
           </p>

@@ -1,5 +1,6 @@
 import {
   decideMiniAppGate,
+  describeClient,
   isOpenPath,
   miniAppGateMode,
   SlidingRateLimiter,
@@ -94,5 +95,20 @@ describe('미니앱 전용 문지기', () => {
     ]).toEqual([true, true, true, false]);
     expect(rl.allow('u', 61_000)).toBe(true);
     expect(rl.allow('other', 3)).toBe(true);
+  });
+});
+
+describe('서명 없는 요청 종류', () => {
+  it('User-Agent 를 종류로만 줄인다', () => {
+    expect(describeClient('TelegramBot (like TwitterBot)')).toBe(
+      '링크 미리보기 봇',
+    );
+    expect(describeClient('python-requests/2.31')).toBe('봇·스크립트');
+    expect(
+      describeClient('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Telegram-iOS'),
+    ).toBe('텔레그램 앱 내 브라우저');
+    expect(
+      describeClient('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120'),
+    ).toBe('PC 브라우저');
   });
 });

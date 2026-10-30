@@ -8,6 +8,7 @@ import {
   isOpenPath,
   miniAppGateCounters,
   miniAppGateMode,
+  noteUnsignedSample,
   SlidingRateLimiter,
 } from './miniapp-gate.logic';
 
@@ -44,7 +45,10 @@ export class MiniAppGateMiddleware implements NestMiddleware {
     const telegramId = isAdmin ? null : this.validInitDataUser(req);
     if (isAdmin) miniAppGateCounters.admin += 1;
     else if (telegramId != null) miniAppGateCounters.signed += 1;
-    else miniAppGateCounters.unsigned += 1;
+    else {
+      miniAppGateCounters.unsigned += 1;
+      noteUnsignedSample(path, req.headers['user-agent']);
+    }
     if (mode === 'watch') {
       next();
       return;

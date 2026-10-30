@@ -257,6 +257,7 @@ export interface AdminStatsOps {
     unsigned: number;
     blocked: number;
     rateLimited: number;
+    unsignedSamples?: Array<{ at: string; path: string; client: string }>;
   };
   /** 서버 설정 점검 경고 (예전 서버면 없음) */
   configWarnings?: Array<{ level: 'error' | 'warn'; text: string }>;
