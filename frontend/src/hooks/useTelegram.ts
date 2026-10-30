@@ -69,24 +69,53 @@ export function hapticSuccess(webApp: typeof WebApp, isLocalBrowser: boolean) {
   }
 }
 
-export function openTelegramChannel(webApp: typeof WebApp, isLocalBrowser: boolean, link: string) {
-  const url = link.startsWith('http') ? link : `https://${link}`;
+/** 텔레그램 앱 안(미니앱 웹뷰)인지 — initData 가 비어 있어도(키보드 버튼으로 연 경우 등) platform 으로 판단 */
+function insideTelegramApp(webApp: typeof WebApp): boolean {
+  try {
+    const w = window as Window & {
+      TelegramWebviewProxy?: unknown;
+      Telegram?: { WebApp?: { platform?: string } };
+    };
+    if (w.TelegramWebviewProxy) return true;
+    const platform = w.Telegram?.WebApp?.platform ?? webApp.platform;
+    return Boolean(platform && platform !== 'unknown');
+  } catch {
+    return false;
+  }
+}
 
-  if (isLocalBrowser) {
+export function openTelegramChannel(webApp: typeof WebApp, isLocalBrowser: boolean, link: string) {
+  const raw = link.startsWith('http') ? link : `https://${link}`;
+  // telegram.me → t.me (텔레그램 열기 함수는 t.me 만 받는다)
+  const url = raw.replace(/^https?:\/\/(www\.)?telegram\.me\//i, 'https://t.me/');
+
+  if (isLocalBrowser && !insideTelegramApp(webApp)) {
     window.open(url, '_blank', 'noopener,noreferrer');
     return;
   }
 
+  // 텔레그램 안: 공식 스크립트의 함수 → SDK 함수 → 같은 창 이동 순서로 시도
+  try {
+    const tg = (window as Window & {
+      Telegram?: { WebApp?: { openTelegramLink?: (u: string) => void } };
+    }).Telegram?.WebApp;
+    if (tg && typeof tg.openTelegramLink === 'function') {
+      tg.openTelegramLink(url);
+      return;
+    }
+  } catch {
+    // 다음 방법
+  }
   try {
     if (typeof webApp.openTelegramLink === 'function') {
       webApp.openTelegramLink(url);
       return;
     }
   } catch {
-    // fall through
+    // 다음 방법
   }
-
-  window.open(url, '_blank', 'noopener,noreferrer');
+  // 텔레그램 웹뷰는 t.me 주소로 이동하면 앱이 가로채서 방을 연다
+  window.location.href = url;
 }
 
 export async function openTonInvoice(invoiceLink: string): Promise<boolean> {
