@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { addFavorite, getMyFavoriteIds, removeFavorite } from '../api/channels';
 import { useAuth } from '../providers/AuthProvider';
+import { toastMessage } from '../providers/ToastProvider';
 
 /**
  * 즐겨찾기 목록을 화면 전체가 함께 쓴다.
@@ -51,6 +52,8 @@ async function toggle(channelId: string): Promise<void> {
   try {
     if (isFav) await removeFavorite(channelId);
     else await addFavorite(channelId);
+    // 모든 화면(홈·카테고리·즐겨찾기·상세) 공통 짧은 안내
+    toastMessage(isFav ? '즐겨찾기에서 해제되었습니다' : '즐겨찾기에 추가되었습니다', 'success');
   } catch (error) {
     const rollback = new Set(ids);
     if (isFav) rollback.add(channelId);
