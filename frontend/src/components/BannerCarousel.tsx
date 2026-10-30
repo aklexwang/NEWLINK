@@ -102,8 +102,8 @@ export function BannerCarousel({
 
   const open = (banner: PublicBanner) => {
     if (moved.current) return; // 끌기 끝에 생기는 클릭은 무시
-    trackBannerClick(banner.id);
     openTelegramChannel(webApp, isLocalBrowser, banner.link);
+    trackBannerClick(banner.id);
   };
 
   const onStart = (x: number, y: number, width: number) => {

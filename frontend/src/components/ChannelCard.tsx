@@ -229,8 +229,8 @@ export function ChannelCard({
           <button
             type="button"
             onClick={() => {
-              trackTelegramOpen(channel.id);
               openTelegramChannel(webApp, isLocalBrowser, channel.link);
+              trackTelegramOpen(channel.id);
             }}
             aria-label={`${channel.title} 텔레그램에서 바로가기`}
             className="nl-orb-tg flex h-10 w-10 items-center justify-center rounded-full text-white"

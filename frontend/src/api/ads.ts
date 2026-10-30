@@ -38,7 +38,6 @@ export function trackBannerClick(id: string): void {
     void fetch(`${API_BASE}/ads/banners/${encodeURIComponent(id)}/click`, {
       method: 'POST',
       keepalive: true,
-      headers: gateHeaders(),
     }).catch(() => undefined);
   } catch {
     /* 기록 실패는 무시 */

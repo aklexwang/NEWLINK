@@ -708,8 +708,8 @@ function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) 
   const { webApp, isLocalBrowser } = useTelegram();
   const post = item.latestPost ?? null;
   const openRoom = () => {
-    trackTelegramOpen(item.id);
     openTelegramChannel(webApp, isLocalBrowser, item.link);
+    trackTelegramOpen(item.id);
   };
   const postUrl = post && item.username ? `https://t.me/${item.username}/${post.messageId}` : null;
   const mediaLabel = post ? MEDIA_LABEL[post.mediaType] : undefined;

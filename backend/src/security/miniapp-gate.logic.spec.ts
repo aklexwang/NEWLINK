@@ -55,6 +55,8 @@ describe('미니앱 전용 문지기', () => {
       '/api/payments/webhook',
       '/api/health',
       '/api/ads/banners/123e4567-e89b-12d3-a456-426614174000/image',
+      '/api/channels/123e4567-e89b-12d3-a456-426614174000/telegram-open',
+      '/api/ads/banners/123e4567-e89b-12d3-a456-426614174000/click',
     ]) {
       expect(isOpenPath(p)).toBe(true);
     }

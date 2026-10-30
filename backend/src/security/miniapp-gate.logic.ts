@@ -21,13 +21,16 @@ const OPEN_EXACT = new Set([
 
 /** 광고 배너 그림(<img>) */
 const BANNER_IMAGE_RE = /^\/api\/ads\/banners\/[0-9a-f-]{36}\/image$/i;
+/** 텔레그램 이동 기록(이동 버튼을 누를 때 따로 보내는 가벼운 신호. 데이터를 돌려주지 않는다) */
+const OPEN_TRACK_RE =
+  /^\/api\/(channels\/[0-9a-f-]{36}\/telegram-open|ads\/(banners|rank)\/[0-9a-f-]{36}\/click)$/i;
 
 export function isOpenPath(path: string): boolean {
   const p = path.split('?')[0];
   if (OPEN_EXACT.has(p)) return true;
   if (!p.startsWith('/api')) return true; // API 가 아닌 경로는 이 문지기와 상관없음
   if (OPEN_PREFIXES.some((prefix) => p.startsWith(prefix))) return true;
-  return BANNER_IMAGE_RE.test(p);
+  return BANNER_IMAGE_RE.test(p) || OPEN_TRACK_RE.test(p);
 }
 
 export type GateDecision = 'allow' | 'deny';

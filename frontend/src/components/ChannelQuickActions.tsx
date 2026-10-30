@@ -56,8 +56,8 @@ export function ChannelQuickActions({
     event.stopPropagation();
     event.preventDefault();
     if (!link) return;
-    trackTelegramOpen(channelId);
     openTelegramChannel(webApp, isLocalBrowser, link);
+    trackTelegramOpen(channelId);
   };
 
   return (
