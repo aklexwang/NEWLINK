@@ -1,18 +1,25 @@
+import type { Request } from 'express';
+import { MemberActivityService } from '../member-activity/member-activity.service';
 import {
   Controller,
   Get,
   HttpCode,
+  Optional,
   Param,
   ParseUUIDPipe,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { RankingQueryDto } from '../stats/dto/public-stats.dto';
 import { RankingService } from './ranking.service';
 
 @Controller('ranking')
 export class RankingController {
-  constructor(private readonly rankingService: RankingService) {}
+  constructor(
+    private readonly rankingService: RankingService,
+    @Optional() private readonly memberActivity?: MemberActivityService,
+  ) {}
 
   @Get('status')
   status() {
@@ -45,7 +52,13 @@ export class RankingController {
   }
 
   @Get('channels')
-  channels(@Query() query: RankingQueryDto) {
+  channels(@Query() query: RankingQueryDto, @Req() req: Request) {
+    // 카테고리를 고른 첫 화면만 "카테고리 관심"으로 기록 (스크롤로 더 불러오는 건 빼고)
+    if (query.category && !query.offset) {
+      this.memberActivity?.recordFromRequest(req, 'category', {
+        category: query.category,
+      });
+    }
     return this.rankingService.getChannels(query);
   }
 }

@@ -8,6 +8,7 @@ import {
 } from '../../api/admin';
 import type { AdminUser } from '../../types/user';
 import { WalletNetworkBadge } from '../../components/WalletNetworkBadge';
+import { MemberActivityPanel } from '../../components/admin/MemberActivityPanel';
 import { useToast } from '../../providers/ToastProvider';
 import { formatPayoutAmount } from '../../utils/payoutDisplay';
 
@@ -18,6 +19,8 @@ export function AdminUsersPage() {
   const [actingId, setActingId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [query, setQuery] = useState('');
+  /** 오른쪽 성향 패널에 열린 회원 */
+  const [panelUser, setPanelUser] = useState<AdminUser | null>(null);
   const [params, setParams] = useSearchParams();
   const kind: 'normal' | 'advertiser' = params.get('kind') === 'advertiser' ? 'advertiser' : 'normal';
 
@@ -218,7 +221,15 @@ export function AdminUsersPage() {
                   return (
                     <tr
                       key={user.telegramId}
-                      className={`border-b border-border last:border-0 ${user.isBlocked ? 'bg-red-50/40' : ''}`}
+                      onClick={(e) => {
+                        // 버튼(복사·차단·삭제 등)을 누른 건 패널을 열지 않는다
+                        if ((e.target as HTMLElement).closest('button, a, input')) return;
+                        setPanelUser(user);
+                      }}
+                      title="눌러서 이 회원의 성향·활동 보기"
+                      className={`cursor-pointer border-b border-border last:border-0 hover:bg-muted/60 ${
+                        panelUser?.telegramId === user.telegramId ? 'bg-primary/10' : user.isBlocked ? 'bg-red-50/40' : ''
+                      }`}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -357,6 +368,7 @@ export function AdminUsersPage() {
           </div>
         )}
       </div>
+      {panelUser && <MemberActivityPanel key={panelUser.telegramId} user={panelUser} onClose={() => setPanelUser(null)} />}
     </>
   );
 }

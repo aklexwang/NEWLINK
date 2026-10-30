@@ -1,6 +1,8 @@
+import { MemberActivityService } from '../member-activity/member-activity.service';
 import {
   Controller,
   HttpCode,
+  Optional,
   Param,
   ParseUUIDPipe,
   Post,
@@ -15,7 +17,10 @@ import { TelegramOpenService } from './telegram-open.service';
  */
 @Controller('channels')
 export class TelegramOpenController {
-  constructor(private readonly opens: TelegramOpenService) {}
+  constructor(
+    private readonly opens: TelegramOpenService,
+    @Optional() private readonly memberActivity?: MemberActivityService,
+  ) {}
 
   @Post(':id/telegram-open')
   @HttpCode(204)
@@ -23,6 +28,7 @@ export class TelegramOpenController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request,
   ): Promise<void> {
+    this.memberActivity?.recordFromRequest(req, 'open', { channelId: id });
     await this.opens.recordFromRequest(req, id);
   }
 }

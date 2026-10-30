@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Optional,
   Param,
   ParseUUIDPipe,
   Post,
@@ -13,6 +14,7 @@ import {
 import { ModuleRef } from '@nestjs/core';
 import type { Request } from 'express';
 import { SearchLogService } from '../analytics/search-log.service';
+import { MemberActivityService } from '../member-activity/member-activity.service';
 import { SearchTermsService } from '../analytics/search-terms.service';
 import { SEARCH_BLOCKED_MESSAGE } from '../analytics/search-text.logic';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
@@ -33,6 +35,7 @@ export class ChannelsController {
     private readonly moduleRef: ModuleRef,
     private readonly searchTerms: SearchTermsService,
     private readonly searchLog: SearchLogService,
+    @Optional() private readonly memberActivity?: MemberActivityService,
   ) {}
 
   /**
@@ -68,6 +71,7 @@ export class ChannelsController {
         resultCount: result.total,
         blocked: false,
       });
+      this.memberActivity?.recordFromRequest(req, 'search', { keyword: dto.q });
     }
     return result;
   }
@@ -137,6 +141,7 @@ export class ChannelsController {
     @TelegramUserParam() user: TelegramUser,
   ) {
     await this.usersService.assertActiveByTelegramId(user.id);
+    this.memberActivity?.record(user.id, 'favorite', { channelId: id });
     return this.channelsService.addFavorite(id, user.id);
   }
 

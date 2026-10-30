@@ -263,6 +263,49 @@ export class CategoryAiService implements OnModuleInit {
     return { verdict: null, skipReason: 'error' };
   }
 
+  /**
+   * 짧은 한국어 요약 (회원 성향 등). 하루 AI 한도를 같이 쓴다. 못 하면 null.
+   */
+  async summarizeKorean(system: string, user: string): Promise<string | null> {
+    const config = this.config();
+    if (!config) return null;
+    this.budget.setLimit(this.dailyLimit());
+    if (!this.budget.tryAcquire()) return null;
+    try {
+      const response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+        body: JSON.stringify({
+          model: config.model,
+          temperature: 0.3,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user.slice(0, 4000) },
+          ],
+        }),
+      });
+      if (!response.ok) {
+        if (shouldStopAiForToday(response.status)) {
+          this.budget.stopToday(`HTTP ${response.status}`);
+        }
+        return null;
+      }
+      const data = (await response.json()) as {
+        choices?: { message?: { content?: string } }[];
+      };
+      return data.choices?.[0]?.message?.content?.trim() || null;
+    } catch (error) {
+      this.logger.warn(
+        `AI 요약 실패: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
   private async requestCompletion(
     config: AiConfig,
     input: CategoryClassifyInput,

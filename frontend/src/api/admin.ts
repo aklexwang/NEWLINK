@@ -21,6 +21,47 @@ export async function deleteAdminUser(telegramId: number) {
   return data;
 }
 
+export type MemberActivityProfile = {
+  total: number;
+  firstAt: string | null;
+  lastAt: string | null;
+  categories: Array<{ name: string; share: number; score: number }>;
+  keywords: Array<{ keyword: string; count: number }>;
+  topRooms: Array<{ channelId: string; title: string; category: string; opens: number; views: number }>;
+  hours: number[];
+  privateShare: number;
+  labels: string[];
+  summary: string;
+};
+
+export type MemberActivityItem = {
+  kind: 'search' | 'open' | 'view' | 'favorite' | 'category';
+  at: string;
+  keyword: string | null;
+  category: string | null;
+  channelId: string | null;
+  title: string | null;
+  link: string | null;
+};
+
+/** 회원 성향·활동 (최근 90일) */
+export async function getAdminUserActivity(telegramId: number) {
+  const { data } = await apiClient.get<{ profile: MemberActivityProfile | null; recent: MemberActivityItem[] }>(
+    `/admin/users/${telegramId}/activity`,
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function getAdminUserAiSummary(telegramId: number) {
+  const { data } = await apiClient.post<{ summary: string | null; reason?: string }>(
+    `/admin/users/${telegramId}/activity/ai-summary`,
+    {},
+    { headers: getAdminAuthHeaders(), timeout: 60_000 },
+  );
+  return data;
+}
+
 export async function setAdminUserAdvertiser(telegramId: number, isAdvertiser: boolean) {
   const { data } = await apiClient.patch<{ ok: boolean; telegramId: number; isAdvertiser: boolean }>(
     `/admin/users/${telegramId}/advertiser`,

@@ -3,9 +3,11 @@ import {
   Controller,
   Delete,
   Get,
+  Optional,
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { IsBoolean } from 'class-validator';
@@ -17,6 +19,7 @@ import { RewardPayoutService } from '../payments/reward-payout.service';
 import { telegramIdKey } from '../common/telegram-id';
 import { UsersService } from '../users/users.service';
 import { AdStatsService } from '../ads/ad-stats.service';
+import { MemberActivityService } from '../member-activity/member-activity.service';
 
 class SetUserBlockedDto {
   @IsBoolean()
@@ -36,7 +39,23 @@ export class AdminUsersController {
     private readonly channelsService: ChannelsService,
     private readonly rewards: RewardPayoutService,
     private readonly adStats: AdStatsService,
+    @Optional() private readonly memberActivity?: MemberActivityService,
   ) {}
+
+  /** 회원 오른쪽 패널: 성향·검색 키워드·이동한 방 (최근 90일) */
+  @Get(':telegramId/activity')
+  activity(@Param('telegramId', ParseIntPipe) telegramId: number) {
+    if (!this.memberActivity) return { profile: null, recent: [] };
+    return this.memberActivity.profile(telegramId);
+  }
+
+  /** [AI 요약] 버튼 (AI 하루 한도 사용) */
+  @Post(':telegramId/activity/ai-summary')
+  aiSummary(@Param('telegramId', ParseIntPipe) telegramId: number) {
+    if (!this.memberActivity)
+      return { summary: null, reason: '기능이 꺼져 있어요.' };
+    return this.memberActivity.aiSummary(telegramId);
+  }
 
   @Get()
   async findAll() {
@@ -96,6 +115,8 @@ export class AdminUsersController {
   @Delete(':telegramId')
   async remove(@Param('telegramId', ParseIntPipe) telegramId: number) {
     await this.channelsService.clearSubmitter(telegramId);
+    // 회원을 지우면 활동 기록(성향 데이터)도 같이 지운다
+    await this.memberActivity?.deleteForUser(telegramId);
     return this.usersService.deleteByTelegramId(telegramId);
   }
 }
