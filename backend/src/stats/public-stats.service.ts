@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnApplicationBootstrap,
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -149,7 +151,8 @@ export type ChannelSummary = {
 };
 
 @Injectable()
-export class PublicStatsService {
+export class PublicStatsService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(PublicStatsService.name);
   private homeCache: { expiresAt: number; data: unknown } | null = null;
   private rankingPool: {
     expiresAt: number;
@@ -404,8 +407,11 @@ export class PublicStatsService {
   clearPublicCaches() {
     this.rankAdCache.clear();
     this.summaryCache.clear();
-    this.homeCache = null;
-    this.feedCache.clear();
+    // 지우지 않고 "오래됨" 표시만: 다음 요청은 이전 결과를 바로 받고, 뒤에서 새로 계산한다
+    if (this.homeCache) this.homeCache.expiresAt = 0;
+    for (const entry of this.feedCache.values()) entry.expiresAt = 0;
+    // 수집이 끝난 직후 등: 첫 화면은 바로 새로 계산해 둔다
+    this.warmHomeCaches();
     this.rankingPool = null;
   }
 
@@ -450,10 +456,43 @@ export class PublicStatsService {
   }
 
   async getHome() {
-    if (this.homeCache && this.homeCache.expiresAt > Date.now()) {
+    if (this.homeCache) {
+      // 만료됐어도 이전 결과를 바로 주고, 새 계산은 뒤에서 한 번만 (첫 방문자가 3~4초 기다리지 않게)
+      if (this.homeCache.expiresAt <= Date.now())
+        this.refreshInBackground('home', () => this.computeHome());
       return this.homeCache.data;
     }
+    return this.computeHome();
+  }
 
+  /** 같은 계산이 이미 돌고 있으면 또 시작하지 않는다 */
+  private readonly refreshing = new Set<string>();
+  private refreshInBackground(key: string, run: () => Promise<unknown>) {
+    if (this.refreshing.has(key)) return;
+    this.refreshing.add(key);
+    void run()
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `캐시 새로고침 실패(${key}): ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      )
+      .finally(() => this.refreshing.delete(key));
+  }
+
+  onApplicationBootstrap() {
+    // 서버가 막 켜졌을 때 첫 방문자가 기다리지 않게 (DB 연결이 자리 잡은 뒤)
+    setTimeout(() => this.warmHomeCaches(), 10_000).unref?.();
+  }
+
+  /** 첫 화면 데이터를 미리 계산해 둔다 */
+  warmHomeCaches() {
+    this.refreshInBackground('home', () => this.computeHome());
+    this.refreshInBackground('feed:channel::20', () =>
+      this.computeFeed({ type: 'channel', limit: 20 }),
+    );
+  }
+
+  private async computeHome() {
     const weekly = await this.getWeekly(currentIsoWeek(formatKstYmd()).label);
     let topBy: 'score' | 'members' = 'score';
     let top = await this.listRanking({ sort: 'score', limit: 10 });
@@ -510,9 +549,19 @@ export class PublicStatsService {
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 50);
     const cacheKey = `feed:${type}:${query.cursor ?? ''}:${limit}`;
     const cached = this.feedCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
+    if (cached) {
+      if (cached.expiresAt <= Date.now()) {
+        this.refreshInBackground(cacheKey, () => this.computeFeed(query));
+      }
       return cached.data;
     }
+    return this.computeFeed(query);
+  }
+
+  private async computeFeed(query: HomeFeedQueryDto) {
+    const type = query.type ?? 'channel';
+    const limit = Math.min(Math.max(query.limit ?? 20, 1), 50);
+    const cacheKey = `feed:${type}:${query.cursor ?? ''}:${limit}`;
 
     let channels = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },

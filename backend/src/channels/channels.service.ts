@@ -1391,7 +1391,8 @@ export class ChannelsService implements OnModuleInit {
   }> {
     const unique = [...new Set(ids)];
     let updated = 0;
-    const stillHidden: Array<{ id: string; title: string; reason: string }> = [];
+    const stillHidden: Array<{ id: string; title: string; reason: string }> =
+      [];
     for (const id of unique) {
       const channel = await this.channelRepository.findOneBy({ id });
       if (!channel) continue;
@@ -1419,7 +1420,11 @@ export class ChannelsService implements OnModuleInit {
       if (isVisible) {
         const vis = describeAdminMemberVisibility(channel);
         if (!vis.visible) {
-          stillHidden.push({ id: channel.id, title: channel.title, reason: vis.reason });
+          stillHidden.push({
+            id: channel.id,
+            title: channel.title,
+            reason: vis.reason,
+          });
         }
       }
     }
@@ -1504,17 +1509,32 @@ export class ChannelsService implements OnModuleInit {
   } | null = null;
 
   clearRankingCountsCache() {
-    this.rankingCountsCache = null;
+    // 지우지 않고 오래됨 표시: 다음 요청은 이전 값을 받고 뒤에서 새로 센다
+    if (this.rankingCountsCache) this.rankingCountsCache.expiresAt = 0;
   }
 
   async getRankingCounts(): Promise<Record<string, number>> {
     // 카테고리 화면마다 불리므로 60초 동안 같은 값을 쓴다
-    if (
-      this.rankingCountsCache &&
-      this.rankingCountsCache.expiresAt > Date.now()
-    ) {
+    if (this.rankingCountsCache) {
+      // 만료됐어도 이전 값을 바로 주고 뒤에서 한 번만 새로 센다 (첫 방문자가 3초 기다리지 않게)
+      if (
+        this.rankingCountsCache.expiresAt <= Date.now() &&
+        !this.rankingCountsRefreshing
+      ) {
+        this.rankingCountsRefreshing = this.computeRankingCounts()
+          .catch(() => undefined)
+          .finally(() => {
+            this.rankingCountsRefreshing = null;
+          });
+      }
       return this.rankingCountsCache.data;
     }
+    return this.computeRankingCounts();
+  }
+
+  private rankingCountsRefreshing: Promise<unknown> | null = null;
+
+  private async computeRankingCounts(): Promise<Record<string, number>> {
     // 집계에 필요한 컬럼만 읽고, 노출 판정은 어드민 대시보드와 같은 함수로 한다
     const rows = await loadMemberPageRows(this.channelRepository, {
       onlyActive: true,
