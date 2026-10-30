@@ -63,6 +63,23 @@ async function toggle(channelId: string): Promise<void> {
   }
 }
 
+/** 켜기/끄기를 정해서 바꾸기 (즐겨찾기 화면의 [해제]는 항상 끄기) */
+async function setFavorite(channelId: string, on: boolean): Promise<void> {
+  const next = new Set(ids);
+  if (on) next.add(channelId);
+  else next.delete(channelId);
+  const before = ids;
+  emit(next);
+  try {
+    if (on) await addFavorite(channelId);
+    else await removeFavorite(channelId);
+    toastMessage(on ? '즐겨찾기에 추가되었습니다' : '즐겨찾기에서 해제되었습니다', 'success');
+  } catch (error) {
+    emit(before);
+    throw error;
+  }
+}
+
 export function useMyFavorites() {
   const favoriteIds = useSyncExternalStore(subscribe, snapshot, snapshot);
   const { status } = useAuth();
@@ -78,6 +95,7 @@ export function useMyFavorites() {
   }, []);
 
   const toggleFavorite = useCallback((channelId: string) => toggle(channelId), []);
+  const removeFromFavorites = useCallback((channelId: string) => setFavorite(channelId, false), []);
 
-  return { favoriteIds, load, toggleFavorite };
+  return { favoriteIds, load, toggleFavorite, removeFromFavorites };
 }

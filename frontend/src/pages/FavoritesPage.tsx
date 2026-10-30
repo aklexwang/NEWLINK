@@ -16,7 +16,7 @@ export function FavoritesPage() {
   const { user, status: authStatus } = useAuth();
   const { searchCategories } = useCategories();
   const { recommendedIds, recommend, load: loadRecommended } = useMyRecommendations();
-  const { favoriteIds, load: loadFavoriteIds, toggleFavorite } = useMyFavorites();
+  const { favoriteIds, load: loadFavoriteIds, removeFromFavorites } = useMyFavorites();
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [adultOpen, setAdultOpen] = useState(false);
@@ -67,18 +67,17 @@ export function FavoritesPage() {
     }
   };
 
+  // 즐겨찾기 화면의 [해제]는 항상 "해제" — 누르는 즉시 목록에서 빠진다
   const handleToggleFavorite = async (id: string) => {
-    const wasFavorite = favoriteIds.has(id);
+    const removed = channels.find((c) => c.id === id);
+    setChannels((prev) => prev.filter((c) => c.id !== id));
     try {
-      await toggleFavorite(id);
-      if (wasFavorite) {
-        setChannels((prev) => prev.filter((c) => c.id !== id));
-      }
+      await removeFromFavorites(id);
       hapticSuccess(webApp, isLocalBrowser);
     } catch {
-      notifyUser(webApp, isLocalBrowser, '즐겨찾기 변경에 실패했습니다.');
+      notifyUser(webApp, isLocalBrowser, '즐겨찾기 해제에 실패했습니다.');
+      if (removed) setChannels((prev) => (prev.some((c) => c.id === id) ? prev : [removed, ...prev]));
       await loadFavoriteIds();
-      await loadList();
     }
   };
 
