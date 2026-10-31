@@ -20,6 +20,8 @@ export function SubmitPage() {
   const [walletMethod, setWalletMethod] = useState<WalletMethod>('telegram');
   const [rewardsEnabled, setRewardsEnabled] = useState(true);
   const [requireWalletPolicy, setRequireWalletPolicy] = useState(true);
+  /** 보상 정책을 받기 전에는 지갑 상자를 그리지 않는다 (보상 꺼짐일 때 잠깐 보였다 사라지는 문제) */
+  const [policyLoaded, setPolicyLoaded] = useState(false);
   const pendingSubmitRef = useRef(false);
   // 서버가 링크 종류를 판별하지 못했을 때만 회원에게 선택을 받는다.
   const [needLinkType, setNeedLinkType] = useState(false);
@@ -79,7 +81,8 @@ export function SubmitPage() {
         setRewardsEnabled(policy.rewardsEnabled);
         setRequireWalletPolicy(policy.requireWallet);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setPolicyLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -139,7 +142,7 @@ export function SubmitPage() {
       <header className="border-b border-black/5 px-4 py-5">
         <h1 className="text-xl font-bold text-tg-text">채널/그룹 제보</h1>
         <p className="mt-1 text-sm text-tg-hint">
-          {rewardsEnabled
+          {policyLoaded && rewardsEnabled
             ? '새로운 채널/그룹 정보를 등록하고 코인을 받으세요'
             : '새로운 채널/그룹 정보를 등록해 주세요'}
         </p>
@@ -156,7 +159,7 @@ export function SubmitPage() {
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
-        {isLoggedIn && (requireWallet || rewardsEnabled) && (
+        {isLoggedIn && policyLoaded && (requireWallet || rewardsEnabled) && (
           <SubmitWalletPicker onLinked={handleWalletLinked} onNotify={notify} />
         )}
 
