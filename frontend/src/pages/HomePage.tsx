@@ -13,6 +13,7 @@ import {
 } from '../api/stats';
 import { ChannelList } from '../components/ChannelList';
 import { PublicPrivateBadge } from '../components/PublicPrivateBadge';
+import { NewLinkLogo } from '../components/NewLinkLogo';
 import { BannerCarousel } from '../components/BannerCarousel';
 import { getBanners, type PublicBanner } from '../api/ads';
 import { SearchBar } from '../components/SearchBar';
@@ -439,8 +440,8 @@ export function HomePage() {
         >
           {isLoggedIn ? 'MY' : '로그인'}
         </button>
-        <button type="button" onClick={resetToHome} aria-label="홈" className="text-[20px] font-black tracking-[-0.5px] text-nl-text">
-          TellLink
+        <button type="button" onClick={resetToHome} aria-label="홈" className="flex items-center">
+          <NewLinkLogo compact />
         </button>
         <div className="absolute right-1 flex items-center">
           <button

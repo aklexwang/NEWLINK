@@ -43,8 +43,6 @@ export function SearchBar({
   onSelectSuggestion,
   onCloseSuggestions,
   placeholder = '텔레그램 채널·그룹 검색',
-  linkType = 'all',
-  onLinkTypeChange,
 }: SearchBarProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const open =
@@ -110,19 +108,9 @@ export function SearchBar({
             open ? 'rounded-b-none' : ''
           }`}
         >
-          <label className="sr-only" htmlFor="search-type">
-            종류
-          </label>
-          <select
-            id="search-type"
-            value={linkType}
-            onChange={(e) => onLinkTypeChange?.(e.target.value as 'all' | 'channel' | 'group')}
-            className="w-[4.6rem] shrink-0 border-r border-nl-line bg-transparent px-1.5 text-[12px] font-semibold text-nl-text outline-none"
-          >
-            <option value="all">전체</option>
-            <option value="channel">채널</option>
-            <option value="group">그룹</option>
-          </select>
+          <span className="flex shrink-0 items-center pl-3.5" aria-hidden>
+            <SearchIcon className="h-[18px] w-[18px] fill-nl-muted" />
+          </span>
           <input
             id="search-input"
             type="text"
