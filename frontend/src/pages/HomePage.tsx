@@ -737,16 +737,19 @@ function ThreadItem({
             {deltaLine ? ` · ${deltaLine}` : ''}
           </span>
           <span className="flex-1" />
-          <button
-            type="button"
-            onClick={openRoom}
-            aria-label={`${item.title} 텔레그램에서 열기`}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2AABEE] text-white"
-          >
-            <svg viewBox="0 0 24 24" className="-ml-px h-[15px] w-[15px]" fill="currentColor" aria-hidden>
-              <path d={TG_PATH} />
-            </svg>
-          </button>
+          {/* 텔레그램 게시글 상자에는 오른쪽 위 로고가 이미 있어서, 아래 버튼은 상자가 없을 때만 */}
+          {!postUrl && (
+            <button
+              type="button"
+              onClick={openRoom}
+              aria-label={`${item.title} 텔레그램에서 열기`}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2AABEE] text-white"
+            >
+              <svg viewBox="0 0 24 24" className="-ml-px h-[15px] w-[15px]" fill="currentColor" aria-hidden>
+                <path d={TG_PATH} />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </article>
