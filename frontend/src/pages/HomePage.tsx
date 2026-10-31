@@ -893,7 +893,8 @@ function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onOpenRoom
   }, []);
   const dark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   return (
-    <div className="relative" onClick={(event) => event.stopPropagation()}>
+    // 텔레그램 말풍선은 왼쪽 위가 각지고 꼬리(7px)가 튀어나와 어색해서, 꼬리만큼 왼쪽으로 밀고 둥근 틀로 잘라 낸다
+    <div className="relative overflow-hidden rounded-[15px]" onClick={(event) => event.stopPropagation()}>
       <iframe
         ref={ref}
         title="텔레그램 원본 게시글"
@@ -901,7 +902,7 @@ function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onOpenRoom
         loading="lazy"
         tabIndex={-1}
         // 상자 안(로고·이름·링크)은 눌리지 않게: 텔레그램 웹으로 튀어 나가는 것 방지
-        className="pointer-events-none w-full rounded-xl border-0"
+        className="pointer-events-none -ml-[7px] block w-[calc(100%+7px)] max-w-none border-0"
         style={{ height }}
       />
       {/* 투명 덮개: 아이폰은 iframe 에 pointer-events-none 이 안 먹어 상자 어디를 눌러도 텔레그램 글로 이동했다.
