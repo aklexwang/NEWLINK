@@ -436,7 +436,7 @@ export function HomePage() {
         <button
           type="button"
           onClick={() => navigate('/my')}
-          className="absolute left-3 h-8 rounded-lg px-3 text-[13px] font-bold text-nl-text ring-1 ring-nl-line"
+          className="absolute left-3 h-8 rounded-lg bg-[#2aabee] px-3 text-[13px] font-bold text-white shadow-[0_2px_10px_rgba(42,171,238,0.35)]"
         >
           {isLoggedIn ? 'MY' : '로그인'}
         </button>
