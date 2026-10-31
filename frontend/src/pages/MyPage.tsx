@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMySubmissions } from '../api/channels';
+import { getRewardPolicy } from '../api/rewards';
 import { CategoryBadge } from '../components/CategoryBadge';
 import { RewardApprovedModal } from '../components/RewardApprovedModal';
 import { TelegramOfficialLoginButton } from '../components/TelegramOfficialLoginButton';
@@ -46,6 +47,19 @@ export function MyPage() {
   const navigate = useNavigate();
   /** 메뉴 목록에서 펼친 칸 */
   const [openSection, setOpenSection] = useState<'rewards' | 'submissions' | null>(null);
+  /** 어드민 보상 설정이 꺼져 있으면(지갑 불필요) 지갑 표시·지갑 연결 메뉴를 숨긴다 */
+  const [walletEnabled, setWalletEnabled] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    getRewardPolicy()
+      .then((policy) => {
+        if (alive) setWalletEnabled(policy.requireWallet);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
   const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
   const [submissions, setSubmissions] = useState<Channel[]>([]);
@@ -239,7 +253,7 @@ export function MyPage() {
             <h2 className="truncate text-[18px] font-bold text-nl-text">{displayName}</h2>
             <p className="truncate text-[13px] text-nl-muted">{username}</p>
           </div>
-          {walletShort ? (
+          {!walletEnabled ? null : walletShort ? (
             <span className="shrink-0 rounded-lg bg-emerald-500/15 px-2 py-1 text-[11px] font-bold text-emerald-400">
               지갑 연결됨
             </span>
@@ -410,13 +424,15 @@ export function MyPage() {
             </div>
           )}
 
-          <MenuRow
-            icon={<WalletIcon />}
-            label="지갑 연결"
-            value={walletShort ? `${walletShort} · TON/Gram` : '제보에서 연결'}
-            onClick={() => navigate('/submit', { state: { requireWallet: !walletShort } })}
-            divider
-          />
+          {walletEnabled && (
+            <MenuRow
+              icon={<WalletIcon />}
+              label="지갑 연결"
+              value={walletShort ? `${walletShort} · TON/Gram` : '제보에서 연결'}
+              onClick={() => navigate('/submit', { state: { requireWallet: !walletShort } })}
+              divider
+            />
+          )}
         </nav>
       )}
     </div>
