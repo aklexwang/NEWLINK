@@ -150,28 +150,6 @@ export function SubmitPage() {
     await doSubmit();
   };
 
-  // 텔레그램 미니앱에서는 텔레그램 클립보드, 그 밖에서는 브라우저 클립보드에서 링크를 붙여 넣는다
-  const pasteLink = async () => {
-    const apply = (text: string | null | undefined) => {
-      const value = (text ?? '').trim();
-      if (!value) {
-        notify('복사한 링크가 없어요. 링크를 길게 눌러 붙여 넣어 주세요.');
-        return;
-      }
-      setForm((prev) => ({ ...prev, link: normalizeSubmitLink(value) }));
-    };
-    try {
-      const tg = webApp as unknown as { readTextFromClipboard?: (cb: (text: string | null) => void) => void };
-      if (!isLocalBrowser && typeof tg.readTextFromClipboard === 'function') {
-        tg.readTextFromClipboard((text) => apply(text));
-        return;
-      }
-      apply(await navigator.clipboard.readText());
-    } catch {
-      notify('붙여넣기를 할 수 없어요. 링크를 길게 눌러 붙여 넣어 주세요.');
-    }
-  };
-
   const linkReady = /t(elegram)?\.me\//i.test(normalizeSubmitLink(form.link));
   const canSubmit = isLoggedIn && linkReady && form.title.trim() !== '' && form.description.trim() !== '';
   const fieldClass =
@@ -190,7 +168,7 @@ export function SubmitPage() {
 
       {/* 진행 순서 한눈에 */}
       <ol className="mx-4 mt-3 grid grid-cols-3 gap-2 text-center">
-        {['링크 붙여넣기', '관리자 확인', policyLoaded && rewardsEnabled ? '노출 · 보상' : 'TellLink 노출'].map((label, i) => (
+        {['제보하기', '관리자 확인', policyLoaded && rewardsEnabled ? '노출 · 보상' : 'TellLink 노출'].map((label, i) => (
           <li key={label} className="rounded-xl bg-nl-card px-2 py-2.5 ring-1 ring-nl-line">
             <span
               className="mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-black text-white"
@@ -241,24 +219,15 @@ export function SubmitPage() {
               onBlur={() => setForm((prev) => ({ ...prev, link: normalizeSubmitLink(prev.link) }))}
               placeholder="https://t.me/채널아이디"
               maxLength={512}
-              className={`${fieldClass} pr-[92px]`}
+              className={`${fieldClass} pr-[76px]`}
             />
-            {form.link ? (
+            {form.link && (
               <button
                 type="button"
                 onClick={() => setForm({ ...form, link: '' })}
                 className="absolute top-1/2 right-2 -translate-y-1/2 rounded-xl px-3 py-2 text-[13px] font-semibold text-nl-muted"
               >
                 지우기
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void pasteLink()}
-                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-xl px-3 py-2 text-[13px] font-bold text-white"
-                style={{ background: BLUE }}
-              >
-                붙여넣기
               </button>
             )}
           </div>
