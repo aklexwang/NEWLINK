@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyFavorites } from '../api/channels';
 import { AdultConfirmDialog, hasConfirmedAdult } from '../components/AdultConfirmDialog';
-import { CategorySelect } from '../components/CategorySelect';
+import { RankingCategoryPicker } from '../components/RankingCategoryPicker';
+import { getRankingCategories } from '../api/ranking';
+import type { RankingCategoryItem } from '../types/ranking';
 import { ChannelList } from '../components/ChannelList';
 import { useCategories } from '../hooks/useCategories';
 import { useMyFavorites } from '../hooks/useMyFavorites';
@@ -20,28 +22,37 @@ export function FavoritesPage() {
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [adultOpen, setAdultOpen] = useState(false);
-  const [channels, setChannels] = useState<Channel[]>([]);
+  /** 즐겨찾기 전체 (카테고리는 화면에서 걸러 보여 준다) */
+  const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
+  /** 카테고리 화면과 같은 아이콘·이름을 쓰기 위한 목록 */
+  const [baseCategories, setBaseCategories] = useState<RankingCategoryItem[]>([]);
+
+  useEffect(() => {
+    getRankingCategories()
+      .then(setBaseCategories)
+      .catch(() => setBaseCategories([]));
+  }, []);
 
   const isLoggedIn = authStatus === 'authenticated' && Boolean(user);
 
   const loadList = useCallback(async () => {
     if (!isLoggedIn) {
-      setChannels([]);
+      setAllChannels([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const items = await getMyFavorites(selectedCategory || undefined);
-      setChannels(items);
+      const items = await getMyFavorites();
+      setAllChannels(items);
     } catch {
-      setChannels([]);
+      setAllChannels([]);
       notifyUser(webApp, isLocalBrowser, '즐겨찾기를 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn, selectedCategory, webApp, isLocalBrowser]);
+  }, [isLoggedIn, webApp, isLocalBrowser]);
 
   useEffect(() => {
     if (authStatus === 'loading') return;
@@ -52,6 +63,35 @@ export function FavoritesPage() {
     void loadList();
     void loadFavoriteIds();
   }, [authStatus, isLoggedIn, loadList, loadFavoriteIds]);
+
+  // 카테고리 화면과 같은 선택 상자: 숫자는 "내 즐겨찾기 수", 즐겨찾기가 있는 카테고리만 보인다
+  const pickerCategories = useMemo<RankingCategoryItem[]>(() => {
+    const counts = new Map<string, number>();
+    for (const channel of allChannels) {
+      const name = channel.category || '기타';
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    const base = baseCategories.filter((c) => c.id !== 'all');
+    const known = new Set(base.map((c) => c.name));
+    const rows: RankingCategoryItem[] = base.map((c) => ({ ...c, count: counts.get(c.name) ?? 0 }));
+    for (const [name, count] of counts) {
+      if (!known.has(name)) rows.push({ id: name, name, emoji: '📁', count });
+    }
+    const allRow = baseCategories.find((c) => c.id === 'all');
+    return [
+      { id: 'all', name: allRow?.name ?? '전체', emoji: allRow?.emoji ?? '🏆', iconUrl: allRow?.iconUrl, count: allChannels.length },
+      ...rows,
+    ];
+  }, [allChannels, baseCategories]);
+
+  const selectedName = useMemo(
+    () => pickerCategories.find((c) => c.id === selectedCategory)?.name ?? selectedCategory,
+    [pickerCategories, selectedCategory],
+  );
+  const channels = useMemo(
+    () => (selectedCategory ? allChannels.filter((c) => (c.category || '기타') === selectedName) : allChannels),
+    [allChannels, selectedCategory, selectedName],
+  );
 
   const handleRecommend = async (id: string) => {
     if (recommendedIds.has(id)) {
@@ -69,14 +109,14 @@ export function FavoritesPage() {
 
   // 즐겨찾기 화면의 [해제]는 항상 "해제" — 누르는 즉시 목록에서 빠진다
   const handleToggleFavorite = async (id: string) => {
-    const removed = channels.find((c) => c.id === id);
-    setChannels((prev) => prev.filter((c) => c.id !== id));
+    const removed = allChannels.find((c) => c.id === id);
+    setAllChannels((prev) => prev.filter((c) => c.id !== id));
     try {
       await removeFromFavorites(id);
       hapticSuccess(webApp, isLocalBrowser);
     } catch {
       notifyUser(webApp, isLocalBrowser, '즐겨찾기 해제에 실패했습니다.');
-      if (removed) setChannels((prev) => (prev.some((c) => c.id === id) ? prev : [removed, ...prev]));
+      if (removed) setAllChannels((prev) => (prev.some((c) => c.id === id) ? prev : [removed, ...prev]));
       await loadFavoriteIds();
     }
   };
@@ -113,15 +153,15 @@ export function FavoritesPage() {
         <p className="mt-1 text-[13px] text-tg-hint">저장한 채널·그룹을 카테고리별로 모아보세요</p>
       </header>
 
-      <CategorySelect
-        categories={searchCategories}
-        selected={selectedCategory}
+      <RankingCategoryPicker
+        categories={pickerCategories}
+        selected={selectedCategory || 'all'}
         onSelect={(id) => {
           if (id === '성인' && !hasConfirmedAdult()) {
             setAdultOpen(true);
             return;
           }
-          setSelectedCategory(id);
+          setSelectedCategory(id === 'all' ? '' : id);
         }}
       />
       <AdultConfirmDialog
@@ -142,7 +182,7 @@ export function FavoritesPage() {
         onRecommend={handleRecommend}
         onToggleFavorite={handleToggleFavorite}
         removeMode
-        sectionTitle={selectedCategory ? selectedCategory : '전체'}
+        sectionTitle={selectedCategory ? selectedName : '전체'}
         emptyMessage={
           selectedCategory
             ? '이 카테고리에 저장한 항목이 없습니다.'
