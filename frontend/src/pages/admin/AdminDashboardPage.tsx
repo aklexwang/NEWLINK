@@ -134,12 +134,12 @@ export function AdminDashboardPage() {
             <StatCard to="/admin/links?type=group" label="그룹" icon={<Users />} value={data.groupCount} />
             <StatCard
               to="/admin/links?q=t.me%2F%2B"
-              label="비공개 채널"
+              label="비공개"
               icon={<Lock />}
-              value={data.privateRooms?.channel ?? 0}
+              value={(data.privateRooms?.channel ?? 0) + (data.privateRooms?.group ?? 0)}
               sub={
                 data.privateRooms
-                  ? `비공개 그룹 ${data.privateRooms.group.toLocaleString('ko-KR')} · 검사 대기 링크 ${data.privateRooms.queuedInvites.toLocaleString('ko-KR')}`
+                  ? `채널 ${data.privateRooms.channel.toLocaleString('ko-KR')} · 그룹 ${data.privateRooms.group.toLocaleString('ko-KR')} · 검사 대기 링크 ${data.privateRooms.queuedInvites.toLocaleString('ko-KR')}`
                   : undefined
               }
             />
