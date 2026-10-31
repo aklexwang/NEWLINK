@@ -40,7 +40,9 @@ import type {
   ChannelStatsSeries,
 } from '../types/stats';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
-import { formatCount, formatPercent } from '../utils/formatCount';
+import { formatCount, formatPercent, formatRelativeKo } from '../utils/formatCount';
+import { OwnPostPreview, TelegramPostEmbed } from '../components/TelegramPostView';
+import { isIosDevice, TG_PATH } from '../utils/telegramPost';
 import {
   deltaTone,
   formatMemberNumber,
@@ -138,6 +140,8 @@ export function ChannelDetailPage() {
   const [detail, setDetail] = useState<ChannelDetail | null>(null);
   const [stats, setStats] = useState<ChannelStatsSeries | null>(null);
   const [posts, setPosts] = useState<ChannelPostItem[]>([]);
+  /** 최근 글은 5개부터 보여 주고 "더 보기"로 5개씩 */
+  const [postsShown, setPostsShown] = useState(5);
   const [events, setEvents] = useState<ChannelEventItem[]>([]);
   const [mediaMix, setMediaMix] = useState<ChannelMediaMix | null>(null);
   const [range, setRange] = useState<7 | 14 | 30>(7);
@@ -154,6 +158,7 @@ export function ChannelDetailPage() {
       getChannelMediaMix(channelId),
     ]);
     setPosts(postList);
+    setPostsShown(5);
     setEvents(eventList);
     setMediaMix(mix);
   }, []);
@@ -642,29 +647,34 @@ export function ChannelDetailPage() {
       </section>
 
       <section className="mx-4 mt-4 overflow-hidden rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line pt-4">
-        <h2 className="px-4 text-[15px] font-bold text-tg-text">📝 최근 글</h2>
+        <h2 className="px-4 text-[15px] font-bold text-tg-text">최근 글</h2>
         {posts.length === 0 ? (
           <p className="px-4 py-3 text-sm text-tg-hint">관측된 글이 없습니다.</p>
         ) : (
-          <ul className="mt-1 divide-y divide-nl-line">
-            {posts.map((post) => (
-              <li key={post.messageId}>
-                <button
-                  type="button"
-                  onClick={() => openPost(post.link)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-black/[0.03]"
-                >
-                  <span className="text-lg">
-                    {MEDIA_META.find((m) => m.key === post.mediaType)?.icon ?? '💬'}
-                  </span>
-                  <span className="flex-1 text-[13px] text-tg-hint">{shortDate(post.postedAt)}</span>
-                  <span className="text-[14px] font-semibold text-tg-text">
-                    {formatCount(post.views)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="mt-1">
+              {posts.slice(0, postsShown).map((post, index, shown) => (
+                <PostThread
+                  key={post.messageId}
+                  post={post}
+                  channelId={detail.id}
+                  title={detail.title}
+                  first={index === 0}
+                  last={index === shown.length - 1}
+                  onOpen={() => openPost(post.link)}
+                />
+              ))}
+            </ul>
+            {posts.length > postsShown && (
+              <button
+                type="button"
+                onClick={() => setPostsShown((n) => n + 5)}
+                className="w-full border-t border-nl-line py-3 text-[13px] font-semibold text-nl-muted"
+              >
+                글 더 보기 ({postsShown} / {posts.length})
+              </button>
+            )}
+          </>
         )}
       </section>
         </>
@@ -764,6 +774,89 @@ export function ChannelDetailPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * 최근 글 한 줄 (스레드형): 왼쪽 점·세로선, 저장해 둔 글 앞부분을 바로 보여 준다(서버 추가 요청 없음).
+ * "원문 보기"를 누른 글만 텔레그램 원문(사진·영상·전체 글)을 펼친다.
+ */
+function PostThread({
+  post,
+  channelId,
+  title,
+  first,
+  last,
+  onOpen,
+}: {
+  post: ChannelPostItem;
+  channelId: string;
+  title: string;
+  first: boolean;
+  last: boolean;
+  onOpen: () => void;
+}) {
+  const { webApp } = useTelegram();
+  const [open, setOpen] = useState(false);
+  const ios = isIosDevice(webApp);
+  const canExpand = Boolean(post.username);
+  const mediaLabel = MEDIA_META.find((m) => m.key === post.mediaType)?.label;
+  const text = (post.text ?? '').replace(/\n{2,}/g, '\n').trim();
+  const embedUrl = post.username ? `https://t.me/${post.username}/${post.messageId}` : null;
+
+  return (
+    <li className="flex gap-3 px-4 pt-3.5">
+      <div className="flex shrink-0 flex-col items-center pt-1.5">
+        <span className={`h-2.5 w-2.5 rounded-full ${first ? 'bg-[#229af0]' : 'bg-nl-muted/60'}`} aria-hidden />
+        {!last && <span aria-hidden className="mt-1.5 w-0.5 flex-1 rounded-full bg-nl-line" />}
+      </div>
+      <div className={`min-w-0 flex-1 pb-3.5 ${last ? '' : 'border-b border-nl-line'}`}>
+        <p className="text-[12px] text-nl-muted">
+          {formatRelativeKo(post.postedAt)}
+          {post.views != null ? ` · 조회 ${formatCount(post.views)}` : ''}
+          {mediaLabel && post.mediaType !== 'text' ? ` · ${mediaLabel} 포함` : ''}
+        </p>
+
+        {!open &&
+          (text ? (
+            <p className="mt-1 line-clamp-5 whitespace-pre-line break-words text-[15px] leading-[1.5] text-nl-text">{text}</p>
+          ) : (
+            <p className="mt-1 text-[14px] text-nl-muted">{mediaLabel ? `${mediaLabel} 게시글` : '글 내용 없는 게시글'}</p>
+          ))}
+
+        {open && embedUrl && (
+          <div className="mt-2">
+            {ios ? (
+              <OwnPostPreview channelId={channelId} messageId={post.messageId} fallbackText={post.text ?? null} mediaType={post.mediaType} />
+            ) : (
+              <TelegramPostEmbed url={embedUrl} onOpenRoom={onOpen} title={title} />
+            )}
+          </div>
+        )}
+
+        <div className="mt-2 flex items-center gap-3">
+          {canExpand && (
+            <button type="button" onClick={() => setOpen((v) => !v)} className="text-[13px] font-semibold text-[#229af0]">
+              {open ? '접기' : '원문 보기'}
+            </button>
+          )}
+          <span className="flex-1" />
+          {/* 펼친 텔레그램 상자에는 오른쪽 위 로고가 있어서 그때는 숨긴다 */}
+          {!(open && !ios) && (
+            <button
+              type="button"
+              onClick={onOpen}
+              aria-label="이 글을 텔레그램에서 열기"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#229af0] text-white"
+            >
+              <svg viewBox="0 0 24 24" className="-ml-px h-[15px] w-[15px]" fill="currentColor" aria-hidden>
+                <path d={TG_PATH} />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    </li>
   );
 }
 

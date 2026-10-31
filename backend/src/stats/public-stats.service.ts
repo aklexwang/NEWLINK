@@ -249,6 +249,9 @@ export class PublicStatsService implements OnApplicationBootstrap {
       postedAt: post.postedAt.toISOString(),
       views: post.views,
       mediaType: post.mediaType,
+      /** 수집 때 저장해 둔 글 앞부분(최대 200자). 채널 글만 (그룹은 위에서 빈 목록) */
+      text: post.textExcerpt ?? null,
+      username: username ?? null,
       link: username
         ? `https://t.me/${username}/${post.messageId}`
         : channel.link,

@@ -6,14 +6,14 @@ import { searchChannels } from '../api/channels';
 import {
   getHomeDashboard,
   getHomeFeed,
-  getPostPreview,
   type HomeDashboard,
   type HomeFeedItem,
-  type PostPreview,
 } from '../api/stats';
 import { ChannelList } from '../components/ChannelList';
 import { PublicPrivateBadge } from '../components/PublicPrivateBadge';
 import { NewLinkLogo } from '../components/NewLinkLogo';
+import { OwnPostPreview, TelegramPostEmbed } from '../components/TelegramPostView';
+import { isIosDevice, MEDIA_LABEL, MEDIA_ONLY_LABEL, TG_PATH } from '../utils/telegramPost';
 import { BannerCarousel } from '../components/BannerCarousel';
 import { getBanners, type PublicBanner } from '../api/ads';
 import { SearchBar } from '../components/SearchBar';
@@ -610,34 +610,6 @@ const HOME_TABS = [
   { to: '/weekly', label: '주간 변화' },
 ];
 
-const MEDIA_LABEL: Record<string, string> = {
-  photo: '사진 포함',
-  video: '영상 포함',
-  document: '파일 포함',
-  audio: '음성 포함',
-  poll: '투표',
-  sticker: '스티커',
-};
-
-const MEDIA_ONLY_LABEL: Record<string, string> = {
-  photo: '사진 게시글',
-  video: '영상 게시글',
-  document: '파일 게시글',
-  audio: '음성 게시글',
-  poll: '투표 게시글',
-  sticker: '스티커',
-};
-
-function isIosDevice(webApp: { platform?: string }): boolean {
-  try {
-    if (webApp.platform === 'ios') return true;
-    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-    return /iPhone|iPad|iPod/i.test(ua);
-  } catch {
-    return false;
-  }
-}
-
 /**
  * 스레드형 피드 한 줄: 왼쪽 동그란 사진 + 세로선, 오른쪽 이름·글·사진·아래 줄.
  * 이름·사진을 누르면 채널 상세, 아래 줄 파란 텔레그램 버튼만 방으로 이동한다.
@@ -693,7 +665,12 @@ function ThreadItem({
             <TelegramPostEmbed url={postUrl} onOpenRoom={openRoom} title={item.title} />
           </div>
         ) : ownPreview ? (
-          <OwnPostPreview item={item} />
+          <OwnPostPreview
+            channelId={item.id}
+            messageId={post!.messageId}
+            fallbackText={post!.text}
+            mediaType={post!.mediaType}
+          />
         ) : post ? (
           <div className="mt-1">
             {post.text ? (
@@ -756,182 +733,3 @@ function ThreadItem({
   );
 }
 
-const TG_PATH =
-  'M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z';
-
-/**
- * 아이폰용 게시글 미리보기: 서버가 텔레그램 공개 글에서 읽은 글·사진을 우리 화면에 그린다.
- * 링크가 하나도 없어서 어디를 눌러도 이동하지 않는다(방 이동은 아래 줄 텔레그램 버튼만).
- */
-function OwnPostPreview({ item }: { item: HomeFeedItem }) {
-  const post = item.latestPost!;
-  const boxRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined');
-  const [preview, setPreview] = useState<PostPreview | null | undefined>(undefined);
-  const [expanded, setExpanded] = useState(false);
-  const [brokenImages, setBrokenImages] = useState<Set<string>>(() => new Set());
-
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el || visible) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setVisible(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: '600px 0px' },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible) return;
-    let alive = true;
-    getPostPreview(item.id, post.messageId)
-      .then((data) => {
-        if (alive) setPreview(data);
-      })
-      .catch(() => {
-        if (alive) setPreview(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [visible, item.id, post.messageId]);
-
-  const text = (preview?.text || post.text || '').replace(/\n{3,}/g, '\n\n').trim();
-  const images = (preview?.images ?? []).filter((src) => !brokenImages.has(src)).slice(0, 4);
-  const long = text.length > 220 || text.split('\n').length > 6;
-
-  return (
-    <div
-      ref={boxRef}
-      className="mt-1 select-none"
-      // 글·사진 어디를 눌러도 상세 페이지·텔레그램으로 넘어가지 않게 막는다
-      onClick={(event) => {
-        event.stopPropagation();
-        event.preventDefault();
-      }}
-    >
-      {text ? (
-        <p
-          className={`whitespace-pre-line break-words text-[15px] leading-[1.5] text-nl-text ${
-            expanded ? '' : 'line-clamp-6'
-          }`}
-        >
-          {text}
-        </p>
-      ) : preview !== undefined && images.length === 0 ? (
-        <p className="text-[14px] text-nl-muted">{MEDIA_ONLY_LABEL[post.mediaType] ?? '글 내용 없는 게시글'}</p>
-      ) : null}
-      {long && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            setExpanded((v) => !v);
-          }}
-          className="mt-0.5 text-[13px] font-semibold text-nl-muted"
-        >
-          {expanded ? '접기' : '더 보기'}
-        </button>
-      )}
-
-      {preview === undefined && post.mediaType !== 'text' ? (
-        <div className="mt-2.5 h-48 w-full animate-pulse rounded-xl bg-nl-elev" />
-      ) : images.length > 0 ? (
-        <div
-          className={`mt-2.5 grid gap-0.5 overflow-hidden rounded-xl ring-1 ring-nl-line ${
-            images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
-          }`}
-        >
-          {images.map((src, i) => (
-            <div key={src} className={`relative ${images.length === 3 && i === 0 ? 'col-span-2' : ''}`}>
-              <img
-                src={src}
-                alt=""
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                draggable={false}
-                onError={() => setBrokenImages((prev) => new Set(prev).add(src))}
-                className={`pointer-events-none block w-full object-cover ${
-                  images.length === 1 ? 'max-h-[420px]' : images.length === 3 && i === 0 ? 'h-48' : 'h-36'
-                }`}
-              />
-              {preview?.hasVideo && i === 0 && (
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white">
-                    <svg viewBox="0 0 24 24" className="ml-0.5 h-5 w-5" fill="currentColor" aria-hidden>
-                      <path d="M7 4v16l13-8z" />
-                    </svg>
-                  </span>
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/** 텔레그램 공식 게시글 미리보기 (사진·영상·전체 글). 우리 서버에는 저장하지 않는다 */
-function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onOpenRoom: () => void; title: string }) {
-  const ref = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState(240);
-  useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      if (event.origin !== 'https://t.me' || event.source !== ref.current?.contentWindow) return;
-      try {
-        const data = typeof event.data === 'string' ? (JSON.parse(event.data) as { event?: string; height?: number }) : null;
-        if (data?.event === 'resize' && data.height) setHeight(Math.min(2000, Math.max(120, data.height)));
-      } catch {
-        // 다른 메시지는 무시
-      }
-    };
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
-  }, []);
-  const dark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
-  return (
-    // 텔레그램 말풍선은 왼쪽 위가 각지고 꼬리(7px)가 튀어나와 어색해서, 꼬리만큼 왼쪽으로 밀고 둥근 틀로 잘라 낸다
-    <div className="relative overflow-hidden rounded-[15px]" onClick={(event) => event.stopPropagation()}>
-      <iframe
-        ref={ref}
-        title="텔레그램 원본 게시글"
-        src={`${url}?embed=1&userpic=false${dark ? '&dark=1' : ''}`}
-        loading="lazy"
-        tabIndex={-1}
-        // 스크롤바 절대 금지(사용자 요청): 상자 안에서 스크롤되지 않게 하고, 높이는 텔레그램이 알려 주는 값으로 맞춘다
-        scrolling="no"
-        // 상자 안(로고·이름·링크)은 눌리지 않게: 텔레그램 웹으로 튀어 나가는 것 방지
-        className="pointer-events-none -ml-[7px] block w-[calc(100%+7px)] max-w-none overflow-hidden border-0"
-        style={{ height }}
-      />
-      {/* 투명 덮개: 아이폰은 iframe 에 pointer-events-none 이 안 먹어 상자 어디를 눌러도 텔레그램 글로 이동했다.
-          덮개가 터치를 먼저 받아 아무 일도 하지 않는다(로고 자리만 아래 버튼으로 연다) */}
-      <div
-        aria-hidden
-        className="absolute inset-0 z-10 rounded-xl"
-        onClick={(event) => {
-          event.stopPropagation();
-          event.preventDefault();
-        }}
-        onTouchEnd={(event) => event.stopPropagation()}
-      />
-      {/* 상자 오른쪽 위 텔레그램 로고 자리: 누르면 이 방을 텔레그램 앱으로 연다 */}
-      <button
-        type="button"
-        aria-label={`${title} 텔레그램에서 열기`}
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpenRoom();
-        }}
-        className="absolute top-0 right-0 z-20 h-12 w-14 rounded-tr-xl"
-      />
-    </div>
-  );
-}

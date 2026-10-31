@@ -113,6 +113,9 @@ export interface ChannelPostItem {
   postedAt: string;
   views: number | null;
   mediaType: ChannelPostMediaType;
+  /** 글 앞부분(최대 200자) */
+  text?: string | null;
+  username?: string | null;
   link: string;
 }
 
