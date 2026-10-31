@@ -902,8 +902,10 @@ function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onOpenRoom
         src={`${url}?embed=1&userpic=false${dark ? '&dark=1' : ''}`}
         loading="lazy"
         tabIndex={-1}
+        // 스크롤바 절대 금지(사용자 요청): 상자 안에서 스크롤되지 않게 하고, 높이는 텔레그램이 알려 주는 값으로 맞춘다
+        scrolling="no"
         // 상자 안(로고·이름·링크)은 눌리지 않게: 텔레그램 웹으로 튀어 나가는 것 방지
-        className="pointer-events-none -ml-[7px] block w-[calc(100%+7px)] max-w-none border-0"
+        className="pointer-events-none -ml-[7px] block w-[calc(100%+7px)] max-w-none overflow-hidden border-0"
         style={{ height }}
       />
       {/* 투명 덮개: 아이폰은 iframe 에 pointer-events-none 이 안 먹어 상자 어디를 눌러도 텔레그램 글로 이동했다.
