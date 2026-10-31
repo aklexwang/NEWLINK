@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getMySubmissions } from '../api/channels';
 import { CategoryBadge } from '../components/CategoryBadge';
 import { RewardApprovedModal } from '../components/RewardApprovedModal';
@@ -42,6 +43,9 @@ export function MyPage() {
   const { user: authUser, status: authStatus, loginWithWidget, loginWithInitData, logout } =
     useAuth();
   const { confirm } = useToast();
+  const navigate = useNavigate();
+  /** 메뉴 목록에서 펼친 칸 */
+  const [openSection, setOpenSection] = useState<'rewards' | 'submissions' | null>(null);
   const notify = (message: string) => notifyUser(webApp, isLocalBrowser, message);
 
   const [submissions, setSubmissions] = useState<Channel[]>([]);
@@ -178,28 +182,32 @@ export function MyPage() {
     notify('로그아웃되었습니다.');
   };
 
-  return (
-    <>
-      {rewardNotice && (
-        <RewardApprovedModal item={rewardNotice} onClose={dismissRewardNotice} />
-      )}
+  const toggleSection = (key: 'rewards' | 'submissions') =>
+    setOpenSection((prev) => (prev === key ? null : key));
+  const openAdInquiry = () => openTelegramChannel(webApp, isLocalBrowser, AD_INQUIRY_URL);
+  const walletShort = profile?.tonWalletAddress
+    ? `${profile.tonWalletAddress.slice(0, 6)}…${profile.tonWalletAddress.slice(-4)}`
+    : null;
 
-      <header className="border-b border-black/5 px-4 py-5">
-        <h1 className="text-xl font-bold text-tg-text">MY</h1>
-        <div className="mt-1 flex items-center justify-between gap-3">
-          <p className="text-sm text-tg-hint">내 정보 · 제보 내역</p>
+  return (
+    <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg pb-6">
+      {rewardNotice && <RewardApprovedModal item={rewardNotice} onClose={dismissRewardNotice} />}
+
+      <header className="flex h-[52px] items-center justify-between px-4">
+        <h1 className="text-[20px] font-black text-nl-text">MY</h1>
+        {isLoggedIn && (
           <button
             type="button"
-            onClick={() => openTelegramChannel(webApp, isLocalBrowser, AD_INQUIRY_URL)}
-            className="shrink-0 text-sm font-medium text-tg-button"
+            onClick={handleLogout}
+            className="h-8 rounded-lg px-3 text-[13px] font-medium text-nl-muted ring-1 ring-nl-line"
           >
-            광고문의
+            로그아웃
           </button>
-        </div>
+        )}
       </header>
 
       {!isLoggedIn && authStatus !== 'loading' && isLocalBrowser && (
-        <section className="p-4">
+        <section className="px-4 pt-1.5">
           <TelegramOfficialLoginButton
             botUsername={TELEGRAM_BOT_USERNAME}
             onAuth={handleOfficialLogin}
@@ -209,187 +217,286 @@ export function MyPage() {
       )}
 
       {!isLoggedIn && authStatus !== 'loading' && !isLocalBrowser && (
-        <section className="p-4">
-          <div className="rounded-2xl bg-nl-card p-4 ring-1 ring-black/5">
-            <p className="mb-3 text-center text-sm font-semibold text-tg-text">텔레그램 로그인</p>
-            <p className="mb-4 text-center text-xs text-tg-hint">
-              미니앱에서는 아래 버튼으로 바로 로그인됩니다.
-            </p>
-            <button
-              type="button"
-              onClick={() => void handleMiniAppLogin()}
-              className="w-full rounded-xl bg-[#2AABEE] py-3 text-sm font-semibold text-white"
-            >
-              텔레그램으로 로그인하기
-            </button>
-          </div>
+        <section className="mx-4 mt-1.5 rounded-[20px] bg-nl-card p-5 ring-1 ring-nl-line">
+          <p className="text-[16px] font-bold text-nl-text">텔레그램으로 로그인</p>
+          <p className="mt-1 text-[13px] text-nl-muted">즐겨찾기·제보·보상 내역을 쓰려면 로그인해 주세요.</p>
+          <button
+            type="button"
+            onClick={() => void handleMiniAppLogin()}
+            className="mt-4 w-full rounded-xl bg-[#2aabee] py-3 text-[14px] font-bold text-white"
+          >
+            텔레그램으로 로그인하기
+          </button>
         </section>
       )}
 
       {isLoggedIn && (
-        <section className="p-4">
-          <div className="rounded-2xl bg-tg-secondary/70 p-5">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-tg-button text-2xl text-tg-button-text">
-                {(profile?.firstName?.[0] ?? telegramUser?.first_name?.[0] ?? '?').toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate text-lg font-semibold text-tg-text">{displayName}</h2>
-                <p className="mt-1 text-sm text-tg-hint">{username}</p>
-                <p className="mt-1 text-xs text-tg-hint">
-                  지갑:{' '}
-                  {profile?.tonWalletAddress
-                    ? `${profile.tonWalletAddress.slice(0, 6)}…${profile.tonWalletAddress.slice(-4)} · TON/Gram`
-                    : '미연결 · 제보에서 Wallet 연결'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="shrink-0 rounded-xl bg-tg-bg px-3 py-2 text-xs font-medium text-red-600 ring-1 ring-black/5"
-              >
-                로그아웃
-              </button>
-            </div>
+        <section className="mx-4 mt-1.5 flex items-center gap-3.5 rounded-[20px] bg-nl-card p-4 ring-1 ring-nl-line">
+          <div className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full bg-[#2aabee] text-[24px] font-bold text-white">
+            {(profile?.firstName?.[0] ?? telegramUser?.first_name?.[0] ?? '?').toUpperCase()}
           </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[18px] font-bold text-nl-text">{displayName}</h2>
+            <p className="truncate text-[13px] text-nl-muted">{username}</p>
+          </div>
+          {walletShort ? (
+            <span className="shrink-0 rounded-lg bg-emerald-500/15 px-2 py-1 text-[11px] font-bold text-emerald-400">
+              지갑 연결됨
+            </span>
+          ) : (
+            <span className="shrink-0 rounded-lg bg-amber-500/15 px-2 py-1 text-[11px] font-bold text-amber-400">
+              지갑 미연결
+            </span>
+          )}
         </section>
       )}
 
-      {isLoggedIn && (
-        <section className="px-4 pb-4">
-          <div className="rounded-2xl bg-tg-secondary/50 p-4">
-            <h3 className="text-sm font-semibold text-tg-text">받은 보상 내역</h3>
-            <p className="mt-1 text-xs text-tg-hint">지금까지 지급받은 보상을 한눈에 볼 수 있습니다.</p>
+      {/* 광고문의: 눈에 띄는 파란 테두리 카드 */}
+      <button
+        type="button"
+        onClick={openAdInquiry}
+        className="relative mx-4 mt-3 overflow-hidden rounded-[20px] bg-[#0b2533] px-[18px] pt-[18px] pb-4 text-left ring-1 ring-[#2aabee]"
+      >
+        <span className="inline-block rounded-md bg-[#2aabee] px-2 py-0.5 text-[11px] font-black text-white">AD</span>
+        <span className="mt-2.5 block text-[19px] font-black tracking-[-0.3px] text-white">
+          내 채널을 홈 맨 위에 노출하세요
+        </span>
+        <span className="mt-1 block text-[13px] text-[#9fd6f5]">홈 배너 · 랭킹 상단 광고 상담</span>
+        <span className="mt-3.5 inline-flex items-center gap-1.5 rounded-[10px] bg-[#2aabee] px-3.5 py-2 text-[14px] font-bold text-white">
+          <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="currentColor" aria-hidden>
+            <path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z" />
+          </svg>
+          광고문의
+        </span>
+        <svg
+          viewBox="0 0 24 24"
+          className="pointer-events-none absolute -right-3.5 -bottom-4 h-[120px] w-[120px] text-[#2aabee] opacity-35"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z" />
+          <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+        </svg>
+      </button>
 
-            {submissionsLoading ? (
-              <div className="mt-3 h-16 animate-pulse rounded-xl bg-tg-secondary" />
-            ) : rewardSummary.count === 0 ? (
-              <p className="mt-3 text-sm text-tg-hint">아직 받은 보상이 없습니다.</p>
-            ) : (
-              <>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded-xl bg-nl-card px-3 py-2.5 ring-1 ring-black/5">
-                    <p className="text-[11px] text-tg-hint">총 지급 건수</p>
-                    <p className="mt-0.5 text-base font-bold text-tg-text">{rewardSummary.count}건</p>
-                  </div>
-                  <div className="rounded-xl bg-nl-card px-3 py-2.5 ring-1 ring-black/5">
-                    <p className="text-[11px] text-tg-hint">총 TON/Gram</p>
-                    <p className="mt-0.5 text-base font-bold text-emerald-700">
-                      {rewardSummary.totalTon.toLocaleString('ko-KR')}
-                    </p>
-                  </div>
-                </div>
-                {rewardSummary.totalStars > 0 && (
-                  <p className="mt-2 text-xs text-tg-hint">
-                    ⭐ {rewardSummary.totalStars.toLocaleString('ko-KR')} Stars
-                  </p>
-                )}
-                {rewardSummary.totalUsd > 0 && (
-                  <p className="mt-2 text-xs text-tg-hint">
-                    지급 시점 기준 합계 약 ${rewardSummary.totalUsd.toFixed(2)}
-                  </p>
-                )}
-                <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto">
-                  {rewardSummary.rewarded.map((item) => (
-                    <li key={item.id} className="rounded-xl bg-nl-card px-3 py-2.5 ring-1 ring-black/5">
-                      <p className="truncate text-sm font-medium text-tg-text">{item.title}</p>
-                      <p className="mt-1 text-xs font-semibold text-emerald-700">
-                        {item.rewardTonAmount != null && item.rewardTonAmount > 0 && (
-                          <>
-                            TON/Gram {item.rewardTonAmount.toLocaleString('ko-KR')}개
-                            {item.rewardUsdAmount != null && item.rewardUsdAmount > 0 && (
-                              <span className="ml-1 font-normal text-tg-hint">
-                                · ${item.rewardUsdAmount.toFixed(2)}
-                              </span>
-                            )}
-                          </>
-                        )}
-                        {item.rewardStarsAmount != null && item.rewardStarsAmount > 0 && (
-                          <span className={item.rewardTonAmount ? ' ml-1' : ''}>
-                            ⭐ {item.rewardStarsAmount.toLocaleString('ko-KR')} Stars
-                          </span>
-                        )}
+      {isLoggedIn && (
+        <nav aria-label="내 메뉴" className="mx-4 mt-[18px] overflow-hidden rounded-[18px] bg-nl-card ring-1 ring-nl-line">
+          <MenuRow
+            icon={<RewardIcon />}
+            label="받은 보상 내역"
+            value={submissionsLoading ? '…' : `${rewardSummary.count}건`}
+            open={openSection === 'rewards'}
+            onClick={() => toggleSection('rewards')}
+          />
+          {openSection === 'rewards' && (
+            <div className="border-t border-nl-line px-4 py-3">
+              {rewardSummary.count === 0 ? (
+                <p className="py-2 text-[13px] text-nl-muted">아직 받은 보상이 없어요. 제보가 승인되면 여기에 쌓여요.</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-nl-elev px-3 py-2.5">
+                      <p className="text-[11px] text-nl-muted">총 지급 건수</p>
+                      <p className="mt-0.5 text-[16px] font-bold text-nl-text">{rewardSummary.count}건</p>
+                    </div>
+                    <div className="rounded-xl bg-nl-elev px-3 py-2.5">
+                      <p className="text-[11px] text-nl-muted">총 TON/Gram</p>
+                      <p className="mt-0.5 text-[16px] font-bold text-emerald-400">
+                        {rewardSummary.totalTon.toLocaleString('ko-KR')}
                       </p>
-                      {item.rewardPaidAt && (
-                        <p className="mt-0.5 text-[11px] text-tg-hint">
-                          {new Date(item.rewardPaidAt).toLocaleString('ko-KR', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                    </div>
+                  </div>
+                  {rewardSummary.totalStars > 0 && (
+                    <p className="mt-2 text-[12px] text-nl-muted">Stars {rewardSummary.totalStars.toLocaleString('ko-KR')}</p>
+                  )}
+                  {rewardSummary.totalUsd > 0 && (
+                    <p className="mt-1 text-[12px] text-nl-muted">지급 시점 기준 합계 약 ${rewardSummary.totalUsd.toFixed(2)}</p>
+                  )}
+                  <ul className="mt-2 divide-y divide-nl-line">
+                    {rewardSummary.rewarded.map((item) => (
+                      <li key={item.id} className="py-2.5">
+                        <p className="truncate text-[14px] font-medium text-nl-text">{item.title}</p>
+                        <p className="mt-0.5 text-[12px] font-semibold text-emerald-400">
+                          {item.rewardTonAmount != null && item.rewardTonAmount > 0 && (
+                            <>
+                              TON/Gram {item.rewardTonAmount.toLocaleString('ko-KR')}개
+                              {item.rewardUsdAmount != null && item.rewardUsdAmount > 0 && (
+                                <span className="ml-1 font-normal text-nl-muted">· ${item.rewardUsdAmount.toFixed(2)}</span>
+                              )}
+                            </>
+                          )}
+                          {item.rewardStarsAmount != null && item.rewardStarsAmount > 0 && (
+                            <span className={item.rewardTonAmount ? ' ml-1' : ''}>
+                              Stars {item.rewardStarsAmount.toLocaleString('ko-KR')}
+                            </span>
+                          )}
                         </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        </section>
-      )}
+                        {item.rewardPaidAt && (
+                          <p className="mt-0.5 text-[11px] text-nl-muted">
+                            {new Date(item.rewardPaidAt).toLocaleString('ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
 
-      {isLoggedIn && (
-        <section className="px-4 pb-4">
-          <div className="rounded-2xl bg-tg-secondary/50 p-4">
-            <h3 className="text-sm font-semibold text-tg-text">내 제보 내역</h3>
-            <p className="mt-1 text-xs text-tg-hint">
-              아직 보상을 받지 않은 제보의 승인·대기 상태를 확인할 수 있습니다. 지급 완료 건은 위
-              「받은 보상 내역」에만 표시됩니다.
-            </p>
-            {submissionsLoading ? (
-              <div className="mt-3 space-y-2">
-                <div className="h-14 animate-pulse rounded-xl bg-tg-secondary" />
-                <div className="h-14 animate-pulse rounded-xl bg-tg-secondary" />
-              </div>
-            ) : pendingSubmissions.length === 0 ? (
-              <p className="mt-3 text-sm text-tg-hint">
-                {submissions.length === 0
-                  ? '아직 제보한 항목이 없습니다.'
-                  : '보상 대기 중인 제보가 없습니다.'}
-              </p>
-            ) : (
-              <ul className="mt-3 space-y-2">
-                {pendingSubmissions.map((item) => {
-                  const categoryMeta = getCategoryMeta(searchCategories, item.category);
-                  return (
-                    <li key={item.id} className="rounded-xl bg-tg-bg px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <CategoryBadge
-                              name={categoryMeta.label}
-                              emoji={categoryMeta.emoji}
-                              iconUrl={categoryMeta.iconUrl}
-                            />
-                            <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(item.linkType)}`}>
-                              {linkTypeLabel(item.linkType)}
-                            </span>
-                            <span
-                              className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${
-                                item.status === 'active'
-                                  ? 'bg-green-100 text-green-800'
-                                  : item.status === 'rejected'
-                                    ? 'bg-red-100 text-red-700'
-                                    : 'bg-amber-100 text-amber-800'
-                              }`}
-                            >
-                              {submissionStatusLabel(item.status)}
-                            </span>
-                          </div>
-                          <p className="mt-1 truncate text-sm font-medium text-tg-text">{item.title}</p>
-                          <p className="mt-1.5 text-xs text-tg-hint">보상 대기 중</p>
+          <MenuRow
+            icon={<SubmitIcon />}
+            label="내 제보 내역"
+            value={submissionsLoading ? '…' : `${pendingSubmissions.length}건`}
+            open={openSection === 'submissions'}
+            onClick={() => toggleSection('submissions')}
+            divider
+          />
+          {openSection === 'submissions' && (
+            <div className="border-t border-nl-line px-4 py-3">
+              {pendingSubmissions.length === 0 ? (
+                <div className="py-2">
+                  <p className="text-[13px] text-nl-muted">
+                    {submissions.length === 0 ? '아직 제보한 항목이 없어요.' : '보상 대기 중인 제보가 없어요.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/submit')}
+                    className="mt-2.5 rounded-[10px] px-3.5 py-2 text-[13px] font-bold text-nl-text ring-1 ring-nl-line"
+                  >
+                    제보하러 가기
+                  </button>
+                </div>
+              ) : (
+                <ul className="divide-y divide-nl-line">
+                  {pendingSubmissions.map((item) => {
+                    const categoryMeta = getCategoryMeta(searchCategories, item.category);
+                    return (
+                      <li key={item.id} className="py-2.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <CategoryBadge name={categoryMeta.label} emoji={categoryMeta.emoji} iconUrl={categoryMeta.iconUrl} />
+                          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${linkTypeBadgeClass(item.linkType)}`}>
+                            {linkTypeLabel(item.linkType)}
+                          </span>
+                          <span
+                            className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
+                              item.status === 'active'
+                                ? 'bg-emerald-500/15 text-emerald-400'
+                                : item.status === 'rejected'
+                                  ? 'bg-red-500/15 text-red-400'
+                                  : 'bg-amber-500/15 text-amber-400'
+                            }`}
+                          >
+                            {submissionStatusLabel(item.status)}
+                          </span>
                         </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
+                        <p className="mt-1 truncate text-[14px] font-medium text-nl-text">{item.title}</p>
+                        <p className="mt-0.5 text-[12px] text-nl-muted">보상 대기 중</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <MenuRow
+            icon={<WalletIcon />}
+            label="지갑 연결"
+            value={walletShort ? `${walletShort} · TON/Gram` : '제보에서 연결'}
+            onClick={() => navigate('/submit', { state: { requireWallet: !walletShort } })}
+            divider
+          />
+        </nav>
       )}
-    </>
+    </div>
+  );
+}
+
+function MenuRow({
+  icon,
+  label,
+  value,
+  open,
+  onClick,
+  divider = false,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  open?: boolean;
+  onClick: () => void;
+  divider?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      className={`flex w-full items-center gap-3 px-4 py-[15px] text-left ${divider ? 'border-t border-nl-line' : ''}`}
+    >
+      <span className="text-nl-text">{icon}</span>
+      <span className="flex-1 text-[15px] text-nl-text">{label}</span>
+      <span className="max-w-[45%] truncate text-[13px] text-nl-muted">{value}</span>
+      <svg
+        viewBox="0 0 24 24"
+        className={`h-[18px] w-[18px] shrink-0 text-nl-muted transition-transform ${open ? 'rotate-90' : ''}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        aria-hidden
+      >
+        <path d="m9 6 6 6-6 6" />
+      </svg>
+    </button>
+  );
+}
+
+const iconProps = {
+  viewBox: '0 0 24 24',
+  className: 'h-[22px] w-[22px]',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.8,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+function RewardIcon() {
+  return (
+    <svg {...iconProps}>
+      <rect x="3" y="8" width="18" height="13" rx="2" />
+      <path d="M3 12h18M12 8v13M8 8c-2 0-3-1-3-2.5S6.5 3 8 4.5 12 8 12 8s2.5-2 4-3.5S19 4 19 5.5 18 8 16 8" />
+    </svg>
+  );
+}
+
+function SubmitIcon() {
+  return (
+    <svg {...iconProps}>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
+
+function WalletIcon() {
+  return (
+    <svg {...iconProps}>
+      <rect x="2" y="6" width="20" height="13" rx="3" />
+      <path d="M16 12.5h2M2 10h20" />
+    </svg>
   );
 }
