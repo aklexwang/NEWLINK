@@ -415,7 +415,7 @@ export function MyPage() {
                           </span>
                         </div>
                         <p className="mt-1 truncate text-[14px] font-medium text-nl-text">{item.title}</p>
-                        <p className="mt-0.5 text-[12px] text-nl-muted">보상 대기 중</p>
+                        <SubmissionSteps status={item.status} />
                       </li>
                     );
                   })}
@@ -436,6 +436,36 @@ export function MyPage() {
         </nav>
       )}
     </div>
+  );
+}
+
+/** 제보 진행 3단계: 지금 단계만 파란색 (제보하기 → 관리자 확인 중 → 노출) */
+function SubmissionSteps({ status }: { status: 'pending' | 'active' | 'rejected' }) {
+  if (status === 'rejected') {
+    return <p className="mt-1.5 text-[12px] font-semibold text-red-400">관리자 확인 결과 노출되지 않았어요</p>;
+  }
+  const current = status === 'active' ? 2 : 1;
+  const steps = ['제보하기', '관리자 확인', '노출'];
+  return (
+    <ol className="mt-2 flex items-center gap-1.5" aria-label="진행 상태">
+      {steps.map((label, i) => {
+        const on = i === current;
+        return (
+          <li key={label} className="flex items-center gap-1.5">
+            {i > 0 && <span aria-hidden className="h-px w-3 bg-nl-line" />}
+            <span
+              aria-current={on ? 'step' : undefined}
+              className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                on ? 'bg-[#229af0] text-white' : 'bg-nl-elev text-nl-muted'
+              }`}
+            >
+              <span>{i + 1}</span>
+              <span>{on && i === 1 ? '관리자 확인 중' : label}</span>
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

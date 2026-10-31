@@ -169,14 +169,22 @@ export function SubmitPage() {
       {/* 진행 순서 한눈에 */}
       <ol className="mx-4 mt-3 grid grid-cols-3 gap-2 text-center">
         {['제보하기', '관리자 확인', policyLoaded && rewardsEnabled ? '노출 · 보상' : 'TellLink 노출'].map((label, i) => (
-          <li key={label} className="rounded-xl bg-nl-card px-2 py-2.5 ring-1 ring-nl-line">
+          // 이 화면은 1단계(제보하기)라 1번만 파란색. 2·3번은 MY > 내 제보 내역에서 진행에 맞춰 켜진다
+          <li
+            key={label}
+            className={`rounded-xl bg-nl-card px-2 py-2.5 ring-1 ${i === 0 ? 'ring-[#229af0]' : 'ring-nl-line'}`}
+          >
             <span
-              className="mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-black text-white"
-              style={{ background: BLUE }}
+              className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-black ${
+                i === 0 ? 'text-white' : 'bg-nl-elev text-nl-muted'
+              }`}
+              style={i === 0 ? { background: BLUE } : undefined}
             >
               {i + 1}
             </span>
-            <span className="mt-1.5 block text-[12px] font-semibold text-nl-text">{label}</span>
+            <span className={`mt-1.5 block text-[12px] font-semibold ${i === 0 ? 'text-nl-text' : 'text-nl-muted'}`}>
+              {label}
+            </span>
           </li>
         ))}
       </ol>
