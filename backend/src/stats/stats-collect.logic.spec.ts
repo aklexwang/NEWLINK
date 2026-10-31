@@ -180,3 +180,45 @@ describe('startedRecently (서버 일정·GitHub 예비 겹침 방지)', () => {
     ).toBe(false);
   });
 });
+
+describe('미리보기 막힌 채널 우선 MTProto', () => {
+  const { isPreviewBlocked, shouldUseMtprotoForFull } = jest.requireActual<
+    typeof import('./stats-collect.logic')
+  >('./stats-collect.logic');
+  it('미리보기 막힘 표시', () => {
+    expect(isPreviewBlocked({ collectError: 'preview:disabled' })).toBe(true);
+    expect(isPreviewBlocked({ collectError: 'preview:no_posts' })).toBe(true);
+    expect(isPreviewBlocked({ collectError: 'fetch:timeout' })).toBe(false);
+    expect(isPreviewBlocked({ collectError: null })).toBe(false);
+  });
+  it('접근 정보 없는 채널은 미리보기가 막혔을 때만 resolve', () => {
+    expect(
+      shouldUseMtprotoForFull({
+        linkType: 'channel',
+        collectError: null,
+        hasStoredAccess: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldUseMtprotoForFull({
+        linkType: 'channel',
+        collectError: 'preview:disabled',
+        hasStoredAccess: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldUseMtprotoForFull({
+        linkType: 'channel',
+        collectError: null,
+        hasStoredAccess: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldUseMtprotoForFull({
+        linkType: 'group',
+        collectError: null,
+        hasStoredAccess: false,
+      }),
+    ).toBe(true);
+  });
+});

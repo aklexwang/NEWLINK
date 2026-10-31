@@ -52,8 +52,11 @@ import {
 } from './member-count.logic';
 import {
   isLightCollectTarget,
+  PREVIEW_DISABLED_ERROR,
   shouldMarkLightNoPostsFailed,
+  shouldUseMtprotoForFull,
 } from './stats-collect.logic';
+import { canReuseStoredAccess } from './mtproto-access.logic';
 import { isCollectBudgetOver } from './collect-budget.logic';
 import { InviteDiscoveryQueueService } from './invite-discovery-queue.service';
 import { extractTmeInvitesFromText } from './telegram-preview-html';
@@ -431,7 +434,14 @@ export class ChannelCollectorService {
       return this.collectInviteChannel(channel);
     }
 
-    if (this.mtproto.canCollect(channel)) {
+    if (
+      this.mtproto.canCollect(channel) &&
+      shouldUseMtprotoForFull({
+        linkType: channel.linkType,
+        collectError: channel.collectError,
+        hasStoredAccess: canReuseStoredAccess(channel),
+      })
+    ) {
       const mtprotoResult = await this.mtproto.collectAndSave(channel);
       if (mtprotoResult.ok) return mtprotoResult;
     }
@@ -604,6 +614,8 @@ export class ChannelCollectorService {
       return { ok: false, reason: 'invalid' };
     }
 
+    // 미리보기가 막힌 채널은 표시해 두고, 다음 새벽 full 에서 MTProto(아이디 조회) 우선 대상이 된다
+    let previewBlocked = false;
     if (parsed.kind === 'channel') {
       const feed = await this.fetchPreviewPage(username);
       if (
@@ -615,6 +627,8 @@ export class ChannelCollectorService {
         const preview = parseTelegramChannelHtml(feed.html);
         if (preview.hasPreview) {
           await this.upsertPosts(channel.id, preview.posts);
+        } else {
+          previewBlocked = true;
         }
       }
     }
@@ -631,6 +645,11 @@ export class ChannelCollectorService {
           : null,
     });
     await this.upsertTodayMemberCount(channel.id, parsed.memberCount);
+    if (previewBlocked) {
+      await this.channelRepository.update(channel.id, {
+        collectError: PREVIEW_DISABLED_ERROR,
+      });
+    }
     return { ok: true, mode: 'preview' };
   }
 
@@ -678,6 +697,7 @@ export class ChannelCollectorService {
         // 상태를 그대로 두면 매 light 회차 맨 앞에 다시 뽑혀 예산을 쓴다. 다음 새벽 full 로 넘긴다
         await this.channelRepository.update(channel.id, {
           nextCollectAt: nextFullWindowAt(),
+          collectError: PREVIEW_DISABLED_ERROR,
         });
       }
       return { ok: false, reason: 'failed' };

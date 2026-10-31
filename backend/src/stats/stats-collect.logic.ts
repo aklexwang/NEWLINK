@@ -131,3 +131,36 @@ export function startedRecently(input: {
   const elapsed = input.nowMs - input.lastStartedAtMs;
   return elapsed >= 0 && elapsed < RECENT_RUN_WINDOW_MS[input.mode];
 }
+
+/**
+ * 웹 미리보기(t.me/s)가 막혀 글을 못 읽는 공개 채널 표시.
+ * 상태(collectStatus)는 그대로 두고 collectError 칸에만 남긴다.
+ */
+export const PREVIEW_BLOCKED_ERRORS = [
+  'preview:disabled',
+  'preview:no_posts',
+] as const;
+export const PREVIEW_DISABLED_ERROR = 'preview:disabled';
+
+export function isPreviewBlocked(channel: {
+  collectError?: string | null;
+}): boolean {
+  return (PREVIEW_BLOCKED_ERRORS as readonly string[]).includes(
+    (channel.collectError ?? '').trim(),
+  );
+}
+
+/**
+ * 새벽 full 에서 MTProto 를 쓸지. 아이디 조회(resolve, 하루 한도 50~)는 귀해서
+ * 접근 정보가 아직 없는 "채널"은 미리보기가 막힌 경우에만 조회한다(미리보기로 읽히는 채널은 미리보기로).
+ * 그룹·이미 접근 정보가 있는 방은 예전처럼 MTProto.
+ */
+export function shouldUseMtprotoForFull(channel: {
+  linkType?: string | null;
+  collectError?: string | null;
+  hasStoredAccess: boolean;
+}): boolean {
+  if (channel.hasStoredAccess) return true;
+  if (channel.linkType !== 'channel') return true;
+  return isPreviewBlocked(channel);
+}

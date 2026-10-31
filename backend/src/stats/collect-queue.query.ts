@@ -59,8 +59,21 @@ export async function selectDueChannels(
       });
   }
 
+  if (!options.light) {
+    // 새벽 full: 미리보기가 막혀 MTProto 로만 글을 읽을 수 있는데 아직 접근 정보가 없는 채널을 맨 앞에
+    // (하루 아이디 조회 한도를 이 채널들이 먼저 쓰게)
+    qb.orderBy(
+      "(CASE WHEN c.collectError IN ('preview:disabled', 'preview:no_posts') AND c.telegramAccessHash IS NULL THEN 0 ELSE 1 END)",
+      'ASC',
+    ).addOrderBy(
+      '(CASE WHEN c.nextCollectAt IS NULL THEN 0 ELSE 1 END)',
+      'ASC',
+    );
+  } else {
+    qb.orderBy('(CASE WHEN c.nextCollectAt IS NULL THEN 0 ELSE 1 END)', 'ASC');
+  }
+
   return qb
-    .orderBy('(CASE WHEN c.nextCollectAt IS NULL THEN 0 ELSE 1 END)', 'ASC')
     .addOrderBy('c.nextCollectAt', 'ASC')
     .addOrderBy(
       '(CASE WHEN c.lastCollectedAt IS NULL THEN 0 ELSE 1 END)',
