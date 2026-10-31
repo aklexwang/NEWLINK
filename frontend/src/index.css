@@ -27,21 +27,28 @@ html.light {
 }
 
 html.dark {
-  --nl-bg: #101218;
-  --nl-card: #1b202b;
-  --nl-elev: #242b38;
-  --nl-text: #f3f5f8;
-  --nl-muted: #9aa3b5;
-  --nl-accent: #2ee59d;
-  --nl-line: rgba(255, 255, 255, 0.08);
-  --tg-theme-bg-color: #101218 !important;
-  --tg-theme-text-color: #f3f5f8 !important;
-  --tg-theme-hint-color: #9aa3b5 !important;
-  --tg-theme-link-color: #2ee59d !important;
-  --tg-theme-secondary-bg-color: #1b202b !important;
-  --nl-open-bg: rgba(46, 229, 157, 0.14);
-  --nl-open-text: #2ee59d;
+  /* 스레드형 어두운 톤 (2026-10-31): 검정 바탕 + 텔레그램 파랑 */
+  --nl-bg: #000000;
+  --nl-card: #121212;
+  --nl-elev: #1c1c1e;
+  --nl-text: #f5f5f5;
+  --nl-muted: #a8a8a8;
+  --nl-accent: #2aabee;
+  --nl-line: rgba(255, 255, 255, 0.14);
+  --tg-theme-bg-color: #000000 !important;
+  --tg-theme-text-color: #f5f5f5 !important;
+  --tg-theme-hint-color: #a8a8a8 !important;
+  --tg-theme-link-color: #2aabee !important;
+  --tg-theme-secondary-bg-color: #121212 !important;
+  --nl-open-bg: rgba(42, 171, 238, 0.14);
+  --nl-open-text: #2aabee;
 }
+
+@keyframes nl-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.nl-fade-in { animation: nl-fade-in 0.35s ease-out; }
 
 @theme {
   --color-tg-bg: var(--tg-theme-bg-color, #ffffff);

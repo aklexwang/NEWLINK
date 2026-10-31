@@ -4,22 +4,52 @@ import { getRewardPolicy } from '../api/rewards';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 
-/** 아래 메뉴 한 칸: 고른 칸은 아이콘 뒤에 초록 알약 + 굵은 글씨 */
+/** 아래 메뉴 한 칸: 스레드처럼 아이콘만. 고른 칸은 진한 색 + 채운 아이콘 */
 const itemClass = (active: boolean) =>
-  `group flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] ${
-    active ? 'font-bold text-nl-accent' : 'font-medium text-tg-hint'
-  }`;
+  `flex flex-1 items-center justify-center ${active ? 'text-nl-text' : 'text-nl-muted'}`;
 const navClass = ({ isActive }: { isActive: boolean }) => itemClass(isActive);
 
-function NavIcon({ active, children }: { active: boolean; children: string }) {
+type NavIconName = 'home' | 'categories' | 'favorites' | 'submit';
+
+function NavIcon({ name, active }: { name: NavIconName; active: boolean }) {
+  const common = {
+    viewBox: '0 0 24 24',
+    className: 'h-[26px] w-[26px]',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  };
+  if (name === 'home') {
+    return (
+      <svg {...common} fill={active ? 'currentColor' : 'none'}>
+        <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
+      </svg>
+    );
+  }
+  if (name === 'categories') {
+    return (
+      <svg {...common} fill={active ? 'currentColor' : 'none'}>
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    );
+  }
+  if (name === 'favorites') {
+    return (
+      <svg {...common} fill={active ? 'currentColor' : 'none'}>
+        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" />
+      </svg>
+    );
+  }
   return (
-    <span
-      className={`flex h-7 w-12 items-center justify-center rounded-full text-[19px] leading-none transition-colors ${
-        active ? 'bg-nl-accent/15' : 'opacity-75 group-hover:opacity-100'
-      }`}
-    >
-      {children}
-    </span>
+    <svg {...common} fill="none" strokeWidth={active ? 2.4 : 1.8}>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
   );
 }
 
@@ -78,11 +108,12 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg border-t border-nl-line bg-tg-bg/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg border-t border-nl-line bg-nl-bg/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
       <div className="flex h-[56px] items-stretch">
         <NavLink
           to="/"
           end
+          aria-label="홈"
           className={navClass}
           onClick={(e) => {
             if (location.pathname === '/') {
@@ -91,31 +122,30 @@ export function BottomNav() {
             }
           }}
         >
-          <NavIcon active={location.pathname === '/'}>🏠</NavIcon>
-          <span>홈</span>
+          <NavIcon name="home" active={location.pathname === '/'} />
         </NavLink>
         <NavLink
           to="/categories"
+          aria-label="카테고리"
           className={() => itemClass(isCategoriesActive)}
         >
-          <NavIcon active={isCategoriesActive}>📂</NavIcon>
-          <span>카테고리</span>
+          <NavIcon name="categories" active={isCategoriesActive} />
         </NavLink>
         <a
           href="/favorites"
           onClick={handleFavoritesClick}
+          aria-label="즐겨찾기"
           className={itemClass(isFavoritesActive)}
         >
-          <NavIcon active={isFavoritesActive}>⭐</NavIcon>
-          <span>즐겨찾기</span>
+          <NavIcon name="favorites" active={isFavoritesActive} />
         </a>
         <a
           href="/submit"
           onClick={handleSubmitClick}
+          aria-label="제보"
           className={itemClass(isSubmitActive)}
         >
-          <NavIcon active={isSubmitActive}>📣</NavIcon>
-          <span>제보</span>
+          <NavIcon name="submit" active={isSubmitActive} />
         </a>
       </div>
     </nav>

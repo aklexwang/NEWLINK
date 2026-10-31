@@ -11,20 +11,21 @@ import WebApp from '@twa-dev/sdk';
 
 export type ThemeMode = 'dark' | 'light';
 
-const STORAGE_KEY = 'newlink-theme-v2';
-const LEGACY_STORAGE_KEY = 'newlink-theme';
+// 2026-10-31 회원페이지를 어두운 톤으로 개편: 키를 바꿔 모두 어두운 모드로 한 번 시작한다
+const STORAGE_KEY = 'newlink-theme-v3';
+const LEGACY_STORAGE_KEYS = ['newlink-theme', 'newlink-theme-v2'];
 
 const THEME_COLORS = {
   light: '#eef0f4',
-  dark: '#101218',
+  dark: '#000000',
 } as const;
 
 function readStoredTheme(): ThemeMode {
   try {
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
-    return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light';
+    for (const key of LEGACY_STORAGE_KEYS) localStorage.removeItem(key);
+    return localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark';
   } catch {
-    return 'light';
+    return 'dark';
   }
 }
 
@@ -61,7 +62,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<ThemeMode>(() =>
-    typeof window === 'undefined' ? 'light' : readStoredTheme(),
+    typeof window === 'undefined' ? 'dark' : readStoredTheme(),
   );
 
   useEffect(() => {

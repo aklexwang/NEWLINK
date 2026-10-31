@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { InitialAvatar } from '../components/InitialAvatar';
 import { isBlankAvatarImage } from '../utils/avatarFallback';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -7,21 +7,17 @@ import {
   getHomeDashboard,
   getHomeFeed,
   getPostPreview,
-  type HomeCard,
   type HomeDashboard,
   type HomeFeedItem,
   type PostPreview,
 } from '../api/stats';
 import { ChannelList } from '../components/ChannelList';
 import { PublicPrivateBadge } from '../components/PublicPrivateBadge';
-import { GradeBadge } from '../components/GradeBadge';
-import { NewLinkLogo } from '../components/NewLinkLogo';
 import { BannerCarousel } from '../components/BannerCarousel';
 import { getBanners, type PublicBanner } from '../api/ads';
 import { SearchBar } from '../components/SearchBar';
 import { useCategories } from '../hooks/useCategories';
 import { useMyFavorites } from '../hooks/useMyFavorites';
-import { ChannelQuickActions } from '../components/ChannelQuickActions';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
 import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import { trackTelegramOpen } from '../api/opens';
@@ -47,14 +43,22 @@ function Avatar({
   size = 'md',
 }: {
   channel: { avatarUrl?: string | null; link: string; title: string };
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'thread';
 }) {
   const sources = useMemo(() => getChannelAvatarSources(channel), [channel]);
   const [i, setI] = useState(0);
   const [failed, setFailed] = useState(false);
   const src = failed ? undefined : sources[i];
   const box =
-    size === 'lg' ? 'h-14 w-14 rounded-2xl' : size === 'sm' ? 'h-7 w-7 rounded-lg' : 'h-11 w-11 rounded-full';
+    size === 'lg'
+      ? 'h-14 w-14 rounded-2xl'
+      : size === 'sm'
+        ? 'h-7 w-7 rounded-lg'
+        : size === 'xs'
+          ? 'h-[22px] w-[22px] rounded-full'
+          : size === 'thread'
+            ? 'h-9 w-9 rounded-full'
+            : 'h-11 w-11 rounded-full';
   return (
     <div className={`${box} shrink-0 overflow-hidden bg-nl-elev ring-1 ring-nl-line`}>
       {src ? (
@@ -75,7 +79,15 @@ function Avatar({
           }}
         />
       ) : (
-        <InitialAvatar title={channel.title} seed={channel.link} textClass={size === 'lg' ? 'text-[18px]' : size === 'sm' ? 'text-[11px]' : 'text-[15px]'} />
+        <InitialAvatar title={channel.title} seed={channel.link} textClass={
+            size === 'lg'
+              ? 'text-[18px]'
+              : size === 'sm' || size === 'thread'
+                ? 'text-[11px]'
+                : size === 'xs'
+                  ? 'text-[8px]'
+                  : 'text-[15px]'
+          } />
       )}
     </div>
   );
@@ -126,9 +138,10 @@ export function HomePage() {
 
   const [home, setHome] = useState<HomeDashboard | null>(null);
   const [homeLoading, setHomeLoading] = useState(true);
-  const [weekOpen, setWeekOpen] = useState(false);
-  const [headlineIndex, setHeadlineIndex] = useState(0);
-  const [moreOpen, setMoreOpen] = useState(false);
+  /** 헤더 돋보기를 누르면 검색창이 열린다 */
+  const [searchOpen, setSearchOpen] = useState(false);
+  /** 맨 위 한 줄: 이번 주 상위 채널을 1위부터 돌아가며 보여 준다 */
+  const [topIndex, setTopIndex] = useState(0);
 
   // 홈 피드는 채널만 (그룹은 글을 저장하지 않아 보여 줄 글이 없음)
   const feedType: FeedType = 'channel';
@@ -147,6 +160,7 @@ export function HomePage() {
     setShowSuggestions(false);
     setBlockedMessage(null);
     setSuggestBlockedMessage(null);
+    setSearchOpen(false);
     setView('dash');
   }, []);
 
@@ -326,24 +340,21 @@ export function HomePage() {
     return () => io.disconnect();
   }, [feedCursor, feedMore, feedLoading, loadFeed]);
 
-  const headlines = useMemo(() => {
-    if (!home) return [];
-    const rows: string[] = [];
-    if (home.headlines.risingTitle) {
-      rows.push(`이번 주 급상승 1위 · ${home.headlines.risingTitle}`);
-    }
-    rows.push(`새로 관측된 채널 ${home.headlines.firstSeenCount.toLocaleString('ko-KR')}개`);
-    rows.push(`순위 상승 ${home.headlines.rankUpCount.toLocaleString('ko-KR')}건`);
-    return rows;
-  }, [home]);
-
+  // 돋보기로 검색창을 열면 바로 입력할 수 있게 커서를 넣는다
   useEffect(() => {
-    if (headlines.length < 2) return;
+    if (!searchOpen) return;
+    const input = document.querySelector<HTMLInputElement>('#search-section input[type="text"], #search-section input:not([type])');
+    input?.focus();
+  }, [searchOpen]);
+
+  const topChannels = useMemo(() => (home?.topChannels ?? []).slice(0, 5), [home]);
+  useEffect(() => {
+    if (topChannels.length < 2) return;
     const t = window.setInterval(() => {
-      setHeadlineIndex((i) => (i + 1) % headlines.length);
+      setTopIndex((i) => (i + 1) % topChannels.length);
     }, 4000);
     return () => window.clearInterval(t);
-  }, [headlines.length]);
+  }, [topChannels.length]);
 
   const handleQueryChange = (value: string) => {
     setQuery(value);
@@ -429,27 +440,61 @@ export function HomePage() {
   };
 
   const header = (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-nl-line bg-nl-bg/90 px-3 py-2 backdrop-blur-md">
-      <button type="button" onClick={resetToHome} className="flex items-center" aria-label="홈">
-        <NewLinkLogo compact />
-      </button>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-nl-card text-[16px] ring-1 ring-nl-line"
-          aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
-        >
-          {theme === 'dark' ? '🌞' : '🌙'}
-        </button>
+    <header className="sticky top-0 z-30 bg-nl-bg/95 backdrop-blur-md">
+      <div className="relative flex h-[52px] items-center justify-center px-2">
         <button
           type="button"
           onClick={() => navigate('/my')}
-          className={`nl-my-btn flex shrink-0 items-center justify-center rounded-full font-extrabold text-white ${isLoggedIn ? 'h-10 w-10 text-[13px]' : 'h-10 px-4 text-[14px]'}`}
+          className="absolute left-3 h-8 rounded-lg px-3 text-[13px] font-bold text-nl-text ring-1 ring-nl-line"
         >
           {isLoggedIn ? 'MY' : '로그인'}
         </button>
+        <button type="button" onClick={resetToHome} aria-label="홈" className="text-[20px] font-black tracking-[-0.5px] text-nl-text">
+          TellLink
+        </button>
+        <div className="absolute right-1 flex items-center">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex h-11 w-10 items-center justify-center text-nl-text"
+            aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+          >
+            {theme === 'dark' ? (
+              <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden>
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" className="h-[20px] w-[20px]" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" aria-hidden>
+                <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+              </svg>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => (view === 'search' ? resetToHome() : setSearchOpen((v) => !v))}
+            className="flex h-11 w-10 items-center justify-center text-nl-text"
+            aria-label={searchOpen || view === 'search' ? '검색 닫기' : '검색'}
+            aria-expanded={searchOpen || view === 'search'}
+          >
+            {searchOpen || view === 'search' ? (
+              <svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
+      {(searchOpen || view === 'search') && (
+        <div className="px-4 pb-3">
+          <SearchBar {...searchBarProps} />
+        </div>
+      )}
     </header>
   );
 
@@ -457,9 +502,6 @@ export function HomePage() {
     return (
       <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg">
         {header}
-        <div className="px-4 pb-3 pt-3">
-          <SearchBar {...searchBarProps} />
-        </div>
         <ChannelList
           channels={searchChannelsList}
           isLoading={searchLoading}
@@ -494,216 +536,124 @@ export function HomePage() {
   }
 
 
+  const top = topChannels.length > 0 ? topChannels[topIndex % topChannels.length] : null;
+  const topRank = top ? (topIndex % topChannels.length) + 1 : 0;
+  const hasBanner = Boolean(bannerAds && bannerAds.banners.length > 0);
+  // 배너는 피드 세 번째 글 다음에 한 칸으로 (글이 적으면 마지막 글 다음)
+  const bannerAfter = Math.min(2, Math.max(0, feed.length - 1));
+  const banner = hasBanner && bannerAds && (
+    <div className="border-b border-nl-line px-4 py-3">
+      <BannerCarousel banners={bannerAds.banners} rotateSeconds={bannerAds.rotateSeconds} />
+    </div>
+  );
+
   return (
     <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg pb-4">
       {header}
 
-      <section className="px-4 pt-4">
-        <div className="rounded-2xl bg-nl-card p-4 ring-1 ring-nl-line">
-          <h1 className="text-[16px] font-bold leading-snug text-nl-text">
-            텔레그램 채널·그룹 검색 · 통계 · 순위
-          </h1>
-          <SearchBar {...searchBarProps} className="mt-3" />
-        </div>
-      </section>
-
-      <section className="px-4 pt-3">
-        <div className="rounded-2xl bg-nl-card ring-1 ring-nl-line">
-          <button
-            type="button"
-            onClick={() => setWeekOpen((v) => !v)}
-            className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
-          >
-            <span className="text-[11px] font-bold text-nl-accent">이번 주</span>
-            <span className="min-w-0 flex-1 truncate text-[13px] text-nl-text">
-              {homeLoading ? '불러오는 중…' : headlines[headlineIndex] || '아직 주간 소식이 없습니다.'}
-            </span>
-            <span className="text-nl-muted">{weekOpen ? '▴' : '▾'}</span>
-          </button>
-          {weekOpen && (
-            <div className="space-y-2 border-t border-nl-line px-3 py-3 text-[13px]">
-              {home?.headlines.risingTitle && (
-                <p>
-                  급상승 1위{' '}
-                  <button
-                    type="button"
-                    className="font-semibold text-nl-accent"
-                    onClick={() =>
-                      goChannel({
-                        id: home.headlines.risingId ?? undefined,
-                        username: home.headlines.risingUsername,
-                        link: home.headlines.risingLink ?? undefined,
-                      })
-                    }
-                  >
-                    {home.headlines.risingTitle}
-                  </button>
-                </p>
-              )}
-              <p className="text-nl-muted">새로 관측 {home?.headlines.firstSeenCount ?? 0}개</p>
-              <ul className="space-y-1">
-                {(home?.headlines.firstSeen ?? []).map((item) => (
-                  <li key={`n-${item.id}`}>
-                    <button type="button" className="text-nl-text" onClick={() => goChannel(item)}>
-                      {item.title ?? item.username}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <p className="pt-1 text-nl-muted">순위 상승 {home?.headlines.rankUpCount ?? 0}건</p>
-              <ul className="space-y-1">
-                {(home?.headlines.rankUp ?? []).map((item) => (
-                  <li key={`r-${item.id}`}>
-                    <button type="button" className="text-nl-text" onClick={() => goChannel(item)}>
-                      {item.title ?? item.username}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {!home?.headlines.firstSeen.length && !home?.headlines.rankUp.length && (
-                <p className="text-nl-muted">표시할 주간 목록이 없습니다.</p>
-              )}
-              <Link to="/weekly" className="inline-block pt-1 text-[12px] font-semibold text-nl-accent">
-                주간 변화 전체
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="pt-4">
-        <div className="flex items-center justify-between px-4">
-          <h2 className="text-[15px] font-bold">이번 주 상위 채널</h2>
-          <Link to="/ranking" className="text-[12px] font-semibold text-nl-accent">
-            전체 보기
-          </Link>
-        </div>
-        {home?.topBy === 'members' && (
-          <p className="px-4 pt-1 text-[11px] text-nl-muted">점수 데이터가 부족해 회원 수 순으로 보여 줍니다.</p>
-        )}
-        <div className="mt-2 flex gap-2.5 overflow-x-auto px-4 pb-1 scrollbar-none">
-          {homeLoading
-            ? Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-[150px] w-[132px] shrink-0 animate-pulse rounded-[20px] bg-nl-card" />
-              ))
-            : (home?.topChannels ?? []).map((item, index) => (
-                <TopChip key={item.id} rank={index + 1} item={item} onOpen={() => goChannel(item)} />
-              ))}
-        </div>
-        {!homeLoading && (home?.topChannels.length ?? 0) === 0 && (
-          <p className="px-4 py-3 text-[13px] text-nl-muted">아직 상위 채널이 없습니다.</p>
-        )}
-      </section>
-
-      <section className="relative px-4 pt-4">
-        <div className="flex gap-2 overflow-x-auto scrollbar-none">
-          <QuickLink to="/ranking" label="🏆 랭킹" />
-          <QuickLink to="/ranking?sort=rising" label="🚀 급상승" />
-          <QuickLink to="/ranking?type=group" label="👥 그룹" />
-          <QuickLink to="/weekly" label="📈 주간 변화" />
-          <button
-            type="button"
-            onClick={() => setMoreOpen((v) => !v)}
-            className="shrink-0 rounded-full bg-nl-card px-3.5 py-2 text-[13px] font-semibold ring-1 ring-nl-line"
-          >
-            ⋯ 더 보기
-          </button>
-        </div>
-        {moreOpen && (
-          <div className="absolute right-4 z-20 mt-2 w-40 rounded-xl bg-nl-card p-2 text-[13px] shadow-lg ring-1 ring-nl-line">
-            <Link to="/compare" className="block rounded-lg px-2 py-2 hover:bg-nl-elev" onClick={() => setMoreOpen(false)}>
-              비교
-            </Link>
-            <Link
-              to="/ranking"
-              className="block rounded-lg px-2 py-2 hover:bg-nl-elev"
-              onClick={() => setMoreOpen(false)}
+      <nav aria-label="홈 메뉴" className="flex border-b border-nl-line">
+        {HOME_TABS.map((tab) =>
+          tab.to === '/' ? (
+            <span
+              key={tab.label}
+              aria-current="page"
+              className="-mb-px flex-1 border-b border-nl-text py-2.5 text-center text-[14px] font-bold text-nl-text"
             >
-              카테고리 랭킹
+              {tab.label}
+            </span>
+          ) : (
+            <Link
+              key={tab.label}
+              to={tab.to}
+              className="flex-1 py-2.5 text-center text-[14px] font-medium whitespace-nowrap text-nl-muted"
+            >
+              {tab.label}
             </Link>
-          </div>
+          ),
         )}
-      </section>
+      </nav>
 
-      {bannerAds && bannerAds.banners.length > 0 && (
-        <section className="px-4 pt-5">
-          <BannerCarousel banners={bannerAds.banners} rotateSeconds={bannerAds.rotateSeconds} />
-        </section>
-      )}
-
-      <section className="px-4 pt-5">
-        <h2 className="text-[15px] font-bold">최근 활발한 채널</h2>
-        <div className="mt-3 space-y-3">
-          {feedLoading && feed.length === 0
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-[180px] animate-pulse rounded-2xl bg-nl-card" />
-              ))
-            : feed.map((item) => (
-                <FeedCard key={item.id} item={item} onOpen={() => goChannel(item)} />
-              ))}
-          {!feedLoading && feed.length === 0 && (
-            <p className="rounded-2xl bg-nl-card px-4 py-6 text-center text-[13px] text-nl-muted ring-1 ring-nl-line">
-              최근 활동 기록이 있는 채널이 없습니다.
-            </p>
-          )}
-          <div ref={sentinelRef} className="h-4" />
-          {feedMore && <p className="py-2 text-center text-[12px] text-nl-muted">더 불러오는 중…</p>}
+      {homeLoading ? (
+        <div className="flex items-center gap-2.5 border-b border-nl-line px-4 py-3">
+          <span className="h-4 w-16 animate-pulse rounded bg-nl-elev" />
+          <span className="h-[22px] w-[22px] animate-pulse rounded-full bg-nl-elev" />
+          <span className="h-4 flex-1 animate-pulse rounded bg-nl-elev" />
         </div>
+      ) : top ? (
+        <button
+          type="button"
+          onClick={() => goChannel(top)}
+          className="flex w-full items-center gap-2.5 border-b border-nl-line px-4 py-3 text-left"
+        >
+          <span className="shrink-0 text-[12px] font-bold text-nl-muted">이번 주 {topRank}위</span>
+          <span key={top.id} className="flex min-w-0 flex-1 items-center gap-2 nl-fade-in">
+            <Avatar channel={top} size="xs" />
+            <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-nl-text">{top.title}</span>
+          </span>
+          <span className="shrink-0 text-[12px] text-nl-muted">{formatMembers(top.memberCount)}</span>
+        </button>
+      ) : null}
+
+      <section aria-label="최근 활발한 채널">
+        {feedLoading && feed.length === 0
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex gap-3 px-4 pt-3.5">
+                <span className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-nl-elev" />
+                <div className="flex-1 space-y-2 border-b border-nl-line pb-4">
+                  <span className="block h-4 w-1/2 animate-pulse rounded bg-nl-elev" />
+                  <span className="block h-4 w-full animate-pulse rounded bg-nl-elev" />
+                  <span className="block h-32 w-full animate-pulse rounded-xl bg-nl-elev" />
+                </div>
+              </div>
+            ))
+          : feed.map((item, index) => (
+              <Fragment key={item.id}>
+                <ThreadItem
+                  item={item}
+                  onOpen={() => goChannel(item)}
+                  favorite={favoriteIds.has(item.id)}
+                  onToggleFavorite={() => void handleToggleFavorite(item.id)}
+                />
+                {index === bannerAfter && banner}
+              </Fragment>
+            ))}
+        {!feedLoading && feed.length === 0 && (
+          <>
+            {banner}
+            <p className="px-4 py-10 text-center text-[13px] text-nl-muted">최근 활동 기록이 있는 채널이 없습니다.</p>
+          </>
+        )}
+        <div ref={sentinelRef} className="h-4" />
+        {feedMore && <p className="py-2 text-center text-[12px] text-nl-muted">더 불러오는 중…</p>}
       </section>
     </div>
   );
 }
 
-function QuickLink({ to, label }: { to: string; label: string }) {
-  return (
-    <Link
-      to={to}
-      className="shrink-0 rounded-full bg-nl-card px-3.5 py-2 text-[13px] font-semibold ring-1 ring-nl-line active:scale-95"
-    >
-      {label}
-    </Link>
-  );
-}
-
-function TopChip({ rank, item, onOpen }: { rank: number; item: HomeCard; onOpen: () => void }) {
-  const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="relative flex w-[132px] shrink-0 flex-col items-center gap-2 rounded-[20px] bg-nl-card px-3 pt-4 pb-3 text-center shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line transition-transform active:scale-[0.98]"
-    >
-      <span
-        className={`absolute top-2 left-2 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold ${
-          medal ? 'text-[15px]' : 'bg-nl-elev text-nl-muted'
-        }`}
-      >
-        {medal ?? rank}
-      </span>
-      <Avatar channel={item} size="lg" />
-      <span className="line-clamp-2 min-h-[34px] w-full text-[13px] leading-[17px] font-bold">{item.title}</span>
-      <span className="rounded-full bg-nl-elev px-2 py-0.5 text-[11px] font-semibold text-nl-muted">
-        {item.score != null ? `점수 ${item.score}` : formatMembers(item.memberCount)}
-      </span>
-    </button>
-  );
-}
+/** 홈 위 탭: 피드는 이 화면, 나머지는 해당 화면으로 이동 */
+const HOME_TABS = [
+  { to: '/', label: '피드' },
+  { to: '/ranking', label: '랭킹' },
+  { to: '/ranking?sort=rising', label: '급상승' },
+  { to: '/ranking?type=group', label: '그룹' },
+  { to: '/weekly', label: '주간 변화' },
+];
 
 const MEDIA_LABEL: Record<string, string> = {
-  photo: '📷 사진 포함',
-  video: '🎬 영상 포함',
-  document: '📎 파일 포함',
-  audio: '🎵 음성 포함',
-  poll: '📊 투표',
+  photo: '사진 포함',
+  video: '영상 포함',
+  document: '파일 포함',
+  audio: '음성 포함',
+  poll: '투표',
   sticker: '스티커',
 };
 
 const MEDIA_ONLY_LABEL: Record<string, string> = {
-  photo: '📷 사진 게시글',
-  video: '🎬 영상 게시글',
-  document: '📎 파일 게시글',
-  audio: '🎵 음성 게시글',
-  poll: '📊 투표 게시글',
+  photo: '사진 게시글',
+  video: '영상 게시글',
+  document: '파일 게시글',
+  audio: '음성 게시글',
+  poll: '투표 게시글',
   sticker: '스티커',
 };
 
@@ -717,100 +667,118 @@ function isIosDevice(webApp: { platform?: string }): boolean {
   }
 }
 
-function FeedCard({ item, onOpen }: { item: HomeFeedItem; onOpen: () => void }) {
-  // 7일 증감은 수집 7일 미만이면 값이 없어 표시를 숨긴다
+/**
+ * 스레드형 피드 한 줄: 왼쪽 동그란 사진 + 세로선, 오른쪽 이름·글·사진·아래 줄.
+ * 이름·사진을 누르면 채널 상세, 아래 줄 파란 텔레그램 버튼만 방으로 이동한다.
+ */
+function ThreadItem({
+  item,
+  onOpen,
+  favorite,
+  onToggleFavorite,
+}: {
+  item: HomeFeedItem;
+  onOpen: () => void;
+  favorite: boolean;
+  onToggleFavorite: () => void;
+}) {
+  const { webApp, isLocalBrowser } = useTelegram();
+  const post = item.latestPost ?? null;
   const deltaLine = formatDeltaLine(
     '7일',
     resolveMemberDelta(item.memberDelta7d, item.memberCount, item.growth7d),
   );
-  const { webApp, isLocalBrowser } = useTelegram();
-  const post = item.latestPost ?? null;
   const openRoom = () => {
     openTelegramChannel(webApp, isLocalBrowser, item.link);
     trackTelegramOpen(item.id);
   };
-  // 아이폰은 텔레그램 게시글 상자(iframe)가 스크롤 손가락까지 눌림으로 받아 방으로 넘어가고, 하얗게 비기도 한다
-  // → 아이폰에서는 상자 대신 우리가 그리는 미리보기(글·사진 포함·조회수·시간)를 쓴다
+  // 아이폰은 텔레그램 게시글 상자(iframe)가 터치를 가로채서, 글·사진을 우리가 직접 그린다
   const ios = isIosDevice(webApp);
   const postUrl = post && item.username && !ios ? `https://t.me/${item.username}/${post.messageId}` : null;
+  const ownPreview = Boolean(post && ios && item.username);
   const mediaLabel = post ? MEDIA_LABEL[post.mediaType] : undefined;
+
   return (
-    // 등급 배지가 버튼이라 카드는 button 이 아니라 role="link" 로 둔다 (버튼 안 버튼 방지)
-    <div
-      role="link"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onOpen();
-        }
-      }}
-      className="w-full cursor-pointer overflow-hidden rounded-[20px] bg-nl-card text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line"
-    >
-      <div className="flex items-center gap-2.5 px-3.5 pt-2.5 pb-2">
-        <Avatar channel={item} size="sm" />
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
-            <PublicPrivateBadge link={item.link} />
-            <span className="min-w-0 truncate text-[14px] font-semibold">{item.title}</span>
-            <GradeBadge
-              grade={item.grade}
-              size="sm"
-              channelId={item.id}
-              linkType={item.linkType}
-              score={item.score}
-            />
-          </span>
-          <span className="mt-0.5 block truncate text-[11px] text-nl-muted">
-            {item.username ? `@${item.username} · ` : ''}
-            {item.category} · {formatMembers(item.memberCount)}
+    <article className="flex gap-3 px-4 pt-3.5">
+      <div className="flex shrink-0 flex-col items-center">
+        <button type="button" onClick={onOpen} aria-label={`${item.title} 채널 정보`} className="rounded-full">
+          <Avatar channel={item} size="thread" />
+        </button>
+        <span aria-hidden className="mt-2 w-0.5 flex-1 rounded-full bg-nl-line" />
+      </div>
+      <div className="min-w-0 flex-1 border-b border-nl-line pb-3.5">
+        <button type="button" onClick={onOpen} className="flex max-w-full items-center gap-1.5 text-left">
+          <span className="truncate text-[15px] font-bold text-nl-text">{item.title}</span>
+          <PublicPrivateBadge link={item.link} />
+          <span className="shrink-0 text-[13px] text-nl-muted">{formatRelativeKo(post?.postedAt ?? item.lastPostAt)}</span>
+        </button>
+        <p className="truncate text-[12px] text-nl-muted">
+          {item.username ? `@${item.username} · ` : ''}
+          {item.category}
+        </p>
+
+        {postUrl ? (
+          <div className="mt-2">
+            <TelegramPostEmbed url={postUrl} onOpenRoom={openRoom} title={item.title} />
+          </div>
+        ) : ownPreview ? (
+          <OwnPostPreview item={item} />
+        ) : post ? (
+          <div className="mt-1">
+            {post.text ? (
+              <p className="line-clamp-6 whitespace-pre-line break-words text-[15px] leading-[1.5] text-nl-text">
+                {post.text.replace(/\n{2,}/g, '\n').trim()}
+              </p>
+            ) : (
+              <p className="text-[14px] text-nl-muted">{MEDIA_ONLY_LABEL[post.mediaType] ?? '글 내용 없는 게시글'}</p>
+            )}
+            {mediaLabel && post.text && <p className="mt-1 text-[12px] text-nl-muted">{mediaLabel}</p>}
+          </div>
+        ) : (
+          <p className="mt-1 text-[14px] text-nl-muted">
+            {item.activityKind === 'members' ? '인원 수가 바뀌었어요' : '새 게시글이 올라왔어요'}
+          </p>
+        )}
+
+        <div className="mt-3 flex items-center gap-4 text-[13px] text-nl-muted">
+          <button
+            type="button"
+            onClick={onToggleFavorite}
+            aria-pressed={favorite}
+            aria-label={favorite ? `${item.title} 즐겨찾기 해제` : `${item.title} 즐겨찾기 추가`}
+            className="-m-2 flex h-9 w-9 items-center justify-center"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className={`h-[21px] w-[21px] ${favorite ? 'text-amber-400' : 'text-nl-text'}`}
+              fill={favorite ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" />
+            </svg>
+          </button>
+          {post?.views != null && <span>조회 {post.views.toLocaleString('ko-KR')}</span>}
+          <span className="min-w-0 truncate">
+            {formatMembers(item.memberCount)}
             {deltaLine ? ` · ${deltaLine}` : ''}
           </span>
-        </span>
-        <ChannelQuickActions
-          channelId={item.id}
-          link={item.link}
-          title={item.title}
-          compact
-          hideTelegram={Boolean(post && (postUrl || (ios && item.username)))}
-        />
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={openRoom}
+            aria-label={`${item.title} 텔레그램에서 열기`}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2AABEE] text-white"
+          >
+            <svg viewBox="0 0 24 24" className="-ml-px h-[15px] w-[15px]" fill="currentColor" aria-hidden>
+              <path d={TG_PATH} />
+            </svg>
+          </button>
+        </div>
       </div>
-
-      {post && postUrl ? (
-        // 텔레그램 공식 미리보기를 처음부터 보여 준다 (화면에 가까워질 때 불러옴)
-        <div className="border-t border-nl-line px-3 pt-2 pb-3">
-          <TelegramPostEmbed url={postUrl} onOpenRoom={openRoom} title={item.title} />
-        </div>
-      ) : post && ios && item.username ? (
-        // 아이폰: 텔레그램 상자 대신 글·사진을 직접 그린다. 로고 버튼만 방으로 이동, 나머지는 눌러도 아무 일 없음
-        <div className="border-t border-nl-line px-3 pt-2 pb-3">
-          <OwnPostPreview item={item} onOpenRoom={openRoom} />
-        </div>
-      ) : post ? (
-        <div className="border-t border-nl-line px-4 pt-3 pb-3">
-          {post.text ? (
-            <p className="line-clamp-4 whitespace-pre-line text-[14px] leading-relaxed text-tg-text">
-              {post.text.replace(/\n{2,}/g, '\n').trim()}
-            </p>
-          ) : (
-            <p className="text-[13px] text-nl-muted">{MEDIA_ONLY_LABEL[post.mediaType] ?? '글 내용 없는 게시글'}</p>
-          )}
-          <div className="mt-2.5 flex items-center gap-2 text-[12px] text-nl-muted">
-            {mediaLabel && post.text && (
-              <span className="rounded-full bg-nl-elev px-2 py-0.5 ring-1 ring-nl-line">{mediaLabel}</span>
-            )}
-            {post.views != null && <span>👁 {post.views.toLocaleString('ko-KR')}</span>}
-            <span>{formatRelativeKo(post.postedAt)}</span>
-          </div>
-        </div>
-      ) : (
-        <p className="border-t border-nl-line px-4 py-2.5 text-[11px] text-nl-muted">
-          {item.activityKind === 'members' ? '인원 수 갱신' : '게시글'} · {formatRelativeKo(item.lastPostAt)}
-        </p>
-      )}
-    </div>
+    </article>
   );
 }
 
@@ -819,9 +787,9 @@ const TG_PATH =
 
 /**
  * 아이폰용 게시글 미리보기: 서버가 텔레그램 공개 글에서 읽은 글·사진을 우리 화면에 그린다.
- * 링크가 하나도 없어서 어디를 눌러도 이동하지 않고, 오른쪽 위 텔레그램 로고만 방을 연다.
+ * 링크가 하나도 없어서 어디를 눌러도 이동하지 않는다(방 이동은 아래 줄 텔레그램 버튼만).
  */
-function OwnPostPreview({ item, onOpenRoom }: { item: HomeFeedItem; onOpenRoom: () => void }) {
+function OwnPostPreview({ item }: { item: HomeFeedItem }) {
   const post = item.latestPost!;
   const boxRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined');
@@ -862,40 +830,52 @@ function OwnPostPreview({ item, onOpenRoom }: { item: HomeFeedItem; onOpenRoom: 
 
   const text = (preview?.text || post.text || '').replace(/\n{3,}/g, '\n\n').trim();
   const images = (preview?.images ?? []).filter((src) => !brokenImages.has(src)).slice(0, 4);
-  const views = preview?.views ?? post.views;
   const long = text.length > 220 || text.split('\n').length > 6;
-  const mediaLabel = MEDIA_LABEL[post.mediaType];
 
   return (
     <div
       ref={boxRef}
-      className="relative select-none overflow-hidden rounded-xl bg-nl-elev ring-1 ring-nl-line"
-      // 상자 안 어디를 눌러도 상세 페이지·텔레그램으로 넘어가지 않게 막는다
+      className="mt-1 select-none"
+      // 글·사진 어디를 눌러도 상세 페이지·텔레그램으로 넘어가지 않게 막는다
       onClick={(event) => {
         event.stopPropagation();
         event.preventDefault();
       }}
     >
-      <button
-        type="button"
-        aria-label={`${item.title} 텔레그램에서 열기`}
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpenRoom();
-        }}
-        className="nl-orb-tg absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full text-white shadow"
-      >
-        <svg viewBox="0 0 24 24" className="-ml-px h-4 w-4" fill="currentColor" aria-hidden>
-          <path d={TG_PATH} />
-        </svg>
-      </button>
+      {text ? (
+        <p
+          className={`whitespace-pre-line break-words text-[15px] leading-[1.5] text-nl-text ${
+            expanded ? '' : 'line-clamp-6'
+          }`}
+        >
+          {text}
+        </p>
+      ) : preview !== undefined && images.length === 0 ? (
+        <p className="text-[14px] text-nl-muted">{MEDIA_ONLY_LABEL[post.mediaType] ?? '글 내용 없는 게시글'}</p>
+      ) : null}
+      {long && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpanded((v) => !v);
+          }}
+          className="mt-0.5 text-[13px] font-semibold text-nl-muted"
+        >
+          {expanded ? '접기' : '더 보기'}
+        </button>
+      )}
 
       {preview === undefined && post.mediaType !== 'text' ? (
-        <div className="h-44 w-full animate-pulse bg-nl-line/60" />
+        <div className="mt-2.5 h-48 w-full animate-pulse rounded-xl bg-nl-elev" />
       ) : images.length > 0 ? (
-        <div className={`grid gap-0.5 ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <div
+          className={`mt-2.5 grid gap-0.5 overflow-hidden rounded-xl ring-1 ring-nl-line ${
+            images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
+          }`}
+        >
           {images.map((src, i) => (
-            <div key={src} className="relative">
+            <div key={src} className={`relative ${images.length === 3 && i === 0 ? 'col-span-2' : ''}`}>
               <img
                 src={src}
                 alt=""
@@ -904,13 +884,15 @@ function OwnPostPreview({ item, onOpenRoom }: { item: HomeFeedItem; onOpenRoom: 
                 draggable={false}
                 onError={() => setBrokenImages((prev) => new Set(prev).add(src))}
                 className={`pointer-events-none block w-full object-cover ${
-                  images.length === 1 ? 'max-h-[420px]' : images.length === 3 && i === 0 ? 'col-span-2 h-48' : 'h-36'
+                  images.length === 1 ? 'max-h-[420px]' : images.length === 3 && i === 0 ? 'h-48' : 'h-36'
                 }`}
               />
               {preview?.hasVideo && i === 0 && (
                 <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-[20px] text-white">
-                    ▶
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white">
+                    <svg viewBox="0 0 24 24" className="ml-0.5 h-5 w-5" fill="currentColor" aria-hidden>
+                      <path d="M7 4v16l13-8z" />
+                    </svg>
                   </span>
                 </span>
               )}
@@ -918,39 +900,6 @@ function OwnPostPreview({ item, onOpenRoom }: { item: HomeFeedItem; onOpenRoom: 
           ))}
         </div>
       ) : null}
-
-      <div className="px-3 pt-2.5 pb-2.5 pr-12">
-        {text ? (
-          <p
-            className={`whitespace-pre-line break-words text-[14px] leading-relaxed text-tg-text ${
-              expanded ? '' : 'line-clamp-6'
-            }`}
-          >
-            {text}
-          </p>
-        ) : (
-          <p className="text-[13px] text-nl-muted">{MEDIA_ONLY_LABEL[post.mediaType] ?? '글 내용 없는 게시글'}</p>
-        )}
-        {long && (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              setExpanded((v) => !v);
-            }}
-            className="mt-1 text-[12px] font-semibold text-tg-link"
-          >
-            {expanded ? '접기' : '더 보기'}
-          </button>
-        )}
-        <div className="mt-2 flex items-center gap-2 text-[12px] text-nl-muted">
-          {mediaLabel && images.length === 0 && text && (
-            <span className="rounded-full bg-nl-card px-2 py-0.5 ring-1 ring-nl-line">{mediaLabel}</span>
-          )}
-          {views != null && <span>👁 {views.toLocaleString('ko-KR')}</span>}
-          <span>{formatRelativeKo(preview?.postedAt ?? post.postedAt)}</span>
-        </div>
-      </div>
     </div>
   );
 }

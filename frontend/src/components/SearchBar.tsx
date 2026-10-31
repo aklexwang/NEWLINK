@@ -87,11 +87,11 @@ export function SearchBar({
                 role="option"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onSelectSuggestion?.(channel)}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[#f1f3f4]"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-nl-elev"
               >
                 <SearchIcon className="h-[18px] w-[18px] shrink-0 fill-[#9aa0a6]" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] text-[#202124]">{channel.title}</span>
+                  <span className="block truncate text-[15px] text-nl-text">{channel.title}</span>
                   <span className="mt-0.5 block truncate text-[12px] text-nl-muted">{subtitle}</span>
                 </span>
               </button>
@@ -143,7 +143,7 @@ export function SearchBar({
             <button
               type="button"
               onClick={onSearch}
-              className="m-1 shrink-0 rounded-xl bg-nl-accent px-3 text-[13px] font-bold text-[#082016]"
+              className="m-1 shrink-0 rounded-xl bg-nl-accent px-3 text-[13px] font-bold text-white dark:text-white"
             >
               검색
             </button>
@@ -211,7 +211,7 @@ export function SearchBar({
             autoComplete="off"
             spellCheck={false}
             placeholder={placeholder}
-            className="min-w-0 flex-1 bg-transparent px-1 text-[16px] text-[#202124] outline-none placeholder:text-[#9aa0a6]"
+            className="min-w-0 flex-1 bg-transparent px-1 text-[16px] text-nl-text outline-none placeholder:text-nl-muted"
           />
           {value && !isLoading && (
             <button
@@ -221,7 +221,7 @@ export function SearchBar({
                 onCloseSuggestions?.();
               }}
               aria-label="검색어 지우기"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-nl-muted hover:bg-[#f1f3f4]"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-nl-muted hover:bg-nl-elev"
             >
               ✕
             </button>
@@ -233,7 +233,7 @@ export function SearchBar({
               type="button"
               onClick={onSearch}
               aria-label="검색 시작"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-[#f1f3f4]"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-nl-elev"
             >
               <SearchIcon className="h-5 w-5 fill-[#4285f4]" />
             </button>
