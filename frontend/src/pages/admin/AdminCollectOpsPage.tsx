@@ -182,7 +182,9 @@ export function AdminCollectOpsPage() {
             </details>
           )}
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            서버가 켜진 뒤부터 센 수예요. 미니앱으로 써 보고 "서명 있음"이 오르면 Render 의 MINIAPP_ONLY 를 true 로 바꿔 막기를 켜요.
+            {ops.miniAppGate.mode === 'block'
+              ? '서버가 켜진 뒤부터 센 수예요. 미니앱 밖(브라우저·긁어 가는 프로그램)에서 온 요청은 "막음"으로 셉니다. 끄려면 Render 의 MINIAPP_ONLY 를 지우거나 false 로.'
+              : '서버가 켜진 뒤부터 센 수예요. 미니앱으로 써 보고 "서명 있음"이 오르면 Render 의 MINIAPP_ONLY 를 true 로 바꿔 막기를 켜요.'}
           </p>
         </div>
       )}
