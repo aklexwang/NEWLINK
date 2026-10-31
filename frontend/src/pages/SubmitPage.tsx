@@ -9,6 +9,19 @@ import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 import type { LinkType } from '../types/channel';
 
+/** 우리 파란색 (텔레그램 버튼 색) */
+const BLUE = '#229af0';
+
+/** @아이디, t.me/아이디 처럼 적어도 https://t.me/… 로 맞춘다 */
+function normalizeSubmitLink(raw: string): string {
+  const v = raw.trim();
+  if (!v) return v;
+  if (/^@[A-Za-z][A-Za-z0-9_]{3,31}$/.test(v)) return `https://t.me/${v.slice(1)}`;
+  if (/^(t\.me|telegram\.me)\//i.test(v)) return `https://${v}`;
+  if (/^http:\/\//i.test(v)) return v.replace(/^http:/i, 'https:');
+  return v;
+}
+
 export function SubmitPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,9 +61,9 @@ export function SubmitPage() {
     try {
       await submitChannel({
         linkType: needLinkType ? form.linkType : undefined,
-        title: form.title,
-        link: form.link,
-        description: form.description,
+        title: form.title.trim(),
+        link: normalizeSubmitLink(form.link),
+        description: form.description.trim(),
       });
       notify('제보가 접수되었습니다. 관리자 승인 후 노출됩니다.');
       navigate('/');
@@ -137,97 +150,192 @@ export function SubmitPage() {
     await doSubmit();
   };
 
+  // 텔레그램 미니앱에서는 텔레그램 클립보드, 그 밖에서는 브라우저 클립보드에서 링크를 붙여 넣는다
+  const pasteLink = async () => {
+    const apply = (text: string | null | undefined) => {
+      const value = (text ?? '').trim();
+      if (!value) {
+        notify('복사한 링크가 없어요. 링크를 길게 눌러 붙여 넣어 주세요.');
+        return;
+      }
+      setForm((prev) => ({ ...prev, link: normalizeSubmitLink(value) }));
+    };
+    try {
+      const tg = webApp as unknown as { readTextFromClipboard?: (cb: (text: string | null) => void) => void };
+      if (!isLocalBrowser && typeof tg.readTextFromClipboard === 'function') {
+        tg.readTextFromClipboard((text) => apply(text));
+        return;
+      }
+      apply(await navigator.clipboard.readText());
+    } catch {
+      notify('붙여넣기를 할 수 없어요. 링크를 길게 눌러 붙여 넣어 주세요.');
+    }
+  };
+
+  const linkReady = /t(elegram)?\.me\//i.test(normalizeSubmitLink(form.link));
+  const canSubmit = isLoggedIn && linkReady && form.title.trim() !== '' && form.description.trim() !== '';
+  const fieldClass =
+    'w-full rounded-2xl bg-nl-card px-4 py-3.5 text-[15px] text-nl-text ring-1 ring-nl-line outline-none placeholder:text-nl-muted focus:ring-2 focus:ring-[#229af0]';
+
   return (
-    <>
-      <header className="border-b border-black/5 px-4 py-5">
-        <h1 className="text-xl font-bold text-tg-text">채널/그룹 제보</h1>
-        <p className="mt-1 text-sm text-tg-hint">
+    <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg pb-6">
+      <header className="px-4 pt-4 pb-1">
+        <h1 className="text-[22px] font-black text-nl-text">제보하기</h1>
+        <p className="mt-1 text-[13px] text-nl-muted">
           {policyLoaded && rewardsEnabled
-            ? '새로운 채널/그룹 정보를 등록하고 코인을 받으세요'
-            : '새로운 채널/그룹 정보를 등록해 주세요'}
+            ? '좋은 채널·그룹을 알려 주세요. 승인되면 보상을 받아요'
+            : '좋은 채널·그룹을 알려 주세요. 확인 후 TellLink에 노출돼요'}
         </p>
       </header>
 
-      {!isLoggedIn && (
-        <div className="mx-4 mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
-          제보하려면 먼저{' '}
-          <Link to="/my" className="font-semibold text-tg-link underline">
-            MY
+      {/* 진행 순서 한눈에 */}
+      <ol className="mx-4 mt-3 grid grid-cols-3 gap-2 text-center">
+        {['링크 붙여넣기', '관리자 확인', policyLoaded && rewardsEnabled ? '노출 · 보상' : 'TellLink 노출'].map((label, i) => (
+          <li key={label} className="rounded-xl bg-nl-card px-2 py-2.5 ring-1 ring-nl-line">
+            <span
+              className="mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-black text-white"
+              style={{ background: BLUE }}
+            >
+              {i + 1}
+            </span>
+            <span className="mt-1.5 block text-[12px] font-semibold text-nl-text">{label}</span>
+          </li>
+        ))}
+      </ol>
+
+      {!isLoggedIn && authStatus !== 'loading' && (
+        <div className="mx-4 mt-4 rounded-2xl bg-nl-card p-4 ring-1 ring-nl-line">
+          <p className="text-[15px] font-bold text-nl-text">로그인이 필요해요</p>
+          <p className="mt-1 text-[13px] text-nl-muted">제보는 텔레그램 로그인 후 할 수 있어요.</p>
+          <Link
+            to="/my"
+            className="mt-3 inline-flex rounded-xl px-4 py-2.5 text-[14px] font-bold text-white"
+            style={{ background: BLUE }}
+          >
+            로그인하러 가기
           </Link>
-          에서 로그인해 주세요.
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 pt-5">
         {isLoggedIn && policyLoaded && (requireWallet || rewardsEnabled) && (
           <SubmitWalletPicker onLinked={handleWalletLinked} onNotify={notify} />
         )}
 
-        {needLinkType && (
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-tg-hint">유형</label>
-          <div className="inline-flex gap-1.5">
-            {([
-              { value: 'channel', label: '채널' },
-              { value: 'group', label: '그룹' },
-            ] as const).map((option) => (
+          <label htmlFor="submit-link" className="mb-2 flex items-baseline justify-between">
+            <span className="text-[14px] font-bold text-nl-text">링크</span>
+            <span className="text-[12px] text-nl-muted">t.me 주소 또는 @아이디</span>
+          </label>
+          <div className="relative">
+            <input
+              id="submit-link"
+              required
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              value={form.link}
+              onChange={(e) => setForm({ ...form, link: e.target.value })}
+              onBlur={() => setForm((prev) => ({ ...prev, link: normalizeSubmitLink(prev.link) }))}
+              placeholder="https://t.me/채널아이디"
+              maxLength={512}
+              className={`${fieldClass} pr-[92px]`}
+            />
+            {form.link ? (
               <button
-                key={option.value}
                 type="button"
-                onClick={() => setForm({ ...form, linkType: option.value })}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                  form.linkType === option.value
-                    ? 'bg-tg-button text-tg-button-text'
-                    : 'bg-tg-secondary text-tg-hint'
-                }`}
+                onClick={() => setForm({ ...form, link: '' })}
+                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-xl px-3 py-2 text-[13px] font-semibold text-nl-muted"
               >
-                {option.label}
+                지우기
               </button>
-            ))}
+            ) : (
+              <button
+                type="button"
+                onClick={() => void pasteLink()}
+                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-xl px-3 py-2 text-[13px] font-bold text-white"
+                style={{ background: BLUE }}
+              >
+                붙여넣기
+              </button>
+            )}
           </div>
-          <p className="mt-1.5 text-xs text-tg-hint">링크 종류를 자동으로 확인하지 못했습니다. 직접 선택해 주세요.</p>
+          {form.link && !linkReady && (
+            <p className="mt-1.5 text-[12px] text-amber-400">t.me 주소만 제보할 수 있어요. 예: https://t.me/telllink</p>
+          )}
         </div>
+
+        {needLinkType && (
+          <div>
+            <p className="mb-2 text-[14px] font-bold text-nl-text">종류</p>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: 'channel', label: '채널' },
+                { value: 'group', label: '그룹' },
+              ] as const).map((option) => {
+                const active = form.linkType === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, linkType: option.value })}
+                    className={`rounded-xl py-3 text-[14px] font-bold ring-1 ${
+                      active ? 'text-white ring-transparent' : 'bg-nl-card text-nl-muted ring-nl-line'
+                    }`}
+                    style={active ? { background: BLUE } : undefined}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-[12px] text-nl-muted">링크 종류를 자동으로 확인하지 못했어요. 직접 골라 주세요.</p>
+          </div>
         )}
+
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-tg-hint">제목</label>
+          <label htmlFor="submit-title" className="mb-2 block text-[14px] font-bold text-nl-text">
+            이름
+          </label>
           <input
+            id="submit-title"
             required
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="채널/그룹 이름"
-            className="w-full rounded-xl bg-tg-secondary px-4 py-3 text-sm outline-none"
+            placeholder="채널·그룹 이름"
+            maxLength={255}
+            className={fieldClass}
           />
         </div>
+
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-tg-hint">링크</label>
-          <input
-            required
-            type="url"
-            value={form.link}
-            onChange={(e) => setForm({ ...form, link: e.target.value })}
-            placeholder="https://t.me/..."
-            className="w-full rounded-xl bg-tg-secondary px-4 py-3 text-sm outline-none"
-          />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-tg-hint">설명</label>
+          <label htmlFor="submit-desc" className="mb-2 flex items-baseline justify-between">
+            <span className="text-[14px] font-bold text-nl-text">소개</span>
+            <span className="text-[12px] text-nl-muted">{form.description.length.toLocaleString('ko-KR')}자</span>
+          </label>
           <textarea
+            id="submit-desc"
             required
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="채널/그룹에 대한 간단한 설명"
+            placeholder="어떤 내용을 올리는 곳인지 한두 줄로 적어 주세요"
             rows={4}
-            className="w-full resize-none rounded-xl bg-tg-secondary px-4 py-3 text-sm outline-none"
+            className={`${fieldClass} resize-none leading-relaxed`}
           />
         </div>
+
         <button
           type="submit"
-          disabled={isSubmitting || !isLoggedIn}
-          className="mt-2 w-full rounded-xl bg-tg-button py-3.5 text-sm font-medium text-tg-button-text disabled:opacity-50"
+          disabled={isSubmitting || !canSubmit}
+          className="mt-1 w-full rounded-2xl py-4 text-[16px] font-bold text-white transition-opacity disabled:opacity-40"
+          style={{ background: BLUE }}
         >
-          {isSubmitting ? '접수 중...' : '제보하기'}
+          {isSubmitting ? '접수 중…' : '제보하기'}
         </button>
+        <p className="-mt-2 text-center text-[12px] text-nl-muted">이미 등록된 방은 접수되지 않아요.</p>
       </form>
-    </>
+    </div>
   );
 }

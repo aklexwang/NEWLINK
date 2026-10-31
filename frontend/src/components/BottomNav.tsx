@@ -4,9 +4,9 @@ import { getRewardPolicy } from '../api/rewards';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
 
-/** 아래 메뉴 한 칸: 스레드처럼 아이콘만. 고른 칸은 진한 색 + 채운 아이콘 */
+/** 아래 메뉴 한 칸: 스레드처럼 아이콘만. 고른 칸은 우리 파란색(#229af0) + 채운 아이콘 */
 const itemClass = (active: boolean) =>
-  `flex flex-1 items-center justify-center ${active ? 'text-nl-text' : 'text-nl-muted'}`;
+  `flex flex-1 items-center justify-center ${active ? 'text-[#229af0]' : 'text-nl-muted'}`;
 const navClass = ({ isActive }: { isActive: boolean }) => itemClass(isActive);
 
 type NavIconName = 'home' | 'categories' | 'favorites' | 'submit';
