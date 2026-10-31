@@ -10,23 +10,24 @@ import { AppToastProvider } from './providers/AppToastProvider';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { HomePage } from './pages/HomePage';
 import type { ReactNode } from 'react';
+import { importWithReload } from './utils/chunkReload';
 
 // 첫 화면(홈·카테고리) 말고는 필요할 때 불러온다. 차트(recharts)·TON 지갑이 무거워서
-const ChannelDetailPage = lazy(() =>
-  import('./pages/ChannelDetailPage').then((m) => ({ default: m.ChannelDetailPage })),
+const ChannelDetailPage = lazy(
+  importWithReload(() => import('./pages/ChannelDetailPage').then((m) => ({ default: m.ChannelDetailPage }))),
 );
-const ComparePage = lazy(() => import('./pages/ComparePage').then((m) => ({ default: m.ComparePage })));
-const FavoritesPage = lazy(() => import('./pages/FavoritesPage').then((m) => ({ default: m.FavoritesPage })));
-const MyPage = lazy(() => import('./pages/MyPage').then((m) => ({ default: m.MyPage })));
-const RankingPage = lazy(() => import('./pages/RankingPage').then((m) => ({ default: m.RankingPage })));
-const WeeklyPage = lazy(() => import('./pages/WeeklyPage').then((m) => ({ default: m.WeeklyPage })));
-const SubmitRoute = lazy(() => import('./pages/SubmitRoute'));
+const ComparePage = lazy(importWithReload(() => import('./pages/ComparePage').then((m) => ({ default: m.ComparePage }))));
+const FavoritesPage = lazy(importWithReload(() => import('./pages/FavoritesPage').then((m) => ({ default: m.FavoritesPage }))));
+const MyPage = lazy(importWithReload(() => import('./pages/MyPage').then((m) => ({ default: m.MyPage }))));
+const RankingPage = lazy(importWithReload(() => import('./pages/RankingPage').then((m) => ({ default: m.RankingPage }))));
+const WeeklyPage = lazy(importWithReload(() => import('./pages/WeeklyPage').then((m) => ({ default: m.WeeklyPage }))));
+const SubmitRoute = lazy(importWithReload(() => import('./pages/SubmitRoute')));
 
 function Lazy({ children }: { children: ReactNode }) {
   return <Suspense fallback={<div className="min-h-[60vh]" />}>{children}</Suspense>;
 }
 
-const AdminRoutes = lazy(() => import('./admin/AdminRoutes'));
+const AdminRoutes = lazy(importWithReload(() => import('./admin/AdminRoutes')));
 
 export default function App() {
   return (
