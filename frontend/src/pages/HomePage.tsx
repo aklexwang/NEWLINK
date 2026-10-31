@@ -138,8 +138,6 @@ export function HomePage() {
 
   const [home, setHome] = useState<HomeDashboard | null>(null);
   const [homeLoading, setHomeLoading] = useState(true);
-  /** 헤더 돋보기를 누르면 검색창이 열린다 */
-  const [searchOpen, setSearchOpen] = useState(false);
   /** 맨 위 한 줄: 이번 주 상위 채널을 1위부터 돌아가며 보여 준다 */
   const [topIndex, setTopIndex] = useState(0);
 
@@ -160,7 +158,6 @@ export function HomePage() {
     setShowSuggestions(false);
     setBlockedMessage(null);
     setSuggestBlockedMessage(null);
-    setSearchOpen(false);
     setView('dash');
   }, []);
 
@@ -340,13 +337,6 @@ export function HomePage() {
     return () => io.disconnect();
   }, [feedCursor, feedMore, feedLoading, loadFeed]);
 
-  // 돋보기로 검색창을 열면 바로 입력할 수 있게 커서를 넣는다
-  useEffect(() => {
-    if (!searchOpen) return;
-    const input = document.querySelector<HTMLInputElement>('#search-section input[type="text"], #search-section input:not([type])');
-    input?.focus();
-  }, [searchOpen]);
-
   const topChannels = useMemo(() => (home?.topChannels ?? []).slice(0, 5), [home]);
   useEffect(() => {
     if (topChannels.length < 2) return;
@@ -470,31 +460,8 @@ export function HomePage() {
               </svg>
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => (view === 'search' ? resetToHome() : setSearchOpen((v) => !v))}
-            className="flex h-11 w-10 items-center justify-center text-nl-text"
-            aria-label={searchOpen || view === 'search' ? '검색 닫기' : '검색'}
-            aria-expanded={searchOpen || view === 'search'}
-          >
-            {searchOpen || view === 'search' ? (
-              <svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-                <circle cx="11" cy="11" r="7" />
-                <path d="m20 20-3.5-3.5" />
-              </svg>
-            )}
-          </button>
         </div>
       </div>
-      {(searchOpen || view === 'search') && (
-        <div className="px-4 pb-3">
-          <SearchBar {...searchBarProps} />
-        </div>
-      )}
     </header>
   );
 
@@ -502,6 +469,9 @@ export function HomePage() {
     return (
       <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg">
         {header}
+        <div className="px-4 pt-1 pb-3">
+          <SearchBar {...searchBarProps} />
+        </div>
         <ChannelList
           channels={searchChannelsList}
           isLoading={searchLoading}
@@ -539,10 +509,9 @@ export function HomePage() {
   const top = topChannels.length > 0 ? topChannels[topIndex % topChannels.length] : null;
   const topRank = top ? (topIndex % topChannels.length) + 1 : 0;
   const hasBanner = Boolean(bannerAds && bannerAds.banners.length > 0);
-  // 배너는 피드 세 번째 글 다음에 한 칸으로 (글이 적으면 마지막 글 다음)
-  const bannerAfter = Math.min(2, Math.max(0, feed.length - 1));
+  // 배너 광고는 기존처럼 위쪽(검색창 바로 아래)
   const banner = hasBanner && bannerAds && (
-    <div className="border-b border-nl-line px-4 py-3">
+    <div className="px-4 pb-3">
       <BannerCarousel banners={bannerAds.banners} rotateSeconds={bannerAds.rotateSeconds} />
     </div>
   );
@@ -550,6 +519,11 @@ export function HomePage() {
   return (
     <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg pb-4">
       {header}
+
+      <div className="px-4 pt-1 pb-3">
+        <SearchBar {...searchBarProps} />
+      </div>
+      {banner}
 
       <nav aria-label="홈 메뉴" className="flex border-b border-nl-line">
         {HOME_TABS.map((tab) =>
@@ -606,7 +580,7 @@ export function HomePage() {
                 </div>
               </div>
             ))
-          : feed.map((item, index) => (
+          : feed.map((item) => (
               <Fragment key={item.id}>
                 <ThreadItem
                   item={item}
@@ -614,14 +588,10 @@ export function HomePage() {
                   favorite={favoriteIds.has(item.id)}
                   onToggleFavorite={() => void handleToggleFavorite(item.id)}
                 />
-                {index === bannerAfter && banner}
               </Fragment>
             ))}
         {!feedLoading && feed.length === 0 && (
-          <>
-            {banner}
-            <p className="px-4 py-10 text-center text-[13px] text-nl-muted">최근 활동 기록이 있는 채널이 없습니다.</p>
-          </>
+          <p className="px-4 py-10 text-center text-[13px] text-nl-muted">최근 활동 기록이 있는 채널이 없습니다.</p>
         )}
         <div ref={sentinelRef} className="h-4" />
         {feedMore && <p className="py-2 text-center text-[12px] text-nl-muted">더 불러오는 중…</p>}
