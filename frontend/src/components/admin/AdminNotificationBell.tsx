@@ -96,7 +96,7 @@ export function AdminNotificationBell() {
           {items.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">새 알림이 없어요.</p>
           ) : (
-            <ul className="max-h-[420px] overflow-y-auto">
+            <ul className="max-h-[420px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {items.map((item) => (
                 <li key={item.id}>
                   <button
@@ -116,6 +116,18 @@ export function AdminNotificationBell() {
                 </li>
               ))}
             </ul>
+          )}
+          {/* 안 읽은 알림을 한 번에 확인 처리 */}
+          {unread > 0 && (
+            <div className="border-t border-border p-3">
+              <button
+                type="button"
+                className="w-full rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90"
+                onClick={() => void readAllAdminNotifications().then(load)}
+              >
+                전체 확인 ({unread > 99 ? '99+' : unread})
+              </button>
+            </div>
           )}
         </div>
       )}
