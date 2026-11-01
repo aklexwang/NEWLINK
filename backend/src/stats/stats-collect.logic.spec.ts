@@ -221,4 +221,30 @@ describe('미리보기 막힌 채널 우선 MTProto', () => {
       }),
     ).toBe(true);
   });
+  it('그룹은 막힌 채널 몫(예비)을 남기고만 조회', () => {
+    const base = {
+      linkType: 'group',
+      collectError: null,
+      hasStoredAccess: false,
+      blockedReserve: 25,
+    };
+    expect(shouldUseMtprotoForFull({ ...base, resolvesLeft: 26 })).toBe(true);
+    expect(shouldUseMtprotoForFull({ ...base, resolvesLeft: 25 })).toBe(false);
+    expect(
+      shouldUseMtprotoForFull({
+        linkType: 'channel',
+        collectError: 'preview:disabled',
+        hasStoredAccess: false,
+        resolvesLeft: 3,
+        blockedReserve: 25,
+      }),
+    ).toBe(true);
+    expect(
+      shouldUseMtprotoForFull({
+        ...base,
+        hasStoredAccess: true,
+        resolvesLeft: 0,
+      }),
+    ).toBe(true);
+  });
 });

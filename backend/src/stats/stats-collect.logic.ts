@@ -155,12 +155,33 @@ export function isPreviewBlocked(channel: {
  * 접근 정보가 아직 없는 "채널"은 미리보기가 막힌 경우에만 조회한다(미리보기로 읽히는 채널은 미리보기로).
  * 그룹·이미 접근 정보가 있는 방은 예전처럼 MTProto.
  */
+/** 하루 아이디 조회 중 "미리보기 막힌 채널" 몫으로 남겨 두는 수 (환경 변수 MTPROTO_RESOLVE_BLOCKED_RESERVE) */
+export const RESOLVE_BLOCKED_RESERVE_DEFAULT = 25;
+
+export function resolveBlockedReserve(raw?: string | null): number {
+  if (raw == null || String(raw).trim() === '') {
+    return RESOLVE_BLOCKED_RESERVE_DEFAULT;
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0
+    ? Math.floor(n)
+    : RESOLVE_BLOCKED_RESERVE_DEFAULT;
+}
+
 export function shouldUseMtprotoForFull(channel: {
   linkType?: string | null;
   collectError?: string | null;
   hasStoredAccess: boolean;
+  /** 오늘 남은 아이디 조회 수 (모르면 제한 없음) */
+  resolvesLeft?: number;
+  /** 미리보기 막힌 채널 몫으로 남길 조회 수 */
+  blockedReserve?: number;
 }): boolean {
   if (channel.hasStoredAccess) return true;
-  if (channel.linkType !== 'channel') return true;
-  return isPreviewBlocked(channel);
+  if (isPreviewBlocked(channel)) return true;
+  // 미리보기로 읽히는 채널은 조회를 쓰지 않는다
+  if (channel.linkType === 'channel') return false;
+  // 그룹 등은 조회를 쓰되, 막힌 채널 몫은 남겨 둔다 (00:05 light 의 새 그룹 첫 수집이 하루 몫을 다 쓰던 문제)
+  const left = channel.resolvesLeft ?? Number.POSITIVE_INFINITY;
+  return left > (channel.blockedReserve ?? 0);
 }

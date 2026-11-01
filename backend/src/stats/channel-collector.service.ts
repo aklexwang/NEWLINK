@@ -54,6 +54,7 @@ import {
   isLightCollectTarget,
   PREVIEW_DISABLED_ERROR,
   shouldMarkLightNoPostsFailed,
+  resolveBlockedReserve,
   shouldUseMtprotoForFull,
 } from './stats-collect.logic';
 import { canReuseStoredAccess } from './mtproto-access.logic';
@@ -440,6 +441,10 @@ export class ChannelCollectorService {
         linkType: channel.linkType,
         collectError: channel.collectError,
         hasStoredAccess: canReuseStoredAccess(channel),
+        resolvesLeft: this.mtproto.remainingResolves(),
+        blockedReserve: resolveBlockedReserve(
+          process.env.MTPROTO_RESOLVE_BLOCKED_RESERVE,
+        ),
       })
     ) {
       const mtprotoResult = await this.mtproto.collectAndSave(channel);
