@@ -266,6 +266,8 @@ export interface AdminStatsOps {
     total: number;
     reasons: Array<{ reason: string; count: number; repeated: number }>;
   };
+  /** 웹 미리보기 막힌 채널: 수집 계정 차례 대기 / 수집 계정으로 읽는 중 */
+  previewBlocked?: { waiting: number; handled: number };
   running: boolean;
 }
 

@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
-import { Channel, ChannelStatus } from '../channels/channel.entity';
+import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { DISCOVERY_MAX_PER_DAY } from '../stats/channel-discovery.logic';
 import {
   COLLECT_FULL_BUDGET_MIN_DEFAULT,
@@ -211,6 +211,7 @@ export class AdminStatsService implements OnModuleInit {
         ...miniAppGateCounters,
       },
       failures: await this.getFailureSummary(),
+      previewBlocked: await this.getPreviewBlockedSummary(),
       running: this.statsJob.isRunning(),
     };
   }
@@ -239,6 +240,31 @@ export class AdminStatsService implements OnModuleInit {
     return {
       total: reasons.reduce((sum, r) => sum + r.count, 0),
       reasons,
+    };
+  }
+
+  /**
+   * 웹 미리보기가 막힌 채널: 수집 계정(MTProto) 차례를 기다리는 수(접근 정보 없음) / 이미 수집 계정으로 읽는 수.
+   * 기다리는 수가 줄어들면 잘 처리되고 있는 것 (새벽 full 에서 하루 최대 25개)
+   */
+  private async getPreviewBlockedSummary() {
+    const row = await this.channelRepository
+      .createQueryBuilder('c')
+      .select(
+        'SUM(CASE WHEN c.telegramAccessHash IS NULL THEN 1 ELSE 0 END)',
+        'waiting',
+      )
+      .addSelect(
+        'SUM(CASE WHEN c.telegramAccessHash IS NOT NULL THEN 1 ELSE 0 END)',
+        'handled',
+      )
+      .where('c.status = :active', { active: ChannelStatus.ACTIVE })
+      .andWhere('c.linkType = :channel', { channel: LinkType.CHANNEL })
+      .andWhere("c.collectError IN ('preview:disabled', 'preview:no_posts')")
+      .getRawOne<{ waiting: string | null; handled: string | null }>();
+    return {
+      waiting: Number(row?.waiting) || 0,
+      handled: Number(row?.handled) || 0,
     };
   }
 
