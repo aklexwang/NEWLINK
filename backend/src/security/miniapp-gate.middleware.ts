@@ -20,6 +20,7 @@ import {
 } from './detail-quota.logic';
 import { MemberActivity } from '../member-activity/member-activity.entity';
 import { AdminNotification } from '../notifications/admin-notification.entity';
+import { User } from '../users/user.entity';
 
 export const BLOCKED_MESSAGE =
   '이용이 제한된 계정이에요. 문의는 텔레그램 @kplay33 으로 부탁드려요.';
@@ -63,7 +64,8 @@ export class MiniAppGateMiddleware implements NestMiddleware {
     }
 
     const isAdmin = this.hasValidAdmin(req);
-    const telegramId = isAdmin ? null : this.validInitDataUser(req);
+    const tgUser = isAdmin ? null : this.validInitDataUser(req);
+    const telegramId = tgUser?.id ?? null;
     if (isAdmin) miniAppGateCounters.admin += 1;
     else if (telegramId != null) miniAppGateCounters.signed += 1;
     else {
@@ -107,7 +109,8 @@ export class MiniAppGateMiddleware implements NestMiddleware {
           this.config.get<string>('DETAIL_DAILY_LIMIT'),
         );
         const count = this.detailCounter.hit(telegramId);
-        if (count === limit + 1) void this.recordOveruse(telegramId, limit);
+        if (count === limit + 1)
+          void this.recordOveruse(telegramId, limit, tgUser);
         if (count > limit) {
           miniAppGateCounters.rateLimited += 1;
           res.status(429).json({
@@ -134,13 +137,20 @@ export class MiniAppGateMiddleware implements NestMiddleware {
     next();
   }
 
-  private validInitDataUser(req: Request): number | null {
+  private validInitDataUser(
+    req: Request,
+  ): { id: number; firstName: string | null; username: string | null } | null {
     const raw = req.headers['x-telegram-init-data'];
     const initData = Array.isArray(raw) ? raw[0] : raw;
     if (!initData) return null;
     try {
-      const result = this.telegramAuth.validateInitData(initData);
-      return result.user?.id ?? null;
+      const user = this.telegramAuth.validateInitData(initData).user;
+      if (user?.id == null) return null;
+      return {
+        id: user.id,
+        firstName: user.first_name ?? null,
+        username: user.username ?? null,
+      };
     } catch {
       return null;
     }
@@ -189,8 +199,33 @@ export class MiniAppGateMiddleware implements NestMiddleware {
   }
 
   /** 하루 상세 조회 상한을 처음 넘은 순간: 회원 활동에 남기고 어드민 종 알림 (하루 한 번) */
-  private async recordOveruse(telegramId: number, limit: number) {
+  private async recordOveruse(
+    telegramId: number,
+    limit: number,
+    tgUser: { firstName: string | null; username: string | null } | null,
+  ) {
     const day = this.detailCounter.today();
+    // 로그인 안 한 사람도 어드민 회원 목록에서 바로 [차단]할 수 있게 "미가입" 회원으로 한 줄 올린다
+    // (과다 조회한 사람만. 이미 있으면 그대로)
+    try {
+      await this.dataSource
+        .createQueryBuilder()
+        .insert()
+        .into(User)
+        .values({
+          telegramId,
+          firstName: tgUser?.firstName?.slice(0, 100) ?? null,
+          username: tgUser?.username?.slice(0, 100) ?? null,
+          isRegistered: false,
+          isBlocked: false,
+        })
+        .orIgnore()
+        .execute();
+    } catch (error) {
+      this.logger.warn(
+        `과다 조회 회원 목록 추가 실패: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     try {
       await this.dataSource.getRepository(MemberActivity).insert({
         id: randomUUID(),
