@@ -65,15 +65,23 @@ apiClient.interceptors.request.use((config) => {
 
 /** 서버가 "미니앱에서만" 이라고 거절하면 화면에 안내를 띄운다 */
 export const MINIAPP_ONLY_EVENT = 'newlink:miniapp-only';
+/** 어드민이 차단한 계정 */
+export const ACCOUNT_BLOCKED_EVENT = 'newlink:account-blocked';
+/** 채널 상세 하루 상한을 넘음 (메시지를 detail 로 넘김) */
+export const DETAIL_LIMIT_EVENT = 'newlink:detail-limit';
 
 apiClient.interceptors.response.use(undefined, (error: unknown) => {
-  const e = error as { response?: { status?: number; data?: { code?: string } } };
-  if (e.response?.status === 403 && e.response.data?.code === 'miniapp_only') {
-    try {
+  const e = error as { response?: { status?: number; data?: { code?: string; message?: string } } };
+  try {
+    if (e.response?.status === 403 && e.response.data?.code === 'miniapp_only') {
       window.dispatchEvent(new Event(MINIAPP_ONLY_EVENT));
-    } catch {
-      /* 무시 */
+    } else if (e.response?.status === 403 && e.response.data?.code === 'account_blocked') {
+      window.dispatchEvent(new CustomEvent(ACCOUNT_BLOCKED_EVENT, { detail: e.response.data?.message }));
+    } else if (e.response?.status === 429 && e.response.data?.code === 'detail_limit') {
+      window.dispatchEvent(new CustomEvent(DETAIL_LIMIT_EVENT, { detail: e.response.data?.message }));
     }
+  } catch {
+    /* 무시 */
   }
   return Promise.reject(error);
 });

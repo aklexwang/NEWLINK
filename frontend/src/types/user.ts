@@ -21,4 +21,6 @@ export interface AdminUser extends AppUser {
   payoutTon?: number;
   payoutUsdt?: number;
   payoutStars?: number;
+  /** 최근 7일 채널 상세 하루 상한(100) 초과 기록 */
+  detailOveruse?: { count: number; lastAt: string } | null;
 }

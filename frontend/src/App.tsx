@@ -4,6 +4,7 @@ import { AppLayout } from './components/AppLayout';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { NewVersionBanner } from './components/NewVersionBanner';
 import { MiniAppOnlyNotice } from './components/MiniAppOnlyNotice';
+import { AccountNotices } from './components/AccountNotices';
 import { AuthProvider } from './providers/AuthProvider';
 import { ThemeProvider } from './providers/ThemeProvider';
 import { AppToastProvider } from './providers/AppToastProvider';
@@ -70,6 +71,7 @@ export default function App() {
               </Routes>
               <NewVersionBanner />
               <MiniAppOnlyNotice />
+              <AccountNotices />
             </AuthProvider>
             </ThemeProvider>
         </AppErrorBoundary>

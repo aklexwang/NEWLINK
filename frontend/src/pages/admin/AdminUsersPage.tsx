@@ -136,6 +136,7 @@ export function AdminUsersPage() {
 
   const registeredCount = users.filter((u) => u.isRegistered).length;
   const blockedCount = users.filter((u) => u.isBlocked).length;
+  const overuseUsers = users.filter((u) => u.detailOveruse && !u.isBlocked);
 
   return (
     <>
@@ -144,6 +145,29 @@ export function AdminUsersPage() {
           가입 회원 {registeredCount}명 · 전체 {users.length}명
           {blockedCount > 0 ? ` · 차단 ${blockedCount}명` : ''}
         </p>
+        {overuseUsers.length > 0 && (
+          <div className="mt-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm">
+            <p className="font-bold text-red-400">
+              ⚠️ 채널 상세 과다 조회 회원 {overuseUsers.length}명 (최근 7일, 하루 100개 초과)
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              목록을 긁어 가는 프로그램일 수 있어요. 아래 빨간 표시가 있는 회원을 확인하고 필요하면 [차단]하세요.
+              차단하면 1분 안에 미니앱 이용이 모두 막혀요.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {overuseUsers.map((u) => (
+                <button
+                  key={u.telegramId}
+                  type="button"
+                  onClick={() => setQuery(String(u.telegramId))}
+                  className="rounded-lg bg-red-500/20 px-2 py-1 font-mono text-xs text-red-300 hover:bg-red-500/30"
+                >
+                  {u.username ? `@${u.username}` : u.telegramId} · {u.detailOveruse!.count}일
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -237,7 +261,17 @@ export function AdminUsersPage() {
                             {(user.firstName?.[0] ?? user.username?.[0] ?? '?').toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">{user.firstName ?? '-'}</p>
+                            <p className="flex items-center gap-1.5 font-medium text-foreground">
+                              {user.firstName ?? '-'}
+                              {user.detailOveruse && (
+                                <span
+                                  title={`최근 7일 중 ${user.detailOveruse.count}일 하루 100개 넘게 상세 조회 · 마지막 ${new Date(user.detailOveruse.lastAt).toLocaleString('ko-KR')}`}
+                                  className="rounded-md bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-400"
+                                >
+                                  과다 조회 {user.detailOveruse.count}일
+                                </span>
+                              )}
+                            </p>
                             <p className="text-xs text-muted-foreground">
                               {user.username ? `@${user.username}` : 'username 없음'}
                             </p>

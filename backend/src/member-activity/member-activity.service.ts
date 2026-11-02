@@ -94,15 +94,41 @@ export class MemberActivityService {
   }
 
   /** 어드민 회원 패널: 성향 + 최근 활동 */
+  /** 최근 N일 채널 상세 과다 조회(하루 상한 초과) 기록: 회원별 횟수·마지막 시각 */
+  async overuseSummary(
+    days = 7,
+  ): Promise<Record<string, { count: number; lastAt: string }>> {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const rows = await this.repo.find({
+      where: { kind: 'overuse', createdAt: MoreThanOrEqual(since) },
+      select: ['telegramId', 'createdAt'],
+      take: 5000,
+    });
+    const out: Record<string, { count: number; lastAt: string }> = {};
+    for (const row of rows) {
+      const key = String(row.telegramId);
+      const at = new Date(row.createdAt).toISOString();
+      const cur = out[key];
+      if (!cur) out[key] = { count: 1, lastAt: at };
+      else {
+        cur.count += 1;
+        if (at > cur.lastAt) cur.lastAt = at;
+      }
+    }
+    return out;
+  }
+
   async profile(telegramId: number) {
     const since = new Date(
       Date.now() - MEMBER_ACTIVITY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
     );
-    const rows = await this.repo.find({
-      where: { telegramId, createdAt: MoreThanOrEqual(since) },
-      order: { createdAt: 'DESC' },
-      take: 3000,
-    });
+    const rows = (
+      await this.repo.find({
+        where: { telegramId, createdAt: MoreThanOrEqual(since) },
+        order: { createdAt: 'DESC' },
+        take: 3000,
+      })
+    ).filter((r) => r.kind !== 'overuse');
     const ids = [
       ...new Set(rows.map((r) => r.channelId).filter(Boolean)),
     ] as string[];

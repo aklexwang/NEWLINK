@@ -7,7 +7,9 @@ export type MemberActivityKind =
   | 'open'
   | 'view'
   | 'favorite'
-  | 'category';
+  | 'category'
+  /** 채널 상세 하루 조회 상한(100)을 넘음 — 어드민 회원 화면 경고용 */
+  | 'overuse';
 
 /**
  * 로그인 회원의 활동 기록(성향 파악용). 어드민만 본다. 90일 지나면 지우고, 회원을 지우면 같이 지운다.

@@ -59,12 +59,13 @@ export class AdminUsersController {
 
   @Get()
   async findAll() {
-    const [users, submissionCounts, payoutTotals, adSummaries] =
+    const [users, submissionCounts, payoutTotals, adSummaries, overuse] =
       await Promise.all([
         this.usersService.findAll(),
         this.channelsService.getSubmissionCountsByUser(),
         this.rewards.paidTotalsByTelegramId(),
         this.adStats.advertiserSummaries(),
+        this.memberActivity?.overuseSummary(7).catch(() => ({})) ?? {},
       ]);
 
     return users.map((user) => {
@@ -78,6 +79,11 @@ export class AdminUsersController {
         walletKind: user.walletKind,
         isRegistered: user.isRegistered,
         isBlocked: user.isBlocked,
+        /** 최근 7일 채널 상세 하루 상한(100) 초과 기록 */
+        detailOveruse:
+          (overuse as Record<string, { count: number; lastAt: string }>)[
+            String(user.telegramId)
+          ] ?? null,
         isAdvertiser: Boolean(user.isAdvertiser),
         adSummary: adSummaries[String(user.telegramId)] ?? {
           ads: 0,
