@@ -23,6 +23,7 @@ export async function getAdminVisitors() {
       lastSeenAt: string;
       visitDays: number;
       isMember: boolean;
+      isAdvertiser: boolean;
       isBlocked: boolean;
     }>;
   };

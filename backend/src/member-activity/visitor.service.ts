@@ -90,7 +90,7 @@ export class VisitorService {
     const members = ids.length
       ? await this.users.find({
           where: { telegramId: In(ids) },
-          select: ['telegramId', 'isRegistered', 'isBlocked'],
+          select: ['telegramId', 'isBlocked', 'isAdvertiser'],
         })
       : [];
     const memberMap = new Map(members.map((m) => [Number(m.telegramId), m]));
@@ -116,7 +116,9 @@ export class VisitorService {
           firstSeenAt: r.firstSeenAt,
           lastSeenAt: r.lastSeenAt,
           visitDays: r.visitDays,
-          isMember: Boolean(m?.isRegistered),
+          // 회원 = 텔레그램으로 로그인해 회원 목록(users)에 있는 사람 (지갑 등록 여부와 무관)
+          isMember: Boolean(m),
+          isAdvertiser: Boolean(m?.isAdvertiser),
           isBlocked: Boolean(m?.isBlocked),
         };
       }),

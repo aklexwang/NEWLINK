@@ -427,6 +427,7 @@ type VisitorRow = {
   lastSeenAt: string;
   visitDays: number;
   isMember: boolean;
+  isAdvertiser: boolean;
   isBlocked: boolean;
 };
 
@@ -504,6 +505,8 @@ function VisitorsPanel() {
                   <td className="px-4 py-3">
                     {v.isBlocked ? (
                       <span className="rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-400">차단됨</span>
+                    ) : v.isAdvertiser ? (
+                      <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-bold text-amber-500">광고회원</span>
                     ) : v.isMember ? (
                       <span className="rounded-md bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">회원</span>
                     ) : (
