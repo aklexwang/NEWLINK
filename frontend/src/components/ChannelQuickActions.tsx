@@ -68,9 +68,11 @@ export function ChannelQuickActions({
           type="button"
           onClick={(event) => void onFavorite(event)}
           aria-label={`${title ?? ''} 즐겨찾기 추가`}
-          className={`nl-orb-star flex items-center justify-center rounded-full leading-none ${compact ? 'h-6 w-6 text-[11px]' : 'h-9 w-9 text-[16px]'}`}
+          className={`nl-orb-star flex items-center justify-center rounded-full text-nl-muted ${compact ? 'h-6 w-6' : 'h-8 w-8'}`}
         >
-          <span aria-hidden>⭐</span>
+<svg viewBox="0 0 24 24" className={compact ? 'h-4 w-4' : 'h-[22px] w-[22px]'} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
+            <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" />
+          </svg>
         </button>
       )}
       {link && !hideTelegram && (
@@ -78,9 +80,9 @@ export function ChannelQuickActions({
           type="button"
           onClick={onOpen}
           aria-label={`${title ?? ''} 텔레그램에서 바로가기`}
-          className={`nl-orb-tg flex items-center justify-center rounded-full text-white ${compact ? 'h-6 w-6' : 'h-9 w-9'}`}
+          className={`nl-orb-tg flex items-center justify-center rounded-full text-white ${compact ? 'h-6 w-6' : 'h-8 w-8'}`}
         >
-          <svg viewBox="0 0 24 24" className={compact ? '-ml-px h-3 w-3' : '-ml-0.5 h-4 w-4'} fill="currentColor" aria-hidden>
+          <svg viewBox="0 0 24 24" className={compact ? '-ml-px h-3 w-3' : '-ml-px h-3.5 w-3.5'} fill="currentColor" aria-hidden>
             <path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z" />
           </svg>
         </button>
