@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   deleteAdminUser,
+  getAdminVisitors,
   getAdminUsers,
   setAdminUserAdvertiser,
   setAdminUserBlocked,
@@ -22,7 +23,9 @@ export function AdminUsersPage() {
   /** 오른쪽 성향 패널에 열린 회원 */
   const [panelUser, setPanelUser] = useState<AdminUser | null>(null);
   const [params, setParams] = useSearchParams();
-  const kind: 'normal' | 'advertiser' = params.get('kind') === 'advertiser' ? 'advertiser' : 'normal';
+  const kindParam = params.get('kind');
+  const kind: 'normal' | 'advertiser' | 'visitor' =
+    kindParam === 'advertiser' ? 'advertiser' : kindParam === 'visitor' ? 'visitor' : 'normal';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -177,11 +180,12 @@ export function AdminUsersPage() {
           </div>
         )}
 
-        <div className="mb-5 grid max-w-3xl grid-cols-2 gap-3">
+        <div className="mb-5 grid max-w-5xl grid-cols-3 gap-3">
           {(
             [
               { id: 'normal', label: '👤 일반회원', desc: `가입해서 제보·즐겨찾기를 쓰는 회원 · ${normalCount}명` },
               { id: 'advertiser', label: '📢 광고회원', desc: `광고문의로 텔레그램 광고를 하는 회원 · ${advertiserCount}명` },
+              { id: 'visitor', label: '👀 방문자(비회원 포함)', desc: '미니앱을 열어 본 사람 · 텔레그램 ID·이름만, 90일 보관' },
             ] as const
           ).map((item) => {
             const active = kind === item.id;
@@ -202,6 +206,10 @@ export function AdminUsersPage() {
           })}
         </div>
 
+        {kind === 'visitor' ? (
+          <VisitorsPanel />
+        ) : (
+        <>
         <div className="mb-4">
           <input
             value={query}
@@ -401,8 +409,116 @@ export function AdminUsersPage() {
             </table>
           </div>
         )}
+        </>
+        )}
       </div>
       {panelUser && <MemberActivityPanel key={panelUser.telegramId} user={panelUser} onClose={() => setPanelUser(null)} />}
     </>
+  );
+}
+
+type VisitorRow = {
+  telegramId: number;
+  firstName: string | null;
+  username: string | null;
+  languageCode: string | null;
+  isPremium: boolean;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  visitDays: number;
+  isMember: boolean;
+  isBlocked: boolean;
+};
+
+/** 미니앱 방문자(비회원 포함). 전화번호는 받지 않는다 */
+function VisitorsPanel() {
+  const [data, setData] = useState<{ total: number; last7d: number; today: number; items: VisitorRow[] } | null>(null);
+  const [onlyGuests, setOnlyGuests] = useState(true);
+  const [q, setQ] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    getAdminVisitors()
+      .then(setData)
+      .catch(() => setError('방문자 목록을 불러오지 못했어요.'));
+  }, []);
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const rows = (data?.items ?? []).filter((v) => {
+    if (onlyGuests && v.isMember) return false;
+    const k = q.trim().toLowerCase();
+    if (!k) return true;
+    return (
+      String(v.telegramId).includes(k) ||
+      (v.username ?? '').toLowerCase().includes(k) ||
+      (v.firstName ?? '').toLowerCase().includes(k)
+    );
+  });
+  if (error) return <p className="text-sm text-red-500">{error}</p>;
+  if (!data) return <div className="h-32 animate-pulse rounded-[20px] bg-card shadow-[var(--hz-shadow)]" />;
+  return (
+    <div>
+      <p className="mb-3 text-sm text-muted-foreground">
+        오늘 {data.today.toLocaleString('ko-KR')}명 · 최근 7일 {data.last7d.toLocaleString('ko-KR')}명 · 전체{' '}
+        {data.total.toLocaleString('ko-KR')}명 (마지막 방문 후 90일 보관 · 최근 300명 표시)
+      </p>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="ID, 이름, @username 검색"
+          className="w-full max-w-md rounded-xl bg-card px-4 py-3 text-sm outline-none shadow-[var(--hz-shadow)]"
+        />
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input type="checkbox" checked={onlyGuests} onChange={(e) => setOnlyGuests(e.target.checked)} />
+          비회원만 보기
+        </label>
+      </div>
+      {rows.length === 0 ? (
+        <div className="rounded-[20px] bg-card px-6 py-16 text-center text-sm text-muted-foreground shadow-[var(--hz-shadow)]">
+          아직 기록된 방문자가 없어요. 미니앱을 연 사람이 하루 한 번씩 기록돼요.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-[20px] bg-card shadow-[var(--hz-shadow)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">이름</th>
+                <th className="px-4 py-3 font-medium">텔레그램 ID</th>
+                <th className="px-4 py-3 font-medium">구분</th>
+                <th className="px-4 py-3 text-right font-medium">방문한 날</th>
+                <th className="px-4 py-3 font-medium">처음 방문</th>
+                <th className="px-4 py-3 font-medium">마지막 방문</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((v) => (
+                <tr key={v.telegramId} className="border-t border-border">
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-foreground">
+                      {v.firstName ?? '-'}
+                      {v.isPremium && <span className="ml-1 text-xs text-amber-500">★</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{v.username ? `@${v.username}` : 'username 없음'}</p>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-subtle">{v.telegramId}</td>
+                  <td className="px-4 py-3">
+                    {v.isBlocked ? (
+                      <span className="rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-400">차단됨</span>
+                    ) : v.isMember ? (
+                      <span className="rounded-md bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">회원</span>
+                    ) : (
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-subtle">비회원</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">{v.visitDays}일</td>
+                  <td className="px-4 py-3 text-subtle">{fmt(v.firstSeenAt)}</td>
+                  <td className="px-4 py-3 text-subtle">{fmt(v.lastSeenAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

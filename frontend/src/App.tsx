@@ -23,6 +23,7 @@ const MyPage = lazy(importWithReload(() => import('./pages/MyPage').then((m) => 
 const RankingPage = lazy(importWithReload(() => import('./pages/RankingPage').then((m) => ({ default: m.RankingPage }))));
 const WeeklyPage = lazy(importWithReload(() => import('./pages/WeeklyPage').then((m) => ({ default: m.WeeklyPage }))));
 const SubmitRoute = lazy(importWithReload(() => import('./pages/SubmitRoute')));
+const PrivacyPage = lazy(importWithReload(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage }))));
 
 function Lazy({ children }: { children: ReactNode }) {
   return <Suspense fallback={<div className="min-h-[60vh]" />}>{children}</Suspense>;
@@ -67,6 +68,7 @@ export default function App() {
                   <Route path="/favorites" element={<Lazy><FavoritesPage /></Lazy>} />
                   <Route path="/submit" element={<Lazy><SubmitRoute /></Lazy>} />
                   <Route path="/my" element={<Lazy><MyPage /></Lazy>} />
+                  <Route path="/privacy" element={<Lazy><PrivacyPage /></Lazy>} />
                 </Route>
               </Routes>
               <NewVersionBanner />

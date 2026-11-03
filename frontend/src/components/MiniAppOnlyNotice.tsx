@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { MINIAPP_ONLY_EVENT } from '../api/client';
 
 const BOT_USERNAME =
@@ -7,12 +8,14 @@ const BOT_USERNAME =
 /** 서버가 "미니앱에서만" 이라고 거절했을 때(일반 브라우저로 직접 연 경우) 전체 화면 안내 */
 export function MiniAppOnlyNotice() {
   const [show, setShow] = useState(false);
+  const { pathname } = useLocation();
   useEffect(() => {
     const on = () => setShow(true);
     window.addEventListener(MINIAPP_ONLY_EVENT, on);
     return () => window.removeEventListener(MINIAPP_ONLY_EVENT, on);
   }, []);
-  if (!show) return null;
+  // 개인정보 처리방침은 텔레그램 밖에서도 읽을 수 있어야 한다
+  if (!show || pathname === '/privacy') return null;
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-nl-bg px-6 text-center">
       <div className="text-5xl" aria-hidden>

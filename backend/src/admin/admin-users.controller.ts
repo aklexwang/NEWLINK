@@ -20,6 +20,7 @@ import { telegramIdKey } from '../common/telegram-id';
 import { UsersService } from '../users/users.service';
 import { AdStatsService } from '../ads/ad-stats.service';
 import { MemberActivityService } from '../member-activity/member-activity.service';
+import { VisitorService } from '../member-activity/visitor.service';
 
 class SetUserBlockedDto {
   @IsBoolean()
@@ -40,7 +41,15 @@ export class AdminUsersController {
     private readonly rewards: RewardPayoutService,
     private readonly adStats: AdStatsService,
     @Optional() private readonly memberActivity?: MemberActivityService,
+    @Optional() private readonly visitors?: VisitorService,
   ) {}
+
+  /** 미니앱 방문자(비회원 포함) 최근 순 — 텔레그램 ID·이름·@아이디·방문 날 수 */
+  @Get('visitors')
+  visitorList() {
+    if (!this.visitors) return { total: 0, last7d: 0, today: 0, items: [] };
+    return this.visitors.list(300);
+  }
 
   /** 회원 오른쪽 패널: 성향·검색 키워드·이동한 방 (최근 90일) */
   @Get(':telegramId/activity')

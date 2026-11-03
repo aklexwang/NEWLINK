@@ -1,4 +1,4 @@
-import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
+import { Injectable, Logger, NestMiddleware, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
@@ -21,6 +21,7 @@ import {
 import { MemberActivity } from '../member-activity/member-activity.entity';
 import { AdminNotification } from '../notifications/admin-notification.entity';
 import { User } from '../users/user.entity';
+import { VisitorService } from '../member-activity/visitor.service';
 
 export const BLOCKED_MESSAGE =
   '이용이 제한된 계정이에요. 문의는 텔레그램 @kplay33 으로 부탁드려요.';
@@ -52,6 +53,7 @@ export class MiniAppGateMiddleware implements NestMiddleware {
     private readonly telegramAuth: TelegramAuthService,
     private readonly jwtAuth: JwtAuthService,
     private readonly dataSource: DataSource,
+    @Optional() private readonly visitors?: VisitorService,
   ) {}
 
   use(req: Request, res: Response, next: NextFunction) {
@@ -92,6 +94,10 @@ export class MiniAppGateMiddleware implements NestMiddleware {
         message: MINIAPP_ONLY_MESSAGE,
       });
       return;
+    }
+    if (telegramId != null && tgUser) {
+      // 미니앱 방문자 기록(비회원 포함, 하루 한 번). 전화번호는 받지 않는다
+      this.visitors?.noteVisit(tgUser);
     }
     if (telegramId != null) {
       void this.refreshBlocked();
@@ -137,9 +143,13 @@ export class MiniAppGateMiddleware implements NestMiddleware {
     next();
   }
 
-  private validInitDataUser(
-    req: Request,
-  ): { id: number; firstName: string | null; username: string | null } | null {
+  private validInitDataUser(req: Request): {
+    id: number;
+    firstName: string | null;
+    username: string | null;
+    languageCode: string | null;
+    isPremium: boolean;
+  } | null {
     const raw = req.headers['x-telegram-init-data'];
     const initData = Array.isArray(raw) ? raw[0] : raw;
     if (!initData) return null;
@@ -150,6 +160,8 @@ export class MiniAppGateMiddleware implements NestMiddleware {
         id: user.id,
         firstName: user.first_name ?? null,
         username: user.username ?? null,
+        languageCode: user.language_code ?? null,
+        isPremium: Boolean(user.is_premium),
       };
     } catch {
       return null;

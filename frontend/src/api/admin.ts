@@ -6,6 +6,28 @@ import type { AdminUser } from '../types/user';
 import { getAdminAuthHeaders } from '../utils/adminAccess';
 
 
+/** 미니앱 방문자(비회원 포함) 최근 300명 */
+export async function getAdminVisitors() {
+  const { data } = await apiClient.get('/admin/users/visitors', { headers: getAdminAuthHeaders() });
+  return data as {
+    total: number;
+    last7d: number;
+    today: number;
+    items: Array<{
+      telegramId: number;
+      firstName: string | null;
+      username: string | null;
+      languageCode: string | null;
+      isPremium: boolean;
+      firstSeenAt: string;
+      lastSeenAt: string;
+      visitDays: number;
+      isMember: boolean;
+      isBlocked: boolean;
+    }>;
+  };
+}
+
 export async function getAdminUsers(): Promise<AdminUser[]> {
   const { data } = await apiClient.get<AdminUser[]>('/admin/users', {
     headers: getAdminAuthHeaders(),

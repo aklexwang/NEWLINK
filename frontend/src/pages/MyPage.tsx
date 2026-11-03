@@ -435,6 +435,16 @@ export function MyPage() {
           )}
         </nav>
       )}
+
+      <div className="mt-6 text-center">
+        <button
+          type="button"
+          onClick={() => navigate('/privacy')}
+          className="px-3 py-2 text-[12px] text-nl-muted underline underline-offset-2"
+        >
+          개인정보 처리방침
+        </button>
+      </div>
     </div>
   );
 }
