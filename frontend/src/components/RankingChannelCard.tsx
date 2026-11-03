@@ -167,9 +167,10 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
             </p>
           </div>
           <div className="min-w-0 text-center">
-            <p className="text-[10px] text-nl-muted">조회율</p>
+            {/* 그룹은 조회 수가 없어서 조회율 대신 7일 대화 수 */}
+            <p className="text-[10px] text-nl-muted">{isGroup ? '7일 대화' : '조회율'}</p>
             <p className="mt-0.5 truncate text-[14px] font-bold tabular-nums text-tg-text">
-              {isGroup ? '—' : formatPercent(channel.viewRate ?? null)}
+              {isGroup ? formatNumber(channel.posts7d ?? null) || '—' : formatPercent(channel.viewRate ?? null)}
             </p>
           </div>
           <div className="min-w-0 text-center">

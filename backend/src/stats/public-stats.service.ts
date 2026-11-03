@@ -1047,6 +1047,8 @@ export class PublicStatsService implements OnApplicationBootstrap {
         score: channel.score,
         grade: channel.grade,
         viewRate: channel.viewRate,
+        /** 채널: 7일 글 수 · 그룹: 7일 대화(메시지) 수 */
+        posts7d: channel.posts7d ?? null,
         growth7d: channel.growth7d,
         memberDelta7d: channel.memberDelta7d ?? null,
         isVerified: Boolean(channel.isVerified),

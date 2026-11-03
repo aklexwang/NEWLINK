@@ -15,6 +15,8 @@ export interface RankingChannel {
   score?: number | null;
   grade?: ChannelGrade | null;
   viewRate?: number | null;
+  /** 채널: 7일 글 수 · 그룹: 7일 대화(메시지) 수 */
+  posts7d?: number | null;
   growth7d?: number | null;
   memberDelta7d?: number | null;
   isVerified?: boolean;

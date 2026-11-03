@@ -274,8 +274,14 @@ export function ChannelCard({
             tone={isPrivate ? 'text-[12px] leading-5 text-nl-muted' : undefined}
           />
           <Metric
-            label="조회율"
-            value={isPrivate ? '비공개' : isGroup ? '-' : formatPercent(summary?.viewRate ?? null)}
+            label={isGroup ? '7일 대화' : '조회율'}
+            value={
+              isPrivate
+                ? '비공개'
+                : isGroup
+                  ? formatNumber(channel.posts7d ?? null) || '-'
+                  : formatPercent(summary?.viewRate ?? null)
+            }
             tone={isPrivate ? 'text-[12px] leading-5 text-nl-muted' : undefined}
           />
           <Metric
@@ -368,9 +374,9 @@ export function ChannelCard({
               <p className="mt-0.5 text-[18px] font-bold tabular-nums text-tg-text">{members ?? '-'}</p>
             </div>
             <div className="rounded-xl bg-nl-card px-3 py-2.5 text-center ring-1 ring-nl-line">
-              <p className="text-[11px] text-nl-muted">최근 7일 게시글</p>
+              <p className="text-[11px] text-nl-muted">{isGroup ? '최근 7일 대화' : '최근 7일 게시글'}</p>
               <p className="mt-0.5 text-[18px] font-bold tabular-nums text-tg-text">
-                {isGroup ? '-' : (channel.posts7d ?? '-')}
+                {formatNumber(channel.posts7d ?? null) || '-'}
               </p>
             </div>
           </div>
