@@ -52,6 +52,7 @@ import {
 } from './member-count.logic';
 import {
   isLightCollectTarget,
+  isPreviewBlocked,
   PREVIEW_DISABLED_ERROR,
   shouldMarkLightNoPostsFailed,
   resolveBlockedReserve,
@@ -561,6 +562,26 @@ export class ChannelCollectorService {
     if (!channel.username) {
       channel.username = username;
       await this.channelRepository.save(channel);
+    }
+    // 웹 미리보기가 막힌 채널은 공개 페이지로는 글을 못 읽는다 → 어드민 [지금 수집]은 수집 계정(MTProto)을 먼저 쓴다
+    if (
+      channel.linkType === LinkType.CHANNEL &&
+      isPreviewBlocked(channel) &&
+      this.mtproto.canCollect(channel)
+    ) {
+      const viaMtproto = await this.mtproto.collectAndSave(channel);
+      if (viaMtproto.ok) {
+        return { ...viaMtproto, note: '수집 계정(MTProto)으로 글까지 읽음' };
+      }
+      const fallback = await this.collectPublicUsernameProfile(
+        channel,
+        username,
+      );
+      const why =
+        this.mtproto.remainingResolves() < 1 && !canReuseStoredAccess(channel)
+          ? '수집 계정 오늘 아이디 조회 한도를 다 써서 공개 페이지만 읽음 (내일 다시)'
+          : `수집 계정으로 못 읽어 공개 페이지만 읽음 (${viaMtproto.reason})`;
+      return { ...fallback, note: why };
     }
     return this.collectPublicUsernameProfile(channel, username);
   }
