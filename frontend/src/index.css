@@ -110,9 +110,9 @@ html.nl-member *::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .nl-orb-star {
   background: transparent;
 }
-/* 텔레그램 버튼: 납작한 파란 원 (그림자·그라데이션 없음) */
+/* 텔레그램 버튼: 배경 없이 파란 종이비행기만 */
 .nl-orb-tg {
-  background: #2aabee;
+  background: transparent;
 }
 .nl-orb-star:active,
 .nl-orb-tg:active {
