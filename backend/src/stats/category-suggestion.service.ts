@@ -124,20 +124,48 @@ export class CategorySuggestionService {
       error: null,
       finishedAt: null,
     };
+    let failed = 0;
+    let lastError: string | null = null;
     for (const channel of channels) {
       this.categoryRun.done += 1;
       const before = channel.category;
-      const next = await this.channelCategory.classifyOne(channel, {
-        force: true,
-        // 어드민이 분류대기에서 직접 누른 경우만 50% 확신이면 옮긴다(자동 분류는 70% 그대로)
-        minConfidence:
-          name === PENDING_CATEGORY_NAME
-            ? MANUAL_PENDING_MIN_CONFIDENCE
-            : undefined,
-      });
-      if (next.category !== before) {
-        changed.push({ title: channel.title, from: before, to: next.category });
+      // 한 방에서 오류가 나도 전체를 멈추지 않고 다음 방으로 (오류는 기록만)
+      try {
+        const next = await this.channelCategory.classifyOne(channel, {
+          force: true,
+          // 어드민이 분류대기에서 직접 누른 경우만 50% 확신이면 옮긴다(자동 분류는 70% 그대로)
+          minConfidence:
+            name === PENDING_CATEGORY_NAME
+              ? MANUAL_PENDING_MIN_CONFIDENCE
+              : undefined,
+        });
+        if (next.category !== before) {
+          changed.push({
+            title: channel.title,
+            from: before,
+            to: next.category,
+          });
+        }
+      } catch (error) {
+        failed += 1;
+        lastError = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `AI 재확인 실패 (${channel.username ?? channel.id}): ${lastError}`,
+        );
+        // 연속으로 다 실패하면(설정·DB 문제) 더 돌지 않는다
+        if (
+          failed >= 5 &&
+          changed.length === 0 &&
+          failed === this.categoryRun.done
+        ) {
+          throw new Error(`연속 실패: ${lastError}`);
+        }
       }
+    }
+    if (failed > 0) {
+      this.logger.warn(
+        `카테고리 "${name}" AI 재확인 중 ${failed}개 실패 (마지막: ${lastError})`,
+      );
     }
     if (changed.length) {
       this.publicStats.clearPublicCaches();

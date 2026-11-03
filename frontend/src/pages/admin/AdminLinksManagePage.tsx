@@ -1100,8 +1100,14 @@ function PendingAiPanel({ onDone }: { onDone: () => void }) {
         }
       }
       onDone();
-    } catch {
-      setResult('AI 분류 중 오류가 났어요. 잠시 뒤 다시 눌러 주세요.');
+    } catch (error) {
+      // 원인을 알 수 있게 서버가 준 오류(또는 연결 오류)를 같이 보여 준다
+      const e = error as { response?: { status?: number; data?: { message?: unknown } }; message?: string };
+      const serverMsg = typeof e.response?.data?.message === 'string' ? e.response.data.message : null;
+      const detail = e.response?.status
+        ? `서버 응답 ${e.response.status}${serverMsg ? ` · ${serverMsg}` : ''}`
+        : (e.message || '연결이 끊김');
+      setResult(`AI 분류 중 오류가 났어요. 잠시 뒤 다시 눌러 주세요. (${detail})`);
     } finally {
       setRunning(false);
       setProgress(null);
