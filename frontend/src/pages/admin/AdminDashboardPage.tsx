@@ -143,7 +143,23 @@ export function AdminDashboardPage() {
                   : undefined
               }
             />
-            <StatCard to="/admin/links?memberPage=yes" label="회원 페이지 노출" icon={<Eye />} value={data.memberVisible} sub={data.memberAdultOnly ? `성인 카테고리 ${data.memberAdultOnly.toLocaleString('ko-KR')} 포함` : undefined} />
+            {/* 큰 숫자는 회원 화면 "전체"와 같은 기준(같은 링크는 1개). 중복 등록 건수는 아래 작게 */}
+            <StatCard
+              to="/admin/links?memberPage=yes"
+              label="회원 페이지 노출"
+              icon={<Eye />}
+              value={data.memberListTotal ?? data.memberVisible}
+              sub={
+                [
+                  data.memberAdultOnly ? `성인 카테고리 ${data.memberAdultOnly.toLocaleString('ko-KR')} 포함` : null,
+                  data.memberDuplicateExcess
+                    ? `같은 링크 중복 ${data.memberDuplicateExcess.toLocaleString('ko-KR')}건 제외 (등록 ${data.memberVisible.toLocaleString('ko-KR')})`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || undefined
+              }
+            />
             <StatCard
               to="/admin/links?memberPage=no"
               label="회원 페이지 미노출"
