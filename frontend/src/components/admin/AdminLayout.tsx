@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { LogOut, Menu, Moon, PanelLeft, Sun } from 'lucide-react';
+import { LogOut, Menu, PanelLeft } from 'lucide-react';
 import '@/styles/admin.css';
 import { AdminPendingAlertBanner } from './AdminPendingAlertBanner';
 import { RegisterDoneWatcher } from './RegisterDoneWatcher';
 import { AdminNotificationBell } from './AdminNotificationBell';
 import { AdminLoginScreen } from './AdminLoginScreen';
 import { AdminSidebar, adminPageTitle } from './AdminSidebar';
-import { AdminThemeProvider, useAdminTheme } from './AdminThemeProvider';
+import { AdminThemeProvider } from './AdminThemeProvider';
 import { Button } from '@/components/admin/ui/button';
 import { Sheet, SheetContent } from '@/components/admin/ui/sheet';
 import { TooltipProvider } from '@/components/admin/ui/tooltip';
@@ -55,7 +55,6 @@ export function AdminLayout() {
 
 function AdminShell({ onLogout }: { onLogout: () => void }) {
   const location = useLocation();
-  const { theme, toggleTheme } = useAdminTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readCollapsed);
 
@@ -102,38 +101,29 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
             <Menu />
           </Button>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-[color:var(--hz-subtle)]">
+            <p className="text-[12px] font-medium text-muted-foreground">
               관리자 <span className="mx-1">/</span> {adminPageTitle(location.pathname)}
             </p>
-            <p className="mt-0.5 truncate text-[26px] leading-tight font-bold md:text-[34px]">
+            <p className="mt-1 truncate text-[24px] leading-tight font-bold tracking-tight md:text-[28px]">
               {adminPageTitle(location.pathname)}
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-1 rounded-full bg-card p-2 shadow-[var(--hz-shadow)]">
+          <div className="ml-auto flex items-center gap-2">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="hidden rounded-full text-muted-foreground lg:inline-flex"
+              className="hidden rounded-xl bg-card text-muted-foreground shadow-[var(--hz-shadow)] lg:inline-flex"
               onClick={toggleCollapsed}
               aria-label="사이드바 접기"
             >
               <PanelLeft />
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="rounded-full text-muted-foreground"
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? '라이트 모드' : '다크 모드'}
-            >
-              {theme === 'dark' ? <Sun /> : <Moon />}
-            </Button>
             <AdminNotificationBell />
             <Button
               type="button"
-              className="rounded-full bg-[image:var(--hz-brand-gradient)] px-4 text-white"
+              variant="outline"
+              className="rounded-xl bg-card px-4 text-foreground shadow-[var(--hz-shadow)]"
               onClick={logout}
             >
               <LogOut />

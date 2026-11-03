@@ -13,12 +13,9 @@ export type AdminThemeMode = 'dark' | 'light';
 
 const STORAGE_KEY = 'newlink-admin-theme';
 
+/** 2026-11: 어드민은 밝은 테마만 쓴다 (어두운 테마 버튼 없앰) */
 function readStoredTheme(): AdminThemeMode {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light';
-  } catch {
-    return 'light';
-  }
+  return 'light';
 }
 
 interface AdminThemeContextValue {

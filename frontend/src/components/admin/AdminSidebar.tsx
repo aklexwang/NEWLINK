@@ -45,7 +45,7 @@ type NavItem = {
 /** 직접 손대는 메뉴만 늘 보인다 */
 const GROUPS: { title: string; items: NavItem[] }[] = [
   {
-    title: '자주 쓰는 메뉴',
+    title: 'MENU',
     items: [
       { to: '/admin/dashboard', label: '대시보드', icon: <LayoutDashboard /> },
       { to: '/admin/pending', label: '제보·보상', icon: <ClipboardList />, badge: 'pending' },
@@ -56,7 +56,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
-    title: '설정',
+    title: 'SETTINGS',
     items: [
       { to: '/admin/categories', label: '카테고리 설정', icon: <FolderCog /> },
       { to: '/admin/search-terms', label: '검색 금지어', icon: <SearchX /> },
@@ -218,20 +218,20 @@ export function AdminSidebar({
                     to={item.to}
                     className={({ isActive }) =>
                       cn(
-                        'group relative flex items-center gap-3 py-2.5 pr-6 pl-8 text-[15px] transition-colors',
+                        'group relative mx-3 flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[14px] transition-colors',
                         collapsed && 'justify-center px-0',
                         isActive
-                          ? 'font-bold text-sidebar-foreground [&_.hz-icon]:text-sidebar-primary after:absolute after:top-1/2 after:right-0 after:h-9 after:w-1 after:-translate-y-1/2 after:rounded-full after:bg-sidebar-primary'
-                          : 'font-medium text-muted-foreground hover:text-sidebar-foreground',
+                          ? 'bg-sidebar-accent font-semibold text-white'
+                          : 'font-medium text-[#c3cde9] hover:bg-white/5 hover:text-white',
                       )
                     }
                   >
-                    <span className="hz-icon [&>svg]:size-5">{item.icon}</span>
+                    <span className="hz-icon [&>svg]:size-[18px] [&>svg]:stroke-[1.8]">{item.icon}</span>
                     {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
                     {!collapsed && count > 0 && (
                       <Badge
                         className={cn(
-                          'h-5 min-w-5 rounded-full bg-sidebar-primary px-1.5 text-sidebar-primary-foreground',
+                          'h-5 min-w-5 rounded-full bg-[#e5484d] px-1.5 text-white',
                           item.badge === 'pending' && pulse && 'animate-pulse',
                         )}
                       >
@@ -255,26 +255,30 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        'flex h-full min-h-screen flex-col bg-sidebar text-sidebar-foreground shadow-[var(--hz-shadow)]',
-        collapsed ? 'w-[76px]' : 'w-[280px]',
+        'flex h-full min-h-screen flex-col bg-sidebar text-sidebar-foreground',
+        collapsed ? 'w-[76px]' : 'w-[248px]',
       )}
     >
-      <div className={cn('mx-6 border-b py-8 text-center', collapsed && 'mx-3 py-6')}>
-        {collapsed ? (
-          <p className="text-[15px] font-bold tracking-tight">TL</p>
-        ) : (
-          <h1 className="text-[26px] leading-none tracking-tight">
-            <span className="font-bold">TellLink</span>{' '}
-            <span className="font-normal">Admin</span>
-          </h1>
+      <div className={cn('flex items-center gap-3 px-6 pt-7 pb-4', collapsed && 'justify-center px-0')}>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20">
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] text-white" fill="currentColor" aria-hidden>
+            <path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2l-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3Z" />
+          </svg>
+        </span>
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="text-[17px] leading-tight font-bold text-white">
+              Tell<span className="text-[#2aabee]">Link</span>
+            </p>
+            <p className="mt-1 text-[9px] font-semibold tracking-[0.28em] text-[#7f9cff]">ADMIN CONSOLE</p>
+          </div>
         )}
       </div>
-
-      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto py-6" onClick={() => onNavigate?.()}>
+      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" onClick={() => onNavigate?.()}>
         {GROUPS.map((group) => (
           <div key={group.title}>
             {!collapsed && (
-              <p className="px-8 pb-2 text-[11px] font-bold tracking-[0.08em] text-muted-foreground uppercase">
+              <p className="px-6 pb-2 text-[10px] font-semibold tracking-[0.22em] text-[#7f9cff] uppercase">
                 {group.title}
               </p>
             )}
@@ -293,7 +297,7 @@ export function AdminSidebar({
             }}
             aria-expanded={showMore}
             className={cn(
-              'flex w-full items-center gap-2 py-2 pr-6 pl-8 text-left text-[12px] font-bold tracking-[0.04em] text-muted-foreground hover:text-sidebar-foreground',
+              'flex w-full items-center gap-2 px-6 py-2 text-left text-[10px] font-semibold tracking-[0.22em] text-[#7f9cff] hover:text-white',
               collapsed && 'justify-center px-0',
             )}
             title="자동으로 돌아가거나 보기만 하는 메뉴"
@@ -302,7 +306,7 @@ export function AdminSidebar({
               <span className="text-lg leading-none">⋯</span>
             ) : (
               <>
-                <span className="flex-1">더보기 · 자동/통계</span>
+                <span className="flex-1">AUTOMATION · 자동/통계</span>
                 <span className={cn('transition-transform', showMore && 'rotate-180')}>▾</span>
               </>
             )}
@@ -315,8 +319,8 @@ export function AdminSidebar({
         <a
           href={getMemberUrl()}
           className={cn(
-            'flex items-center justify-center gap-2 rounded-[20px] px-4 py-3 text-sm font-medium text-white shadow-[var(--hz-shadow)]',
-            'bg-[image:var(--hz-brand-gradient)] hover:opacity-95',
+            'flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-medium text-[#c3cde9]',
+            'hover:bg-white/5 hover:text-white',
             collapsed && 'px-0',
           )}
         >
