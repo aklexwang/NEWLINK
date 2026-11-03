@@ -111,7 +111,7 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   };
 
   const inputClass =
-    'h-12 w-full rounded-xl border border-[#e3e7f0] bg-white px-4 text-[15px] text-[#111827] outline-none transition placeholder:text-[#a0a8b8] focus:border-[#229af0] focus:ring-4 focus:ring-[#229af0]/15';
+    'h-12 w-full rounded-xl border border-[#e3e7f0] bg-white px-4 text-[15px] text-[#111827] outline-none transition placeholder:text-[#a0a8b8] focus:border-[#3d5ced] focus:ring-4 focus:ring-[#3d5ced]/15';
 
   return (
     <div className="flex min-h-screen bg-[#0b1638]">
@@ -120,7 +120,7 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
       <div className="flex w-full items-center justify-center bg-gradient-to-br from-white via-white to-[#f1f5ff] px-6 py-12 lg:w-[42%] lg:min-w-[440px]">
         <div className="w-full max-w-[360px]">
           <p className="flex items-center gap-2 text-[12px] font-medium text-[#5b6478]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#229af0]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#3d5ced]" />
             관리자 전용
           </p>
           <h1 className="mt-4 text-[30px] font-bold tracking-tight text-[#111827]">관리자 로그인</h1>
@@ -175,7 +175,7 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
             <button
               type="submit"
               disabled={loading}
-              className="mt-3 flex h-[52px] w-full items-center justify-between rounded-xl bg-[#229af0] px-5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(34,154,240,0.3)] transition hover:bg-[#1b8ad9] disabled:opacity-60"
+              className="mt-3 flex h-[52px] w-full items-center justify-between rounded-xl bg-[#3d5ced] px-5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(61,92,237,0.3)] transition hover:bg-[#3450d4] disabled:opacity-60"
             >
               <span>{loading ? '로그인 중…' : '로그인'}</span>
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
