@@ -87,6 +87,10 @@ const FETCH_TIMEOUT_MS = 12_000;
 const FULL_GATE_MAX_WAIT_MS = 60_000;
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+/** 이 기간이 지난 글은 본문 발췌를 비운다 */
+const SLIM_TEXT_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+/** 채널마다 본문을 남겨 둘 최신 글 수 (getPosts 기본 20 · LANGUAGE_POST_LIMIT 20) */
+const KEEP_TEXT_LATEST = 20;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const GONE_AFTER_FAILS = 3;
 
@@ -755,6 +759,32 @@ export class ChannelCollectorService {
       postedAt: LessThan(cutoff),
     });
     return result.affected ?? 0;
+  }
+
+  /**
+   * DB 용량: 30일 지난 글의 본문 발췌·언급 아이디를 비운다 (조회 수·날짜는 남겨 90일 통계는 그대로).
+   * 채널마다 최신 KEEP_TEXT_LATEST 개는 남긴다 (상세 '최근 글'·언어·카테고리 판별이 최신 20개를 씀)
+   */
+  async slimOldPostText(): Promise<number> {
+    const cutoff = new Date(Date.now() - SLIM_TEXT_AFTER_MS);
+    const result: unknown = await this.postRepository.query(
+      `UPDATE channel_posts p
+          SET text_excerpt = NULL, mentioned_usernames = NULL
+         FROM (
+           SELECT id,
+                  ROW_NUMBER() OVER (PARTITION BY channel_id ORDER BY posted_at DESC) AS rn
+             FROM channel_posts
+         ) r
+        WHERE r.id = p.id
+          AND r.rn > $2
+          AND p.posted_at < $1
+          AND (p.text_excerpt IS NOT NULL OR p.mentioned_usernames IS NOT NULL)`,
+      [cutoff, KEEP_TEXT_LATEST],
+    );
+    // pg: [rows, affected]
+    return Array.isArray(result) && typeof result[1] === 'number'
+      ? result[1]
+      : 0;
   }
 
   private async fetchOlderPagesIfNeeded(

@@ -183,6 +183,69 @@ export class CategorySuggestionService {
     return { total: channels.length, changed };
   }
 
+  /** 자동 재분류에서 최근에 해 본 방 (서버 메모리, 같은 방을 매번 다시 묻지 않게) */
+  private readonly autoTried = new Map<string, number>();
+
+  /**
+   * light 수집 끝에 분류대기 방을 조금씩 AI 로 분류한다 (자동 기준 70% 확신).
+   * - 한 번에 최대 max 개, 같은 방은 retryAfterMs 동안 다시 묻지 않음
+   * - 오늘 AI 한도에서 reserve 개는 새로 들어오는 방 몫으로 남김
+   */
+  async autoReclassifyPending(options?: {
+    max?: number;
+    retryAfterMs?: number;
+    reserve?: number;
+    deadlineMs?: number;
+  }): Promise<{ tried: number; moved: number }> {
+    const max = options?.max ?? 30;
+    const retryAfterMs = options?.retryAfterMs ?? 3 * 24 * 60 * 60 * 1000;
+    const reserve = options?.reserve ?? 150;
+    if (this.categoryRun.running) return { tried: 0, moved: 0 };
+    const ai = this.categoryAi.status();
+    if (!ai.configured || ai.stopped) return { tried: 0, moved: 0 };
+    const room = Math.min(max, ai.dailyMax - ai.today - reserve);
+    if (room <= 0) return { tried: 0, moved: 0 };
+    const now = Date.now();
+    for (const [id, at] of this.autoTried) {
+      if (now - at > retryAfterMs) this.autoTried.delete(id);
+    }
+    const candidates = await this.channelRepository.find({
+      where: {
+        status: ChannelStatus.ACTIVE,
+        categoryLocked: false,
+        category: PENDING_CATEGORY_NAME,
+      },
+      order: { createdAt: 'ASC' },
+      take: 300,
+    });
+    const picked = candidates
+      .filter((c) => !this.autoTried.has(c.id))
+      .slice(0, room);
+    let moved = 0;
+    for (const channel of picked) {
+      if (options?.deadlineMs && Date.now() > options.deadlineMs) break;
+      this.autoTried.set(channel.id, Date.now());
+      try {
+        const next = await this.channelCategory.classifyOne(channel, {
+          force: true,
+        });
+        if (next.category !== PENDING_CATEGORY_NAME) moved += 1;
+      } catch (error) {
+        this.logger.warn(
+          `분류대기 자동 AI 실패 (${channel.username ?? channel.id}): ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    if (moved > 0) {
+      this.publicStats.clearPublicCaches();
+      this.channelsService.clearRankingCountsCache();
+    }
+    if (picked.length > 0) {
+      this.logger.log(`분류대기 자동 AI: ${moved}/${picked.length} 옮김`);
+    }
+    return { tried: picked.length, moved };
+  }
+
   /** 진행 상황 보기용: 백그라운드로 시작만 하고 바로 돌려준다 */
   startReclassifyCategory(name: string): { started: boolean } {
     if (this.categoryRun.running) return { started: false };

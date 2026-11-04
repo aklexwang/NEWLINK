@@ -85,7 +85,9 @@ export class ChannelDiscoveryService {
     const lookback = new Date(
       Date.now() - DISCOVERY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
     );
+    // 쓰는 칸만 (본문 발췌까지 통째로 읽으면 메모리를 많이 씀)
     const posts = await this.postRepository.find({
+      select: ['channelId', 'forwardedFrom', 'mentionedUsernames'],
       where: { postedAt: MoreThanOrEqual(lookback) },
     });
     const channels = await this.channelRepository.find();

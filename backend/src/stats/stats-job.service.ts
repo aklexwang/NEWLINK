@@ -1,9 +1,11 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Channel } from '../channels/channel.entity';
+import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
+import { AdminNotificationService } from '../notifications/admin-notification.service';
 import { ChannelVerifyService } from '../channels/channel-verify.service';
 import { ChannelCollectorService } from './channel-collector.service';
 import {
@@ -113,6 +115,8 @@ export class StatsJobService implements OnModuleInit {
     private readonly channelRepository: Repository<Channel>,
     @InjectRepository(StatsRun)
     private readonly runRepository: Repository<StatsRun>,
+    @Optional() private readonly telegramNotify?: TelegramAdminNotifyService,
+    @Optional() private readonly adminNotifications?: AdminNotificationService,
   ) {}
 
   async onModuleInit() {
@@ -132,12 +136,59 @@ export class StatsJobService implements OnModuleInit {
         this.logger.warn(
           `끝나지 않은 수집 ${interrupted.length}건을 interrupted 로 표시했습니다.`,
         );
+        await this.alertInterruptedRuns(interrupted, now);
       }
       await this.refreshLastRunView();
     } catch (error) {
       this.logger.warn(
         `수집 실행 상태 복구 실패: ${error instanceof Error ? error.message : error}`,
       );
+    }
+  }
+
+  /**
+   * 서버가 수집 도중 꺼졌다 켜진 것 = 메모리 부족·배포·Render 재시작.
+   * 어드민 종 + 텔레그램으로 바로 알린다 (11/4 메모리 부족 재시작을 늦게 알아챈 일 때문)
+   */
+  private async alertInterruptedRuns(
+    runs: Array<
+      Pick<StatsRun, 'id' | 'mode' | 'startedAt' | 'processed' | 'total'>
+    >,
+    now: Date,
+  ) {
+    const kst = (d: Date) =>
+      d.toLocaleString('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    for (const run of runs) {
+      const mode = run.mode === 'full' ? '전체 수집' : '가벼운 수집';
+      const minutes = Math.round(
+        (now.getTime() - new Date(run.startedAt).getTime()) / 60000,
+      );
+      const title = `⚠️ ${mode}이 중간에 끊겼어요 (서버 재시작)`;
+      const body = `${kst(new Date(run.startedAt))} 시작 · 약 ${minutes}분 뒤 끊김 · 처리 ${run.processed}/${run.total}. 배포가 아니었다면 메모리 부족일 수 있어요. Render Events 를 확인해 주세요.`;
+      try {
+        const created = await this.adminNotifications?.notifyOnce({
+          key: `run-interrupted:${run.id}`,
+          type: 'collect',
+          title,
+          body,
+          link: '/admin/collect',
+        });
+        if (created !== false) {
+          await this.telegramNotify?.notifyText(
+            `<b>TellLink ${title}</b>\n${body}`,
+          );
+        }
+      } catch (error) {
+        this.logger.warn(
+          `수집 끊김 알림 실패: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
   }
 
@@ -361,6 +412,10 @@ export class StatsJobService implements OnModuleInit {
       if (pruned > 0) {
         this.logger.log(`90일 지난 게시글 ${pruned}건을 삭제했습니다.`);
       }
+      const slimmed = await this.collector.slimOldPostText().catch(() => 0);
+      if (slimmed > 0) {
+        this.logger.log(`30일 지난 글 ${slimmed}건의 본문 발췌를 비웠습니다.`);
+      }
       await this.channelVerify.recheckVerifiedChannels({
         deadlineMs: this.phaseDeadline(
           'VERIFY_RECHECK_BUDGET_MIN',
@@ -393,6 +448,14 @@ export class StatsJobService implements OnModuleInit {
         (progress) => this.noteProgress(progress),
         { deadlineMs: this.collectDeadline('light') },
       );
+      // 분류대기 방을 조금씩 AI 로 (최대 30개·3분, 오늘 AI 한도 150개는 새 방 몫으로 남김)
+      await this.categorySuggestions
+        .autoReclassifyPending({ deadlineMs: Date.now() + 3 * 60 * 1000 })
+        .catch((error: unknown) =>
+          this.logger.warn(
+            `분류대기 자동 AI 실패: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        );
       this.publicStats.clearPublicCaches();
       this.logger.log('light 수집이 끝났습니다.');
     } catch (error) {
