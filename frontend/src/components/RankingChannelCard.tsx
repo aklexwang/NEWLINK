@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { trackRankAdClick } from '../api/ranking';
 import type { RankingChannel } from '../types/ranking';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
-import { channelDetailPath } from '../utils/channelDetailPath';
+import { channelDetailPath, isInviteLink } from '../utils/channelDetailPath';
 import { formatPercent } from '../utils/formatCount';
 import {
   deltaTone,
@@ -16,7 +16,6 @@ import { GradeBadge } from './GradeBadge';
 import { InitialAvatar } from './InitialAvatar';
 import { isBlankAvatarImage } from '../utils/avatarFallback';
 import { VerifiedBadge } from './VerifiedBadge';
-import { PublicPrivateBadge } from './PublicPrivateBadge';
 import { Sparkline } from './Sparkline';
 
 interface RankingChannelCardProps {
@@ -71,6 +70,8 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
   // 데이터 부족 배지는 등급 배지 옆 표시로 대신하고, 나머지 배지만 최대 3개
   const tags = (channel.badges ?? []).filter((badge) => badge.code !== 'low_data').slice(0, 3);
   const top3 = rank != null && rank <= 3;
+
+  const isPrivateRoom = isInviteLink(channel.link);
 
   return (
     // 등급 배지가 버튼이라 카드는 button 이 아니라 role="link" 로 둔다 (버튼 안 버튼 방지)
@@ -149,9 +150,6 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
         <div className="min-w-0 flex-1">
           {/* 채널 이름은 줄이지 않고 다 보여 준다 (길면 다음 줄로) */}
           <p className="text-[15px] font-bold leading-snug break-keep text-tg-text [overflow-wrap:anywhere]">
-            <span className="mr-1.5 inline-flex align-[-2px]">
-              <PublicPrivateBadge link={channel.link} />
-            </span>
             {channel.title}
             {channel.isVerified && (
               <span className="ml-1 inline-flex align-[-2px]">
@@ -197,8 +195,15 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
         </div>
       </div>
 
-      {(tags.length > 0 || lowData) && (
-        <div className="mt-2 ml-[50px] flex flex-wrap items-center gap-1.5">
+      {/* 맨 앞에 공개/비공개 글자 → 신규·인기 같은 태그 → 데이터 모으는 중 */}
+      <div className="mt-2 ml-[50px] flex flex-wrap items-center gap-1.5">
+        <span
+          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+            isPrivateRoom ? 'bg-red-500/12 text-red-400' : 'bg-emerald-500/12 text-emerald-400'
+          }`}
+        >
+          {isPrivateRoom ? '비공개' : '공개'}
+        </span>
           {tags.map((badge) => (
             <span
               key={badge.code}
@@ -212,8 +217,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
               데이터 모으는 중
             </span>
           )}
-        </div>
-      )}
+      </div>
     </article>
   );
 }
