@@ -280,7 +280,7 @@ export function RankingPage() {
         ) : error ? (
           <p className="px-4 py-8 text-center text-sm text-tg-hint">{error}</p>
         ) : (
-          <div className="flex flex-col gap-3 px-4 pt-1 pb-6">
+          <div className="flex flex-col px-4 pt-1 pb-6">
             {rows.map((row) => (
               <RankingChannelCard
                 key={row.adId ? `ad-${row.adId}` : row.channel.id}

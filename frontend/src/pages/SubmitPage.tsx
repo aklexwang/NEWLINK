@@ -38,10 +38,15 @@ export function SubmitPage() {
   const pendingSubmitRef = useRef(false);
   // 서버가 링크 종류를 판별하지 못했을 때만 회원에게 선택을 받는다.
   const [needLinkType, setNeedLinkType] = useState(false);
+  // 검색에서 "이 방 제보하기"로 오면 검색어가 아이디·링크 모양일 때만 링크 칸에 미리 넣는다
+  const prefillLink = (() => {
+    const raw = ((location.state as { prefillLink?: string } | null)?.prefillLink ?? '').trim();
+    return /^(@?[A-Za-z][A-Za-z0-9_]{3,31}|(https?:\/\/)?t\.me\/\S+)$/.test(raw) ? raw : '';
+  })();
   const [form, setForm] = useState({
     linkType: 'channel' as LinkType,
     title: '',
-    link: '',
+    link: prefillLink,
     description: '',
   });
 

@@ -14,7 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getAdminDashboard, getAdminStatsOps, type AdminDashboard } from '../../api/admin';
+import { getAdminDashboard, getAdminStatsOps, type AdminDashboard, type AdminStatsOps } from '../../api/admin';
 import { AdminMessage } from '../../components/admin/AdminTable';
 import { Badge } from '@/components/admin/ui/badge';
 import { Card, CardHeader, CardTitle } from '@/components/admin/ui/card';
@@ -89,6 +89,7 @@ export function AdminDashboardPage() {
   const [message, setMessage] = useState('');
 
   const [configWarnings, setConfigWarnings] = useState<Array<{ level: string; text: string }>>([]);
+  const [ops, setOps] = useState<AdminStatsOps | null>(null);
 
   useEffect(() => {
     void getAdminDashboard()
@@ -96,7 +97,10 @@ export function AdminDashboardPage() {
       .catch(() => setMessage('대시보드를 불러오지 못했습니다.'));
     // 서버 설정이 잘못돼 수집이 멈추는 일을 바로 보이게 (수집 운영과 같은 점검)
     void getAdminStatsOps()
-      .then((ops) => setConfigWarnings(ops.configWarnings ?? []))
+      .then((result) => {
+        setOps(result);
+        setConfigWarnings(result.configWarnings ?? []);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -177,6 +181,8 @@ export function AdminDashboardPage() {
             <StatCard to="/admin/links?createdFrom=7d" label="최근 7일 등록" icon={<CalendarDays />} value={data.registered.last7d.total} />
             <StatCard to="/admin/collect" label="마지막 수집" icon={<Timer />} value={runLabel} />
           </div>
+
+          <TodoCard data={data} ops={ops} />
 
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
             회원 페이지 노출 {data.memberVisible} − 같은 링크 중복 {data.memberDuplicateExcess} = 회원 화면 “전체”{' '}
@@ -285,6 +291,89 @@ export function AdminDashboardPage() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/** 아침에 한눈에: 지금 손볼 것만 모아 둔 카드 (0인 줄은 회색) */
+function TodoCard({ data, ops }: { data: AdminDashboard; ops: AdminStatsOps | null }) {
+  const pending = data.hiddenReasons['분류대기'] ?? 0;
+  const illegal = data.hiddenReasons['불법 의심(관리자 확인)'] ?? 0;
+  const failed = ops?.failures?.total ?? null;
+  const repeated = ops?.failures?.reasons.reduce((sum, r) => sum + r.repeated, 0) ?? 0;
+  const blocked = ops?.previewBlocked?.waiting ?? null;
+  const interrupted = data.lastCollectRun?.status === 'interrupted';
+  const rows: Array<{ title: string; desc: string; value: number | null; unit: string; to: string; urgent?: boolean }> = [
+    { title: '승인 대기', desc: '회원 제보 확인', value: data.pendingCount, unit: '건', to: '/admin/pending' },
+    {
+      title: '분류 대기',
+      desc: '카테고리를 정해야 하는 방 (light 수집마다 AI가 30개씩 정리)',
+      value: pending,
+      unit: '건',
+      to: '/admin/links?category=%EB%B6%84%EB%A5%98%EB%8C%80%EA%B8%B0',
+    },
+    {
+      title: '불법 의심 확인',
+      desc: '관리자가 보고 노출·숨김을 정할 방',
+      value: illegal,
+      unit: '건',
+      to: `/admin/links?memberPage=no&hideReason=${encodeURIComponent('불법 의심(관리자 확인)')}`,
+      urgent: illegal > 0,
+    },
+    {
+      title: '미리보기 막힌 채널',
+      desc: '수집 계정 차례를 기다리는 채널 (새벽 3시에 처리)',
+      value: blocked,
+      unit: '개',
+      to: '/admin/collect',
+    },
+    {
+      title: '수집 실패',
+      desc: repeated > 0 ? `3번 이상 반복 ${repeated.toLocaleString('ko-KR')}개` : '일시적인 실패가 대부분',
+      value: failed,
+      unit: '개',
+      to: '/admin/links?collectStatus=failed',
+    },
+  ];
+  return (
+    <div className="mt-5 rounded-[16px] bg-card p-5 shadow-[var(--hz-shadow)]">
+      <div className="flex items-baseline justify-between">
+        <div>
+          <p className="text-[16px] font-bold text-foreground">처리할 일</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">지금 남아 있는 건 기준 · 누르면 해당 목록으로</p>
+        </div>
+        {interrupted && (
+          <Link to="/admin/collect" className="rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-500">
+            ⚠ 마지막 수집이 중간에 끊겼어요
+          </Link>
+        )}
+      </div>
+      <div className="mt-3 grid gap-x-8 md:grid-cols-2">
+        {rows.map((row) => (
+          <Link
+            key={row.title}
+            to={row.to}
+            className="flex items-center justify-between border-b border-border py-3 last:border-0 hover:opacity-80 md:[&:nth-last-child(2)]:border-0"
+          >
+            <div className="min-w-0 pr-3">
+              <p className="text-sm font-semibold text-foreground">{row.title}</p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">{row.desc}</p>
+            </div>
+            <p
+              className={`shrink-0 text-lg font-bold tabular-nums ${
+                row.value == null || row.value === 0
+                  ? 'text-muted-foreground'
+                  : row.urgent
+                    ? 'text-red-500'
+                    : 'text-primary'
+              }`}
+            >
+              {row.value == null ? '—' : row.value.toLocaleString('ko-KR')}
+              <span className="ml-0.5 text-xs font-medium text-muted-foreground">{row.unit}</span>
+            </p>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getRewardPolicy } from '../api/rewards';
 import { useAuth } from '../providers/AuthProvider';
 import { notifyUser, useTelegram } from '../hooks/useTelegram';
+import { openLoginPrompt } from '../utils/loginPrompt';
 
 /** 아래 메뉴 한 칸: 스레드처럼 아이콘만. 고른 칸은 우리 파란색(#229af0) + 채운 아이콘 */
 const itemClass = (active: boolean) =>
@@ -99,8 +100,10 @@ export function BottomNav() {
     if (authStatus === 'loading') return;
 
     if (!isLoggedIn) {
-      notify('즐겨찾기는 회원 로그인 후 이용할 수 있습니다.');
-      navigate('/my');
+      openLoginPrompt({
+        reason: '로그인하면 즐겨찾기한 방을 모아 볼 수 있어요',
+        onSuccess: () => navigate('/favorites'),
+      });
       return;
     }
 

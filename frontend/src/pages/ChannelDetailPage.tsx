@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { InitialAvatar } from '../components/InitialAvatar';
 import { isBlankAvatarImage } from '../utils/avatarFallback';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -52,6 +52,7 @@ import {
 } from '../utils/memberDisplay';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import { isInviteLink } from '../utils/channelDetailPath';
+import { openLoginPrompt } from '../utils/loginPrompt';
 
 const EVENT_LABEL: Record<ChannelEventType, string> = {
   first_seen: '처음 관측',
@@ -296,6 +297,23 @@ export function ChannelDetailPage() {
     trackTelegramOpen(detail.id);
   };
 
+  /** 친구에게 공유: 텔레그램 공유 창으로 미니앱 링크(이 채널로 바로 열림)를 보낸다 */
+  const handleShare = () => {
+    if (!detail) return;
+    const appLink = `https://t.me/${VERIFY_BOT}?startapp=c_${detail.id}`;
+    const text = `${detail.title} · 텔링크에서 회원 수·순위 보기`;
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(appLink)}&text=${encodeURIComponent(text)}`;
+    try {
+      if (!isLocalBrowser && webApp?.openTelegramLink) {
+        webApp.openTelegramLink(shareUrl);
+        return;
+      }
+    } catch {
+      /* 아래로 */
+    }
+    window.open(shareUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const openPost = (link: string) => {
     openTelegramChannel(webApp, isLocalBrowser, link);
   };
@@ -303,7 +321,13 @@ export function ChannelDetailPage() {
   const handleFavorite = async () => {
     if (!detail) return;
     if (authStatus !== 'authenticated') {
-      toastMessage('즐겨찾기는 로그인 후 사용할 수 있습니다.', 'info');
+      const id = detail.id;
+      openLoginPrompt({
+        reason: '로그인하면 즐겨찾기가 저장돼요',
+        onSuccess: async () => {
+          await toggleFavorite(id).catch(() => undefined);
+        },
+      });
       return;
     }
     try {
@@ -322,7 +346,7 @@ export function ChannelDetailPage() {
   const handleVerify = async () => {
     if (!detail) return;
     if (authStatus !== 'authenticated') {
-      toastMessage('운영자 인증은 로그인 후 사용할 수 있습니다.', 'info');
+      openLoginPrompt({ reason: '로그인하면 내 채널 운영자 인증을 할 수 있어요' });
       return;
     }
     setVerifying(true);
@@ -490,7 +514,7 @@ export function ChannelDetailPage() {
               type="button"
               onClick={() => {
                 if (authStatus !== 'authenticated') {
-                  toastMessage('운영자 인증은 로그인 후 사용할 수 있습니다.', 'info');
+                  openLoginPrompt({ reason: '로그인하면 내 채널 운영자 인증을 할 수 있어요' });
                   return;
                 }
                 setVerifyOpen(true);
@@ -545,7 +569,7 @@ export function ChannelDetailPage() {
         ))}
       </section>
 
-      <section className="mx-4 mt-4 rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line p-4">
+      <section className="mt-5 border-t border-nl-line px-4 pt-5">
         <p className="text-[13px] font-medium text-tg-hint">종합 점수</p>
         <div className="mt-1 flex items-end justify-between gap-3">
           <p className="text-[40px] font-bold leading-none text-tg-text">{detail.score ?? '—'}</p>
@@ -567,7 +591,7 @@ export function ChannelDetailPage() {
         </div>
       </section>
 
-      <section className="mx-4 mt-4 rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line p-4">
+      <section className="mt-5 border-t border-nl-line px-4 pt-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex rounded-full bg-black/[0.05] p-0.5 dark:bg-white/[0.05]">
             <ChartTab active={chartTab === 'members'} onClick={() => setChartTab('members')}>
@@ -628,8 +652,8 @@ export function ChannelDetailPage() {
 
       {isGroup ? null : (
         <>
-      <section className="mx-4 mt-4 rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line p-4">
-        <h2 className="text-[15px] font-bold text-tg-text">📊 글 구성 (90일)</h2>
+      <section className="mt-5 border-t border-nl-line px-4 pt-5">
+        <h2 className="text-[15px] font-bold text-tg-text">글 구성 (90일)</h2>
         <MediaBars mix={mediaMix} />
         {mediaMix && mediaMix.topSources.length > 0 && (
           <div className="mt-3">
@@ -646,7 +670,7 @@ export function ChannelDetailPage() {
         )}
       </section>
 
-      <section className="mx-4 mt-4 overflow-hidden rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line pt-4">
+      <section className="mt-5 overflow-hidden border-t border-nl-line pt-5">
         <h2 className="px-4 text-[15px] font-bold text-tg-text">최근 글</h2>
         {posts.length === 0 ? (
           <p className="px-4 py-3 text-sm text-tg-hint">관측된 글이 없습니다.</p>
@@ -680,8 +704,8 @@ export function ChannelDetailPage() {
         </>
       )}
 
-      <section className="mx-4 mt-4 mb-4 rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line p-4">
-        <h2 className="text-[15px] font-bold text-tg-text">🕘 변경 기록</h2>
+      <section className="mt-5 mb-4 border-t border-nl-line px-4 pt-5">
+        <h2 className="text-[15px] font-bold text-tg-text">변경 기록</h2>
         {events.length === 0 ? (
           <p className="py-3 text-sm text-tg-hint">아직 기록된 변경이 없습니다.</p>
         ) : (
@@ -754,8 +778,10 @@ export function ChannelDetailPage() {
           </div>
         ) : (
           <div className="flex items-stretch gap-2">
-            <IconAction label="뒤로가기" onClick={goBack} iconClass="text-tg-text">
-              ←
+            <IconAction label="뒤로" onClick={goBack} iconClass="text-tg-text">
+              <svg viewBox="0 0 24 24" className="h-[19px] w-[19px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M19 12H5M11 6l-6 6 6 6" />
+              </svg>
             </IconAction>
             <button
               type="button"
@@ -767,8 +793,19 @@ export function ChannelDetailPage() {
               </svg>
               텔레그램에서 열기
             </button>
-            <IconAction label={favorited ? '해제' : '즐겨찾기'} onClick={() => void handleFavorite()}>
-              {favorited ? '★' : '⭐'}
+            <IconAction label="공유" onClick={handleShare} iconClass="text-tg-text">
+              <svg viewBox="0 0 24 24" className="h-[19px] w-[19px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+              </svg>
+            </IconAction>
+            <IconAction
+              label={favorited ? '해제' : '즐겨찾기'}
+              onClick={() => void handleFavorite()}
+              iconClass={favorited ? 'text-amber-400' : 'text-tg-text'}
+            >
+              <svg viewBox="0 0 24 24" className="h-[19px] w-[19px]" fill={favorited ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
+                <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" />
+              </svg>
             </IconAction>
           </div>
         )}
@@ -948,16 +985,16 @@ function IconAction({
 }: {
   onClick: () => void;
   label: string;
-  children: string;
+  children: ReactNode;
   iconClass?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-[58px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-nl-card py-1.5 ring-1 ring-nl-line active:scale-95"
+      className="flex w-[52px] flex-col items-center justify-center gap-1 rounded-2xl bg-nl-card py-1.5 ring-1 ring-nl-line active:scale-95"
     >
-      <span className={`text-[18px] leading-none font-bold ${iconClass}`}>{children}</span>
+      <span className={`flex h-5 items-center leading-none ${iconClass}`}>{children}</span>
       <span className="text-[10px] font-semibold text-tg-text">{label}</span>
     </button>
   );

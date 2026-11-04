@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { Outlet, useLocation, useNavigationType } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import WebApp from '@twa-dev/sdk';
 import { BottomNav } from './BottomNav';
 
 /** 화면(경로)별 스크롤 위치. 뒤로 가기 때 복원하는 데 쓴다 */
@@ -66,8 +67,34 @@ function useScrollReset() {
   }, [location.key, location.pathname, navType]);
 }
 
+/**
+ * 공유 링크(t.me/봇?startapp=c_<채널 id>)로 들어오면 그 채널 상세로 바로 보낸다. 앱을 연 뒤 한 번만
+ */
+function useStartParam() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    let param: string;
+    try {
+      param = WebApp.initDataUnsafe?.start_param ?? '';
+    } catch {
+      return;
+    }
+    if (!param.startsWith('c_')) return;
+    const key = `nl-start-param:${param}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      /* 저장 못 해도 이동은 한다 */
+    }
+    const id = param.slice(2);
+    if (/^[0-9a-f-]{36}$/i.test(id)) navigate(`/c/id/${id}`);
+  }, [navigate]);
+}
+
 export function AppLayout() {
   useScrollReset();
+  useStartParam();
   // 회원 화면에서는 스크롤 막대를 감춘다 (어드민은 그대로)
   useEffect(() => {
     document.documentElement.classList.add('nl-member');

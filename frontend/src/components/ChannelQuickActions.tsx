@@ -3,6 +3,7 @@ import { trackTelegramOpen } from '../api/opens';
 import { useMyFavorites } from '../hooks/useMyFavorites';
 import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
 import { useAuth } from '../providers/AuthProvider';
+import { openLoginPrompt } from '../utils/loginPrompt';
 
 interface ChannelQuickActionsProps {
   channelId: string;
@@ -40,7 +41,12 @@ export function ChannelQuickActions({
     event.preventDefault();
     if (status === 'loading') return;
     if (status !== 'authenticated') {
-      notifyUser(webApp, isLocalBrowser, '즐겨찾기는 로그인 후 이용할 수 있어요. MY에서 로그인해 주세요.');
+      openLoginPrompt({
+        reason: '로그인하면 즐겨찾기가 저장돼요',
+        onSuccess: async () => {
+          await toggleFavorite(channelId).catch(() => undefined);
+        },
+      });
       return;
     }
     try {

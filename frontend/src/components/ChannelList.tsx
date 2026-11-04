@@ -30,6 +30,8 @@ interface ChannelListProps {
   emptyBlocked?: boolean;
   /** 즐겨찾기 목록이면 별 대신 [해제] */
   removeMode?: boolean;
+  /** 결과가 없을 때 안내 아래에 보여 줄 것 (예: 이 방 제보하기) */
+  emptyAction?: ReactNode;
 }
 
 function getCategoryMeta(categoryEmojis: CategoryChip[], category: string) {
@@ -54,6 +56,7 @@ export function ChannelList({
   footer,
   emptyBlocked = false,
   removeMode = false,
+  emptyAction,
 }: ChannelListProps) {
   // 카드마다 순위·추이·글 수를 보여 주려고 목록 전체 요약을 한 번에 불러온다
   // 서버는 한 번에 30개까지라 [더 보기]로 늘어난 목록은 30개씩 나눠 부른다
@@ -111,7 +114,10 @@ export function ChannelList({
             </div>
           </div>
         ) : (
-          <p className="px-4 pb-8 pt-2 text-center text-sm text-tg-hint">{emptyMessage}</p>
+          <div className="px-4 pb-8 pt-2">
+            <p className="text-center text-sm text-tg-hint">{emptyMessage}</p>
+            {emptyAction}
+          </div>
         )
       ) : (
         <div className="space-y-3 px-4">

@@ -88,13 +88,14 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
       onClickCapture={() => {
         if (adId) trackRankAdClick(adId);
       }}
-      className={`cursor-pointer overflow-hidden rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-transform active:scale-[0.99] ${
-        isAd ? 'ring-2 ring-amber-400/70' : 'ring-1 ring-nl-line'
+      // 스레드형: 카드 상자 없이 줄 구분선만 (광고는 왼쪽 노란 줄)
+      className={`cursor-pointer border-b border-nl-line py-3.5 transition-colors active:bg-white/[0.03] ${
+        isAd ? 'border-l-2 border-l-amber-400 pl-2' : ''
       }`}
     >
-      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+      <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-nl-elev ring-1 ring-nl-line">
+          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-nl-elev ring-1 ring-nl-line">
             {currentSrc && !failed ? (
               <img
                 src={currentSrc}
@@ -120,13 +121,13 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
           </div>
           {/* 순위 배지: 광고는 AD, 1~3위는 메달, 그 밖은 숫자 */}
           {isAd ? (
-            <span className="absolute -top-1.5 -left-1.5 flex h-6 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[11px] font-extrabold tracking-wide text-slate-900 shadow-sm ring-2 ring-nl-card">
+            <span className="absolute -top-1.5 -left-1.5 flex h-6 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[11px] font-extrabold tracking-wide text-slate-900 shadow-sm ring-2 ring-nl-bg">
               AD
             </span>
           ) : (
             <span
-              className={`absolute -top-1.5 -left-1.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold tabular-nums shadow-sm ring-2 ring-nl-card ${
-                top3 ? 'bg-nl-card text-[15px]' : 'bg-nl-text text-nl-card'
+              className={`absolute -top-1.5 -left-1.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold tabular-nums shadow-sm ring-2 ring-nl-bg ${
+                top3 ? 'bg-nl-bg text-[15px]' : 'bg-nl-text text-nl-bg'
               }`}
             >
               {medal ?? rank}
@@ -137,7 +138,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <PublicPrivateBadge link={channel.link} />
-            <p className="min-w-0 truncate text-[16px] font-bold leading-snug text-tg-text">{channel.title}</p>
+            <p className="min-w-0 truncate text-[15px] font-bold leading-snug text-tg-text">{channel.title}</p>
             {channel.isVerified && <VerifiedBadge size="sm" />}
             <GradeBadge
               grade={channel.grade ?? null}
@@ -158,36 +159,36 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
         <ChannelQuickActions channelId={channel.id} link={channel.link} title={channel.title} />
       </div>
 
-      <div className="mx-4 mb-3 flex items-center gap-2 rounded-2xl bg-nl-bg px-3 py-2.5">
+      <div className="mt-2.5 ml-[60px] flex items-center gap-2">
         <div className="grid min-w-0 flex-1 grid-cols-3 gap-1">
-          <div className="min-w-0 text-center">
+          <div className="min-w-0">
             <p className="text-[10px] text-nl-muted">{isGroup ? '멤버' : '회원'}</p>
             <p className="mt-0.5 truncate text-[14px] font-bold tabular-nums text-tg-text">
               {formatNumber(channel.participantsCount) || '—'}
             </p>
           </div>
-          <div className="min-w-0 text-center">
+          <div className="min-w-0">
             {/* 그룹은 조회 수가 없어서 조회율 대신 7일 대화 수 */}
             <p className="text-[10px] text-nl-muted">{isGroup ? '7일 대화' : '조회율'}</p>
             <p className="mt-0.5 truncate text-[14px] font-bold tabular-nums text-tg-text">
               {isGroup ? formatNumber(channel.posts7d ?? null) || '—' : formatPercent(channel.viewRate ?? null)}
             </p>
           </div>
-          <div className="min-w-0 text-center">
+          <div className="min-w-0">
             <p className="text-[10px] text-nl-muted">7일 변화</p>
             <p className={`mt-0.5 truncate text-[14px] font-bold tabular-nums ${growthClass}`}>
               {deltaValue ?? '—'}
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end border-l border-nl-line pl-2">
+        <div className="flex shrink-0 flex-col items-end">
           <Sparkline values={channel.sparkline14 ?? []} />
           <span className="text-[9px] text-nl-muted">최근 2주</span>
         </div>
       </div>
 
       {(tags.length > 0 || lowData) && (
-        <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3.5">
+        <div className="mt-2 ml-[60px] flex flex-wrap items-center gap-1.5">
           {tags.map((badge) => (
             <span
               key={badge.code}
@@ -197,7 +198,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
             </span>
           ))}
           {lowData && (
-            <span className="rounded-full bg-nl-bg px-2 py-0.5 text-[11px] text-nl-muted">
+            <span className="rounded-full bg-nl-card px-2 py-0.5 text-[11px] text-nl-muted">
               데이터 모으는 중
             </span>
           )}

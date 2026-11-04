@@ -30,6 +30,7 @@ import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { formatRelativeKo } from '../utils/formatCount';
 import { formatDeltaLine, formatMembers, resolveMemberDelta } from '../utils/memberDisplay';
 import { BLOCKED_SEARCH_MESSAGE } from '../utils/searchMessage';
+import { openLoginPrompt } from '../utils/loginPrompt';
 
 type HomeView = 'dash' | 'search';
 type SearchType = 'all' | 'channel' | 'group';
@@ -391,8 +392,12 @@ export function HomePage() {
   const handleToggleFavorite = async (id: string) => {
     if (authStatus === 'loading') return;
     if (!isLoggedIn) {
-      notifyUser(webApp, isLocalBrowser, '즐겨찾기는 회원 로그인 후 이용할 수 있습니다.');
-      navigate('/my');
+      openLoginPrompt({
+        reason: '로그인하면 즐겨찾기가 저장돼요',
+        onSuccess: async () => {
+          await toggleFavorite(id).catch(() => undefined);
+        },
+      });
       return;
     }
     try {
@@ -501,6 +506,21 @@ export function HomePage() {
           }
           emptyMessage={blockedMessage ?? '검색 결과가 없습니다.'}
           emptyBlocked={Boolean(blockedMessage)}
+          emptyAction={
+            blockedMessage ? undefined : (
+              <div className="mt-4 rounded-[20px] bg-nl-card p-5 text-center ring-1 ring-nl-line">
+                <p className="text-[15px] font-bold text-nl-text">찾는 방이 아직 없나요?</p>
+                <p className="mt-1 text-[13px] text-nl-muted">링크를 알려 주시면 확인해서 등록해 드려요.</p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/submit', { state: { prefillLink: query.trim() } })}
+                  className="mt-4 h-11 w-full rounded-xl bg-[#229af0] text-[14px] font-bold text-white"
+                >
+                  이 방 제보하기
+                </button>
+              </div>
+            )
+          }
         />
       </div>
     );

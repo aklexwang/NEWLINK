@@ -12,6 +12,7 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { HomePage } from './pages/HomePage';
 import type { ReactNode } from 'react';
 import { importWithReload } from './utils/chunkReload';
+import { LoginPromptSheet } from './components/LoginPromptSheet';
 
 // 첫 화면(홈·카테고리) 말고는 필요할 때 불러온다. 차트(recharts)·TON 지갑이 무거워서
 const ChannelDetailPage = lazy(
@@ -74,6 +75,7 @@ export default function App() {
               <NewVersionBanner />
               <MiniAppOnlyNotice />
               <AccountNotices />
+              <LoginPromptSheet />
             </AuthProvider>
             </ThemeProvider>
         </AppErrorBoundary>
