@@ -95,7 +95,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
     >
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-nl-elev ring-1 ring-nl-line">
+          <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-nl-elev ring-1 ring-nl-line">
             {currentSrc && !failed ? (
               <img
                 src={currentSrc}
@@ -116,18 +116,18 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
                 className="h-full w-full object-cover"
               />
             ) : (
-              <InitialAvatar title={channel.title} seed={channel.link || channel.id} textClass="text-[18px]" />
+              <InitialAvatar title={channel.title} seed={channel.link || channel.id} textClass="text-[9px]" />
             )}
           </div>
           {/* 순위 배지: 광고는 AD, 1~3위는 메달, 그 밖은 숫자 */}
           {isAd ? (
-            <span className="absolute -top-1.5 -left-1.5 flex h-6 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[11px] font-extrabold tracking-wide text-slate-900 shadow-sm ring-2 ring-nl-bg">
+            <span className="absolute -top-2 -left-2 flex h-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[8px] font-extrabold tracking-wide text-slate-900 shadow-sm ring-1 ring-nl-bg">
               AD
             </span>
           ) : (
             <span
-              className={`absolute -top-1.5 -left-1.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold tabular-nums shadow-sm ring-2 ring-nl-bg ${
-                top3 ? 'bg-nl-bg text-[15px]' : 'bg-nl-text text-nl-bg'
+              className={`absolute -top-2 -left-2 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold tabular-nums shadow-sm ring-1 ring-nl-bg ${
+                top3 ? 'bg-nl-bg text-[11px]' : 'bg-nl-text text-nl-bg'
               }`}
             >
               {medal ?? rank}
@@ -159,7 +159,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
         <ChannelQuickActions channelId={channel.id} link={channel.link} title={channel.title} />
       </div>
 
-      <div className="mt-2.5 ml-[60px] flex items-center gap-2">
+      <div className="mt-2.5 ml-[36px] flex items-center gap-2">
         <div className="grid min-w-0 flex-1 grid-cols-3 gap-1">
           <div className="min-w-0">
             <p className="text-[10px] text-nl-muted">{isGroup ? '멤버' : '회원'}</p>
@@ -188,7 +188,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
       </div>
 
       {(tags.length > 0 || lowData) && (
-        <div className="mt-2 ml-[60px] flex flex-wrap items-center gap-1.5">
+        <div className="mt-2 ml-[36px] flex flex-wrap items-center gap-1.5">
           {tags.map((badge) => (
             <span
               key={badge.code}

@@ -67,7 +67,7 @@ export function RankingCategoryPicker({
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#229af0] px-3.5 py-2 text-[13px] font-bold text-white">
-          카테고리 바꾸기
+          카테고리
           <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
             <path d="m6 9 6 6 6-6" />
           </svg>
