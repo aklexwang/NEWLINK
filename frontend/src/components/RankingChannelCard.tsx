@@ -93,9 +93,11 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
         isAd ? 'border-l-2 border-l-amber-400 pl-2' : ''
       }`}
     >
-      <div className="flex items-center gap-3">
-        <div className="relative shrink-0">
-          <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-nl-elev ring-1 ring-nl-line">
+      <div className="flex items-start gap-3">
+        {/* 왼쪽: 사진(38px) 아래 등급 배지 */}
+        <div className="flex w-[38px] shrink-0 flex-col items-center gap-1.5">
+        <div className="relative">
+          <div className="flex h-[38px] w-[38px] items-center justify-center overflow-hidden rounded-full bg-nl-elev ring-1 ring-nl-line">
             {currentSrc && !failed ? (
               <img
                 src={currentSrc}
@@ -116,23 +118,32 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
                 className="h-full w-full object-cover"
               />
             ) : (
-              <InitialAvatar title={channel.title} seed={channel.link || channel.id} textClass="text-[9px]" />
+              <InitialAvatar title={channel.title} seed={channel.link || channel.id} textClass="text-[13px]" />
             )}
           </div>
           {/* 순위 배지: 광고는 AD, 1~3위는 메달, 그 밖은 숫자 */}
           {isAd ? (
-            <span className="absolute -top-2 -left-2 flex h-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[8px] font-extrabold tracking-wide text-slate-900 shadow-sm ring-1 ring-nl-bg">
+            <span className="absolute -top-1.5 -left-1.5 flex h-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-extrabold tracking-wide text-slate-900 shadow-sm ring-1 ring-nl-bg">
               AD
             </span>
           ) : (
             <span
-              className={`absolute -top-2 -left-2 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold tabular-nums shadow-sm ring-1 ring-nl-bg ${
-                top3 ? 'bg-nl-bg text-[11px]' : 'bg-nl-text text-nl-bg'
+              className={`absolute -top-1.5 -left-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-0.5 text-[10px] font-bold tabular-nums shadow-sm ring-1 ring-nl-bg ${
+                top3 ? 'bg-nl-bg text-[12px]' : 'bg-nl-text text-nl-bg'
               }`}
             >
               {medal ?? rank}
             </span>
           )}
+        </div>
+          <GradeBadge
+            grade={channel.grade ?? null}
+            size="sm"
+            channelId={channel.id}
+            linkType={channel.linkType}
+            score={channel.score}
+            lowData={lowData}
+          />
         </div>
 
         <div className="min-w-0 flex-1">
@@ -147,16 +158,6 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
                 <VerifiedBadge size="sm" />
               </span>
             )}
-            <span className="ml-1.5 inline-flex align-[-2px]">
-              <GradeBadge
-                grade={channel.grade ?? null}
-                size="sm"
-                channelId={channel.id}
-                linkType={channel.linkType}
-                score={channel.score}
-                lowData={lowData}
-              />
-            </span>
           </p>
           <p className="mt-0.5 truncate text-[12px] text-nl-muted">
             {[isGroup ? '그룹' : '채널', channel.category, handle ? `@${handle}` : null]
@@ -168,7 +169,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
         <ChannelQuickActions channelId={channel.id} link={channel.link} title={channel.title} />
       </div>
 
-      <div className="mt-2.5 ml-[36px] flex items-center gap-2">
+      <div className="mt-2.5 ml-[50px] flex items-center gap-2">
         <div className="grid min-w-0 flex-1 grid-cols-3 gap-1">
           <div className="min-w-0">
             <p className="text-[10px] text-nl-muted">{isGroup ? '멤버' : '회원'}</p>
@@ -197,7 +198,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
       </div>
 
       {(tags.length > 0 || lowData) && (
-        <div className="mt-2 ml-[36px] flex flex-wrap items-center gap-1.5">
+        <div className="mt-2 ml-[50px] flex flex-wrap items-center gap-1.5">
           {tags.map((badge) => (
             <span
               key={badge.code}
