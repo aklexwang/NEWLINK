@@ -885,9 +885,9 @@ function PostThread({
               type="button"
               onClick={onOpen}
               aria-label="이 글을 텔레그램에서 열기"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#229af0] text-white"
+              className="flex h-8 w-8 shrink-0 items-center justify-center text-[#2aabee] active:scale-90"
             >
-              <svg viewBox="0 0 24 24" className="-ml-px h-[15px] w-[15px]" fill="currentColor" aria-hidden>
+              <svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="currentColor" aria-hidden>
                 <path d={TG_PATH} />
               </svg>
             </button>
