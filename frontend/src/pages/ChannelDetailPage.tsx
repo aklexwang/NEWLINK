@@ -487,6 +487,7 @@ export function ChannelDetailPage() {
               {detail.isVerified && <VerifiedBadge />}
               <GradeBadge
                 grade={detail.grade}
+                variant="bars"
                 channelId={detail.id}
                 linkType={detail.linkType}
                 score={detail.score}

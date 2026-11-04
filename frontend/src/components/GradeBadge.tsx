@@ -88,16 +88,28 @@ const BAR_FILL: Record<GradeCode, number> = { S: 5, A: 4, B: 3, C: 2, D: 1 };
 const BAR_COLOR_CHANNEL = '#2fd18a';
 const BAR_COLOR_GROUP = '#ffb020';
 
-export function GradeBars({ grade, isGroup }: { grade: GradeCode; isGroup?: boolean }) {
+export function GradeBars({
+  grade,
+  isGroup,
+  large,
+}: {
+  grade: GradeCode;
+  isGroup?: boolean;
+  /** 상세 화면용 큰 막대 */
+  large?: boolean;
+}) {
   const fill = BAR_FILL[grade];
   const color = isGroup ? BAR_COLOR_GROUP : BAR_COLOR_CHANNEL;
   return (
-    <span className="inline-flex h-[14px] items-end gap-[2px]" aria-hidden>
+    <span className={`inline-flex items-end ${large ? 'h-[22px] gap-[3px]' : 'h-[14px] gap-[2px]'}`} aria-hidden>
       {[1, 2, 3, 4, 5].map((k) => (
         <span
           key={k}
-          className="w-[3px] rounded-[1px]"
-          style={{ height: `${4 + k * 2}px`, background: k <= fill ? color : 'rgba(255,255,255,0.14)' }}
+          className={large ? 'w-[5px] rounded-[1.5px]' : 'w-[3px] rounded-[1px]'}
+          style={{
+            height: `${large ? 6 + k * 3.2 : 4 + k * 2}px`,
+            background: k <= fill ? color : 'rgba(255,255,255,0.14)',
+          }}
         />
       ))}
     </span>
@@ -150,7 +162,9 @@ export function GradeBadge({
         aria-label={`${GRADE_LABEL[code]} 등급 설명 보기`}
         className="inline-flex shrink-0 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
       >
-        {variant === 'bars' ? <GradeBars grade={code} isGroup={linkType === 'group'} /> : <GradeChip grade={code} size={size} />}
+        {variant === 'bars' ? (
+          <GradeBars grade={code} isGroup={linkType === 'group'} large={size === 'md'} />
+        ) : <GradeChip grade={code} size={size} />}
       </button>
       {panel &&
         createPortal(
