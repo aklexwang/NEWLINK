@@ -182,6 +182,7 @@ export function FavoritesPage() {
         onRecommend={handleRecommend}
         onToggleFavorite={handleToggleFavorite}
         removeMode
+        cardStyle="ranking"
         sectionTitle={selectedCategory ? selectedName : '전체'}
         emptyMessage={
           selectedCategory

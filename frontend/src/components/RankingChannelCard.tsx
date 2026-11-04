@@ -26,9 +26,18 @@ interface RankingChannelCardProps {
   channel: RankingChannel;
   avatarUrl?: string | null;
   onOpen: () => void;
+  /** 즐겨찾기 목록: 별 대신 [해제] 버튼 */
+  onRemoveFavorite?: () => void;
 }
 
-export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: RankingChannelCardProps) {
+export function RankingChannelCard({
+  rank,
+  adId,
+  channel,
+  avatarUrl,
+  onOpen,
+  onRemoveFavorite,
+}: RankingChannelCardProps) {
   const navigate = useNavigate();
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
   const isAd = Boolean(adId);
@@ -126,7 +135,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
             <span className="absolute -top-1.5 -left-1.5 flex h-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-extrabold tracking-wide text-slate-900 shadow-sm ring-1 ring-nl-bg">
               AD
             </span>
-          ) : (
+          ) : rank == null ? null : (
             <span
               className={`absolute -top-1.5 -left-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-0.5 text-[10px] font-bold tabular-nums shadow-sm ring-1 ring-nl-bg ${
                 top3 ? 'bg-nl-bg text-[12px]' : 'bg-nl-text text-nl-bg'
@@ -167,6 +176,18 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
           </p>
         </div>
 
+        {onRemoveFavorite && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemoveFavorite();
+            }}
+            className="h-8 shrink-0 self-center rounded-full px-3 text-[12px] font-semibold text-nl-muted ring-1 ring-nl-line active:scale-95"
+          >
+            해제
+          </button>
+        )}
         <ChannelQuickActions channelId={channel.id} link={channel.link} title={channel.title} />
       </div>
 

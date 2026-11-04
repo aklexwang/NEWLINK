@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { getChannelSummaries, type ChannelSummary } from '../api/stats';
 import type { Channel } from '../types/channel';
 import { ChannelCard } from './ChannelCard';
+import { RankingChannelCard } from './RankingChannelCard';
+import type { RankingChannel } from '../types/ranking';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 import { SectionHeader } from './SectionHeader';
 
 interface CategoryChip {
@@ -32,6 +35,8 @@ interface ChannelListProps {
   removeMode?: boolean;
   /** 결과가 없을 때 안내 아래에 보여 줄 것 (예: 이 방 제보하기) */
   emptyAction?: ReactNode;
+  /** 'ranking': 카테고리·랭킹과 같은 스레드형 줄 (RankingChannelCard) */
+  cardStyle?: 'card' | 'ranking';
 }
 
 function getCategoryMeta(categoryEmojis: CategoryChip[], category: string) {
@@ -57,6 +62,7 @@ export function ChannelList({
   emptyBlocked = false,
   removeMode = false,
   emptyAction,
+  cardStyle = 'card',
 }: ChannelListProps) {
   // 카드마다 순위·추이·글 수를 보여 주려고 목록 전체 요약을 한 번에 불러온다
   // 서버는 한 번에 30개까지라 [더 보기]로 늘어난 목록은 30개씩 나눠 부른다
@@ -120,6 +126,45 @@ export function ChannelList({
           </div>
         )
       ) : (
+        cardStyle === 'ranking' ? (
+          <div className="flex flex-col px-4">
+            {channels.map((channel) => {
+              const summary = summaries.get(channel.id);
+              const row: RankingChannel = {
+                id: channel.id,
+                title: channel.title,
+                username: channel.username ?? null,
+                link: channel.link,
+                avatarUrl: channel.avatarUrl ?? null,
+                participantsCount: channel.memberCount ?? 0,
+                recommendCount: channel.recommendCount,
+                category: channel.category,
+                linkType: channel.linkType,
+                score: summary?.score ?? channel.score ?? null,
+                grade: (summary?.grade as RankingChannel['grade']) ?? null,
+                viewRate: summary?.viewRate ?? null,
+                posts7d: summary?.posts7d ?? null,
+                growth7d: summary?.growth7d ?? null,
+                memberDelta7d: summary?.memberDelta7d ?? null,
+                isVerified: channel.isVerified,
+                badges: [],
+                sparkline14: summary?.sparkline14 ?? [],
+              };
+              return (
+                <RankingChannelCard
+                  key={channel.id}
+                  rank={null}
+                  channel={row}
+                  avatarUrl={resolveMediaUrl(channel.avatarUrl ?? null)}
+                  onOpen={() => undefined}
+                  onRemoveFavorite={
+                    removeMode && onToggleFavorite ? () => onToggleFavorite(channel.id) : undefined
+                  }
+                />
+              );
+            })}
+          </div>
+        ) : (
         <div className="space-y-3 px-4">
           {channels.map((channel) => {
             const meta = getCategoryMeta(categoryEmojis, channel.category);
@@ -140,6 +185,7 @@ export function ChannelList({
             );
           })}
         </div>
+        )
       )}
       {footer}
     </div>
