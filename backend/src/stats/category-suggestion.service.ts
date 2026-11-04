@@ -187,7 +187,7 @@ export class CategorySuggestionService {
   private readonly autoTried = new Map<string, number>();
 
   /**
-   * light 수집 끝에 분류대기 방을 조금씩 AI 로 분류한다 (자동 기준 70% 확신).
+   * light 수집 끝에 분류대기 방을 조금씩 AI 로 분류한다 (50% 확신이면 옮김).
    * - 한 번에 최대 max 개, 같은 방은 retryAfterMs 동안 다시 묻지 않음
    * - 오늘 AI 한도에서 reserve 개는 새로 들어오는 방 몫으로 남김
    */
@@ -226,8 +226,10 @@ export class CategorySuggestionService {
       if (options?.deadlineMs && Date.now() > options.deadlineMs) break;
       this.autoTried.set(channel.id, Date.now());
       try {
+        // 분류대기 방은 원래 70%를 못 넘긴 방이라, 어드민 [AI 재분류]와 같은 50% 기준으로 옮긴다
         const next = await this.channelCategory.classifyOne(channel, {
           force: true,
+          minConfidence: MANUAL_PENDING_MIN_CONFIDENCE,
         });
         if (next.category !== PENDING_CATEGORY_NAME) moved += 1;
       } catch (error) {
