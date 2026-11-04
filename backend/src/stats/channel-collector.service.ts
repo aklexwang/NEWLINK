@@ -53,7 +53,8 @@ import {
 import {
   isLightCollectTarget,
   isPreviewBlocked,
-  PREVIEW_DISABLED_ERROR,
+  PREVIEW_EMPTY_ONCE,
+  previewMissError,
   shouldMarkLightNoPostsFailed,
   resolveBlockedReserve,
   shouldUseMtprotoForFull,
@@ -646,6 +647,8 @@ export class ChannelCollectorService {
 
     // 미리보기가 막힌 채널은 표시해 두고, 다음 새벽 full 에서 MTProto(아이디 조회) 우선 대상이 된다
     let previewBlocked = false;
+    // applySuccessfulCollect 가 collectError 를 비우므로 미리 기억
+    const previousError = channel.collectError;
     if (parsed.kind === 'channel') {
       const feed = await this.fetchPreviewPage(username);
       if (
@@ -677,7 +680,7 @@ export class ChannelCollectorService {
     await this.upsertTodayMemberCount(channel.id, parsed.memberCount);
     if (previewBlocked) {
       await this.channelRepository.update(channel.id, {
-        collectError: PREVIEW_DISABLED_ERROR,
+        collectError: previewMissError(previousError),
       });
     }
     return { ok: true, mode: 'preview' };
@@ -724,11 +727,20 @@ export class ChannelCollectorService {
       if (shouldMarkLightNoPostsFailed(channel)) {
         await this.markFailed(channel, 'failed', 'preview:no_posts');
       } else {
-        // 상태를 그대로 두면 매 light 회차 맨 앞에 다시 뽑혀 예산을 쓴다. 다음 새벽 full 로 넘긴다
-        await this.channelRepository.update(channel.id, {
-          nextCollectAt: nextFullWindowAt(),
-          collectError: PREVIEW_DISABLED_ERROR,
-        });
+        const marker = previewMissError(channel.collectError);
+        if (marker === PREVIEW_EMPTY_ONCE) {
+          // 처음 빈 페이지: 막힘으로 보지 않고 3시간 뒤 light 에서 한 번 더 본다
+          await this.channelRepository.update(channel.id, {
+            nextCollectAt: new Date(Date.now() + 3 * 60 * 60 * 1000),
+            collectError: PREVIEW_EMPTY_ONCE,
+          });
+        } else {
+          // 두 번째: 상태를 그대로 두면 매 light 회차 맨 앞에 다시 뽑혀 예산을 쓴다. 다음 새벽 full 로 넘긴다
+          await this.channelRepository.update(channel.id, {
+            nextCollectAt: nextFullWindowAt(),
+            collectError: marker,
+          });
+        }
       }
       return { ok: false, reason: 'failed' };
     }

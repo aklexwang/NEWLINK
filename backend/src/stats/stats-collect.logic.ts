@@ -141,6 +141,21 @@ export const PREVIEW_BLOCKED_ERRORS = [
   'preview:no_posts',
 ] as const;
 export const PREVIEW_DISABLED_ERROR = 'preview:disabled';
+/** 한 번 빈 미리보기였음 (아직 막힘 아님. 텔레그램이 느릴 때 빈 페이지가 오는 일이 있어 한 번 더 본다) */
+export const PREVIEW_EMPTY_ONCE = 'preview:empty_once';
+
+/**
+ * 미리보기가 비었을 때 남길 표시: 두 번 연속(또는 이미 막힘)일 때만 막힘으로.
+ * 11/4 텔레그램이 느려진 날 하루 만에 막힘이 33→240 으로 잘못 늘었던 일 때문
+ */
+export function previewMissError(
+  previousError: string | null | undefined,
+): string {
+  const prev = (previousError ?? '').trim();
+  if (prev === PREVIEW_EMPTY_ONCE) return PREVIEW_DISABLED_ERROR;
+  if ((PREVIEW_BLOCKED_ERRORS as readonly string[]).includes(prev)) return prev;
+  return PREVIEW_EMPTY_ONCE;
+}
 
 export function isPreviewBlocked(channel: {
   collectError?: string | null;

@@ -12,6 +12,8 @@ import {
   statsCronModeFromSchedule,
   statsCronWaitMinutes,
   startedRecently,
+  previewMissError,
+  PREVIEW_EMPTY_ONCE,
 } from './stats-collect.logic';
 
 describe('수집 모드 단계', () => {
@@ -246,5 +248,19 @@ describe('미리보기 막힌 채널 우선 MTProto', () => {
         resolvesLeft: 0,
       }),
     ).toBe(true);
+  });
+});
+
+describe('previewMissError (두 번 연속 빈 미리보기일 때만 막힘)', () => {
+  it('처음 빈 페이지는 empty_once', () => {
+    expect(previewMissError(null)).toBe(PREVIEW_EMPTY_ONCE);
+    expect(previewMissError('fetch:timeout')).toBe(PREVIEW_EMPTY_ONCE);
+  });
+  it('두 번째면 막힘', () => {
+    expect(previewMissError(PREVIEW_EMPTY_ONCE)).toBe('preview:disabled');
+  });
+  it('이미 막힘이면 그대로', () => {
+    expect(previewMissError('preview:disabled')).toBe('preview:disabled');
+    expect(previewMissError('preview:no_posts')).toBe('preview:no_posts');
   });
 });
