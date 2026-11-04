@@ -79,6 +79,33 @@ export interface GradeBadgeProps {
   observedDays?: number | null;
   /** 상세를 못 불러왔을 때 임시 등급 문구에 쓴다 */
   lowData?: boolean;
+  /** 'bars': 신호 막대 5칸 (목록용, 글자 없음) */
+  variant?: 'chip' | 'bars';
+}
+
+/** 등급 신호 막대 색 (최상 5칸 … 낮음 1칸) */
+const BAR_COLOR: Record<GradeCode, string> = {
+  S: '#ffb020',
+  A: '#2fd18a',
+  B: '#2aabee',
+  C: '#a8a8a8',
+  D: '#6b6b6b',
+};
+const BAR_FILL: Record<GradeCode, number> = { S: 5, A: 4, B: 3, C: 2, D: 1 };
+
+export function GradeBars({ grade }: { grade: GradeCode }) {
+  const fill = BAR_FILL[grade];
+  return (
+    <span className="inline-flex h-[14px] items-end gap-[2px]" aria-hidden>
+      {[1, 2, 3, 4, 5].map((k) => (
+        <span
+          key={k}
+          className="w-[3px] rounded-[1px]"
+          style={{ height: `${4 + k * 2}px`, background: k <= fill ? BAR_COLOR[grade] : 'rgba(255,255,255,0.14)' }}
+        />
+      ))}
+    </span>
+  );
 }
 
 export function GradeBadge({
@@ -89,6 +116,7 @@ export function GradeBadge({
   score,
   observedDays,
   lowData,
+  variant = 'chip',
 }: GradeBadgeProps) {
   const code = normalizeGrade(grade);
   const [panel, setPanel] = useState<{ anchor: DOMRect; sheet: boolean } | null>(null);
@@ -126,7 +154,7 @@ export function GradeBadge({
         aria-label={`${GRADE_LABEL[code]} 등급 설명 보기`}
         className="inline-flex shrink-0 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
       >
-        <GradeChip grade={code} size={size} />
+        {variant === 'bars' ? <GradeBars grade={code} /> : <GradeChip grade={code} size={size} />}
       </button>
       {panel &&
         createPortal(

@@ -95,8 +95,7 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
       }`}
     >
       <div className="flex items-start gap-3">
-        {/* 왼쪽: 사진(38px) 아래 등급 배지 */}
-        <div className="flex w-[38px] shrink-0 flex-col items-center gap-1.5">
+        <div className="flex w-[38px] shrink-0 flex-col items-center">
         <div className="relative">
           <div className="flex h-[38px] w-[38px] items-center justify-center overflow-hidden rounded-full bg-nl-elev ring-1 ring-nl-line">
             {currentSrc && !failed ? (
@@ -137,19 +136,23 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
             </span>
           )}
         </div>
-          <GradeBadge
-            grade={channel.grade ?? null}
-            size="sm"
-            channelId={channel.id}
-            linkType={channel.linkType}
-            score={channel.score}
-            lowData={lowData}
-          />
         </div>
 
         <div className="min-w-0 flex-1">
           {/* 채널 이름은 줄이지 않고 다 보여 준다 (길면 다음 줄로) */}
           <p className="text-[15px] font-bold leading-snug break-keep text-tg-text [overflow-wrap:anywhere]">
+            {/* 이름 앞 등급 신호 막대 (누르면 등급 설명) */}
+            <span className="mr-1.5 inline-flex align-[-1px]">
+              <GradeBadge
+                grade={channel.grade ?? null}
+                size="sm"
+                variant="bars"
+                channelId={channel.id}
+                linkType={channel.linkType}
+                score={channel.score}
+                lowData={lowData}
+              />
+            </span>
             {channel.title}
             {channel.isVerified && (
               <span className="ml-1 inline-flex align-[-2px]">
