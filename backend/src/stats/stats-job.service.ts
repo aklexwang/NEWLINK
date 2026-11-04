@@ -434,8 +434,9 @@ export class StatsJobService implements OnModuleInit {
         const channel = await this.channelRepository.findOneBy({ id });
         if (!channel) continue;
         await this.languages.classifyOne(channel);
-        await this.metrics.computeOne(id);
       }
+      // 점수는 한 번에 (방마다 전체 계산을 되풀이하면 메모리가 넘쳐 서버가 꺼졌음)
+      await this.metrics.computeMany(ids);
     } catch (error) {
       this.logger.warn(
         `새 그룹·초대방 첫 수집 실패: ${error instanceof Error ? error.message : error}`,

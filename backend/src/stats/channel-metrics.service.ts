@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { isScoreCollectable } from './collect-visibility';
 import { ChannelEvent } from './channel-event.entity';
@@ -71,6 +71,24 @@ const POST_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const TWENTY_FOUR_H_MS = 24 * 60 * 60 * 1000;
 
+/** 점수 계산에 쓰는 게시글 칸만 */
+interface PostPoint {
+  channelId: string;
+  postedAt: Date;
+  views: number | null;
+  forwardedFrom: boolean;
+}
+
+type SnapshotPick = Pick<
+  ChannelSnapshot,
+  | 'channelId'
+  | 'capturedOn'
+  | 'memberCount'
+  | 'medianViews7d'
+  | 'activity24h'
+  | 'activity7d'
+>;
+
 interface ChannelMetricsRow {
   channel: Channel;
   medianViews7d: number | null;
@@ -131,13 +149,23 @@ export class ChannelMetricsService {
 
   /** 한 채널의 score/grade 만 저장. 카테고리 순위는 새벽 전체 계산에서 맞춘다 */
   async computeOne(channelId: string, now: Date = new Date()): Promise<void> {
+    await this.computeMany([channelId], now);
+  }
+
+  /** 여러 채널을 한 번의 계산으로 (채널마다 전체 계산을 되풀이하지 않게) */
+  async computeMany(
+    channelIds: string[],
+    now: Date = new Date(),
+  ): Promise<void> {
+    if (channelIds.length === 0) return;
     const built = await this.buildScored(now);
     if (!built) return;
-    const row = built.rows.find((item) => item.channel.id === channelId);
-    const scored = built.scored.find((item) => item.channel.id === channelId);
-    if (!row || !scored) return;
-    await this.persistSnapshots([row], built.today);
-    await this.persistScores([scored], built.today);
+    const want = new Set(channelIds);
+    const rows = built.rows.filter((item) => want.has(item.channel.id));
+    const scored = built.scored.filter((item) => want.has(item.channel.id));
+    if (rows.length === 0 || scored.length === 0) return;
+    await this.persistSnapshots(rows, built.today);
+    await this.persistScores(scored, built.today);
   }
 
   private async buildScored(now: Date): Promise<{
@@ -157,11 +185,18 @@ export class ChannelMetricsService {
     }
 
     const ids = channels.map((c) => c.id);
-    const since = new Date(now.getTime() - POST_LOOKBACK_MS);
-    const posts = await this.postRepository.find({
-      where: { channelId: In(ids), postedAt: MoreThanOrEqual(since) },
-    });
+    // 메모리: 게시글 전체(본문 발췌·언급 등 포함, 20만 줄 가까이)를 엔티티로 읽으면 512MB 서버가 꺼진다.
+    // 계산에 쓰는 칸만, 그리고 쓰는 줄만 읽는다 (최근 7일 글 + 채널마다 조회 수 있는 최신 글 몇 개)
+    const posts = await this.loadPostPoints(ids, now);
     const snapshots = await this.snapshotRepository.find({
+      select: [
+        'channelId',
+        'capturedOn',
+        'memberCount',
+        'medianViews7d',
+        'activity24h',
+        'activity7d',
+      ],
       where: { channelId: In(ids) },
     });
 
@@ -178,6 +213,58 @@ export class ChannelMetricsService {
       ),
     );
     return { today, rows, scored: this.scoreRows(rows) };
+  }
+
+  /** 점수 계산용 게시글: 필요한 칸·줄만 (buildRow 가 쓰는 범위와 같게) */
+  private async loadPostPoints(ids: string[], now: Date): Promise<PostPoint[]> {
+    if (ids.length === 0) return [];
+    const since = new Date(now.getTime() - POST_LOOKBACK_MS);
+    const sevenAgo = new Date(now.getTime() - SEVEN_DAYS_MS);
+    const out: PostPoint[] = [];
+    // id 목록이 길면 나눠서 (쿼리 인자 수 제한)
+    for (let i = 0; i < ids.length; i += 1000) {
+      const chunk = ids.slice(i, i + 1000);
+      const rows: Array<{
+        channel_id: string;
+        posted_at: Date | string;
+        views: number | null;
+        fwd: boolean | number | null;
+      }> = await this.postRepository.manager
+        .createQueryBuilder()
+        .select([])
+        .from((qb) => {
+          return qb
+            .from(ChannelPost, 'p')
+            .select('p.channel_id', 'channel_id')
+            .addSelect('p.posted_at', 'posted_at')
+            .addSelect('p.views', 'views')
+            .addSelect('(p.forwarded_from IS NOT NULL)', 'fwd')
+            .addSelect(
+              'ROW_NUMBER() OVER (PARTITION BY p.channel_id, (p.views IS NULL) ORDER BY p.posted_at DESC)',
+              'rn',
+            )
+            .where('p.channel_id IN (:...chunk)', { chunk })
+            .andWhere('p.posted_at >= :since', { since });
+        }, 'x')
+        .addSelect('x.channel_id', 'channel_id')
+        .addSelect('x.posted_at', 'posted_at')
+        .addSelect('x.views', 'views')
+        .addSelect('x.fwd', 'fwd')
+        .where('x.posted_at >= :sevenAgo', { sevenAgo })
+        .orWhere('(x.views IS NOT NULL AND x.rn <= :minPosts)', {
+          minPosts: THRESHOLDS.minPostsForCv,
+        })
+        .getRawMany();
+      for (const row of rows) {
+        out.push({
+          channelId: row.channel_id,
+          postedAt: new Date(row.posted_at),
+          views: row.views == null ? null : Number(row.views),
+          forwardedFrom: Boolean(row.fwd),
+        });
+      }
+    }
+    return out;
   }
 
   private async persistSnapshots(rows: ChannelMetricsRow[], today: string) {
@@ -200,8 +287,8 @@ export class ChannelMetricsService {
 
   private buildRow(
     channel: Channel,
-    posts: ChannelPost[],
-    snapshots: ChannelSnapshot[],
+    posts: PostPoint[],
+    snapshots: SnapshotPick[],
     now: Date,
     today: string,
   ): ChannelMetricsRow {
