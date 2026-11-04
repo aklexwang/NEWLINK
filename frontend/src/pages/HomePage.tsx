@@ -670,8 +670,8 @@ function ThreadItem({
         <span aria-hidden className="mt-2 w-0.5 flex-1 rounded-full bg-nl-line" />
       </div>
       <div className="min-w-0 flex-1 border-b border-nl-line pb-3.5">
-        <button type="button" onClick={onOpen} className="flex max-w-full items-center gap-1.5 text-left">
-          <span className="truncate text-[15px] font-bold text-nl-text">{item.title}</span>
+        <button type="button" onClick={onOpen} className="flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 text-left">
+          <span className="text-[15px] font-bold break-keep text-nl-text [overflow-wrap:anywhere]">{item.title}</span>
           <PublicPrivateBadge link={item.link} />
           <span className="shrink-0 text-[13px] text-nl-muted">{formatRelativeKo(post?.postedAt ?? item.lastPostAt)}</span>
         </button>

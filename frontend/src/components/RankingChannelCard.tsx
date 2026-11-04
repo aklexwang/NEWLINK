@@ -136,19 +136,28 @@ export function RankingChannelCard({ rank, adId, channel, avatarUrl, onOpen }: R
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <PublicPrivateBadge link={channel.link} />
-            <p className="min-w-0 truncate text-[15px] font-bold leading-snug text-tg-text">{channel.title}</p>
-            {channel.isVerified && <VerifiedBadge size="sm" />}
-            <GradeBadge
-              grade={channel.grade ?? null}
-              size="sm"
-              channelId={channel.id}
-              linkType={channel.linkType}
-              score={channel.score}
-              lowData={lowData}
-            />
-          </div>
+          {/* 채널 이름은 줄이지 않고 다 보여 준다 (길면 다음 줄로) */}
+          <p className="text-[15px] font-bold leading-snug break-keep text-tg-text [overflow-wrap:anywhere]">
+            <span className="mr-1.5 inline-flex align-[-2px]">
+              <PublicPrivateBadge link={channel.link} />
+            </span>
+            {channel.title}
+            {channel.isVerified && (
+              <span className="ml-1 inline-flex align-[-2px]">
+                <VerifiedBadge size="sm" />
+              </span>
+            )}
+            <span className="ml-1.5 inline-flex align-[-2px]">
+              <GradeBadge
+                grade={channel.grade ?? null}
+                size="sm"
+                channelId={channel.id}
+                linkType={channel.linkType}
+                score={channel.score}
+                lowData={lowData}
+              />
+            </span>
+          </p>
           <p className="mt-0.5 truncate text-[12px] text-nl-muted">
             {[isGroup ? '그룹' : '채널', channel.category, handle ? `@${handle}` : null]
               .filter(Boolean)

@@ -185,21 +185,27 @@ export function ChannelCard({
           )}
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <PublicPrivateBadge link={channel.link} />
-              <p className="min-w-0 truncate text-[16px] font-bold leading-snug text-tg-text">
-                {channel.title}
-              </p>
-              {channel.isVerified && <VerifiedBadge size="sm" />}
-              <GradeBadge
-                grade={summary?.grade ?? null}
-                size="sm"
-                channelId={channel.id}
-                linkType={channel.linkType}
-                score={summary?.score ?? null}
-                observedDays={summary?.observedDays ?? null}
-              />
-            </div>
+            <p className="text-[16px] font-bold leading-snug break-keep text-tg-text [overflow-wrap:anywhere]">
+              <span className="mr-1.5 inline-flex align-[-2px]">
+                <PublicPrivateBadge link={channel.link} />
+              </span>
+              {channel.title}
+              {channel.isVerified && (
+                <span className="ml-1 inline-flex align-[-2px]">
+                  <VerifiedBadge size="sm" />
+                </span>
+              )}
+              <span className="ml-1.5 inline-flex align-[-2px]">
+                <GradeBadge
+                  grade={summary?.grade ?? null}
+                  size="sm"
+                  channelId={channel.id}
+                  linkType={channel.linkType}
+                  score={summary?.score ?? null}
+                  observedDays={summary?.observedDays ?? null}
+                />
+              </span>
+            </p>
             {handle && <p className="truncate text-[12px] text-nl-muted">@{handle}</p>}
           </div>
         </div>
