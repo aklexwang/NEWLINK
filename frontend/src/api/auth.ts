@@ -34,10 +34,11 @@ export async function loginWithTelegramOidc(idToken: string): Promise<TelegramAu
   return data;
 }
 
-export async function loginAdmin(username: string, password: string): Promise<string> {
+export async function loginAdmin(username: string, password: string, otp?: string): Promise<string> {
   const { data } = await apiClient.post<{ accessToken: string }>('/auth/admin-login', {
     username,
     password,
+    ...(otp ? { otp } : {}),
   });
   if (!data.accessToken) {
     throw new Error('관리자 토큰이 없습니다.');

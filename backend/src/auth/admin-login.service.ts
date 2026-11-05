@@ -2,16 +2,20 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { compare, hashSync } from 'bcrypt';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import { JwtAuthService } from './jwt-auth.service';
+import { AdminOtpService } from './admin-otp.service';
 
 export const ADMIN_LOGIN_INVALID_MESSAGE =
   '아이디 또는 비밀번호가 올바르지 않습니다';
 export const ADMIN_LOGIN_LOCKED_MESSAGE = '잠시 후 다시 시도하세요';
+export const ADMIN_OTP_REQUIRED = 'otp_required';
+export const ADMIN_OTP_INVALID = 'otp_invalid';
 
 const MAX_FAILURES = 5;
 const LOCK_MS = 15 * 60 * 1000;
@@ -42,12 +46,14 @@ export class AdminLoginService {
   constructor(
     private readonly configService: ConfigService,
     private readonly jwtAuthService: JwtAuthService,
+    @Optional() private readonly otp?: AdminOtpService,
   ) {}
 
   async login(
     username: string,
     password: string,
     ip: string,
+    otpCode?: string,
   ): Promise<{ accessToken: string }> {
     const key = ip.trim() || 'unknown';
     this.dropExpired(key);
@@ -63,6 +69,23 @@ export class AdminLoginService {
     if (!matched) {
       this.recordFailure(key);
       throw new UnauthorizedException(ADMIN_LOGIN_INVALID_MESSAGE);
+    }
+
+    // 2단계: Google OTP 가 등록돼 있으면 6자리(또는 백업 코드)도 맞아야 한다
+    if (this.otp && (await this.otp.isRequired())) {
+      if (!otpCode?.trim()) {
+        throw new UnauthorizedException({
+          message: 'OTP 6자리를 입력해 주세요',
+          code: ADMIN_OTP_REQUIRED,
+        });
+      }
+      if (!(await this.otp.verifyLogin(otpCode))) {
+        this.recordFailure(key);
+        throw new UnauthorizedException({
+          message: 'OTP 번호가 맞지 않아요',
+          code: ADMIN_OTP_INVALID,
+        });
+      }
     }
 
     this.attempts.delete(key);

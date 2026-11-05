@@ -88,22 +88,35 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  /** 아이디·비밀번호가 맞고 OTP 가 켜져 있으면 2단계(6자리) */
+  const [otpStep, setOtpStep] = useState(false);
+  const [otp, setOtp] = useState('');
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const token = await loginAdmin(username.trim(), password);
+      const token = await loginAdmin(username.trim(), password, otpStep ? otp.trim() : undefined);
       saveAdminToken(token);
       onLoggedIn();
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 429) {
+      const code = axios.isAxiosError(err)
+        ? (err.response?.data as { code?: string } | undefined)?.code
+        : undefined;
+      if (code === 'otp_required') {
+        setOtpStep(true);
+        setOtp('');
+      } else if (code === 'otp_invalid') {
+        setError('OTP 번호가 맞지 않아요. 앱의 새 번호로 다시 입력해 주세요.');
+        setOtp('');
+      } else if (axios.isAxiosError(err) && err.response?.status === 429) {
         setError('잠시 후 다시 시도하세요');
       } else if (axios.isAxiosError(err) && !err.response) {
         setError('서버에 연결할 수 없습니다.');
       } else {
         setError('아이디 또는 비밀번호가 올바르지 않습니다');
+        setOtpStep(false);
       }
     } finally {
       setLoading(false);
@@ -127,6 +140,41 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
           <p className="mt-2 text-[14px] text-[#6b7280]">TellLink 관리자 계정으로 로그인하세요.</p>
 
           <form onSubmit={handleSubmit} className="mt-10 space-y-5">
+            {otpStep ? (
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-[#4b5563]" htmlFor="admin-otp">
+                  Google OTP 6자리
+                </label>
+                <input
+                  id="admin-otp"
+                  name="otp"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  maxLength={8}
+                  value={otp}
+                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))}
+                  required
+                  placeholder="000000"
+                  className={`${inputClass} text-center text-[22px] font-bold tracking-[0.4em]`}
+                />
+                <p className="text-[12px] leading-relaxed text-[#6b7280]">
+                  휴대폰 Google OTP 앱의 TellLink 번호를 넣어 주세요. 휴대폰이 없으면 백업 코드 8자리를 넣어도 돼요.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpStep(false);
+                    setOtp('');
+                    setError('');
+                  }}
+                  className="text-[12px] font-medium text-[#3d5ced] hover:underline"
+                >
+                  ← 아이디·비밀번호 다시 입력
+                </button>
+              </div>
+            ) : (
+            <>
             <div className="space-y-2">
               <label className="text-[13px] font-medium text-[#4b5563]" htmlFor="admin-username">
                 아이디
@@ -167,6 +215,8 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                 </button>
               </div>
             </div>
+            </>
+            )}
 
             {error && (
               <p className="rounded-xl border border-[#f6c9c4] bg-[#fff4f2] px-4 py-3 text-[13px] text-[#b4473a]">{error}</p>
@@ -177,7 +227,7 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
               disabled={loading}
               className="mt-3 flex h-[52px] w-full items-center justify-between rounded-xl bg-[#3d5ced] px-5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(61,92,237,0.3)] transition hover:bg-[#3450d4] disabled:opacity-60"
             >
-              <span>{loading ? '로그인 중…' : '로그인'}</span>
+              <span>{loading ? '확인 중…' : otpStep ? 'OTP 확인하고 로그인' : '로그인'}</span>
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>

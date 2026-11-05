@@ -1242,3 +1242,38 @@ export async function getAdminRegisterStatus(): Promise<AdminRegisterRun | null>
 
 /** 등록이 끝나면 어드민 어디서든 알려 주려고 지켜볼 등록 번호 */
 export const REGISTER_WATCH_KEY = 'nl-register-watch';
+
+/** 보안 설정: 관리자 Google OTP */
+export type AdminOtpStatus = { registered: boolean; forcedOff: boolean; backupLeft: number };
+
+export async function getAdminOtpStatus(): Promise<AdminOtpStatus> {
+  const { data } = await apiClient.get<AdminOtpStatus>('/admin/security/otp', {
+    headers: getAdminAuthHeaders(),
+  });
+  return data;
+}
+
+export async function startAdminOtpSetup(): Promise<{ secret: string; otpauthUrl: string }> {
+  const { data } = await apiClient.post<{ secret: string; otpauthUrl: string }>(
+    '/admin/security/otp/setup',
+    {},
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function confirmAdminOtpSetup(code: string): Promise<{ ok: boolean; backupCodes?: string[] }> {
+  const { data } = await apiClient.post<{ ok: boolean; backupCodes?: string[] }>('/admin/security/otp/confirm',
+    { code },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+export async function disableAdminOtp(code: string): Promise<{ ok: boolean }> {
+  const { data } = await apiClient.post<{ ok: boolean }>('/admin/security/otp/disable',
+    { code },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}

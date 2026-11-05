@@ -38,6 +38,7 @@ export class AuthController {
       dto.username,
       dto.password,
       clientIp(req),
+      dto.otp,
     );
   }
 

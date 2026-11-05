@@ -1,6 +1,10 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppSetting } from '../ads/app-setting.entity';
+import { AdminOtpService } from './admin-otp.service';
+import { AdminSecurityController } from './admin-security.controller';
 import { UsersModule } from '../users/users.module';
 import { AdminLoginService } from './admin-login.service';
 import { AuthController } from './auth.controller';
@@ -13,6 +17,7 @@ import { TelegramAuthService } from './telegram-auth.service';
 @Module({
   imports: [
     UsersModule,
+    TypeOrmModule.forFeature([AppSetting]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -24,11 +29,12 @@ import { TelegramAuthService } from './telegram-auth.service';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, AdminSecurityController],
   providers: [
     TelegramAuthService,
     JwtAuthService,
     AdminLoginService,
+    AdminOtpService,
     TelegramAuthGuard,
     TelegramAdminGuard,
   ],
