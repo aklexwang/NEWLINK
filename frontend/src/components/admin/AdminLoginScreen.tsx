@@ -123,8 +123,9 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
     }
   };
 
+  // 각진 모서리(10px) · 옅은 테두리 · 흰 바탕 (브라우저 자동완성의 파란 배경도 흰색으로)
   const inputClass =
-    'h-12 w-full rounded-xl border border-[#e3e7f0] bg-white px-4 text-[15px] text-[#111827] outline-none transition placeholder:text-[#a0a8b8] focus:border-[#3d5ced] focus:ring-4 focus:ring-[#3d5ced]/15';
+    'h-12 w-full rounded-[10px] border border-[#e5e7eb] bg-white px-4 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9ca3af] focus:border-[#3d5ced] focus:ring-2 focus:ring-[#3d5ced]/10 [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_#fff] [&:-webkit-autofill]:[-webkit-text-fill-color:#111827]';
 
   return (
     <div className="flex min-h-screen bg-[#0b1638]">
@@ -177,7 +178,7 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
             <>
             <div className="space-y-2">
               <label className="text-[13px] font-medium text-[#4b5563]" htmlFor="admin-username">
-                아이디
+                로그인 ID
               </label>
               <input
                 id="admin-username"
@@ -185,6 +186,7 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                 type="text"
                 autoComplete="username"
                 autoFocus
+                placeholder="로그인 ID"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 required
@@ -201,6 +203,7 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
+                  placeholder="비밀번호"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
