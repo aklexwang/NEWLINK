@@ -263,6 +263,17 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   canUseMtproto(): boolean {
+    // FloodWait 이 끝났으면 다음 새벽 full 까지 기다리지 않고 바로 다시 쓴다
+    // (11/5 04:07 에 22분 FloodWait 뒤 낮 내내 MTProto 가 꺼져 있던 일 때문)
+    if (
+      this.stopped &&
+      (this.lastError ?? '').startsWith('flood_wait') &&
+      !isFloodWaitBlocking(this.floodWaitUntil)
+    ) {
+      this.stopped = false;
+      this.lastError = null;
+      this.logger.log('FloodWait 이 끝나 MTProto 를 다시 켭니다.');
+    }
     return (
       this.isEnabled() &&
       !this.stopped &&
