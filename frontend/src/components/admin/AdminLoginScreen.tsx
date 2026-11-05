@@ -137,14 +137,18 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
             <span className="h-1.5 w-1.5 rounded-full bg-[#3d5ced]" />
             관리자 전용
           </p>
-          <h1 className="mt-4 text-[30px] font-bold tracking-tight text-[#111827]">관리자 로그인</h1>
-          <p className="mt-2 text-[14px] text-[#6b7280]">TellLink 관리자 계정으로 로그인하세요.</p>
+          <h1 className="mt-4 text-[30px] font-bold tracking-tight text-[#111827]">
+            {otpStep ? '2단계 인증' : '관리자 로그인'}
+          </h1>
+          <p className="mt-2 text-[14px] text-[#6b7280]">
+            {otpStep ? '인증 앱에 표시된 6자리 코드를 입력해 주세요.' : 'TellLink 관리자 계정으로 로그인하세요.'}
+          </p>
 
           <form onSubmit={handleSubmit} className="mt-10 space-y-5">
             {otpStep ? (
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#4b5563]" htmlFor="admin-otp">
-                  Google OTP 6자리
+                  인증 코드
                 </label>
                 <input
                   id="admin-otp"
@@ -156,11 +160,11 @@ export function AdminLoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                   value={otp}
                   onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))}
                   required
-                  placeholder="000000"
-                  className={`${inputClass} text-center text-[22px] font-bold tracking-[0.4em]`}
+                  placeholder="000 000"
+                  className={`${inputClass} tracking-[0.08em]`}
                 />
                 <p className="text-[12px] leading-relaxed text-[#6b7280]">
-                  휴대폰 Google OTP 앱의 TellLink 번호를 넣어 주세요. 휴대폰이 없으면 백업 코드 8자리를 넣어도 돼요.
+                  인증 앱을 쓸 수 없으면 보관한 복구 코드를 입력할 수 있습니다.
                 </p>
                 <button
                   type="button"
