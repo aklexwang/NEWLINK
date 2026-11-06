@@ -503,6 +503,7 @@ function failureReasonLabel(reason: string): string {
   if (r.startsWith('fetch:empty')) return '빈 응답 (일시적)';
   if (r.includes('not_found')) return '방을 찾을 수 없음 (사라졌을 수 있음)';
   if (r.includes('private')) return '비공개로 바뀜';
+  if (r.includes('preview:empty_once')) return '미리보기가 한 번 비어 있었음 → 3시간 뒤 다시 확인 (두 번이면 막힘으로)';
   if (r.includes('preview:disabled')) return '웹 미리보기 막힘 → 수집 계정으로 읽음 (아래 대기 수 참고)';
   if (r.includes('no_posts')) return '공개 글이 안 보임';
   if (r.includes('no_username')) return '아이디가 없음';
