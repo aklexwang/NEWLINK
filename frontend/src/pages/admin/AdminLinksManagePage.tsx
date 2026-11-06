@@ -41,6 +41,7 @@ import {
   isPromotionActive,
   toDateInputValue,
 } from '../../utils/promotion';
+import { CategoryIcon } from '../../components/CategoryIcon';
 
 const statusLabel: Record<string, string> = {
   pending: '대기',
@@ -779,7 +780,8 @@ export function AdminLinksManagePage() {
                                   : 'bg-muted text-foreground hover:bg-primary/15'
                             }`}
                           >
-                            {c.emoji} {c.name}
+                            <CategoryIcon emoji={c.emoji} iconUrl={c.iconUrl} size="sm" className="mr-1.5 inline-flex align-[-4px] bg-transparent" />
+                            {c.name}
                           </button>
                         );
                       })}

@@ -17,6 +17,7 @@ import type { CategoryItem } from '../../types/categoryItem';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
 import { isoToKstYmd } from '../../utils/ymd';
 import { AdminAdsManagePage } from './AdminAdsManagePage';
+import { CategoryIcon } from '../../components/CategoryIcon';
 
 const SLOTS = [1, 2, 3, 4, 5];
 
@@ -439,7 +440,8 @@ export function AdminRankAdsPage() {
                       category === c.name ? 'bg-primary text-white' : 'bg-muted text-foreground hover:bg-muted/70'
                     }`}
                   >
-                    {c.emoji} {c.name}
+                    <CategoryIcon emoji={c.emoji} iconUrl={c.iconUrl} size="sm" className="mr-1.5 inline-flex align-[-4px] bg-transparent" />
+                            {c.name}
                     {live > 0 && (
                       <span className={`ml-1.5 rounded-full px-1.5 text-xs ${category === c.name ? 'bg-white/25' : 'bg-green-100 text-green-800'}`}>
                         {live}
