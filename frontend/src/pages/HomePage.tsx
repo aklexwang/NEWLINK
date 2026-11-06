@@ -24,7 +24,7 @@ import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../
 import { trackTelegramOpen } from '../api/opens';
 import { channelDetailPath } from '../utils/channelDetailPath';
 import { useAuth } from '../providers/AuthProvider';
-import { useTheme } from '../providers/ThemeProvider';
+import { HOME_RESET_EVENT } from '../utils/homeReset';
 import type { Channel } from '../types/channel';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { formatRelativeKo } from '../utils/formatCount';
@@ -100,7 +100,6 @@ export function HomePage() {
   const navigate = useNavigate();
   const { webApp, isLocalBrowser } = useTelegram();
   const { user, status: authStatus } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const { searchCategories } = useCategories();
   const { recommendedIds, load: loadRecommended, recommend } = useMyRecommendations();
   const { favoriteIds, load: loadFavoriteIds, toggleFavorite } = useMyFavorites();
@@ -162,6 +161,11 @@ export function HomePage() {
     setSuggestBlockedMessage(null);
     setView('dash');
   }, []);
+
+  useEffect(() => {
+    window.addEventListener(HOME_RESET_EVENT, resetToHome);
+    return () => window.removeEventListener(HOME_RESET_EVENT, resetToHome);
+  }, [resetToHome]);
 
   const closeSuggestions = useCallback(() => setShowSuggestions(false), []);
   /** 자동완성에서 고른 글자는 다시 자동완성을 띄우지 않는다 */
@@ -437,7 +441,7 @@ export function HomePage() {
 
   const header = (
     <header className="sticky top-[var(--nl-safe-top)] z-30 bg-nl-bg/95 backdrop-blur-md">
-      <div className="relative flex h-[52px] items-center justify-center px-2">
+      <div className="nl-hide-fs relative flex h-[52px] items-center justify-center px-2">
         <button
           type="button"
           onClick={() => navigate('/my')}
@@ -448,25 +452,6 @@ export function HomePage() {
         <button type="button" onClick={resetToHome} aria-label="홈" className="flex items-center">
           <NewLinkLogo compact />
         </button>
-        <div className="absolute right-1 flex items-center">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="flex h-11 w-10 items-center justify-center text-nl-text"
-            aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
-          >
-            {theme === 'dark' ? (
-              <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden>
-                <circle cx="12" cy="12" r="4" />
-                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" className="h-[20px] w-[20px]" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" aria-hidden>
-                <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
-              </svg>
-            )}
-          </button>
-        </div>
       </div>
     </header>
   );

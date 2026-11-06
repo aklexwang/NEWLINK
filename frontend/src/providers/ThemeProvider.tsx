@@ -23,7 +23,9 @@ const THEME_COLORS = {
 function readStoredTheme(): ThemeMode {
   try {
     for (const key of LEGACY_STORAGE_KEYS) localStorage.removeItem(key);
-    return localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark';
+    // 2026-11-06 회원 화면은 어두운 모드만 쓴다 (전환 버튼 제거)
+    localStorage.removeItem(STORAGE_KEY);
+    return 'dark';
   } catch {
     return 'dark';
   }

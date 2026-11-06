@@ -13,6 +13,7 @@ type TgWebApp = {
 };
 
 const MOBILE = new Set(['ios', 'android', 'android_x']);
+const ANDROID = new Set(['android', 'android_x']);
 const EVENTS = ['safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged', 'viewportChanged'];
 
 function tg(): TgWebApp | undefined {
@@ -44,6 +45,13 @@ export function useTelegramFullscreen() {
         : 0;
       root.style.setProperty('--nl-safe-top', `${top}px`);
       root.style.setProperty('--nl-safe-bottom', `${bottom}px`);
+      // 텔레그램 버튼 줄(닫기 … ⌄ ⋮): 상태바 아래, 버튼 줄 높이
+      const contentTop = app.isFullscreen ? (app.contentSafeAreaInset?.top ?? 0) : 0;
+      root.style.setProperty('--nl-sys-top', `${app.isFullscreen ? app.safeAreaInset?.top ?? 0 : 0}px`);
+      root.style.setProperty('--nl-bar-h', `${contentTop}px`);
+      // 버튼 줄이 있으면 그 가운데에 로고·MY 를 올리고 홈 헤더 줄은 숨긴다
+      root.classList.toggle('nl-fs', contentTop > 0);
+      root.classList.toggle('nl-android', ANDROID.has(app.platform ?? ''));
     };
 
     apply();

@@ -2,6 +2,9 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
 import { useTelegramFullscreen } from '../hooks/useTelegramFullscreen';
+import { NewLinkLogo } from './NewLinkLogo';
+import { useAuth } from '../providers/AuthProvider';
+import { HOME_RESET_EVENT } from '../utils/homeReset';
 import { BottomNav } from './BottomNav';
 
 /** 화면(경로)별 스크롤 위치. 뒤로 가기 때 복원하는 데 쓴다 */
@@ -93,6 +96,41 @@ function useStartParam() {
   }, [navigate]);
 }
 
+/** 전체 화면일 때 텔레그램 버튼 줄(✕ 닫기 … ⌄ ⋮) 사이: 닫기 옆에 로고, 오른쪽에 MY */
+function TelegramBarContent() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { status, user } = useAuth();
+  const isLoggedIn = status === 'authenticated' && Boolean(user);
+  return (
+    <div
+      className="nl-fs-only absolute inset-x-0 items-center justify-between"
+      style={{
+        top: 'var(--nl-sys-top)',
+        height: 'var(--nl-bar-h)',
+        paddingLeft: 'var(--nl-bar-left)',
+        paddingRight: 'var(--nl-bar-right)',
+      }}
+    >
+      <button
+        type="button"
+        aria-label="홈"
+        onClick={() => (pathname === '/' ? window.dispatchEvent(new Event(HOME_RESET_EVENT)) : navigate('/'))}
+        className="flex items-center"
+      >
+        <NewLinkLogo compact />
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate('/my')}
+        className="h-8 rounded-lg bg-[#2aabee] px-3 text-[13px] font-bold text-white shadow-[0_2px_10px_rgba(42,171,238,0.35)]"
+      >
+        {isLoggedIn ? 'MY' : '로그인'}
+      </button>
+    </div>
+  );
+}
+
 export function AppLayout() {
   useTelegramFullscreen();
   useScrollReset();
@@ -106,7 +144,9 @@ export function AppLayout() {
   return (
     <div className="mx-auto min-h-full max-w-lg bg-nl-bg pt-[var(--nl-safe-top)] pb-[calc(68px+var(--nl-sab))] text-nl-text">
       {/* 전체 화면일 때 상태바·텔레그램 버튼 뒤를 가리는 띠 (스크롤한 글이 그 밑으로 비치지 않게) */}
-      <div className="fixed inset-x-0 top-0 z-[35] h-[var(--nl-safe-top)] bg-nl-bg" aria-hidden />
+      <div className="fixed inset-x-0 top-0 z-[35] h-[var(--nl-safe-top)] bg-nl-bg">
+        <TelegramBarContent />
+      </div>
       <Outlet />
       <BottomNav />
     </div>

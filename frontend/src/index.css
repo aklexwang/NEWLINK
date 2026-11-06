@@ -10,7 +10,20 @@
   --nl-safe-top: 0px;
   --nl-safe-bottom: 0px;
   --nl-sab: max(env(safe-area-inset-bottom), var(--nl-safe-bottom));
+  --nl-sys-top: 0px;
+  --nl-bar-h: 0px;
+  /* 텔레그램 버튼 줄의 왼쪽(✕ 닫기)·오른쪽(⌄ ⋮) 버튼 폭 — 그 옆에 로고·MY 를 둔다 */
+  --nl-bar-left: 104px;
+  --nl-bar-right: 100px;
 }
+html.nl-android {
+  --nl-bar-left: 68px;
+  --nl-bar-right: 76px;
+}
+/* 전체 화면(텔레그램 버튼 줄 있음): 버튼 줄에 로고·MY, 홈 헤더 줄은 숨김 */
+.nl-fs-only { display: none !important; }
+html.nl-fs .nl-fs-only { display: flex !important; }
+html.nl-fs .nl-hide-fs { display: none !important; }
 
 @custom-variant dark (&:where(html.dark, html.dark *));
 
