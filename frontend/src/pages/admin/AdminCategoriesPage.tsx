@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import {
   createCategory,
@@ -35,6 +35,24 @@ export function AdminCategoriesPage() {
     iconUrl: null as string | null,
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  // 수정 패널: 목록 오른쪽에 화면 고정 (부모가 가로 스크롤 영역이라 sticky 가 안 먹음)
+  const listRef = useRef<HTMLDivElement>(null);
+  const [panelLeft, setPanelLeft] = useState<number | null>(null);
+  useEffect(() => {
+    if (!editingId) return;
+    const place = () => {
+      const rect = listRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const left = rect.right + 24;
+      setPanelLeft(left + 400 <= window.innerWidth - 16 ? left : null);
+    };
+    const raf = requestAnimationFrame(place);
+    window.addEventListener('resize', place);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', place);
+    };
+  }, [editingId]);
   const [editDraft, setEditDraft] = useState<EditDraft>({
     name: '',
     emoji: '📁',
@@ -341,7 +359,7 @@ export function AdminCategoriesPage() {
         <Skeleton className="mt-6 h-32 w-full max-w-3xl" />
       ) : (
         <div className="mt-6 flex items-start gap-6">
-        <div className="flex w-full max-w-3xl flex-col gap-3">
+        <div ref={listRef} className="flex w-full max-w-3xl flex-col gap-3">
           {recheck && (
             <div className="rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)] ring-2 ring-primary/30">
               <div className="flex items-center gap-3">
@@ -472,7 +490,9 @@ export function AdminCategoriesPage() {
                   {!item.isActive && <Badge variant="secondary">비활성</Badge>}
                 </CardContent>
                 {editingId === item.id && (
-                  <CardContent className="space-y-3 border-t border-border pt-4 lg:hidden">
+                  <CardContent
+                    className={`space-y-3 border-t border-border pt-4 ${panelLeft != null ? 'lg:hidden' : ''}`}
+                  >
                     {renderEditor(item.id)}
                   </CardContent>
                 )}
@@ -480,8 +500,8 @@ export function AdminCategoriesPage() {
             ))
           )}
         </div>
-        {editingId && (
-          <aside className="sticky top-6 hidden w-[400px] shrink-0 lg:block">
+        {editingId && panelLeft != null && (
+          <aside className="fixed top-24 z-30 hidden w-[400px] lg:block" style={{ left: panelLeft }}>
             <Card>
               <CardContent className="space-y-3 pt-6">
                 <p className="text-sm font-bold">
