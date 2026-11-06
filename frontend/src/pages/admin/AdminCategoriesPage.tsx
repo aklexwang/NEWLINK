@@ -224,6 +224,43 @@ export function AdminCategoriesPage() {
     await loadCategories();
   };
 
+  /** 카테고리 수정 칸 (넓은 화면은 목록 옆, 좁은 화면은 카드 아래) */
+  const renderEditor = (itemId: string) => (
+    <>
+      <label className="block text-xs font-medium">
+                      이름
+                      <Input
+                        className="mt-1"
+                        value={editDraft.name}
+                        onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
+                      />
+                    </label>
+                    <CategoryIconPicker
+                      emoji={editDraft.emoji}
+                      iconUrl={editDraft.iconUrl}
+                      onEmojiChange={(emoji) => setEditDraft({ ...editDraft, emoji })}
+                      onIconUrlChange={(iconUrl) => setEditDraft({ ...editDraft, iconUrl })}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => void handleSaveEdit(itemId)}
+                      >
+                        {saving ? '저장 중...' : '저장'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={saving}
+                        onClick={() => setEditingId(null)}
+                      >
+                        취소
+                      </Button>
+                    </div>
+    </>
+  );
+
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <p className="mt-1 text-sm text-muted-foreground">
@@ -303,7 +340,8 @@ export function AdminCategoriesPage() {
       {loading ? (
         <Skeleton className="mt-6 h-32 w-full max-w-3xl" />
       ) : (
-        <div className="mt-6 flex max-w-3xl flex-col gap-3">
+        <div className="mt-6 flex items-start gap-6">
+        <div className="flex w-full max-w-3xl flex-col gap-3">
           {recheck && (
             <div className="rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)] ring-2 ring-primary/30">
               <div className="flex items-center gap-3">
@@ -373,7 +411,7 @@ export function AdminCategoriesPage() {
             <p className="text-sm text-muted-foreground">등록된 카테고리가 없습니다.</p>
           ) : (
             sortedCategories.map((item) => (
-              <Card key={item.id}>
+              <Card key={item.id} className={editingId === item.id ? 'ring-2 ring-primary' : undefined}>
                 <CardContent className="flex flex-wrap items-center gap-3 pt-6">
                   <input
                     type="checkbox"
@@ -434,43 +472,26 @@ export function AdminCategoriesPage() {
                   {!item.isActive && <Badge variant="secondary">비활성</Badge>}
                 </CardContent>
                 {editingId === item.id && (
-                  <CardContent className="space-y-3 border-t border-border pt-4">
-                    <label className="block text-xs font-medium">
-                      이름
-                      <Input
-                        className="mt-1"
-                        value={editDraft.name}
-                        onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
-                      />
-                    </label>
-                    <CategoryIconPicker
-                      emoji={editDraft.emoji}
-                      iconUrl={editDraft.iconUrl}
-                      onEmojiChange={(emoji) => setEditDraft({ ...editDraft, emoji })}
-                      onIconUrlChange={(iconUrl) => setEditDraft({ ...editDraft, iconUrl })}
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        disabled={saving}
-                        onClick={() => void handleSaveEdit(item.id)}
-                      >
-                        {saving ? '저장 중...' : '저장'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={saving}
-                        onClick={() => setEditingId(null)}
-                      >
-                        취소
-                      </Button>
-                    </div>
+                  <CardContent className="space-y-3 border-t border-border pt-4 lg:hidden">
+                    {renderEditor(item.id)}
                   </CardContent>
                 )}
               </Card>
             ))
           )}
+        </div>
+        {editingId && (
+          <aside className="sticky top-6 hidden w-[400px] shrink-0 lg:block">
+            <Card>
+              <CardContent className="space-y-3 pt-6">
+                <p className="text-sm font-bold">
+                  {categories.find((c) => c.id === editingId)?.name ?? ''} 수정
+                </p>
+                {renderEditor(editingId)}
+              </CardContent>
+            </Card>
+          </aside>
+        )}
         </div>
       )}
     </div>
