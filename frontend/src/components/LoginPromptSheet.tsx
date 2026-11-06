@@ -51,7 +51,7 @@ export function LoginPromptSheet() {
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/55" onClick={close}>
       <div
-        className="nl-fade-in w-full max-w-lg rounded-t-[24px] bg-nl-card px-5 pt-3 pb-[calc(20px+env(safe-area-inset-bottom))] ring-1 ring-nl-line"
+        className="nl-fade-in w-full max-w-lg rounded-t-[24px] bg-nl-card px-5 pt-3 pb-[calc(20px+var(--nl-sab))] ring-1 ring-nl-line"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"

@@ -111,7 +111,7 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg border-t border-nl-line bg-nl-bg/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg border-t border-nl-line bg-nl-bg/95 backdrop-blur-md pb-[var(--nl-sab)]">
       <div className="flex h-[56px] items-stretch">
         <NavLink
           to="/"

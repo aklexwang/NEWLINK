@@ -263,7 +263,7 @@ export function RankingPage() {
       </div>
 
       <div className="min-h-0 flex-1 bg-tg-bg">
-        <div className="sticky top-0 z-10 border-b border-black/[0.06] bg-tg-bg/95 px-4 py-2 backdrop-blur-md">
+        <div className="sticky top-[var(--nl-safe-top)] z-10 border-b border-black/[0.06] bg-tg-bg/95 px-4 py-2 backdrop-blur-md">
           <p className="text-sm font-semibold text-tg-text">{selectedLabel} 랭킹</p>
           <p className="text-[11px] text-tg-hint">{sortLabel} 기준 · 14일 추이</p>
         </div>

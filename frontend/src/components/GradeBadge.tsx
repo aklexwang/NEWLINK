@@ -346,7 +346,7 @@ function GradeInfoPanel({
           role="dialog"
           aria-modal="true"
           aria-label="등급 설명"
-          className="max-h-[85dvh] w-full overflow-y-auto rounded-t-3xl bg-nl-card px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-2xl"
+          className="max-h-[85dvh] w-full overflow-y-auto rounded-t-3xl bg-nl-card px-5 pb-[max(1.5rem,var(--nl-sab))] pt-3 shadow-2xl"
           onClick={stop}
         >
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300" aria-hidden />

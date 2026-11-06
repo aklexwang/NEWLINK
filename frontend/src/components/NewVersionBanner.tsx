@@ -40,7 +40,7 @@ export function NewVersionBanner() {
   return (
     <div
       role="status"
-      className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-[80] flex justify-center px-4"
+      className="fixed inset-x-0 bottom-[calc(76px+var(--nl-sab))] z-[80] flex justify-center px-4"
     >
       <div className="flex max-w-md items-center gap-3 rounded-2xl bg-slate-900 py-2.5 pr-2 pl-4 text-sm text-white shadow-xl">
         <span>새 버전이 올라왔습니다</span>

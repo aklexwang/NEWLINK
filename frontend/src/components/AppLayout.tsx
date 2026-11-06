@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
+import { useTelegramFullscreen } from '../hooks/useTelegramFullscreen';
 import { BottomNav } from './BottomNav';
 
 /** 화면(경로)별 스크롤 위치. 뒤로 가기 때 복원하는 데 쓴다 */
@@ -93,6 +94,7 @@ function useStartParam() {
 }
 
 export function AppLayout() {
+  useTelegramFullscreen();
   useScrollReset();
   useStartParam();
   // 회원 화면에서는 스크롤 막대를 감춘다 (어드민은 그대로)
@@ -102,7 +104,9 @@ export function AppLayout() {
   }, []);
 
   return (
-    <div className="mx-auto min-h-full max-w-lg bg-nl-bg pb-[68px] text-nl-text">
+    <div className="mx-auto min-h-full max-w-lg bg-nl-bg pt-[var(--nl-safe-top)] pb-[calc(68px+var(--nl-sab))] text-nl-text">
+      {/* 전체 화면일 때 상태바·텔레그램 버튼 뒤를 가리는 띠 (스크롤한 글이 그 밑으로 비치지 않게) */}
+      <div className="fixed inset-x-0 top-0 z-[35] h-[var(--nl-safe-top)] bg-nl-bg" aria-hidden />
       <Outlet />
       <BottomNav />
     </div>

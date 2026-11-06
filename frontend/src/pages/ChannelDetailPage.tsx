@@ -760,7 +760,7 @@ export function ChannelDetailPage() {
         </div>
       )}
 
-      <div className="fixed bottom-[calc(57px+env(safe-area-inset-bottom))] left-0 right-0 z-20 mx-auto max-w-lg border-t border-nl-line bg-tg-bg/95 px-3 py-2.5 backdrop-blur-md">
+      <div className="fixed bottom-[calc(57px+var(--nl-sab))] left-0 right-0 z-20 mx-auto max-w-lg border-t border-nl-line bg-tg-bg/95 px-3 py-2.5 backdrop-blur-md">
         {inviteExpired ? (
           <div className="space-y-2">
             <p className="text-center text-[12px] leading-snug text-tg-hint">

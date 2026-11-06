@@ -436,7 +436,7 @@ export function HomePage() {
   };
 
   const header = (
-    <header className="sticky top-0 z-30 bg-nl-bg/95 backdrop-blur-md">
+    <header className="sticky top-[var(--nl-safe-top)] z-30 bg-nl-bg/95 backdrop-blur-md">
       <div className="relative flex h-[52px] items-center justify-center px-2">
         <button
           type="button"
