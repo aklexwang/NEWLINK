@@ -14,11 +14,11 @@
   --nl-bar-h: 0px;
   /* 텔레그램 버튼 줄의 왼쪽(✕ 닫기)·오른쪽(⌄ ⋮) 버튼 폭 — 그 옆에 로고·MY 를 둔다 */
   --nl-bar-left: 104px;
-  --nl-bar-right: 100px;
+  --nl-bar-right: 108px;
 }
 html.nl-android {
-  --nl-bar-left: 68px;
-  --nl-bar-right: 76px;
+  --nl-bar-left: 82px;
+  --nl-bar-right: 98px;
 }
 /* 전체 화면(텔레그램 버튼 줄 있음): 버튼 줄에 로고·MY, 홈 헤더 줄은 숨김 */
 .nl-fs-only { display: none !important; }
