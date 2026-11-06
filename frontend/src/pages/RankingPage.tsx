@@ -232,34 +232,31 @@ export function RankingPage() {
         })}
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 pb-2">
-        <label className="flex items-center gap-2 text-[13px] text-tg-text">
-          <input
-            type="checkbox"
-            checked={hideLowData}
-            onChange={(e) => patchParams({ hideLowData: e.target.checked })}
-            className="h-4 w-4 accent-[#2481cc]"
-          />
-          데이터 부족 숨기기
-        </label>
-        <label className="flex items-center gap-2 text-[13px] text-tg-text">
-          <input
-            type="checkbox"
-            checked={verifiedOnly}
-            onChange={(e) => patchParams({ verifiedOnly: e.target.checked })}
-            className="h-4 w-4 accent-[#2481cc]"
-          />
-          인증 채널만
-        </label>
-        <label className="flex items-center gap-2 text-[13px] text-tg-text">
-          <input
-            type="checkbox"
-            checked={includeForeign}
-            onChange={(e) => patchParams({ includeForeign: e.target.checked })}
-            className="h-4 w-4 accent-[#2481cc]"
-          />
-          외국어 채널 포함
-        </label>
+      <div className="flex flex-wrap gap-1.5 px-4 pb-2.5">
+        {(
+          [
+            ['hideLowData', '데이터 부족 숨기기', hideLowData],
+            ['verifiedOnly', '인증 채널만', verifiedOnly],
+            ['includeForeign', '외국어 채널 포함', includeForeign],
+          ] as const
+        ).map(([key, label, on]) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={on}
+            onClick={() => patchParams({ [key]: !on })}
+            className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition-colors ${
+              on ? 'bg-[#2aabee] text-white' : 'bg-tg-secondary text-tg-hint ring-1 ring-nl-line'
+            }`}
+          >
+            {on && (
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M5 12.5l4.5 4.5L19 7.5" />
+              </svg>
+            )}
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="min-h-0 flex-1 bg-tg-bg">
