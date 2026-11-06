@@ -8,11 +8,13 @@ type TgWebApp = {
   contentSafeAreaInset?: Inset;
   isVersionAtLeast?: (v: string) => boolean;
   requestFullscreen?: () => void;
+  exitFullscreen?: () => void;
   onEvent?: (e: string, cb: () => void) => void;
   offEvent?: (e: string, cb: () => void) => void;
 };
 
-const MOBILE = new Set(['ios', 'android', 'android_x']);
+const MOBILE = new Set(['ios']);
+const ANDROID = new Set(['android', 'android_x']);
 const EVENTS = ['safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged', 'viewportChanged'];
 
 function tg(): TgWebApp | undefined {
@@ -24,7 +26,7 @@ function tg(): TgWebApp | undefined {
 }
 
 /**
- * 모바일 텔레그램에서 미니앱을 전체 화면으로 연다.
+ * 아이폰 텔레그램에서 미니앱을 전체 화면으로 연다. (안드로이드는 폰 기본 버튼이 가려져서 일반 크기)
  * (봇 채팅의 PLAY 메뉴 버튼은 BotFather 의 Fullscreen 설정과 상관없이 일반 크기로 열리기 때문)
  * 전체 화면에서는 휴대폰 상태바와 텔레그램의 닫기·⋯ 버튼이 화면 위에 겹치므로
  * 그 높이를 --nl-safe-top / --nl-safe-bottom 으로 넘겨 헤더·하단 탭을 피하게 한다.
@@ -50,7 +52,11 @@ export function useTelegramFullscreen() {
     EVENTS.forEach((e) => app.onEvent?.(e, apply));
 
     try {
-      if (
+      // 안드로이드 텔레그램은 전체 화면이면 폰 기본 버튼(||| ○ <)을 숨긴다 → 안드로이드는 일반 크기로 둔다
+      // (BotFather 설정이 Fullscreen 이라 전체 화면으로 열린 경우에도 되돌림)
+      if (ANDROID.has(app.platform)) {
+        if (app.isFullscreen && typeof app.exitFullscreen === 'function') app.exitFullscreen();
+      } else if (
         MOBILE.has(app.platform) &&
         !app.isFullscreen &&
         app.isVersionAtLeast?.('8.0') &&
