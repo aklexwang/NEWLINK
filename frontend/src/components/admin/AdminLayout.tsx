@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut, Menu, PanelLeft } from 'lucide-react';
 import '@/styles/admin.css';
 import { AdminPendingAlertBanner } from './AdminPendingAlertBanner';
@@ -31,6 +31,7 @@ function readCollapsed(): boolean {
 
 export function AdminLayout() {
   const [authed, setAuthed] = useState(isAdminAuthenticated);
+  const navigate = useNavigate();
 
   useEffect(() => {
     discardLegacyAdminAccess();
@@ -45,7 +46,13 @@ export function AdminLayout() {
         {authed ? (
           <AdminShell onLogout={() => setAuthed(false)} />
         ) : (
-          <AdminLoginScreen onLoggedIn={() => setAuthed(true)} />
+          <AdminLoginScreen
+            onLoggedIn={() => {
+              setAuthed(true);
+              // 로그인하면 항상 대시보드부터
+              navigate('/admin/dashboard', { replace: true });
+            }}
+          />
         )}
         <Toaster />
       </TooltipProvider>
