@@ -139,6 +139,8 @@ export function ChannelDetailPage() {
   const { favoriteIds, toggleFavorite } = useMyFavorites();
 
   const [detail, setDetail] = useState<ChannelDetail | null>(null);
+  /** 공유 창이 뜰 때까지(텔레그램이 여는 데 시간이 걸림) 버튼을 눌린 상태로 보여 준다 */
+  const [sharing, setSharing] = useState(false);
   const [stats, setStats] = useState<ChannelStatsSeries | null>(null);
   const [posts, setPosts] = useState<ChannelPostItem[]>([]);
   /** 최근 글은 5개부터 보여 주고 "더 보기"로 5개씩 */
@@ -299,7 +301,14 @@ export function ChannelDetailPage() {
 
   /** 친구에게 공유: 텔레그램 공유 창으로 미니앱 링크(이 채널로 바로 열림)를 보낸다 */
   const handleShare = () => {
-    if (!detail) return;
+    if (!detail || sharing) return;
+    setSharing(true);
+    window.setTimeout(() => setSharing(false), 2000);
+    try {
+      webApp?.HapticFeedback?.impactOccurred?.('light');
+    } catch {
+      /* 진동 없는 기기 */
+    }
     const appLink = `https://t.me/${VERIFY_BOT}?startapp=c_${detail.id}`;
     const text = `${detail.title} · 텔링크에서 회원 수·순위 보기`;
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(appLink)}&text=${encodeURIComponent(text)}`;
@@ -800,10 +809,14 @@ export function ChannelDetailPage() {
               </svg>
               텔레그램에서 열기
             </button>
-            <IconAction label="공유" onClick={handleShare} iconClass="text-tg-text">
-              <svg viewBox="0 0 24 24" className="h-[19px] w-[19px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
-              </svg>
+            <IconAction label={sharing ? '여는 중' : '공유'} onClick={handleShare} iconClass="text-tg-text" active={sharing}>
+              {sharing ? (
+                <span className="h-[18px] w-[18px] animate-spin rounded-full border-2 border-[#2aabee]/30 border-t-[#2aabee]" aria-hidden />
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-[19px] w-[19px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+                </svg>
+              )}
             </IconAction>
             <IconAction
               label={favorited ? '해제' : '즐겨찾기'}
@@ -1008,17 +1021,23 @@ function IconAction({
   label,
   children,
   iconClass = 'text-amber-400',
+  active = false,
 }: {
   onClick: () => void;
   label: string;
   children: ReactNode;
   iconClass?: string;
+  /** 눌린 상태로 보이기 (처리 중) */
+  active?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-[52px] flex-col items-center justify-center gap-1 rounded-2xl bg-nl-card py-1.5 ring-1 ring-nl-line active:scale-95"
+      aria-busy={active}
+      className={`flex w-[52px] flex-col items-center justify-center gap-1 rounded-2xl py-1.5 ring-1 transition-transform active:scale-95 ${
+        active ? 'scale-95 bg-[#2aabee]/15 ring-[#2aabee]/50' : 'bg-nl-card ring-nl-line'
+      }`}
     >
       <span className={`flex h-5 items-center leading-none ${iconClass}`}>{children}</span>
       <span className="text-[10px] font-semibold text-tg-text">{label}</span>
