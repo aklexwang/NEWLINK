@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getPostPreview, type PostPreview } from '../api/stats';
 import { MEDIA_ONLY_LABEL } from '../utils/telegramPost';
 
@@ -138,16 +138,52 @@ export function OwnPostPreview({
   );
 }
 
-/** 텔레그램 공식 게시글 미리보기 (사진·영상·전체 글). 우리 서버에는 저장하지 않는다 */
-export function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onOpenRoom: () => void; title: string }) {
+/** 텔레그램 공식 게시글 미리보기 (사진·영상·전체 글). 우리 서버에는 저장하지 않는다
+ * - 화면 가까이(위아래 약 한 화면) 왔을 때만 불러온다: 처음 열 때 상자 여러 개가 한꺼번에 받아져 느렸다
+ * - 다 받아지기 전에는 우리가 가진 글(fallback)을 먼저 보여 주고, 다 받아지면 상자로 바꾼다
+ */
+export function TelegramPostEmbed({
+  url,
+  onOpenRoom,
+  title,
+  fallback,
+}: {
+  url: string;
+  onOpenRoom: () => void;
+  title: string;
+  fallback?: ReactNode;
+}) {
   const ref = useRef<HTMLIFrameElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(240);
+  const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined');
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || near) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNear(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '500px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== 'https://t.me' || event.source !== ref.current?.contentWindow) return;
       try {
         const data = typeof event.data === 'string' ? (JSON.parse(event.data) as { event?: string; height?: number }) : null;
-        if (data?.event === 'resize' && data.height) setHeight(Math.min(2000, Math.max(120, data.height)));
+        if (data?.event === 'resize' && data.height) {
+          setHeight(Math.min(2000, Math.max(120, data.height)));
+          setReady(true);
+        }
       } catch {
         // 다른 메시지는 무시
       }
@@ -158,18 +194,25 @@ export function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onO
   const dark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   return (
     // 텔레그램 말풍선은 왼쪽 위가 각지고 꼬리(7px)가 튀어나와 어색해서, 꼬리만큼 왼쪽으로 밀고 둥근 틀로 잘라 낸다
-    <div className="relative overflow-hidden rounded-[15px]" onClick={(event) => event.stopPropagation()}>
+    <div ref={boxRef} className="relative" onClick={(event) => event.stopPropagation()}>
+      {!ready && (fallback ?? <div className="h-40 w-full animate-pulse rounded-[15px] bg-nl-elev" />)}
+      {near && (
+    <div
+      className={ready ? 'relative overflow-hidden rounded-[15px]' : 'pointer-events-none absolute inset-x-0 top-0 h-0 overflow-hidden opacity-0'}
+      aria-hidden={!ready}
+    >
       <iframe
         ref={ref}
         title="텔레그램 원본 게시글"
         src={`${url}?embed=1&userpic=false${dark ? '&dark=1' : ''}`}
-        loading="lazy"
         tabIndex={-1}
         // 스크롤바 절대 금지(사용자 요청): 상자 안에서 스크롤되지 않게 하고, 높이는 텔레그램이 알려 주는 값으로 맞춘다
         scrolling="no"
         // 상자 안(로고·이름·링크)은 눌리지 않게: 텔레그램 웹으로 튀어 나가는 것 방지
         className="pointer-events-none -ml-[7px] block w-[calc(100%+7px)] max-w-none overflow-hidden border-0"
         style={{ height }}
+        // 높이 알림이 안 와도 다 받아졌으면 1.5초 뒤 상자로 바꾼다
+        onLoad={() => window.setTimeout(() => setReady(true), 1500)}
       />
       {/* 투명 덮개: 아이폰은 iframe 에 pointer-events-none 이 안 먹어 상자 어디를 눌러도 텔레그램 글로 이동했다.
           덮개가 터치를 먼저 받아 아무 일도 하지 않는다(로고 자리만 아래 버튼으로 연다) */}
@@ -192,6 +235,8 @@ export function TelegramPostEmbed({ url, onOpenRoom, title }: { url: string; onO
         }}
         className="absolute top-0 right-0 z-20 h-12 w-14 rounded-tr-xl"
       />
+    </div>
+      )}
     </div>
   );
 }

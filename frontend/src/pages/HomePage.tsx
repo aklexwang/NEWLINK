@@ -669,7 +669,12 @@ function ThreadItem({
 
         {postUrl ? (
           <div className="mt-2">
-            <TelegramPostEmbed url={postUrl} onOpenRoom={openRoom} title={item.title} />
+            <TelegramPostEmbed
+              url={postUrl}
+              onOpenRoom={openRoom}
+              title={item.title}
+              fallback={<PostTextFallback text={post?.text ?? null} mediaType={post?.mediaType ?? 'text'} />}
+            />
           </div>
         ) : ownPreview ? (
           <OwnPostPreview
@@ -740,3 +745,18 @@ function ThreadItem({
   );
 }
 
+
+/** 텔레그램 게시글 상자가 다 받아지기 전에 먼저 보여 주는 글 (사진·영상 글은 자리만) */
+function PostTextFallback({ text, mediaType }: { text: string | null; mediaType: string }) {
+  const clean = (text ?? '').replace(/\n{2,}/g, '\n').trim();
+  return (
+    <div className="rounded-[15px] bg-nl-card px-3.5 py-3 ring-1 ring-nl-line">
+      {clean ? (
+        <p className="line-clamp-6 whitespace-pre-line break-words text-[15px] leading-[1.5] text-nl-text">{clean}</p>
+      ) : (
+        <p className="text-[14px] text-nl-muted">{MEDIA_ONLY_LABEL[mediaType] ?? '게시글 불러오는 중…'}</p>
+      )}
+      {mediaType !== 'text' && <div className="mt-2.5 h-40 w-full animate-pulse rounded-xl bg-nl-elev" />}
+    </div>
+  );
+}

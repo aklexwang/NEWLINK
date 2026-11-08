@@ -867,7 +867,18 @@ function PostThread({
             {ios ? (
               <OwnPostPreview channelId={channelId} messageId={post.messageId} fallbackText={post.text ?? null} mediaType={post.mediaType} />
             ) : (
-              <TelegramPostEmbed url={embedUrl} onOpenRoom={onOpen} title={title} />
+              <TelegramPostEmbed
+                url={embedUrl}
+                onOpenRoom={onOpen}
+                title={title}
+                fallback={
+                  post.text ? (
+                    <p className="line-clamp-6 rounded-[15px] bg-nl-card px-3.5 py-3 text-[15px] leading-[1.5] whitespace-pre-line break-words text-nl-text ring-1 ring-nl-line">
+                      {post.text.replace(/\n{2,}/g, '\n').trim()}
+                    </p>
+                  ) : undefined
+                }
+              />
             )}
           </div>
         )}
