@@ -11,24 +11,37 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** 공유 메시지: 채널 이름(누르면 텔링크의 이 채널 화면) + 회원 수. 버튼·안내 문구 없이 */
+const NEW_DAYS = 30;
+
+/** 공유 메시지: 채널 이름(누르면 텔링크의 이 채널 화면) / 카테고리·신규·운영자 인증 / 회원 수. 버튼·안내 문구 없이 */
 export function buildShareArticle(input: {
   channelId: string;
   title: string;
   memberCount: number | null;
   botUsername: string;
+  category?: string | null;
+  isNew?: boolean;
+  isVerified?: boolean;
 }) {
   const members = input.memberCount != null ? `회원 ${input.memberCount.toLocaleString('ko-KR')}명` : '';
   const appLink = `https://t.me/${input.botUsername}?startapp=c_${input.channelId}`;
   const titleLink = `<a href="${appLink}">${escapeHtml(input.title)}</a>`;
+  const tags = [
+    input.category?.trim() || null,
+    input.isNew ? '신규' : null,
+    input.isVerified ? '운영자 인증' : null,
+  ].filter((t): t is string => Boolean(t));
+  const lines = [titleLink, tags.length ? escapeHtml(tags.join(' · ')) : null, members || null].filter(
+    (l): l is string => Boolean(l),
+  );
   return {
     type: 'article' as const,
     // Telegram 결과 ID: 1~64바이트
     id: `c${input.channelId.replace(/-/g, '').slice(0, 32)}`,
     title: input.title.slice(0, 120),
-    ...(members ? { description: members } : {}),
+    ...(members || tags.length ? { description: [tags.join(' · '), members].filter(Boolean).join(' / ') } : {}),
     input_message_content: {
-      message_text: members ? `${titleLink}\n${members}` : titleLink,
+      message_text: lines.join('\n'),
       parse_mode: 'HTML' as const,
       link_preview_options: { is_disabled: true },
     },
@@ -56,7 +69,15 @@ export class ChannelShareService {
     }
     const channel = await this.channels.findOne({
       where: { id: channelId },
-      select: { id: true, title: true, memberCount: true },
+      select: {
+        id: true,
+        title: true,
+        memberCount: true,
+        category: true,
+        isVerified: true,
+        firstObservedAt: true,
+        createdAt: true,
+      },
     });
     if (!channel) throw new NotFoundException('채널을 찾을 수 없어요.');
 
@@ -67,6 +88,11 @@ export class ChannelShareService {
       title: channel.title,
       memberCount: channel.memberCount,
       botUsername,
+      category: channel.category,
+      isVerified: channel.isVerified,
+      // 텔링크에 처음 잡힌 지 30일 안이면 '신규' (회원 화면 배지와 같은 기준)
+      isNew:
+        Date.now() - (channel.firstObservedAt ?? channel.createdAt).getTime() < NEW_DAYS * 86_400_000,
     });
 
     const res = await fetch(`https://api.telegram.org/bot${token}/savePreparedInlineMessage`, {
