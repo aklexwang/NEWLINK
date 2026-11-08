@@ -16,11 +16,11 @@ import {
   Star,
   Timer,
   Users,
+  LogOut,
 } from 'lucide-react';
 import { getPendingChannelCount } from '../../api/admin';
 import { getAdminBanners } from '../../api/ads';
 import { getAdminRankAds } from '../../api/rankAds';
-import { getMemberUrl } from '../../config/site';
 import {
   ADMIN_BADGES_REFRESH_EVENT,
   emitPendingAlert,
@@ -99,9 +99,11 @@ function playAlertBeep() {
 export function AdminSidebar({
   collapsed,
   onNavigate,
+  onLogout,
 }: {
   collapsed?: boolean;
   onNavigate?: () => void;
+  onLogout?: () => void;
 }) {
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(0);
@@ -318,17 +320,19 @@ export function AdminSidebar({
       </nav>
 
       <div className="p-4">
-        <a
-          href={getMemberUrl()}
+        <button
+          type="button"
+          onClick={onLogout}
+          title="로그아웃"
           className={cn(
-            'flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-medium text-[#c3cde9]',
+            'flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-medium text-[#c3cde9]',
             'hover:bg-white/5 hover:text-white',
             collapsed && 'px-0',
           )}
         >
-          <span>←</span>
-          {!collapsed && <span>회원 페이지</span>}
-        </a>
+          <LogOut className="h-4 w-4" />
+          {!collapsed && <span>로그아웃</span>}
+        </button>
       </div>
     </aside>
   );

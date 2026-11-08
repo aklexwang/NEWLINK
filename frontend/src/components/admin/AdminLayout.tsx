@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, Menu, PanelLeft } from 'lucide-react';
+import { Clock, Menu, PanelLeft } from 'lucide-react';
 import '@/styles/admin.css';
 import { AdminPendingAlertBanner } from './AdminPendingAlertBanner';
 import { RegisterDoneWatcher } from './RegisterDoneWatcher';
@@ -16,6 +16,7 @@ import {
   ADMIN_AUTH_EXPIRED_EVENT,
   clearAdminSession,
   discardLegacyAdminAccess,
+  getAdminLoginAt,
   isAdminAuthenticated,
 } from '../../utils/adminAccess';
 
@@ -60,6 +61,27 @@ export function AdminLayout() {
   );
 }
 
+/** 머리글 오른쪽: 이번 관리자 로그인 시각 */
+function LoginTime() {
+  const at = getAdminLoginAt();
+  if (!at) return null;
+  const sameDay = at.toDateString() === new Date().toDateString();
+  const text = at.toLocaleString('ko-KR', {
+    ...(sameDay ? {} : { month: 'numeric', day: 'numeric' }),
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return (
+    <span
+      className="flex h-9 items-center gap-1.5 rounded-xl bg-card px-3.5 text-[13px] text-muted-foreground shadow-[var(--hz-shadow)]"
+      title={at.toLocaleString('ko-KR')}
+    >
+      <Clock className="h-4 w-4" />
+      로그인 <b className="font-semibold text-foreground">{sameDay ? `오늘 ${text}` : text}</b>
+    </span>
+  );
+}
+
 function AdminShell({ onLogout }: { onLogout: () => void }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -86,12 +108,12 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="flex min-h-screen w-full bg-background">
       <div className="hidden lg:block">
-        <AdminSidebar collapsed={collapsed} />
+        <AdminSidebar collapsed={collapsed} onLogout={logout} />
       </div>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-60 p-0" showCloseButton>
-          <AdminSidebar onNavigate={() => setMobileOpen(false)} />
+          <AdminSidebar onNavigate={() => setMobileOpen(false)} onLogout={logout} />
         </SheetContent>
       </Sheet>
 
@@ -127,15 +149,7 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
               <PanelLeft />
             </Button>
             <AdminNotificationBell />
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-xl bg-card px-4 text-foreground shadow-[var(--hz-shadow)]"
-              onClick={logout}
-            >
-              <LogOut />
-              로그아웃
-            </Button>
+            <LoginTime />
           </div>
         </header>
         <AdminPendingAlertBanner />

@@ -18,7 +18,7 @@ export function discardLegacyAdminAccess(): void {
   window.history.replaceState(window.history.state, '', next);
 }
 
-function readExp(token: string): number | null {
+function readClaim(token: string, key: 'exp' | 'iat'): number | null {
   const part = token.split('.')[1];
   if (!part) return null;
   try {
@@ -27,11 +27,20 @@ function readExp(token: string): number | null {
     const bytes = Uint8Array.from(atob(base64.padEnd(base64.length + pad, '=')), (char) =>
       char.charCodeAt(0),
     );
-    const payload = JSON.parse(new TextDecoder().decode(bytes)) as { exp?: unknown };
-    return typeof payload.exp === 'number' ? payload.exp : null;
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+    return typeof payload[key] === 'number' ? (payload[key] as number) : null;
   } catch {
     return null;
   }
+}
+
+const readExp = (token: string) => readClaim(token, 'exp');
+
+/** 관리자 로그인한 시각 (토큰 발급 시각) */
+export function getAdminLoginAt(): Date | null {
+  const token = getAdminToken();
+  const iat = token ? readClaim(token, 'iat') : null;
+  return iat == null ? null : new Date(iat * 1000);
 }
 
 export function getAdminToken(): string | null {
