@@ -88,23 +88,41 @@ export function AdminSecurityPage() {
       {message && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">{message}</p>}
 
       <div className={card}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[16px] font-bold">Google OTP</p>
+            <p className="flex items-center gap-2 text-[16px] font-bold">
+              Google OTP
+              {status &&
+                (status?.registered && !status.forcedOff ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    켜짐
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">꺼짐</span>
+                ))}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {status == null
                 ? '확인 중…'
                 : status.forcedOff
                   ? 'Render 설정(ADMIN_OTP_OFF)으로 잠시 꺼져 있어요. 다시 등록한 뒤 그 설정을 지워 주세요.'
                   : status.registered
-                    ? `켜져 있어요 · 백업 코드 ${status.backupLeft}개 남음`
-                    : '꺼져 있어요 · 아이디·비밀번호만으로 로그인돼요'}
+                    ? `백업 코드 ${status.backupLeft}개 남음`
+                    : '아이디·비밀번호만으로 로그인돼요'}
             </p>
           </div>
-          {status?.registered && !status.forcedOff ? (
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">켜짐</span>
-          ) : (
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">꺼짐</span>
+          {status?.registered && !status.forcedOff && !backupCodes && !disableOpen && (
+            <button
+              type="button"
+              onClick={() => setDisableOpen(true)}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[13px] font-semibold text-muted-foreground transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            >
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+                <path d="M18.4 6.6a9 9 0 1 1-12.8 0M12 2v10" />
+              </svg>
+              끄기
+            </button>
           )}
         </div>
 
@@ -161,27 +179,29 @@ export function AdminSecurityPage() {
           </div>
         )}
 
-        {status?.registered && !status.forcedOff && !backupCodes && (
-          <div className="mt-6 border-t border-border pt-5">
-            {!disableOpen ? (
-              <button type="button" onClick={() => setDisableOpen(true)} className="text-sm font-medium text-red-500 hover:underline">
-                OTP 끄기
-              </button>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm">지금 OTP 6자리(또는 백업 코드):</span>
-                <input
-                  inputMode="numeric"
-                  maxLength={8}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                  className={input}
-                />
-                <button type="button" disabled={busy || code.length < 6} onClick={() => void turnOff()} className="h-11 rounded-xl bg-red-500 px-5 text-sm font-bold text-white disabled:opacity-50">
-                  끄기
-                </button>
-              </div>
-            )}
+        {status?.registered && !status.forcedOff && !backupCodes && disableOpen && (
+          <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border pt-5">
+            <span className="text-sm">OTP를 끄려면 지금 OTP 6자리(또는 백업 코드):</span>
+            <input
+              inputMode="numeric"
+              maxLength={8}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              className={input}
+            />
+            <button type="button" disabled={busy || code.length < 6} onClick={() => void turnOff()} className="h-11 rounded-xl bg-red-500 px-5 text-sm font-bold text-white disabled:opacity-50">
+              끄기
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDisableOpen(false);
+                setCode('');
+              }}
+              className="h-11 rounded-xl px-4 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              취소
+            </button>
           </div>
         )}
       </div>
