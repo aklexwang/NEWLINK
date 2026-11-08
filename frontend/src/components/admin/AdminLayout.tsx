@@ -62,8 +62,22 @@ export function AdminLayout() {
 }
 
 /** 머리글 오른쪽: 이번 관리자 로그인 시각 */
+function elapsedText(ms: number): string {
+  const min = Math.max(0, Math.floor(ms / 60000));
+  if (min < 60) return `${min}분`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h}시간 ${m}분` : `${h}시간`;
+}
+
 function LoginTime() {
   const at = getAdminLoginAt();
+  // 로그인해 있는 시간: 30초마다 다시 그린다
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(id);
+  }, []);
   if (!at) return null;
   const sameDay = at.toDateString() === new Date().toDateString();
   const text = at.toLocaleString('ko-KR', {
@@ -78,6 +92,10 @@ function LoginTime() {
     >
       <Clock className="h-4 w-4" />
       로그인 <b className="font-semibold text-foreground">{sameDay ? `오늘 ${text}` : text}</b>
+      <span className="text-border">|</span>
+      <span>
+        접속 <b className="font-semibold text-foreground">{elapsedText(now - at.getTime())}</b>째
+      </span>
     </span>
   );
 }
