@@ -297,19 +297,32 @@ export function ChannelDetailPage() {
     trackTelegramOpen(detail.id);
   };
 
-  /** 친구에게 공유: 텔레그램 공유 창으로 미니앱 링크(이 채널로 바로 열림)를 보낸다 */
+  /** 친구에게 공유: 텔레그램 공유 창으로 미니앱 링크(이 채널로 바로 열림)를 보낸다
+   * - 공유 창이 안 뜨는 기기가 있어서, 누르면 링크를 먼저 복사해 두고 알림을 띄운다
+   * - 공유 창은 공식 텔레그램 스크립트(window.Telegram.WebApp)로 먼저 열고, 안 되면 SDK 복사본으로 */
   const handleShare = () => {
     if (!detail) return;
     const appLink = `https://t.me/${VERIFY_BOT}?startapp=c_${detail.id}`;
     const text = `${detail.title} · 텔링크에서 회원 수·순위 보기`;
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(appLink)}&text=${encodeURIComponent(text)}`;
-    try {
-      if (!isLocalBrowser && webApp?.openTelegramLink) {
-        webApp.openTelegramLink(shareUrl);
-        return;
+
+    void copyText(appLink).then((ok) => {
+      toastMessage(ok ? '공유 링크를 복사했어요' : '공유 창을 여는 중…', 'info');
+    });
+
+    if (!isLocalBrowser) {
+      const official = (window as Window & { Telegram?: { WebApp?: { openTelegramLink?: (u: string) => void } } })
+        .Telegram?.WebApp;
+      for (const app of [official, webApp]) {
+        try {
+          if (typeof app?.openTelegramLink === 'function') {
+            app.openTelegramLink(shareUrl);
+            return;
+          }
+        } catch {
+          /* 다음 방법으로 */
+        }
       }
-    } catch {
-      /* 아래로 */
     }
     window.open(shareUrl, '_blank', 'noopener,noreferrer');
   };
@@ -1096,4 +1109,30 @@ function LinkedChatSection({
       )}
     </section>
   );
+}
+
+/** 링크 복사: 텔레그램 안 웹뷰는 clipboard API 가 막힐 때가 있어 옛 방식도 쓴다 */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* 아래 방식으로 */
+  }
+  try {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.setAttribute('readonly', '');
+    el.style.position = 'fixed';
+    el.style.opacity = '0';
+    document.body.appendChild(el);
+    el.select();
+    const ok = document.execCommand('copy');
+    el.remove();
+    return ok;
+  } catch {
+    return false;
+  }
 }
