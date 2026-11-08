@@ -13,6 +13,7 @@ import { TelegramAvatarController } from './telegram-avatar.controller';
 import { TelegramAvatarService } from './telegram-avatar.service';
 import { TelegramPreviewService } from './telegram-preview.service';
 import { ChannelVerifyService } from './channel-verify.service';
+import { ChannelShareService } from './channel-share.service';
 import { ChannelEvent } from '../stats/channel-event.entity';
 
 @Module({
@@ -29,6 +30,7 @@ import { ChannelEvent } from '../stats/channel-event.entity';
   ],
   controllers: [ChannelsController, TelegramAvatarController],
   providers: [
+    ChannelShareService,
     ChannelsService,
     TelegramPreviewService,
     TelegramAvatarService,

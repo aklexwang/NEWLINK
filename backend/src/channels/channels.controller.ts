@@ -26,6 +26,7 @@ import { UsersService } from '../users/users.service';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto, SearchChannelDto } from './dto/channel.dto';
 import { ChannelVerifyService } from './channel-verify.service';
+import { ChannelShareService } from './channel-share.service';
 
 @Controller('channels')
 export class ChannelsController {
@@ -33,6 +34,7 @@ export class ChannelsController {
     private readonly channelsService: ChannelsService,
     private readonly usersService: UsersService,
     private readonly channelVerifyService: ChannelVerifyService,
+    private readonly channelShareService: ChannelShareService,
     private readonly moduleRef: ModuleRef,
     private readonly searchTerms: SearchTermsService,
     private readonly searchLog: SearchLogService,
@@ -166,6 +168,16 @@ export class ChannelsController {
   ) {
     await this.usersService.assertActiveByTelegramId(user.id);
     return this.channelsService.removeFavorite(id, user.id);
+  }
+
+  /** 텔레그램 공식 공유 창(shareMessage)용 메시지 준비. 로그인 안 해도 미니앱 서명만 있으면 된다 */
+  @Post(':id/share-message')
+  @UseGuards(TelegramAuthGuard)
+  prepareShare(
+    @Param('id', ParseUUIDPipe) id: string,
+    @TelegramUserParam() user: TelegramUser,
+  ) {
+    return this.channelShareService.prepare(id, user.id);
   }
 
   @Post(':id/verify')

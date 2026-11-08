@@ -17,6 +17,12 @@ export type {
   ChannelStatsSeries,
 } from '../types/stats';
 
+/** 텔레그램 공식 공유 창(shareMessage)용 메시지 id 받기 */
+export async function prepareChannelShare(id: string): Promise<string> {
+  const { data } = await apiClient.post<{ id: string }>(`/channels/${id}/share-message`, undefined, { timeout: 8000 });
+  return data.id;
+}
+
 export async function verifyChannelOwner(id: string): Promise<{
   id: string;
   isVerified: boolean;

@@ -20,6 +20,7 @@ import {
   getChannelPosts,
   getChannelStats,
   verifyChannelOwner,
+  prepareChannelShare,
 } from '../api/stats';
 import { CategoryBadge } from '../components/CategoryBadge';
 import { GradeBadge } from '../components/GradeBadge';
@@ -312,15 +313,36 @@ export function ChannelDetailPage() {
     const appLink = `https://t.me/${VERIFY_BOT}?startapp=c_${detail.id}`;
     const text = `${detail.title} · 텔링크에서 회원 수·순위 보기`;
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(appLink)}&text=${encodeURIComponent(text)}`;
-    try {
-      if (!isLocalBrowser && webApp?.openTelegramLink) {
-        webApp.openTelegramLink(shareUrl);
-        return;
+    const shareByLink = () => {
+      try {
+        if (!isLocalBrowser && webApp?.openTelegramLink) {
+          webApp.openTelegramLink(shareUrl);
+          return;
+        }
+      } catch {
+        /* 아래로 */
       }
-    } catch {
-      /* 아래로 */
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    };
+
+    // 1순위: 텔레그램 공식 공유 창(shareMessage, Bot API 8.0+). 미니앱 위에 떠서 폴드 펼친 화면에서도 보인다
+    const official = (
+      window as Window & {
+        Telegram?: {
+          WebApp?: {
+            shareMessage?: (id: string, cb?: (sent: boolean) => void) => void;
+            isVersionAtLeast?: (v: string) => boolean;
+          };
+        };
+      }
+    ).Telegram?.WebApp;
+    if (!isLocalBrowser && typeof official?.shareMessage === 'function' && official.isVersionAtLeast?.('8.0')) {
+      prepareChannelShare(detail.id)
+        .then((msgId) => official.shareMessage!(msgId))
+        .catch(shareByLink);
+      return;
     }
-    window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    shareByLink();
   };
 
   const openPost = (link: string) => {
