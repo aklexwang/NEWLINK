@@ -338,7 +338,17 @@ export function ChannelDetailPage() {
     ).Telegram?.WebApp;
     if (!isLocalBrowser && typeof official?.shareMessage === 'function' && official.isVersionAtLeast?.('8.0')) {
       prepareChannelShare(detail.id)
-        .then((msgId) => official.shareMessage!(msgId))
+        .then((msgId) => {
+          try {
+            official.shareMessage!(msgId);
+          } catch (err) {
+            // 펼친 폴드 등에서 앞 공유 창이 닫혔다는 신호가 안 와 "이미 열림" 상태로 남는 경우:
+            // 텔레그램 스크립트에 '공유 끝남' 신호를 넣어 상태를 풀고 한 번 더 연다
+            if (!(err instanceof Error && err.message === 'WebAppShareMessageOpened')) throw err;
+            resetTelegramShareState();
+            official.shareMessage!(msgId);
+          }
+        })
         .catch(shareByLink);
       return;
     }
@@ -1137,4 +1147,16 @@ function LinkedChatSection({
       )}
     </section>
   );
+}
+
+/** 텔레그램 스크립트의 '공유 창 열림' 상태를 푼다 (닫힘 신호가 안 와 다음 공유가 막힐 때) */
+function resetTelegramShareState() {
+  try {
+    const view = (window as Window & {
+      Telegram?: { WebView?: { receiveEvent?: (type: string, data: unknown) => void } };
+    }).Telegram?.WebView;
+    view?.receiveEvent?.('prepared_message_failed', { error: 'RESET_BY_APP' });
+  } catch {
+    /* 무시 */
+  }
 }
