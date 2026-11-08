@@ -18,7 +18,8 @@ export type ChannelBadgeCode =
   | 'new'
   | 'popular'
   | 'low_data'
-  | 'views_anomaly';
+  | 'views_anomaly'
+  | 'member_surge';
 
 export interface ChannelBadge {
   code: ChannelBadgeCode;

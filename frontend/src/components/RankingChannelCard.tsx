@@ -231,7 +231,9 @@ export function RankingChannelCard({
           {tags.map((badge) => (
             <span
               key={badge.code}
-              className="rounded-full bg-nl-accent/10 px-2 py-0.5 text-[11px] font-semibold text-nl-accent"
+              className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                badge.code === 'member_surge' ? 'bg-amber-500/15 text-amber-400' : 'bg-nl-accent/10 text-nl-accent'
+              }`}
             >
               {badge.label}
             </span>

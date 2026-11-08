@@ -505,7 +505,9 @@ export function ChannelDetailPage() {
               {detail.badges.map((badge) => (
                 <span
                   key={badge.code}
-                  className="rounded-full bg-tg-secondary px-2 py-0.5 text-[11px] font-medium text-tg-text"
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                    badge.code === 'member_surge' ? 'bg-amber-500/15 text-amber-400' : 'bg-tg-secondary text-tg-text'
+                  }`}
                 >
                   {badge.label}
                 </span>
@@ -542,7 +544,11 @@ export function ChannelDetailPage() {
       )}
 
       <section className="grid grid-cols-2 gap-2 px-4">
-        <MetricCard label="회원" value={formatMemberNumber(detail.memberCount) ?? '미집계'} />
+        <MetricCard
+          label="회원"
+          value={formatMemberNumber(detail.memberCount) ?? '미집계'}
+          note={detail.badges.some((b) => b.code === 'member_surge') ? '급증 확인 필요' : undefined}
+        />
         {isGroup ? (
           <MetricCard
             label="최근 7일 메시지 수"
@@ -913,14 +919,22 @@ function MetricCard({
   label,
   value,
   valueClass = 'text-tg-text',
+  note,
 }: {
   label: string;
   value: string;
   valueClass?: string;
+  /** 숫자 옆 경고 (예: 회원 급증인데 조회가 안 늘어남) */
+  note?: string;
 }) {
   return (
     <div className="rounded-[20px] bg-nl-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-nl-line px-3.5 py-3">
-      <p className="text-[11px] text-tg-hint">{label}</p>
+      <p className="flex items-center gap-1.5 text-[11px] text-tg-hint">
+        {label}
+        {note && (
+          <span className="rounded-full bg-amber-500/15 px-1.5 py-px text-[10px] font-semibold text-amber-400">{note}</span>
+        )}
+      </p>
       <p className={`mt-1 truncate text-[18px] font-bold ${valueClass}`}>{value}</p>
     </div>
   );

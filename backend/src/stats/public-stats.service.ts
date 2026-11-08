@@ -35,6 +35,7 @@ import {
   buildChannelBadges,
   RISING_MIN_MEMBERS,
   type ChannelBadge,
+  isMemberSurgeSuspected,
 } from './channel-badges';
 import { ChannelEvent, ChannelEventType } from './channel-event.entity';
 import {
@@ -1029,6 +1030,7 @@ export class PublicStatsService implements OnApplicationBootstrap {
         categoryRank: score?.categoryRank ?? null,
         categoryCount: categoryCounts.get(channel.category) ?? 0,
         manipulationSuspected: score?.manipulationSuspected ?? false,
+        memberSurgeSuspected: isMemberSurgeSuspected(channel),
         todayYmd: today,
       });
       return {
@@ -1170,6 +1172,7 @@ export class PublicStatsService implements OnApplicationBootstrap {
       categoryRank: latest?.categoryRank ?? null,
       categoryCount,
       manipulationSuspected: latest?.manipulationSuspected ?? false,
+      memberSurgeSuspected: isMemberSurgeSuspected(channel),
       todayYmd: today,
     });
 
