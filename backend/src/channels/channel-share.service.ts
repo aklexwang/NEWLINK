@@ -7,28 +7,30 @@ import { normalizeBotUsername } from './channel-verify.logic';
 
 const DEFAULT_BOT_USERNAME = 'telllink_bot';
 
-/** 공유 카드에 들어갈 글 (봇이 미리 만들어 두는 메시지) */
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** 공유 메시지: 채널 이름(누르면 텔링크의 이 채널 화면) + 회원 수. 버튼·안내 문구 없이 */
 export function buildShareArticle(input: {
   channelId: string;
   title: string;
   memberCount: number | null;
   botUsername: string;
 }) {
-  const members =
-    input.memberCount != null ? `회원 ${input.memberCount.toLocaleString('ko-KR')}명 · ` : '';
+  const members = input.memberCount != null ? `회원 ${input.memberCount.toLocaleString('ko-KR')}명` : '';
   const appLink = `https://t.me/${input.botUsername}?startapp=c_${input.channelId}`;
+  const titleLink = `<a href="${appLink}">${escapeHtml(input.title)}</a>`;
   return {
     type: 'article' as const,
     // Telegram 결과 ID: 1~64바이트
     id: `c${input.channelId.replace(/-/g, '').slice(0, 32)}`,
     title: input.title.slice(0, 120),
-    description: `${members}텔링크에서 순위·추이 보기`,
+    ...(members ? { description: members } : {}),
     input_message_content: {
-      message_text: `${input.title}\n${members}텔링크에서 회원 수·순위 보기`,
+      message_text: members ? `${titleLink}\n${members}` : titleLink,
+      parse_mode: 'HTML' as const,
       link_preview_options: { is_disabled: true },
-    },
-    reply_markup: {
-      inline_keyboard: [[{ text: '텔링크에서 보기', url: appLink }]],
     },
   };
 }
