@@ -1,5 +1,8 @@
 /*
   Cross-Origin-Opener-Policy: same-origin-allow-popups
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: frame-ancestors 'self' https://web.telegram.org https://*.telegram.org
 */
 /version.json
   Cache-Control: no-store

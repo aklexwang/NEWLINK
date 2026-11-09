@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { mkdirSync } from 'fs';
 import { join } from 'path';
 import { AppModule } from './app.module';
+import { isCorsOriginAllowed, parseCorsOrigins } from './security/cors-origin.logic';
 
 function ensureUploadDirs() {
   const root = join(process.cwd(), 'uploads');
@@ -22,8 +23,12 @@ async function bootstrap() {
     prefix: '/api/uploads/',
   });
   app.setGlobalPrefix('api');
+  // 회원 사이트·커스텀 도메인·미리보기 배포만 허용 (이전엔 모든 출처 허용)
+  const corsAllowList = parseCorsOrigins(process.env.CORS_ORIGINS);
   app.enableCors({
-    origin: true,
+    origin(origin, callback) {
+      callback(null, isCorsOriginAllowed(origin ?? undefined, corsAllowList));
+    },
     credentials: true,
   });
   app.useGlobalPipes(
