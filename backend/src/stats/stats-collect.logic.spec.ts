@@ -167,14 +167,21 @@ describe('startedRecently (서버 일정·GitHub 예비 겹침 방지)', () => {
       }),
     ).toBe(false);
   });
-  it('full 은 6시간 안이면 건너뛴다', () => {
+  it('full 은 20시간 안이면 건너뛴다 (늦게 온 GitHub 예비 full)', () => {
     expect(
       startedRecently({
         mode: 'full',
-        lastStartedAtMs: now - 2 * 3600_000,
+        lastStartedAtMs: now - 7 * 3600_000,
         nowMs: now,
       }),
     ).toBe(true);
+    expect(
+      startedRecently({
+        mode: 'full',
+        lastStartedAtMs: now - 21 * 3600_000,
+        nowMs: now,
+      }),
+    ).toBe(false);
   });
   it('기록이 없으면 건너뛰지 않는다', () => {
     expect(

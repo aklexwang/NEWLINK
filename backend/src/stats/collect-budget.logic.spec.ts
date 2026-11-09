@@ -10,9 +10,9 @@ import {
 } from './collect-budget.logic';
 
 describe('수집 시간 예산', () => {
-  it('기본은 light 25분, full 70분이다', () => {
+  it('기본은 light 25분, full 100분이다', () => {
     expect(collectBudgetMinutes('light')).toBe(25);
-    expect(collectBudgetMinutes('full')).toBe(70);
+    expect(collectBudgetMinutes('full')).toBe(100);
     expect(collectBudgetMs('light')).toBe(25 * 60_000);
     expect(
       collectBudgetMinutes('light', { COLLECT_LIGHT_BUDGET_MIN: '10' }),

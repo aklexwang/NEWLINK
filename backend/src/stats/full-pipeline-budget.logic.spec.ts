@@ -24,8 +24,8 @@ describe('full 파이프라인 최악 시간', () => {
     expect(msToMinutes(verifyRecheckUncappedWorstMs(100))).toBe(5);
   });
 
-  it('예산 적용 후 full 최악은 100분 이하다', () => {
-    expect(fullPipelineBudgetedWorstMinutes()).toBe(99.2);
-    expect(fullPipelineBudgetedWorstMinutes()).toBeLessThanOrEqual(100);
+  it('예산 적용 후 full 최악은 130분 이하다 (03:00 시작 → 05:10 전 끝, 06:05 light 와 안 겹침)', () => {
+    expect(fullPipelineBudgetedWorstMinutes()).toBe(129.2);
+    expect(fullPipelineBudgetedWorstMinutes()).toBeLessThanOrEqual(130);
   });
 });

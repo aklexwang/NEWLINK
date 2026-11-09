@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Repository, Not } from 'typeorm';
 import { Channel } from '../channels/channel.entity';
 import { TelegramAdminNotifyService } from '../common/telegram-admin-notify.service';
 import { AdminNotificationService } from '../notifications/admin-notification.service';
@@ -317,6 +317,10 @@ export class StatsJobService implements OnModuleInit {
     mode: StatsCollectMode;
     reason?: 'recent';
   }> {
+    if (options.skipIfRecent && this.lastStartedAt[mode] == null) {
+      // 배포·재시작 뒤에는 메모리 기록이 없으니 DB 의 마지막 시작 시각을 쓴다
+      this.lastStartedAt[mode] = await this.loadLastStartedAt(mode);
+    }
     if (
       options.skipIfRecent &&
       !this.status.running &&
@@ -518,6 +522,20 @@ export class StatsJobService implements OnModuleInit {
       this.logger.warn(
         `단일 채널 수집 실패(${channel.id}): ${error instanceof Error ? error.message : error}`,
       );
+    }
+  }
+
+  private async loadLastStartedAt(mode: StatsCollectMode): Promise<number | null> {
+    try {
+      const last = await this.runRepository.findOne({
+        // 채널 하나만 도는 '지금 수집'(total 1)도 full 로 남아서 빼고 본다
+        where: { mode, total: Not(1) },
+        order: { startedAt: 'DESC' },
+        select: { id: true, startedAt: true },
+      });
+      return last ? new Date(last.startedAt).getTime() : null;
+    } catch {
+      return null;
     }
   }
 

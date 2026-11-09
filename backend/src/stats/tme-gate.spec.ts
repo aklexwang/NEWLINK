@@ -93,10 +93,10 @@ describe('TmeGate 합산', () => {
   });
 
   it('수집 상한은 환경변수 값을 따르고 잘못된 값은 3 이다', () => {
-    expect(parseTmeCollectMax(undefined)).toBe(3);
-    expect(parseTmeCollectMax('')).toBe(3);
-    expect(parseTmeCollectMax('abc')).toBe(3);
-    expect(parseTmeCollectMax('0')).toBe(3);
+    expect(parseTmeCollectMax(undefined)).toBe(4);
+    expect(parseTmeCollectMax('')).toBe(4);
+    expect(parseTmeCollectMax('abc')).toBe(4);
+    expect(parseTmeCollectMax('0')).toBe(4);
     expect(parseTmeCollectMax('1')).toBe(1);
     expect(parseTmeCollectMax('2')).toBe(2);
     expect(parseTmeCollectMax('99')).toBe(4);

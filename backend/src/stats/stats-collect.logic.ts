@@ -21,7 +21,9 @@ export const LIGHT_PIPELINE_STEPS = [
   'clearPublicCache',
 ] as const;
 
-export const FULL_WAIT_FOR_LIGHT_MS = 10 * 60 * 1000;
+/** full 이 앞선 light 를 기다리는 최대 시간. light 예산(25분)+여유.
+ * 11/9: 10분만 기다리다 light 가 55초 뒤 끝났는데 full 을 통째로 건너뜀 → 30분으로 */
+export const FULL_WAIT_FOR_LIGHT_MS = 30 * 60 * 1000;
 
 /** UTC cron. KST 03:05 */
 export const STATS_CRON_FULL_UTC = '5 18 * * *';
@@ -119,7 +121,8 @@ export const SERVER_LIGHT_CRON_KST = '5 0,6,9,12,15,18,21 * * *';
 /** 같은 모드가 이 시간 안에 이미 시작됐으면 GitHub 예비 실행 등 두 번째 요청은 건너뛴다 */
 export const RECENT_RUN_WINDOW_MS: Record<StatsCollectMode, number> = {
   light: 60 * 60 * 1000,
-  full: 6 * 60 * 60 * 1000,
+  // GitHub 예비 full 이 몇 시간 늦게 와도 같은 날 두 번 돌지 않게 (11/9 6→20시간)
+  full: 20 * 60 * 60 * 1000,
 };
 
 export function startedRecently(input: {

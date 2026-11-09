@@ -1,5 +1,6 @@
 export const COLLECT_LIGHT_BUDGET_MIN_DEFAULT = 25;
-export const COLLECT_FULL_BUDGET_MIN_DEFAULT = 70;
+/** 11/9 70→100분: 매일 full 이 시간 안에 못 끝내고 남기는 수가 늘어서(1,044→1,217→1,485) */
+export const COLLECT_FULL_BUDGET_MIN_DEFAULT = 100;
 export const DISCOVERY_BUDGET_MIN_DEFAULT = 15;
 export const VERIFY_RECHECK_BUDGET_MIN_DEFAULT = 5;
 

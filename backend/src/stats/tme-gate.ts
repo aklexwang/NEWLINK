@@ -19,7 +19,8 @@ export type TmeGateKind = 'collect' | 'preview' | 'inspect';
 /** 수집용 동시 수 시작값 */
 export const TME_COLLECT_START_LIMIT = 2;
 /** 수집용 동시 수 상한 기본값 (환경변수 COLLECT_TME_CONCURRENCY_MAX) */
-export const TME_COLLECT_MAX_DEFAULT = 3;
+/** 11/9 3→4: t.me 429 가 며칠째 0 이라 여유가 있어 수집 밀림을 줄인다 */
+export const TME_COLLECT_MAX_DEFAULT = 4;
 /** 미리보기 몫 */
 export const TME_PREVIEW_LIMIT = 4;
 /** 대량 검사·발견 몫 (각 fetcher 가 이미 직렬이라 1) */
@@ -83,7 +84,7 @@ export type TmeGateOptions = {
   sleep?: (ms: number) => Promise<void>;
 };
 
-/** COLLECT_TME_CONCURRENCY_MAX 파싱. 1~4 정수만 인정하고 아니면 기본 3 */
+/** COLLECT_TME_CONCURRENCY_MAX 파싱. 1~4 정수만 인정하고 아니면 기본 4 */
 export function parseTmeCollectMax(raw: string | undefined | null): number {
   const value = Number((raw ?? '').trim());
   if (!Number.isInteger(value) || value < 1) return TME_COLLECT_MAX_DEFAULT;
