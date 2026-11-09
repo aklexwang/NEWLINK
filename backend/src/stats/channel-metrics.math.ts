@@ -10,6 +10,8 @@ export const WEIGHT_GROUP_ACTIVITY = 0.4;
 export const WEIGHT_GROUP_GROWTH = 0.15;
 
 export const MANIPULATION_SCORE_MULTIPLIER = 0.6;
+/** 급증 의심(회원만 급증·활동 미확인) 방은 점수를 깎는다 */
+export const SURGE_SCORE_MULTIPLIER = 0.6;
 export const VIEW_RATE_SUSPECT = 1.0;
 export const MEMBER_SPIKE_RATIO = 0.2;
 export const VIEW_CV_SUSPECT = 0.03;

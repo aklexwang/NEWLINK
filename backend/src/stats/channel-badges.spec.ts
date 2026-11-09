@@ -55,8 +55,22 @@ describe('isMemberSurgeSuspected', () => {
     expect(isMemberSurgeSuspected({ memberCount: 20000, memberDelta7d: 12000, memberDelta30d: null, viewRate: 0.15 })).toBe(false);
   });
 
-  it('2배 미만 증가는 표시하지 않음', () => {
-    expect(isMemberSurgeSuspected({ memberCount: 15000, memberDelta7d: 5000, memberDelta30d: null, viewRate: 0.001 })).toBe(false);
+  it('2배 미만이어도 활동(글·조회)이 전혀 확인 안 되면 의심 (ybet24: 7.8만→12.8만, 글 0, 조회 없음)', () => {
+    expect(
+      isMemberSurgeSuspected({ memberCount: 128694, memberDelta7d: 50599, memberDelta30d: null, viewRate: null, posts7d: 0 }),
+    ).toBe(true);
+  });
+
+  it('2배 미만이고 활동이 조금이라도 확인되면 표시하지 않음', () => {
+    expect(
+      isMemberSurgeSuspected({ memberCount: 15000, memberDelta7d: 5000, memberDelta30d: null, viewRate: 0.001, posts7d: 3 }),
+    ).toBe(false);
+  });
+
+  it('1.5배 미만이면 활동 0이어도 표시하지 않음', () => {
+    expect(
+      isMemberSurgeSuspected({ memberCount: 12000, memberDelta7d: 3000, memberDelta30d: null, viewRate: null, posts7d: 0 }),
+    ).toBe(false);
   });
 
   it('작은 방·작은 증가·기록 없음은 표시하지 않음', () => {

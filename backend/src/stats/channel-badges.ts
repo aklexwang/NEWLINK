@@ -31,21 +31,35 @@ const LABELS: Record<ChannelBadgeCode, string> = {
 export const SURGE_MIN_MEMBERS = 1000;
 export const SURGE_MIN_DELTA = 1000;
 export const SURGE_RATIO = 2;
+/** 활동·조회가 하나도 확인 안 되는 방은 1.5배 증가만으로도 의심 */
+export const SURGE_FAST_RATIO = 1.5;
 export const SURGE_MAX_VIEW_RATE = 0.02;
 
+/**
+ * 회원 급증 의심:
+ * - (강) 7·30일에 회원 2배 이상 늘었는데 조회율이 2% 미만(조회가 안 따라옴), 또는
+ * - (활동 0) 1.5배 이상 늘었는데 7일 글도 0, 조회도 없음 — 활동이 전혀 확인 안 됨
+ *   (운영자가 미리보기를 꺼 글을 못 읽는 방도 여기 걸릴 수 있어 "확인 필요" 경고로 쓴다)
+ */
 export function isMemberSurgeSuspected(input: {
   memberCount: number | null;
   memberDelta7d: number | null;
   memberDelta30d: number | null;
   viewRate: number | null;
+  posts7d?: number | null;
 }): boolean {
   const count = input.memberCount ?? 0;
   const deltas = [input.memberDelta7d, input.memberDelta30d].filter((d): d is number => d != null);
   if (count < SURGE_MIN_MEMBERS || deltas.length === 0) return false;
   const delta = Math.max(...deltas);
   const before = count - delta;
-  if (delta < SURGE_MIN_DELTA || before <= 0 || count < before * SURGE_RATIO) return false;
-  return input.viewRate == null || input.viewRate < SURGE_MAX_VIEW_RATE;
+  if (delta < SURGE_MIN_DELTA || before <= 0) return false;
+  const ratio = count / before;
+  const lowView = input.viewRate == null || input.viewRate < SURGE_MAX_VIEW_RATE;
+  const noActivity = (input.posts7d ?? 0) === 0 && (input.viewRate == null || input.viewRate === 0);
+  if (ratio >= SURGE_RATIO && lowView) return true;
+  if (ratio >= SURGE_FAST_RATIO && noActivity) return true;
+  return false;
 }
 
 export function buildChannelBadges(input: {

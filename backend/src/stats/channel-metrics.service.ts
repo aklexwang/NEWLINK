@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { isScoreCollectable } from './collect-visibility';
+import { isMemberSurgeSuspected } from './channel-badges';
 import { ChannelEvent } from './channel-event.entity';
 import { ChannelPost } from './channel-post.entity';
 import { ChannelScore } from './channel-score.entity';
@@ -22,6 +23,7 @@ import {
   memberDeltaFromSnapshots,
   isManipulationSuspected,
   MANIPULATION_SCORE_MULTIPLIER,
+  SURGE_SCORE_MULTIPLIER,
   MEMBER_SPIKE_RATIO,
   median,
   MIN_POSTS_FOR_CV,
@@ -418,7 +420,12 @@ export class ChannelMetricsService {
 
     const scaleValues = sorted(rows.map((r) => Math.log10(r.memberCount + 1)));
     const viewRateValues = sorted(rows.map((r) => r.viewRate ?? 0));
-    const activityValues = sorted(rows.map((r) => r.posts7d));
+    // 활동 점수는 글이 실제로 읽힌 방(posts7d>0)끼리만 순위를 매긴다.
+    // 예전엔 글 0인 방이 많아 "0"도 중간 순위를 받았다 → 회원만 많은·글 못 읽는 방이 상위를 차지.
+    // 이제 글 0이면 활동 점수 0, 글이 하나라도 있으면 그들 사이의 순위.
+    const activeActivityValues = sorted(
+      rows.map((r) => r.posts7d).filter((v) => v > 0),
+    );
     const growthValues = sorted(rows.map((r) => r.growth7d ?? 0));
 
     const prelim = rows.map((row) => {
@@ -429,7 +436,8 @@ export class ChannelMetricsService {
       const viewRateScore = isGroup
         ? 0
         : percentile(row.viewRate ?? 0, viewRateValues);
-      const activityScore = percentile(row.posts7d, activityValues);
+      const activityScore =
+        row.posts7d > 0 ? percentile(row.posts7d, activeActivityValues) : 0;
       const growthScore = percentile(row.growth7d ?? 0, growthValues);
 
       let mixed: number;
@@ -449,6 +457,18 @@ export class ChannelMetricsService {
       }
       if (row.manipulationSuspected) {
         mixed *= THRESHOLDS.manipulationScoreMultiplier;
+      }
+      // 회원만 급증하고 활동이 확인 안 되는 방(회원 구매 정황)은 추가 감점
+      if (
+        isMemberSurgeSuspected({
+          memberCount: row.memberCount,
+          memberDelta7d: row.memberDelta7d,
+          memberDelta30d: row.memberDelta30d,
+          viewRate: row.viewRate,
+          posts7d: row.posts7d,
+        })
+      ) {
+        mixed *= SURGE_SCORE_MULTIPLIER;
       }
       const total = clampScore(mixed);
       return {
