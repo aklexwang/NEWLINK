@@ -69,6 +69,12 @@ import {
   KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
 } from './mtproto-budget.logic';
 import {
+  accountStateId,
+  allAccountsBlocked,
+  parseSessionList,
+  pickNextAccount,
+} from './mtproto-pool.logic';
+import {
   publicUsernamesFromContactsSearch,
   type PublicSearchHit,
 } from './mtproto-search.logic';
@@ -104,8 +110,23 @@ import {
   parseJoinDaily,
 } from './mtproto-join.logic';
 
+/** 풀 계정 한 칸: 연결·FloodWait 는 계정마다 따로 */
+interface AccountSlot {
+  index: number;
+  session: string;
+  client: import('telegram').TelegramClient | null;
+  connecting: Promise<boolean> | null;
+  floodWaitUntil: Date | null;
+  authStopped: boolean;
+  lastError: string | null;
+}
+
 export type MtprotoPublicStatus = {
   enabled: boolean;
+  /** 수집 계정 수(풀) */
+  accountsTotal?: number;
+  /** 지금 쓸 수 있는 계정 수(FloodWait·인증 중단 제외) */
+  accountsAvailable?: number;
   requestsToday: number;
   resolvesToday: number;
   searchesToday: number;
@@ -179,18 +200,22 @@ const MTPROTO_JOIN_DAILY_KEY = 'mtproto-join';
 @Injectable()
 export class MtprotoCollectorService implements OnModuleInit {
   private readonly logger = new Logger(MtprotoCollectorService.name);
-  private client: import('telegram').TelegramClient | null = null;
+  /** 수집 계정 풀(멀티 계정). 세션 1개면 슬롯 1개로 기존과 동일하게 동작한다. */
+  private accounts: AccountSlot[] = [];
+  private poolInited = false;
+  /** 라운드로빈 다음 자리 */
+  private rrPointer = 0;
+  /** call() 이 지금 쓰는 계정(인증 오류 처리용) */
+  private activeAccount: AccountSlot | null = null;
   private stopped = false;
   private lastError: string | null = null;
   private requestsToday = 0;
   private requestDay = '';
   private lastCallAt = 0;
-  private connecting: Promise<boolean> | null = null;
   private timeoutStreak = 0;
   private lastResolveOrSearchAt = 0;
   private resolvesToday = 0;
   private searchesToday = 0;
-  private floodWaitUntil: Date | null = null;
   private joinsToday = 0;
   /** CheckChatInvite(초대 링크 확인) 오늘 수. resolve 한도와 따로 센다 */
   private invitesToday = 0;
@@ -228,11 +253,61 @@ export class MtprotoCollectorService implements OnModuleInit {
   async onModuleInit() {
     await this.restoreDailyCounters();
     await this.restoreJoinCounters();
+    this.ensurePool();
     await this.refreshFloodWaitFromDb();
-    if (isFloodWaitBlocking(this.floodWaitUntil)) {
-      this.stopped = true;
-      this.lastError = this.lastError ?? 'flood_wait';
+    // FloodWait 은 계정별이라 전역 stopped 을 세우지 않는다. 쓸 계정이 있으면 canUseMtproto 가 허용한다.
+  }
+
+  /** env 의 세션 목록으로 계정 풀을 만든다(또는 바뀌었으면 다시 만든다). */
+  private ensurePool() {
+    const env: Record<string, string | undefined> = {
+      TELEGRAM_SESSION: this.configService.get<string>('TELEGRAM_SESSION'),
+      TELEGRAM_SESSIONS: this.configService.get<string>('TELEGRAM_SESSIONS'),
+    };
+    for (let i = 2; i <= 10; i += 1) {
+      env[`TELEGRAM_SESSION_${i}`] = this.configService.get<string>(
+        `TELEGRAM_SESSION_${i}`,
+      );
     }
+    const sessions = parseSessionList(env);
+    const changed =
+      sessions.length !== this.accounts.length ||
+      sessions.some((s, i) => this.accounts[i]?.session !== s);
+    if (this.poolInited && !changed) return;
+    // 세션이 그대로인 슬롯은 살아 있는 연결을 유지하고, 바뀐 것만 새로 만든다
+    const bySession = new Map(this.accounts.map((a) => [a.session, a]));
+    const next: AccountSlot[] = sessions.map((session, index) => {
+      const kept = bySession.get(session);
+      if (kept) {
+        kept.index = index;
+        bySession.delete(session);
+        return kept;
+      }
+      return {
+        index,
+        session,
+        client: null,
+        connecting: null,
+        floodWaitUntil: null,
+        authStopped: false,
+        lastError: null,
+      };
+    });
+    // 더 이상 안 쓰는 슬롯은 연결을 끊는다
+    for (const gone of bySession.values()) {
+      void gone.client?.disconnect().catch(() => undefined);
+    }
+    this.accounts = next;
+    this.poolInited = true;
+    if (this.rrPointer >= this.accounts.length) this.rrPointer = 0;
+  }
+
+  /** 지금 쓸 수 있는 계정 수 */
+  private availableAccountCount(): number {
+    const now = new Date();
+    return this.accounts.filter(
+      (a) => !a.authStopped && !isFloodWaitBlocking(a.floodWaitUntil, now),
+    ).length;
   }
 
   isEnabled(): boolean {
@@ -246,6 +321,8 @@ export class MtprotoCollectorService implements OnModuleInit {
     this.rollDailyCounter();
     return {
       enabled: this.canUseMtproto(),
+      accountsTotal: this.accounts.length,
+      accountsAvailable: this.availableAccountCount(),
       requestsToday: this.requestsToday,
       resolvesToday: this.resolvesToday,
       searchesToday: this.searchesToday,
@@ -263,21 +340,13 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   canUseMtproto(): boolean {
-    // FloodWait 이 끝났으면 다음 새벽 full 까지 기다리지 않고 바로 다시 쓴다
-    // (11/5 04:07 에 22분 FloodWait 뒤 낮 내내 MTProto 가 꺼져 있던 일 때문)
-    if (
-      this.stopped &&
-      (this.lastError ?? '').startsWith('flood_wait') &&
-      !isFloodWaitBlocking(this.floodWaitUntil)
-    ) {
-      this.stopped = false;
-      this.lastError = null;
-      this.logger.log('FloodWait 이 끝나 MTProto 를 다시 켭니다.');
-    }
+    // FloodWait 은 계정별이라 끝난 계정은 pickNextAccount 가 자동으로 다시 쓴다
+    // (한 계정이 막혀도 다른 계정이 있으면 계속 쓴다. 전부 막혀야 멈춘다)
+    this.ensurePool();
     return (
       this.isEnabled() &&
       !this.stopped &&
-      !isFloodWaitBlocking(this.floodWaitUntil)
+      !allAccountsBlocked(this.accounts)
     );
   }
 
@@ -302,17 +371,9 @@ export class MtprotoCollectorService implements OnModuleInit {
   /** full 파이프라인 시작 때 호출. 인증 오류·일일 상한·진행 중 FloodWait 은 유지 */
   async prepareForCollectRun() {
     this.timeoutStreak = 0;
+    this.ensurePool();
     await this.refreshFloodWaitFromDb();
-    if (isFloodWaitBlocking(this.floodWaitUntil)) {
-      this.stopped = true;
-      if (!(this.lastError ?? '').startsWith('flood_wait')) {
-        this.lastError = 'flood_wait';
-      }
-      this.logger.warn(
-        'FloodWait가 끝나기 전이라 MTProto를 건너뛰고 t.me 로 수집합니다.',
-      );
-      return;
-    }
+    // 타임아웃 연속·flood 로 꺼졌던 전역 stopped 는 푼다 (인증·일일상한은 유지)
     if (
       this.stopped &&
       (this.lastError === 'timeout:mtproto_streak' ||
@@ -320,6 +381,11 @@ export class MtprotoCollectorService implements OnModuleInit {
     ) {
       this.stopped = false;
       this.lastError = null;
+    }
+    if (allAccountsBlocked(this.accounts)) {
+      this.logger.warn(
+        '모든 수집 계정이 FloodWait 중이라 이번 run 은 t.me 로 수집합니다.',
+      );
     }
   }
 
@@ -1387,7 +1453,8 @@ export class MtprotoCollectorService implements OnModuleInit {
   private async call(method: string, request: object): Promise<unknown> {
     assertMtprotoMethodAllowed(method);
     this.rollDailyCounter();
-    if (isFloodWaitBlocking(this.floodWaitUntil)) {
+    this.ensurePool();
+    if (allAccountsBlocked(this.accounts)) {
       throw new Error('flood_wait');
     }
     const limit = this.dailyLimit();
@@ -1408,7 +1475,12 @@ export class MtprotoCollectorService implements OnModuleInit {
     ) {
       throw new Error('SEARCH_DAILY_LIMIT');
     }
-    const client = await this.ensureClient();
+    const account = this.pickAccount();
+    if (!account) {
+      throw new Error('flood_wait');
+    }
+    this.activeAccount = account;
+    const client = await this.ensureClientFor(account);
     const wait = mtprotoCallGapMs({
       method,
       lastCallAt: this.lastCallAt,
@@ -1444,7 +1516,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       return result;
     } catch (error) {
       if (error instanceof FloodWaitTooLongError) {
-        await this.persistFloodWait(error.seconds);
+        await this.persistAccountFloodWait(account, error.seconds);
         throw error;
       }
       if (isMtprotoTimeoutError(error)) {
@@ -1512,28 +1584,42 @@ export class MtprotoCollectorService implements OnModuleInit {
     };
   }
 
-  private async persistFloodWait(seconds: number) {
+  /** FloodWait 은 계정별로 건다. 전역 stopped 은 건드리지 않아 다른 계정이 계속 쓰인다. */
+  private async persistAccountFloodWait(account: AccountSlot, seconds: number) {
     const startedAt = new Date();
     const until = floodWaitUntilFromSeconds(startedAt, seconds);
-    this.floodWaitUntil = until;
-    this.disableForRun(`flood_wait:${seconds}s`);
+    account.floodWaitUntil = until;
+    account.lastError = `flood_wait:${seconds}s`;
+    this.lastError = account.lastError; // 화면 표시용(가장 최근 오류)
+    this.logger.warn(
+      `계정#${account.index + 1} FloodWait ${seconds}초. 이 계정만 쉬고 다른 계정으로 계속합니다.`,
+    );
     await this.stateRepository.save({
-      id: 1,
+      id: accountStateId(account.index),
       floodWaitStartedAt: startedAt,
       floodWaitUntil: until,
     });
   }
 
+  /** 각 계정의 FloodWait 상태를 DB 에서 복구하고, 끝난 것은 비운다. */
   private async refreshFloodWaitFromDb() {
-    const row = await this.stateRepository.findOne({ where: { id: 1 } });
-    this.floodWaitUntil = row?.floodWaitUntil ?? null;
-    if (this.floodWaitUntil && !isFloodWaitBlocking(this.floodWaitUntil)) {
-      this.floodWaitUntil = null;
-      await this.stateRepository.save({
-        id: 1,
-        floodWaitStartedAt: null,
-        floodWaitUntil: null,
+    for (const account of this.accounts) {
+      const row = await this.stateRepository.findOne({
+        where: { id: accountStateId(account.index) },
       });
+      account.floodWaitUntil = row?.floodWaitUntil ?? null;
+      if (
+        account.floodWaitUntil &&
+        !isFloodWaitBlocking(account.floodWaitUntil)
+      ) {
+        account.floodWaitUntil = null;
+        if (account.lastError?.startsWith('flood_wait')) account.lastError = null;
+        await this.stateRepository.save({
+          id: accountStateId(account.index),
+          floodWaitStartedAt: null,
+          floodWaitUntil: null,
+        });
+      }
     }
   }
 
@@ -1605,31 +1691,40 @@ export class MtprotoCollectorService implements OnModuleInit {
     }
   }
 
-  private async ensureClient(): Promise<import('telegram').TelegramClient> {
-    if (this.client) return this.client;
-    if (this.connecting) {
-      const ok = await this.connecting;
-      if (!ok || !this.client) throw new Error('mtproto_connect_failed');
-      return this.client;
-    }
-    this.connecting = this.connect();
-    const ok = await this.connecting;
-    this.connecting = null;
-    if (!ok || !this.client) throw new Error('mtproto_connect_failed');
-    return this.client;
+  /** 라운드로빈으로 쓸 수 있는 계정을 고른다. 없으면 null. */
+  private pickAccount(): AccountSlot | null {
+    const idx = pickNextAccount(this.accounts, this.rrPointer);
+    if (idx == null) return null;
+    this.rrPointer = idx + 1;
+    return this.accounts[idx];
   }
 
-  private async connect(): Promise<boolean> {
+  private async ensureClientFor(
+    account: AccountSlot,
+  ): Promise<import('telegram').TelegramClient> {
+    if (account.client) return account.client;
+    if (account.connecting) {
+      const ok = await account.connecting;
+      if (!ok || !account.client) throw new Error('mtproto_connect_failed');
+      return account.client;
+    }
+    account.connecting = this.connectAccount(account);
+    const ok = await account.connecting;
+    account.connecting = null;
+    if (!ok || !account.client) throw new Error('mtproto_connect_failed');
+    return account.client;
+  }
+
+  private async connectAccount(account: AccountSlot): Promise<boolean> {
     const apiIdRaw = (
       this.configService.get<string>('TELEGRAM_API_ID') ?? ''
     ).trim();
     const apiHash = (
       this.configService.get<string>('TELEGRAM_API_HASH') ?? ''
     ).trim();
-    const session = (
-      this.configService.get<string>('TELEGRAM_SESSION') ?? ''
-    ).trim();
+    const session = account.session.trim();
     if (!/^\d+$/.test(apiIdRaw) || !apiHash || !session) {
+      account.lastError = 'no_session';
       this.lastError = 'no_session';
       return false;
     }
@@ -1646,13 +1741,15 @@ export class MtprotoCollectorService implements OnModuleInit {
         MTPROTO_CONNECT_TIMEOUT_MS,
         'timeout:connect',
       );
-      this.client = client;
+      account.client = client;
+      account.lastError = null;
       return true;
     } catch (error) {
       if (isMtprotoAuthFatal(error)) {
-        await this.stopForAuth(error);
+        await this.stopAccountForAuth(account, error);
       } else {
-        this.lastError = mtprotoErrorCode(error);
+        account.lastError = mtprotoErrorCode(error);
+        this.lastError = account.lastError;
       }
       return false;
     }
@@ -1663,17 +1760,42 @@ export class MtprotoCollectorService implements OnModuleInit {
     return Api;
   }
 
+  /** call() 안에서 인증 오류가 나면 그때 쓰던 계정만 중단한다(모르면 전체). */
   private async stopForAuth(error: unknown): Promise<void> {
-    this.stopped = true;
-    this.lastError = mtprotoErrorCode(error);
-    this.logger.warn(`MTProto 인증 오류로 중단: ${this.lastError}`);
+    const target = this.activeAccount;
+    if (target) {
+      await this.stopAccountForAuth(target, error);
+      return;
+    }
+    for (const account of this.accounts) {
+      await this.stopAccountForAuth(account, error);
+    }
+  }
+
+  /** 한 계정을 인증 오류로 중단. 모든 계정이 중단되면 전역으로도 멈춘다. */
+  private async stopAccountForAuth(
+    account: AccountSlot,
+    error: unknown,
+  ): Promise<void> {
+    account.authStopped = true;
+    account.lastError = mtprotoErrorCode(error);
+    this.lastError = account.lastError;
+    this.logger.warn(
+      `계정#${account.index + 1} 인증 오류로 중단: ${account.lastError}`,
+    );
     try {
-      await this.client?.disconnect();
+      await account.client?.disconnect();
     } catch {
       /* ignore */
     }
-    this.client = null;
-    await this.adminNotify.notifyMtprotoStopped(this.lastError);
+    account.client = null;
+    if (
+      this.accounts.length > 0 &&
+      this.accounts.every((a) => a.authStopped)
+    ) {
+      this.stopped = true;
+    }
+    await this.adminNotify.notifyMtprotoStopped(account.lastError);
   }
 
   private resolveUsername(channel: Channel): string | null {

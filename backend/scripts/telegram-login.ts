@@ -207,14 +207,26 @@ function drawLoginQr(token: Buffer): void {
   qrcodeTerminal.generate(qrLoginUrl(token), { small: true });
 }
 
+/**
+ * 저장할 환경변수 키. 멀티 계정(C#1)용으로 --slot=N 을 주면 TELEGRAM_SESSION_N 에 저장한다.
+ * (slot 1 또는 생략 = TELEGRAM_SESSION, 기존과 동일)
+ */
+function sessionEnvKey(): string {
+  const arg = process.argv.find((a) => a.startsWith('--slot='));
+  const n = arg ? Number(arg.slice('--slot='.length)) : 1;
+  if (!Number.isInteger(n) || n <= 1) return 'TELEGRAM_SESSION';
+  return `TELEGRAM_SESSION_${n}`;
+}
+
 function saveSession(client: TelegramClient): void {
   const session = client.session.save() as unknown as string;
   if (!session || typeof session !== 'string') {
     console.error('SESSION_EMPTY');
     process.exit(1);
   }
-  upsertEnvLine(ENV_PATH, 'TELEGRAM_SESSION', session.replace(/\s+/g, ''));
-  console.log('저장 완료');
+  const key = sessionEnvKey();
+  upsertEnvLine(ENV_PATH, key, session.replace(/\s+/g, ''));
+  console.log(`저장 완료 (${key})`);
 }
 
 async function runQrLogin(
