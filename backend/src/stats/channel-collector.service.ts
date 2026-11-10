@@ -501,7 +501,17 @@ export class ChannelCollectorService {
 
     let parsed = parseTelegramChannelHtml(first.html);
     if (!parsed.hasPreview) {
-      return this.collectViaBot(channel, username);
+      // 미리보기가 막힌(또는 빈) 공개 채널: 봇으로 제목·회원 수는 갱신하되,
+      // collectError 에 막힘 표시를 남겨 다음 새벽 full 에서 MTProto 글 읽기 우선 대상이 되게 한다.
+      // (applySuccessfulCollect 가 collectError 를 비우므로 미리 기억 → 성공 후 덮어쓴다)
+      const previousError = channel.collectError;
+      const viaBot = await this.collectViaBot(channel, username);
+      if (viaBot.ok) {
+        await this.channelRepository.update(channel.id, {
+          collectError: previewMissError(previousError),
+        });
+      }
+      return viaBot;
     }
 
     const postsById = new Map<number, ParsedPreviewPost>();
