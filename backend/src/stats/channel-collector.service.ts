@@ -14,6 +14,7 @@ import {
 } from '../channels/telegram-username';
 import { ChannelEvent, ChannelEventType } from './channel-event.entity';
 import { MtprotoCollectorService } from './mtproto-collector.service';
+import type { InviteMeta } from './mtproto-join.logic';
 import { runCollectPool } from './collect-pool.logic';
 import { getTmeGate, type TmeGate } from './tme-gate';
 import {
@@ -540,6 +541,7 @@ export class ChannelCollectorService {
     channel: Channel,
   ): Promise<CollectOneResult> {
     let note: string;
+    let inviteMeta: InviteMeta | undefined;
     if (this.mtproto.canCollectInvite(channel)) {
       const viaMember = await this.mtproto.collectInviteAndSave(channel);
       if (viaMember.ok)
@@ -547,14 +549,18 @@ export class ChannelCollectorService {
           ...viaMember,
           note: 'MTProto · 서버 계정이 회원이라 글 정보까지 읽음',
         };
-      note =
-        viaMember.reason === 'not_member'
-          ? '서버 계정이 이 방 회원이 아니라 공개 초대 페이지만 읽음'
-          : `MTProto 실패(${viaMember.reason}${this.mtproto.lastErrorCode() ? `: ${this.mtproto.lastErrorCode()}` : ''}) → 공개 초대 페이지만 읽음`;
+      if (viaMember.reason === 'not_member') {
+        inviteMeta = viaMember.inviteMeta;
+        note = inviteMeta
+          ? '서버 계정이 회원이 아니라 CheckChatInvite 공개 정보(제목·소개·회원수)로 저장'
+          : '서버 계정이 이 방 회원이 아니라 공개 초대 페이지만 읽음';
+      } else {
+        note = `MTProto 실패(${viaMember.reason}${this.mtproto.lastErrorCode() ? `: ${this.mtproto.lastErrorCode()}` : ''}) → 공개 초대 페이지만 읽음`;
+      }
     } else {
       note = 'MTProto 를 쓸 수 없어(꺼짐·중단·한도) 공개 초대 페이지만 읽음';
     }
-    const preview = await this.collectInvitePreview(channel);
+    const preview = await this.collectInvitePreview(channel, inviteMeta);
     return { ...preview, note };
   }
 
@@ -1112,17 +1118,23 @@ export class ChannelCollectorService {
 
   private async collectInvitePreview(
     channel: Channel,
+    meta?: InviteMeta,
   ): Promise<CollectOneResult> {
     const result = await this.fetchHtml(channel.link);
     if (result.error === 'fetch:timeout') {
+      if (meta) return this.saveInviteMeta(channel, meta);
       await this.markFailed(channel, 'failed', 'fetch:timeout');
       return { ok: false, reason: 'failed' };
     }
+    // CheckChatInvite 가 방금 "살아 있음 + 공개 정보"를 확인해 줬으면, 공개 초대 페이지가
+    // 404·만료·오류로 나와도 만료로 처리하지 않고 그 정보를 저장한다(A안).
     if (result.status === 404) {
+      if (meta) return this.saveInviteMeta(channel, meta);
       await this.markInviteExpired(channel);
       return { ok: false, reason: 'invite_expired' };
     }
     if (result.status >= 400 || !result.html) {
+      if (meta) return this.saveInviteMeta(channel, meta);
       await this.markFailed(
         channel,
         'failed',
@@ -1133,19 +1145,44 @@ export class ChannelCollectorService {
 
     const parsed = parseInviteLinkHtml(result.html, result.finalUrl);
     if (parsed.expired) {
+      if (meta) return this.saveInviteMeta(channel, meta);
       await this.markInviteExpired(channel);
       return { ok: false, reason: 'invite_expired' };
     }
 
+    // HTML 로 읽되, 빠진 칸은 CheckChatInvite 정보로 채운다.
+    // 회원 수는 CheckChatInvite 가 정확(참여자 수)하므로 있으면 우선. (초대 페이지 값도 정확값 취급)
+    const memberCount = meta?.participantsCount ?? parsed.memberCount;
     await this.applySuccessfulCollect(channel, {
-      title: parsed.title,
-      memberCount: parsed.memberCount,
+      title: parsed.title ?? meta?.title ?? null,
+      memberCount,
       keepUsername: true,
-      description: parsed.description,
+      description: parsed.description ?? meta?.about ?? null,
       avatarUrl: parsed.avatarUrl,
       kind: parsed.kind,
     });
-    await this.upsertMemberSnapshot(channel.id, parsed.memberCount);
+    await this.upsertMemberSnapshot(channel.id, memberCount);
+    return { ok: true, mode: 'preview' };
+  }
+
+  /**
+   * 공개 초대 페이지가 안 열려도 CheckChatInvite 가 준 제목·소개·회원수만이라도 저장한다(A안).
+   * 글 수·조회율은 없지만 "정보 없음"은 면한다.
+   */
+  private async saveInviteMeta(
+    channel: Channel,
+    meta: InviteMeta,
+  ): Promise<CollectOneResult> {
+    await this.applySuccessfulCollect(channel, {
+      title: meta.title,
+      memberCount: meta.participantsCount,
+      memberCountTolerance: 0,
+      keepUsername: true,
+      description: meta.about,
+    });
+    if (meta.participantsCount != null) {
+      await this.upsertMemberSnapshot(channel.id, meta.participantsCount);
+    }
     return { ok: true, mode: 'preview' };
   }
 

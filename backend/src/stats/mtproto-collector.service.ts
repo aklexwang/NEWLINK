@@ -103,6 +103,8 @@ import {
 import {
   canJoinAnother,
   describeUnjoinableInvite,
+  type InviteMeta,
+  inviteMetadata,
   isJoinableChannelInvite,
   joinedChannelFromUpdates,
   MTPROTO_JOIN_TOTAL_KEY,
@@ -150,6 +152,8 @@ export type MtprotoCollectResult =
   | {
       ok: false;
       reason: 'disabled' | 'skipped' | 'failed' | 'invalid' | 'not_member';
+      /** 회원 아님이지만 CheckChatInvite 가 준 공개 정보(제목·소개·회원수). A안 */
+      inviteMeta?: InviteMeta;
     };
 
 export type MtprotoTestSummary = {
@@ -529,7 +533,14 @@ export class MtprotoCollectorService implements OnModuleInit {
         } else {
           this.noteJoinOutcome(describeUnjoinableInvite(invite));
         }
-        if (!chat) return { ok: false, reason: 'not_member' };
+        if (!chat) {
+          // 엿보기·가입이 안 돼도 CheckChatInvite 가 준 제목·소개·회원수는 넘겨준다(A안)
+          return {
+            ok: false,
+            reason: 'not_member',
+            inviteMeta: inviteMetadata(invite) ?? undefined,
+          };
+        }
         resolved = await this.fetchFullFromInput(
           Api,
           '',

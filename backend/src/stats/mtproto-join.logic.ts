@@ -20,6 +20,39 @@ export function parseJoinDaily(raw?: string | null): number {
   return Math.floor(n);
 }
 
+/** CheckChatInvite 가 회원 아님(ChatInvite)일 때도 담겨 오는 공개 정보 */
+export interface InviteMeta {
+  title: string | null;
+  about: string | null;
+  participantsCount: number | null;
+}
+
+/**
+ * 회원도 아니고 엿보기(peek)·가입도 안 되는 비공개 방이라도, CheckChatInvite 가 돌려준
+ * ChatInvite 에는 제목·소개·정확한 회원 수가 들어 있다. 그걸 뽑아 최소한의 정보라도 저장한다.
+ * (A안. 글 수·조회율은 여전히 엿보기/가입이 돼야 읽는다)
+ */
+export function inviteMetadata(result: unknown): InviteMeta | null {
+  if (!result || typeof result !== 'object') return null;
+  const r = result as {
+    className?: string;
+    title?: unknown;
+    about?: unknown;
+    participantsCount?: unknown;
+  };
+  if (r.className !== 'ChatInvite') return null;
+  const title =
+    typeof r.title === 'string' && r.title.trim() ? r.title.trim() : null;
+  const about =
+    typeof r.about === 'string' && r.about.trim() ? r.about.trim() : null;
+  const participantsCount =
+    typeof r.participantsCount === 'number' && r.participantsCount > 0
+      ? r.participantsCount
+      : null;
+  if (title == null && about == null && participantsCount == null) return null;
+  return { title, about, participantsCount };
+}
+
 /** CheckChatInvite 결과가 "아직 회원 아님 + 공개 채널형(broadcast) + 승인 필요 없음" 인지 */
 export function isJoinableChannelInvite(result: unknown): boolean {
   if (!result || typeof result !== 'object') return false;

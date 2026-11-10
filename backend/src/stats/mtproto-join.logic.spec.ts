@@ -1,10 +1,43 @@
 import {
   canJoinAnother,
+  inviteMetadata,
   isJoinableChannelInvite,
   joinedChannelFromUpdates,
   MTPROTO_JOIN_MIN_GAP_MS,
   parseJoinDaily,
 } from './mtproto-join.logic';
+
+describe('inviteMetadata (A안: 회원 아님 비공개방 공개 정보)', () => {
+  it('ChatInvite 에서 제목·소개·참여자수를 뽑는다', () => {
+    expect(
+      inviteMetadata({
+        className: 'ChatInvite',
+        title: '공익제보 표검사 채널',
+        about: '공익 채널',
+        participantsCount: 7500,
+      }),
+    ).toEqual({ title: '공익제보 표검사 채널', about: '공익 채널', participantsCount: 7500 });
+  });
+
+  it('공백·0·없음은 null 로', () => {
+    expect(
+      inviteMetadata({ className: 'ChatInvite', title: '  ', participantsCount: 0 }),
+    ).toBeNull();
+  });
+
+  it('일부만 있어도 그 값만 담는다', () => {
+    expect(
+      inviteMetadata({ className: 'ChatInvite', participantsCount: 1200 }),
+    ).toEqual({ title: null, about: null, participantsCount: 1200 });
+  });
+
+  it('이미 회원(ChatInviteAlready)·엿보기(ChatInvitePeek)·엉뚱한 값은 null (그쪽은 전체 정보를 읽음)', () => {
+    expect(inviteMetadata({ className: 'ChatInviteAlready' })).toBeNull();
+    expect(inviteMetadata({ className: 'ChatInvitePeek' })).toBeNull();
+    expect(inviteMetadata(null)).toBeNull();
+    expect(inviteMetadata('x')).toBeNull();
+  });
+});
 
 describe('비공개 채널 자동 가입', () => {
   it('하루 기본 15개, 0이면 끔', () => {
