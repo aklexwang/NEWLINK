@@ -13,7 +13,10 @@ import { randomUUID } from 'crypto';
 import { CategoryAiService } from '../auto-manage/category-ai.service';
 import { Channel, ChannelStatus, LinkType } from '../channels/channel.entity';
 import { ChannelsService } from '../channels/channels.service';
-import { isInviteOnlyLink } from '../channels/telegram-username';
+import {
+  inviteHashFromLink,
+  isInviteOnlyLink,
+} from '../channels/telegram-username';
 import {
   excerptsFromPreviewPosts,
   PUBLIC_INSPECT_GAP_MS,
@@ -346,6 +349,42 @@ export class AdminInspectService implements OnModuleInit {
         },
         { reactivateRejected: data.reactivateRejected === true },
       );
+    }
+    // 비공개(초대) 방: 공개 미리보기로 제목을 못 얻어도, 어드민이 제목·종류를 직접 넣으면 등록한다.
+    // 회원수·소개·글은 등록 뒤 수집(CheckChatInvite·엿보기·가입)이 채운다.
+    if (isInviteOnlyLink(data.link)) {
+      if (viewed.result === 'invalid_format' || !inviteHashFromLink(data.link)) {
+        throw new BadRequestException(
+          '초대 링크 형식이 올바르지 않습니다. 링크(대소문자 포함)를 다시 확인하세요.',
+        );
+      }
+      const title = data.title?.trim() || viewed.title?.trim() || '';
+      if (!title) {
+        throw new BadRequestException(
+          '비공개(초대) 방은 제목을 직접 입력해 주세요.',
+        );
+      }
+      const inviteLinkType =
+        viewed.linkType === 'group'
+          ? LinkType.GROUP
+          : viewed.linkType === 'channel'
+            ? LinkType.CHANNEL
+            : data.linkType;
+      if (
+        inviteLinkType !== LinkType.CHANNEL &&
+        inviteLinkType !== LinkType.GROUP
+      ) {
+        throw new BadRequestException('채널/그룹을 선택해 주세요.');
+      }
+      return this.channelsService.createByAdmin({
+        title: title.slice(0, 255),
+        link: viewed.link || data.link,
+        linkType: inviteLinkType,
+        category: data.category,
+        description: data.description?.trim() || viewed.description || title,
+        isPromoted: data.isPromoted,
+        language: toChannelLanguage(viewed.language),
+      });
     }
     if (
       !viewed.link ||

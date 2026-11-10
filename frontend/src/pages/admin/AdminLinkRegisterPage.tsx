@@ -42,6 +42,15 @@ function looksLikeUsernameLink(raw: string): boolean {
   return Boolean(m);
 }
 
+/** 초대 전용(비공개) 링크인지: t.me/+해시, joinchat/해시, 또는 +해시 */
+function isInviteLink(raw: string): boolean {
+  const v = raw.trim().replace(/^https?:\/\//i, '');
+  return (
+    /(?:t\.me|telegram\.me|telegram\.dog)\/(?:\+|joinchat\/)/i.test(v) ||
+    v.startsWith('+')
+  );
+}
+
 const NOT_FOUND_MESSAGE =
   '이 링크로 방을 찾지 못했습니다. 링크(대소문자 포함)를 다시 확인하세요';
 
@@ -60,10 +69,19 @@ function kindLabel(kind: 'channel' | 'group' | null) {
   return '미확인';
 }
 
-function canRegisterLookup(lookup: AdminChannelLookup, chosenKind: LinkType | '') {
-  if (!lookup.title.trim()) return false;
+function canRegisterLookup(
+  lookup: AdminChannelLookup,
+  chosenKind: LinkType | '',
+  isInvite: boolean,
+) {
   // 거절된 행만 있는 경우는 확인 후 다시 활성화할 수 있다
   if (lookup.alreadyRegistered && lookup.existingStatus !== 'rejected') return false;
+  // 비공개(초대) 방: 공개 조회로 제목을 못 얻어도 어드민이 제목·종류를 넣으면 등록(제목은 handleRegister 가 확인)
+  if (isInvite) {
+    if (lookup.result === 'invalid_format') return false;
+    return Boolean(lookup.linkType || chosenKind);
+  }
+  if (!lookup.title.trim()) return false;
   if (
     lookup.result === 'not_found' ||
     lookup.result === 'invite_or_private' ||
@@ -121,7 +139,18 @@ export function AdminLinkRegisterPage() {
       if (suggested && categories.some((item) => item.name === suggested)) {
         setCategory(suggested);
       }
-      if (result.result === 'invalid_format' && looksLikeUsernameLink(keyword)) {
+      if (isInviteLink(keyword) && !result.alreadyRegistered) {
+        // 비공개(초대) 방: 공개 조회로 제목을 못 얻어도 막지 않고 직접 입력해 등록하게 안내
+        if (result.result === 'invalid_format') {
+          setError('초대 링크 형식이 올바르지 않습니다. 링크(대소문자 포함)를 다시 확인하세요.');
+        } else if (!result.title.trim()) {
+          setMessage(
+            '비공개(초대) 방입니다. 제목과 종류(채널/그룹)를 입력하면 등록할 수 있어요. 회원수·소개·글은 등록 후 수집이 채웁니다.',
+          );
+        } else {
+          setMessage('비공개(초대) 방입니다. 종류를 확인하고 등록하세요.');
+        }
+      } else if (result.result === 'invalid_format' && looksLikeUsernameLink(keyword)) {
         // 주소 모양은 맞는데 채널·그룹이 아님 → 개인 계정이나 봇
         setError(PERSONAL_ACCOUNT_MESSAGE);
       } else if (!result.title.trim()) {
@@ -159,7 +188,7 @@ export function AdminLinkRegisterPage() {
       setError('제목과 카테고리를 입력해 주세요.');
       return;
     }
-    if (!canRegisterLookup(lookup, chosenKind)) {
+    if (!canRegisterLookup(lookup, chosenKind, isInviteLink(lookup.link || ''))) {
       setError(NOT_FOUND_MESSAGE);
       return;
     }
@@ -214,9 +243,14 @@ export function AdminLinkRegisterPage() {
   };
 
   const avatarSrc = lookup?.avatarUrl ? resolveMediaUrl(lookup.avatarUrl) : '';
-  const missingRoom = Boolean(lookup && !lookup.title.trim());
+  const isInvite = isInviteLink(lookup?.link ?? '');
+  // 비공개(초대) 방은 제목이 없어도 어드민이 직접 입력하므로 "방 없음"으로 잠그지 않는다
+  const missingRoom = Boolean(lookup && !lookup.title.trim() && !isInvite);
   const registerDisabled =
-    saving || !lookup || !canRegisterLookup(lookup, chosenKind) || !category;
+    saving ||
+    !lookup ||
+    !canRegisterLookup(lookup, chosenKind, isInvite) ||
+    !category;
 
   return (
     <>

@@ -378,6 +378,11 @@ export class ChannelsService implements OnModuleInit {
       });
     }
 
+    // 초대 전용(비공개) 방은 공개 아이디가 없다. invite_only 로 표시해 두면 수집이
+    // 공개 페이지 대신 초대 확인(CheckChatInvite)·엿보기·가입 경로로 처리한다.
+    const inviteOnly = isInviteOnlyLink(link);
+    if (inviteOnly) channel.collectStatus = 'invite_only';
+
     let saved = await this.channelRepository.save(channel);
 
     try {
@@ -390,7 +395,8 @@ export class ChannelsService implements OnModuleInit {
       saved = await this.promote(saved.id, { durationDays: 7 });
     }
 
-    if (!options?.skipPublicCollect) {
+    // 비공개 방은 공개 페이지 수집을 돌리지 않는다(실패로 숨겨지지 않게). 초대 수집 경로가 맡는다.
+    if (!options?.skipPublicCollect && !inviteOnly) {
       saved = await this.collectPublicPageAfterRegister(saved);
     }
 
