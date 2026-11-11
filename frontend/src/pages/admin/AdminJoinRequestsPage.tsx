@@ -88,10 +88,19 @@ export function AdminJoinRequestsPage() {
 
       {message && <AdminMessage message={message} />}
 
-      <div className="mt-4 flex flex-wrap gap-2 text-sm">
-        <Badge variant="secondary">대기 {counts.pending}</Badge>
-        <Badge variant="default">승인됨 {counts.approved}</Badge>
-        <Badge variant="destructive">미승인 {counts.unanswered}</Badge>
+      <div className="mt-4 grid grid-cols-3 gap-3 sm:max-w-xl">
+        <div className="rounded-xl border border-border bg-secondary/40 px-4 py-4 text-center">
+          <div className="text-3xl font-bold tabular-nums">{counts.pending}</div>
+          <div className="mt-1 text-sm font-medium text-muted-foreground">대기</div>
+        </div>
+        <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-4 text-center">
+          <div className="text-3xl font-bold tabular-nums text-primary">{counts.approved}</div>
+          <div className="mt-1 text-sm font-medium text-muted-foreground">승인됨</div>
+        </div>
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-center">
+          <div className="text-3xl font-bold tabular-nums text-destructive">{counts.unanswered}</div>
+          <div className="mt-1 text-sm font-medium text-muted-foreground">미승인</div>
+        </div>
       </div>
 
       <div className="mt-4 rounded-xl border border-border">
