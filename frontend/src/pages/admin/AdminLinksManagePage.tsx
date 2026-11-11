@@ -558,13 +558,14 @@ export function AdminLinksManagePage() {
           </select>
           <select value={param(params, 'collectStatus')} onChange={(e) => patchParams({ collectStatus: e.target.value })} className="rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-border">
             <option value="">수집 상태 전체</option>
+            <option value="invite_link">🔒 비공개 방(초대링크)</option>
             <option value="ok">성공</option>
             <option value="failed">실패 묶음</option>
             <option value="none">없음</option>
             <option value="invalid">채널·그룹 아님</option>
             <option value="gone">사라짐</option>
-            <option value="private">비공개</option>
-            <option value="invite_only">초대 전용</option>
+            <option value="private">비공개(상태)</option>
+            <option value="invite_only">초대 전용(상태)</option>
             <option value="invite_expired">초대 만료</option>
           </select>
           <select value={param(params, 'source')} onChange={(e) => patchParams({ source: e.target.value })} className="rounded-lg bg-card px-3 py-2 text-sm ring-1 ring-border">

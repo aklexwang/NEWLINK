@@ -1223,6 +1223,11 @@ export class ChannelsService implements OnModuleInit {
       });
     } else if (filters.collectStatus === 'none') {
       qb.andWhere('channel.collect_status IS NULL');
+    } else if (filters.collectStatus === 'invite_link') {
+      // 비공개 방: 수집 상태(ok 등)와 무관하게 초대 링크(아이디 없음)인 방 전부
+      qb.andWhere(
+        "(channel.link LIKE '%/+%' OR channel.link LIKE '%/joinchat/%')",
+      );
     } else if (filters.collectStatus) {
       qb.andWhere('channel.collect_status = :collectExact', {
         collectExact: filters.collectStatus,
