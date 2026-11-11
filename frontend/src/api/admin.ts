@@ -645,6 +645,22 @@ export async function requestAdminChannelJoin(
   return data;
 }
 
+/** 초대 링크만으로 입장 요청(없으면 자동 등록 후 요청) */
+export async function requestAdminJoinByLink(
+  link: string,
+): Promise<{ ok: boolean; outcome: string; channelId?: string }> {
+  const { data } = await apiClient.post<{
+    ok: boolean;
+    outcome: string;
+    channelId?: string;
+  }>(
+    '/admin/channels/join-request-by-link',
+    { link },
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
 /** 입장 요청한 방 목록 + 상태 */
 export async function getAdminJoinRequests(): Promise<JoinRequestChannel[]> {
   const { data } = await apiClient.get<JoinRequestChannel[]>(

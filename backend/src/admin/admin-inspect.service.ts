@@ -273,6 +273,37 @@ export class AdminInspectService implements OnModuleInit {
   }
 
   /** 단건. job 없이 대량과 같은 공개 페이지 검사를 바로 돌려준다. */
+  /**
+   * 초대 링크만으로 입장 요청을 준비한다: 이미 등록된 방이면 그 id, 아니면 조회해서
+   * 비공개(invite_only) 방으로 등록한 뒤 id 를 돌려준다. 실제 요청은 호출한 쪽이 보낸다.
+   */
+  async ensureInviteChannelByLink(
+    link: string,
+  ): Promise<{ channelId: string } | { error: string }> {
+    if (!inviteHashFromLink(link)) {
+      return { error: '초대 링크(t.me/+…)가 아닙니다.' };
+    }
+    const normalized = this.channelsService.normalizeTelegramLink(link);
+    const dup = await this.channelsService.findDuplicate(normalized);
+    if (dup && dup.kind !== 'rejected') {
+      return { channelId: dup.channel.id };
+    }
+    const viewed = await this.inspectOne(link);
+    const title = viewed.title?.trim() || '(비공개 방)';
+    const linkType =
+      viewed.linkType === 'group' ? LinkType.GROUP : LinkType.CHANNEL;
+    const created = await this.channelsService.createByAdmin({
+      title: title.slice(0, 255),
+      link: viewed.link || link,
+      linkType,
+      category: '분류대기',
+      description: viewed.description || title,
+      language: toChannelLanguage(viewed.language),
+      memberCount: viewed.memberCount ?? null,
+    });
+    return { channelId: created.id };
+  }
+
   async inspectOne(raw: string) {
     const parsed = parseOneInspectLine(raw);
     if (parsed.result === 'invalid_format' || !parsed.link) {

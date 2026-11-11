@@ -179,6 +179,16 @@ export class AdminController {
     return this.adminCollect.requestJoin(id);
   }
 
+  @Post('join-request-by-link')
+  async requestJoinByLink(@Body('link') link?: string) {
+    const trimmed = (link ?? '').trim();
+    if (!trimmed) return { ok: false, outcome: '링크를 입력하세요.' };
+    const ensured = await this.inspect.ensureInviteChannelByLink(trimmed);
+    if ('error' in ensured) return { ok: false, outcome: ensured.error };
+    const res = await this.adminCollect.requestJoin(ensured.channelId);
+    return { ...res, channelId: ensured.channelId };
+  }
+
   @Post(':id/collect')
   async collectOne(@Param('id', ParseUUIDPipe) id: string) {
     const channel = await this.adminCollect.collectOne(id);

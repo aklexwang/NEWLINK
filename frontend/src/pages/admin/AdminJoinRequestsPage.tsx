@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getAdminJoinRequests,
+  requestAdminJoinByLink,
   type JoinRequestChannel,
   type JoinRequestStatus,
 } from '../../api/admin';
@@ -8,6 +9,7 @@ import { AdminMessage } from '../../components/admin/AdminTable';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
 import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
+import { Input } from '@/components/admin/ui/input';
 import { Skeleton } from '@/components/admin/ui/skeleton';
 import {
   Table,
@@ -53,6 +55,8 @@ function statusBadge(status: JoinRequestStatus, requestedAt: string | null) {
 export function AdminJoinRequestsPage() {
   const [rows, setRows] = useState<JoinRequestChannel[] | null>(null);
   const [message, setMessage] = useState('');
+  const [link, setLink] = useState('');
+  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +65,22 @@ export function AdminJoinRequestsPage() {
       setMessage(adminApiErrorMessage(error, '입장 요청 목록을 불러오지 못했습니다.'));
     }
   }, []);
+
+  const handleSendByLink = async () => {
+    const value = link.trim();
+    if (!value || sending) return;
+    setSending(true);
+    try {
+      const res = await requestAdminJoinByLink(value);
+      setMessage(`입장 요청: ${res.outcome}`);
+      if (res.ok) setLink('');
+      await load();
+    } catch (error) {
+      setMessage(adminApiErrorMessage(error, '입장 요청에 실패했습니다.'));
+    } finally {
+      setSending(false);
+    }
+  };
 
   useEffect(() => {
     void load();
@@ -87,6 +107,32 @@ export function AdminJoinRequestsPage() {
       </div>
 
       {message && <AdminMessage message={message} />}
+
+      <div className="mt-4 rounded-xl border border-border p-4">
+        <p className="text-sm font-semibold">초대 링크로 바로 입장 요청</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          승인 필요 비공개 방의 초대 링크(t.me/+…)를 붙여넣으면, 없으면 자동으로 등록하고
+          입장 요청까지 보냅니다. 승인되면 글·조회가 채워집니다.
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <Input
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void handleSendByLink();
+            }}
+            placeholder="https://t.me/+초대코드"
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            disabled={sending || !link.trim()}
+            onClick={() => void handleSendByLink()}
+          >
+            {sending ? '요청 중…' : '입장 요청 보내기'}
+          </Button>
+        </div>
+      </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3 sm:max-w-xl">
         <div className="rounded-xl border border-border bg-secondary/40 px-4 py-4 text-center">
