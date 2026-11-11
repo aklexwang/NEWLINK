@@ -55,6 +55,7 @@ import { AddChannelPostsPostedAtIndex1761520000000 } from './migrations/17615200
 import { MemberActivityModule } from './member-activity/member-activity.module';
 import { AddMemberActivities1761530000000 } from './migrations/1761530000000-AddMemberActivities';
 import { AddVisitors1761540000000 } from './migrations/1761540000000-AddVisitors';
+import { AddChannelJoinRequestedAt1761600000000 } from './migrations/1761600000000-AddChannelJoinRequestedAt';
 import { StoredImagesModule } from './stored-images/stored-images.module';
 import { ServerStatusModule } from './server-status/server-status.module';
 
@@ -132,6 +133,7 @@ function truthy(value: string | undefined): boolean {
                 AddChannelPostsPostedAtIndex1761520000000,
                 AddMemberActivities1761530000000,
                 AddVisitors1761540000000,
+                AddChannelJoinRequestedAt1761600000000,
               ],
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -188,6 +190,7 @@ function truthy(value: string | undefined): boolean {
               AddChannelPostsPostedAtIndex1761520000000,
               AddMemberActivities1761530000000,
               AddVisitors1761540000000,
+              AddChannelJoinRequestedAt1761600000000,
             ],
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
@@ -240,6 +243,7 @@ function truthy(value: string | undefined): boolean {
             AddChannelPostsPostedAtIndex1761520000000,
             AddMemberActivities1761530000000,
             AddVisitors1761540000000,
+            AddChannelJoinRequestedAt1761600000000,
           ],
         };
       },
