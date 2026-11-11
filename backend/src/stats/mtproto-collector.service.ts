@@ -73,6 +73,7 @@ import {
   allAccountsBlocked,
   parseSessionList,
   pickNextAccount,
+  scaledDailyLimit,
 } from './mtproto-pool.logic';
 import {
   publicUsernamesFromContactsSearch,
@@ -109,6 +110,7 @@ import {
   joinedChannelFromUpdates,
   MTPROTO_JOIN_TOTAL_KEY,
   MTPROTO_JOIN_TOTAL_MAX,
+  MTPROTO_JOIN_DAILY_DEFAULT,
   parseJoinDaily,
 } from './mtproto-join.logic';
 
@@ -600,7 +602,10 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   private joinDailyLimit(): number {
-    return parseJoinDaily(this.configService.get<string>('MTPROTO_JOIN_DAILY'));
+    const raw = this.configService.get<string>('MTPROTO_JOIN_DAILY');
+    // 명시값은 그대로 존중(0=가입 끔). 미설정이면 기본 15 × 계정 수.
+    if (raw != null && String(raw).trim() !== '') return parseJoinDaily(raw);
+    return MTPROTO_JOIN_DAILY_DEFAULT * this.poolSize();
   }
 
   private currentJoinsToday(): number {
@@ -1558,24 +1563,32 @@ export class MtprotoCollectorService implements OnModuleInit {
     );
   }
 
+  /** 풀 계정 수(최소 1). 하루 한도를 이 수만큼 늘린다(C). */
+  private poolSize(): number {
+    return Math.max(1, this.accounts.length);
+  }
+
   private inviteCheckDailyLimit(): number {
-    return envPositiveInt(
-      this.configService.get<string>('INVITE_CHECK_DAILY_LIMIT'),
+    return scaledDailyLimit(
+      envPositiveInt(this.configService.get<string>('INVITE_CHECK_DAILY_LIMIT'), 0) || null,
       INVITE_CHECK_DAILY_LIMIT_DEFAULT,
+      this.poolSize(),
     );
   }
 
   private resolveDailyLimit(): number {
-    return envPositiveInt(
-      this.configService.get<string>('RESOLVE_DAILY_LIMIT'),
+    return scaledDailyLimit(
+      envPositiveInt(this.configService.get<string>('RESOLVE_DAILY_LIMIT'), 0) || null,
       RESOLVE_DAILY_LIMIT_DEFAULT,
+      this.poolSize(),
     );
   }
 
   private searchDailyLimit(): number {
-    return envPositiveInt(
-      this.configService.get<string>('KEYWORD_SEARCH_DAILY_LIMIT'),
+    return scaledDailyLimit(
+      envPositiveInt(this.configService.get<string>('KEYWORD_SEARCH_DAILY_LIMIT'), 0) || null,
       KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
+      this.poolSize(),
     );
   }
 
@@ -1635,11 +1648,11 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   private dailyLimit(): number {
-    const raw = Number(
-      this.configService.get<string>('MTPROTO_DAILY_LIMIT') ??
-        MTPROTO_DEFAULT_DAILY_LIMIT,
-    );
-    return Number.isFinite(raw) && raw > 0 ? raw : MTPROTO_DEFAULT_DAILY_LIMIT;
+    const envRaw = this.configService.get<string>('MTPROTO_DAILY_LIMIT');
+    const envNum = Number(envRaw);
+    const envVal =
+      envRaw != null && Number.isFinite(envNum) && envNum > 0 ? envNum : null;
+    return scaledDailyLimit(envVal, MTPROTO_DEFAULT_DAILY_LIMIT, this.poolSize());
   }
 
   /** 서버를 다시 켜도 오늘 요청·조회·검색 수가 이어지게 */

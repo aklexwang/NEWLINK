@@ -43,6 +43,21 @@ export function accountStateId(index: number): number {
   return index + 1;
 }
 
+/**
+ * 하루 한도를 계정 수만큼 늘린다(C). FloodWait·resolve 제약은 계정마다 따로라,
+ * 계정이 N개면 전체적으로 N배까지 안전하게 쓸 수 있다(풀이 라운드로빈으로 고르게 분산).
+ * env 로 명시한 값은 "전체 한도"로 그대로 존중하고 곱하지 않는다. envValue 0/null = 미설정.
+ */
+export function scaledDailyLimit(
+  envValue: number | null,
+  base: number,
+  poolSize: number,
+): number {
+  const n = Math.max(1, poolSize);
+  if (envValue != null && envValue > 0) return envValue;
+  return base * n;
+}
+
 export interface PoolAccountFlood {
   /** FloodWait 해제 시각. null 이면 안 막힘 */
   floodWaitUntil: Date | null;

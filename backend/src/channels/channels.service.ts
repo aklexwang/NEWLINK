@@ -323,6 +323,8 @@ export class ChannelsService implements OnModuleInit {
       isPromoted?: boolean;
       /** 검사로 판별한 언어. 있으면 그대로 저장한다 */
       language?: ChannelLanguage | null;
+      /** 조회 때 읽은 회원 수. 있으면 바로 저장해 등록 직후에도 뜨게 한다(비공개 방) */
+      memberCount?: number | null;
     },
     options?: { skipPublicCollect?: boolean; reactivateRejected?: boolean },
   ): Promise<Channel> {
@@ -398,6 +400,17 @@ export class ChannelsService implements OnModuleInit {
     // 비공개 방은 공개 페이지 수집을 돌리지 않는다(실패로 숨겨지지 않게). 초대 수집 경로가 맡는다.
     if (!options?.skipPublicCollect && !inviteOnly) {
       saved = await this.collectPublicPageAfterRegister(saved);
+    }
+
+    // 조회 때 읽은 회원 수는 미리보기/아바타 단계 뒤에 채운다(값이 비어 있을 때만).
+    // 비공개 방이 등록 직후에도 "회원 -" 대신 실제 수가 뜨게 한다. 정식 추이는 다음 수집이 쌓는다.
+    if (
+      data.memberCount != null &&
+      data.memberCount > 0 &&
+      (saved.memberCount == null || saved.memberCount <= 0)
+    ) {
+      saved.memberCount = Math.round(data.memberCount);
+      saved = await this.channelRepository.save(saved);
     }
 
     return saved;

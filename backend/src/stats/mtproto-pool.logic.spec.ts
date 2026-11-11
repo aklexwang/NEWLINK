@@ -5,7 +5,22 @@ import {
   isAccountAvailable,
   parseSessionList,
   pickNextAccount,
+  scaledDailyLimit,
 } from './mtproto-pool.logic';
+
+describe('scaledDailyLimit (C: 계정 수만큼 한도 상향)', () => {
+  it('미설정이면 base × 계정 수', () => {
+    expect(scaledDailyLimit(null, 50, 1)).toBe(50);
+    expect(scaledDailyLimit(null, 50, 2)).toBe(100);
+    expect(scaledDailyLimit(0, 50, 3)).toBe(150);
+  });
+  it('계정 0개여도 최소 1배', () => {
+    expect(scaledDailyLimit(null, 50, 0)).toBe(50);
+  });
+  it('env 로 명시한 값은 전체 한도로 존중(곱하지 않음)', () => {
+    expect(scaledDailyLimit(200, 50, 3)).toBe(200);
+  });
+});
 
 describe('parseSessionList', () => {
   it('단일 계정: TELEGRAM_SESSION 하나', () => {

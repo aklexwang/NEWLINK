@@ -384,6 +384,7 @@ export class AdminInspectService implements OnModuleInit {
         description: data.description?.trim() || viewed.description || title,
         isPromoted: data.isPromoted,
         language: toChannelLanguage(viewed.language),
+        memberCount: viewed.memberCount ?? null,
       });
     }
     if (
