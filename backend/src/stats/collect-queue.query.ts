@@ -9,6 +9,7 @@ export const COLLECT_QUEUE_COLUMNS = [
   'username',
   'linkType',
   'collectStatus',
+  'memberCount',
   'lastCollectedAt',
   'nextCollectAt',
 ] as const satisfies ReadonlyArray<keyof Channel>;
@@ -60,15 +61,23 @@ export async function selectDueChannels(
   }
 
   if (!options.light) {
-    // 새벽 full: 미리보기가 막혀 MTProto 로만 글을 읽을 수 있는데 아직 접근 정보가 없는 채널을 맨 앞에
-    // (하루 아이디 조회 한도를 이 채널들이 먼저 쓰게)
-    qb.orderBy(
-      "(CASE WHEN c.collectError IN ('preview:disabled', 'preview:no_posts') AND c.telegramAccessHash IS NULL THEN 0 ELSE 1 END)",
-      'ASC',
-    ).addOrderBy(
-      '(CASE WHEN c.nextCollectAt IS NULL THEN 0 ELSE 1 END)',
-      'ASC',
-    );
+    // 새벽 full: MTProto 로만 글을 읽을 수 있는데 아직 접근 정보(access hash)가 없는
+    // "값나가는 미읽음 방"을 맨 앞에. 포함 대상:
+    //  - 미리보기 막힌 공개 채널(preview:disabled·no_posts) → 아이디 조회+글 읽기
+    //  - 비공개(invite_only) 방 → 가입/엿보기로 글 읽기
+    // 한정된 하루 조회·가입 한도를 이 방들이 먼저 쓰고, 그 안에서 회원 많은 방(값나가는)부터.
+    const unreadValuable =
+      "((c.collectError IN ('preview:disabled', 'preview:no_posts') OR c.collectStatus = 'invite_only') AND c.telegramAccessHash IS NULL)";
+    qb.orderBy(`(CASE WHEN ${unreadValuable} THEN 0 ELSE 1 END)`, 'ASC')
+      // 위 우선군 안에서만 회원 많은 순(큰 음수가 먼저). 우선군 밖은 0 으로 묶여 기존 순서 유지.
+      .addOrderBy(
+        `(CASE WHEN ${unreadValuable} THEN -COALESCE(c.memberCount, 0) ELSE 0 END)`,
+        'ASC',
+      )
+      .addOrderBy(
+        '(CASE WHEN c.nextCollectAt IS NULL THEN 0 ELSE 1 END)',
+        'ASC',
+      );
   } else {
     qb.orderBy('(CASE WHEN c.nextCollectAt IS NULL THEN 0 ELSE 1 END)', 'ASC');
   }

@@ -72,6 +72,53 @@ describe('수집 큐 뽑기 (selectDueChannels)', () => {
     expect(await ids()).toEqual(['never-a', 'never-b', 'early', 'mid', 'late']);
   });
 
+  it('full: 미읽음 비공개·미리보기막힌 방을 맨 앞에, 그 안에서 회원 많은 순', async () => {
+    // 일반 채널(우선군 밖)
+    await add('plain', { nextCollectAt: ago(10 * HOUR) });
+    // 미리보기 막힌 공개 채널 (access hash 없음) — 작은 방
+    await add('blocked-small', {
+      collectError: 'preview:disabled',
+      memberCount: 1000,
+    });
+    // 비공개 방 (access hash 없음) — 큰 방
+    await add('invite-big', {
+      collectStatus: 'invite_only',
+      link: 'https://t.me/+bigroom',
+      memberCount: 90000,
+    });
+    // 비공개 방 — 중간
+    await add('invite-mid', {
+      collectStatus: 'invite_only',
+      link: 'https://t.me/+midroom',
+      memberCount: 5000,
+    });
+
+    // 우선군(invite-big → invite-mid → blocked-small, 회원 많은 순) 먼저, 그다음 일반
+    expect(await ids()).toEqual([
+      'invite-big',
+      'invite-mid',
+      'blocked-small',
+      'plain',
+    ]);
+  });
+
+  it('이미 가입/엿보기 끝난(access hash 있는) 비공개 방은 우선군에서 빠진다', async () => {
+    await add('already', {
+      collectStatus: 'invite_only',
+      link: 'https://t.me/+already',
+      memberCount: 99999,
+      telegramAccessHash: '12345',
+      nextCollectAt: ago(1 * HOUR),
+    });
+    await add('unread', {
+      collectStatus: 'invite_only',
+      link: 'https://t.me/+unread',
+      memberCount: 100,
+    });
+    // 미읽음(작아도) 먼저, 이미 읽은 큰 방은 일반 순서로
+    expect(await ids()).toEqual(['unread', 'already']);
+  });
+
   it('LIMIT 만큼만 뽑는다 (가장 밀린 것부터)', async () => {
     await add('a', { nextCollectAt: ago(3 * HOUR) });
     await add('b', { nextCollectAt: ago(2 * HOUR) });
