@@ -1293,6 +1293,36 @@ export async function getAdminRegisterStatus(): Promise<AdminRegisterRun | null>
 export const REGISTER_WATCH_KEY = 'nl-register-watch';
 
 /** 보안 설정: 관리자 Google OTP */
+export interface AdminSecurityMonitor {
+  signedOk: number;
+  adminOk: number;
+  outsideBlocked: number;
+  rateLimited: number;
+  scanCount: number;
+  injectionCount: number;
+  samples: Array<{
+    at: string;
+    path: string;
+    client: string;
+    kind: 'scan' | 'injection' | 'scrape';
+  }>;
+  loginFailures: Array<{
+    ip: string;
+    failures: number;
+    locked: boolean;
+    updatedAt: number;
+  }>;
+  loginFailureTotal: number;
+}
+
+export async function getAdminSecurityMonitor(): Promise<AdminSecurityMonitor> {
+  const { data } = await apiClient.get<AdminSecurityMonitor>(
+    '/admin/security/monitor',
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
 export type AdminOtpStatus = { registered: boolean; forcedOff: boolean; backupLeft: number };
 
 export async function getAdminOtpStatus(): Promise<AdminOtpStatus> {

@@ -10,6 +10,7 @@ import { compare, hashSync } from 'bcrypt';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import { JwtAuthService } from './jwt-auth.service';
 import { AdminOtpService } from './admin-otp.service';
+import { maskIp } from '../security/security-monitor.logic';
 
 export const ADMIN_LOGIN_INVALID_MESSAGE =
   '아이디 또는 비밀번호가 올바르지 않습니다';
@@ -110,6 +111,32 @@ export class AdminLoginService {
     if (!row.lockedUntil && now - row.updatedAt >= LOCK_MS) {
       this.attempts.delete(ip);
     }
+  }
+
+  /** 보안 모니터링용: 로그인 실패가 있는 IP 목록(IP 일부 가림). 어드민 침입 시도 확인용. */
+  getFailedAttempts(): Array<{
+    ip: string;
+    failures: number;
+    locked: boolean;
+    updatedAt: number;
+  }> {
+    const now = Date.now();
+    const out: Array<{
+      ip: string;
+      failures: number;
+      locked: boolean;
+      updatedAt: number;
+    }> = [];
+    for (const [ip, a] of this.attempts) {
+      if (a.failures <= 0) continue;
+      out.push({
+        ip: maskIp(ip),
+        failures: a.failures,
+        locked: a.lockedUntil != null && a.lockedUntil > now,
+        updatedAt: a.updatedAt,
+      });
+    }
+    return out.sort((x, y) => y.updatedAt - x.updatedAt).slice(0, 50);
   }
 
   private recordFailure(ip: string): void {

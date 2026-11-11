@@ -4,8 +4,10 @@ import {
   confirmAdminOtpSetup,
   disableAdminOtp,
   getAdminOtpStatus,
+  getAdminSecurityMonitor,
   startAdminOtpSetup,
   type AdminOtpStatus,
+  type AdminSecurityMonitor,
 } from '../../api/admin';
 
 /** 보안 설정: 관리자 로그인 2단계 (Google OTP) */
@@ -17,6 +19,7 @@ export function AdminSecurityPage() {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
+  const [monitor, setMonitor] = useState<AdminSecurityMonitor | null>(null);
 
   const load = () => {
     void getAdminOtpStatus()
@@ -24,6 +27,12 @@ export function AdminSecurityPage() {
       .catch(() => setMessage('상태를 불러오지 못했어요.'));
   };
   useEffect(load, []);
+  const loadMonitor = () => {
+    void getAdminSecurityMonitor()
+      .then(setMonitor)
+      .catch(() => undefined);
+  };
+  useEffect(loadMonitor, []);
 
   const begin = async () => {
     setBusy(true);
@@ -212,6 +221,143 @@ export function AdminSecurityPage() {
           <li>로그인할 때 OTP 칸에 백업 코드 8자리를 넣으면 돼요 (한 번씩만).</li>
           <li>백업 코드도 없으면 Render → newlink-api → Environment 에 ADMIN_OTP_OFF = true 를 넣어 잠시 끄고, 로그인해서 새 휴대폰으로 다시 등록한 뒤 그 설정을 지워 주세요.</li>
         </ul>
+      </div>
+
+      <div className={card}>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[16px] font-bold">보안 모니터링 — 우릴 노리는 시도</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              미니앱 밖(브라우저·봇·스크래퍼)에서 온 요청, 취약점 스캔·인젝션 흔적, 관리자 로그인
+              실패입니다. 서버가 다시 켜지면 0부터 셉니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={loadMonitor}
+            className="h-9 shrink-0 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-accent"
+          >
+            새로고침
+          </button>
+        </div>
+
+        {!monitor ? (
+          <p className="mt-4 text-sm text-muted-foreground">불러오는 중…</p>
+        ) : (
+          <>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-border px-4 py-3 text-center">
+                <div className="text-2xl font-bold tabular-nums">
+                  {monitor.outsideBlocked.toLocaleString()}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">밖에서 차단(스크래퍼)</div>
+              </div>
+              <div className="rounded-xl border border-amber-300/40 bg-amber-50 px-4 py-3 text-center">
+                <div className="text-2xl font-bold tabular-nums text-amber-700">
+                  {monitor.scanCount.toLocaleString()}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">취약점 스캔 의심</div>
+              </div>
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-center">
+                <div className="text-2xl font-bold tabular-nums text-destructive">
+                  {monitor.injectionCount.toLocaleString()}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">인젝션 흔적</div>
+              </div>
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-center">
+                <div className="text-2xl font-bold tabular-nums text-destructive">
+                  {monitor.loginFailureTotal.toLocaleString()}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">관리자 로그인 실패</div>
+              </div>
+            </div>
+
+            <p className="mt-3 text-xs text-muted-foreground">
+              과다요청 차단 {monitor.rateLimited.toLocaleString()}회 · 정상(미니앱 서명){' '}
+              {monitor.signedOk.toLocaleString()}회 · 관리자 {monitor.adminOk.toLocaleString()}회
+            </p>
+
+            <p className="mt-5 text-[14px] font-bold">최근 밖에서 온 요청</p>
+            {monitor.samples.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                최근 미니앱 밖에서 온 수상한 요청이 없어요. (좋은 신호)
+              </p>
+            ) : (
+              <div className="mt-2 overflow-x-auto rounded-xl border border-border">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/40 text-xs text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2">종류</th>
+                      <th className="px-3 py-2">경로</th>
+                      <th className="px-3 py-2">클라이언트</th>
+                      <th className="px-3 py-2">시각</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monitor.samples.map((s, i) => (
+                      <tr key={i} className="border-t border-border">
+                        <td className="px-3 py-2">
+                          {s.kind === 'injection' ? (
+                            <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-semibold text-destructive">
+                              인젝션
+                            </span>
+                          ) : s.kind === 'scan' ? (
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                              스캔
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                              스크래퍼
+                            </span>
+                          )}
+                        </td>
+                        <td className="max-w-[260px] truncate px-3 py-2 font-mono text-xs">{s.path}</td>
+                        <td className="max-w-[200px] truncate px-3 py-2 text-xs text-muted-foreground">{s.client}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
+                          {new Date(s.at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {monitor.loginFailures.length > 0 && (
+              <>
+                <p className="mt-5 text-[14px] font-bold">관리자 로그인 실패 (침입 시도)</p>
+                <div className="mt-2 overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-muted/40 text-xs text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2">IP</th>
+                        <th className="px-3 py-2">실패 횟수</th>
+                        <th className="px-3 py-2">상태</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monitor.loginFailures.map((f, i) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="px-3 py-2 font-mono text-xs">{f.ip}</td>
+                          <td className="px-3 py-2">{f.failures}</td>
+                          <td className="px-3 py-2">
+                            {f.locked ? (
+                              <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-semibold text-destructive">
+                                잠김
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
