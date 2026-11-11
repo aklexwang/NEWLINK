@@ -537,6 +537,11 @@ export class ChannelCollectorService {
    * 초대 링크 방. 수집 계정이 이미 회원이면 MTProto 로 글 정보까지 읽고(가입은 하지 않음),
    * 아니면 공개 초대 페이지(제목·사진·회원 수)만 읽는다. 정기 수집·관리자 "지금 수집" 공통.
    */
+  /** 어드민 수동 입장 요청(승인 필요 비공개 방). */
+  async requestJoin(channelId: string): Promise<{ ok: boolean; outcome: string }> {
+    return this.mtproto.requestJoinForChannel(channelId);
+  }
+
   private async collectInviteChannel(
     channel: Channel,
   ): Promise<CollectOneResult> {

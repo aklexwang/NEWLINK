@@ -14,6 +14,10 @@ import { extname, join } from 'path';
 import { Brackets, In, Repository } from 'typeorm';
 import { Channel, ChannelStatus, LinkType } from './channel.entity';
 import {
+  type JoinRequestState,
+  joinRequestState,
+} from '../stats/mtproto-join.logic';
+import {
   HIDDEN_COLLECT_STATUSES,
   isPublicCollectable,
 } from '../stats/collect-visibility';
@@ -795,6 +799,26 @@ export class ChannelsService implements OnModuleInit {
     const channel = await this.channelRepository.findOne({ where: { id } });
     if (!channel) throw new NotFoundException('Channel not found');
     return channel;
+  }
+
+  /** 입장 요청을 보낸 비공개 방 목록 + 상태(대기/승인/미승인). 어드민용. */
+  async findJoinRequested(): Promise<
+    Array<Channel & { joinRequestStatus: JoinRequestState }>
+  > {
+    const rows = await this.channelRepository
+      .createQueryBuilder('c')
+      .addSelect('c.telegramAccessHash')
+      .where('c.joinRequestedAt IS NOT NULL')
+      .orderBy('c.joinRequestedAt', 'DESC')
+      .getMany();
+    return rows.map((c) =>
+      Object.assign(c, {
+        joinRequestStatus: joinRequestState({
+          joinRequestedAt: c.joinRequestedAt,
+          hasAccess: Boolean(c.telegramAccessHash),
+        }),
+      }),
+    );
   }
 
   async getRecommendedChannelIds(userId: number): Promise<string[]> {

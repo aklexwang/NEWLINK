@@ -39,6 +39,11 @@ export class AdminCollectService {
     private readonly runRepository: Repository<StatsRun>,
   ) {}
 
+  /** 승인 필요 비공개 방에 수동으로 입장 요청을 보낸다. */
+  async requestJoin(id: string): Promise<{ ok: boolean; outcome: string }> {
+    return this.collector.requestJoin(id);
+  }
+
   async collectOne(id: string) {
     await this.assertPipelineIdle();
     const channel = await this.channelsService.findById(id);

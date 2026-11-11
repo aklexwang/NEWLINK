@@ -119,6 +119,83 @@ export function joinedChannelFromUpdates(result: unknown): {
   return null;
 }
 
+/** CheckChatInvite 결과가 "승인 필요한 채널"(입장 요청을 보낼 수 있는 방)인지 */
+export function isRequestNeededChannel(result: unknown): boolean {
+  if (!result || typeof result !== 'object') return false;
+  const r = result as {
+    className?: string;
+    broadcast?: boolean;
+    megagroup?: boolean;
+    requestNeeded?: boolean;
+  };
+  if (r.className !== 'ChatInvite') return false;
+  // 승인 필요 + 채널(broadcast). 그룹은 글 수집 대상이 아니라 제외.
+  return r.requestNeeded === true && r.broadcast === true && r.megagroup !== true;
+}
+
+/** ImportChatInvite 가 "가입 요청 접수"(승인 대기)로 끝났는지 — 에러 메시지로 판별 */
+export function wasJoinRequestSent(error: unknown): boolean {
+  const msg =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : (() => {
+            const m = (error as { errorMessage?: unknown })?.errorMessage;
+            return typeof m === 'string' ? m : '';
+          })();
+  return /INVITE_REQUEST_SENT/i.test(msg);
+}
+
+export const JOIN_REQUEST_DAILY_DEFAULT = 5;
+export const JOIN_REQUEST_MIN_GAP_MS = 5 * 60 * 1000;
+/** 자동 입장 요청은 이 회원 수 이상인 "값나가는" 방에만 */
+export const JOIN_REQUEST_AUTO_MIN_MEMBERS = 3000;
+/** 응답 없는 요청을 "미승인"으로 보는 기간 */
+export const JOIN_REQUEST_STALE_DAYS = 14;
+
+export type JoinRequestState =
+  | 'none'
+  | 'pending'
+  | 'approved'
+  | 'unanswered';
+
+/** 입장 요청 상태(어드민 표시용). 승인되면 멤버가 되어 접근 정보(access hash)가 생긴다. */
+export function joinRequestState(input: {
+  joinRequestedAt: Date | null;
+  hasAccess: boolean;
+  now?: Date;
+}): JoinRequestState {
+  if (!input.joinRequestedAt) return 'none';
+  if (input.hasAccess) return 'approved';
+  const now = input.now ?? new Date();
+  const ageMs = now.getTime() - input.joinRequestedAt.getTime();
+  if (ageMs >= JOIN_REQUEST_STALE_DAYS * 24 * 60 * 60 * 1000) {
+    return 'unanswered';
+  }
+  return 'pending';
+}
+
+/** 입장 요청을 지금 보낼 수 있는지(하루 한도·간격·이미 요청함 확인) */
+export function canSendJoinRequest(input: {
+  requestsToday: number;
+  dailyMax: number;
+  lastRequestAt: number;
+  now: number;
+  alreadyRequested: boolean;
+}): boolean {
+  if (input.alreadyRequested) return false;
+  if (input.dailyMax <= 0) return false;
+  if (input.requestsToday >= input.dailyMax) return false;
+  if (
+    input.lastRequestAt > 0 &&
+    input.now - input.lastRequestAt < JOIN_REQUEST_MIN_GAP_MS
+  ) {
+    return false;
+  }
+  return true;
+}
+
 /** 가입하지 않은 이유(화면 표시용) */
 export function describeUnjoinableInvite(result: unknown): string {
   if (!result || typeof result !== 'object') return '확인 결과 없음';

@@ -80,6 +80,11 @@ export class AdminController {
     return { count: channels.length };
   }
 
+  @Get('join-requests')
+  getJoinRequests() {
+    return this.channelsService.findJoinRequested();
+  }
+
   @Get('all')
   async findAll(
     @Query('status') status?: ChannelStatus,
@@ -167,6 +172,11 @@ export class AdminController {
   @Post('collect')
   collectMany(@Body() dto: BulkCollectDto) {
     return this.adminCollect.collectMany(dto.ids);
+  }
+
+  @Post(':id/join-request')
+  async requestJoin(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminCollect.requestJoin(id);
   }
 
   @Post(':id/collect')

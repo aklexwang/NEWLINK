@@ -1,11 +1,56 @@
 import {
   canJoinAnother,
+  canSendJoinRequest,
   inviteMetadata,
   isJoinableChannelInvite,
+  isRequestNeededChannel,
+  JOIN_REQUEST_DAILY_DEFAULT,
   joinedChannelFromUpdates,
+  joinRequestState,
   MTPROTO_JOIN_MIN_GAP_MS,
   parseJoinDaily,
+  wasJoinRequestSent,
 } from './mtproto-join.logic';
+
+describe('입장 요청(승인 필요 방)', () => {
+  it('isRequestNeededChannel: 승인 필요 + 채널이면 true', () => {
+    expect(
+      isRequestNeededChannel({ className: 'ChatInvite', requestNeeded: true, broadcast: true }),
+    ).toBe(true);
+  });
+  it('isRequestNeededChannel: 승인 불필요·그룹·이미회원은 false', () => {
+    expect(isRequestNeededChannel({ className: 'ChatInvite', requestNeeded: false, broadcast: true })).toBe(false);
+    expect(isRequestNeededChannel({ className: 'ChatInvite', requestNeeded: true, megagroup: true })).toBe(false);
+    expect(isRequestNeededChannel({ className: 'ChatInviteAlready' })).toBe(false);
+  });
+
+  it('wasJoinRequestSent: INVITE_REQUEST_SENT 에러면 true', () => {
+    expect(wasJoinRequestSent(new Error('INVITE_REQUEST_SENT'))).toBe(true);
+    expect(wasJoinRequestSent({ errorMessage: 'INVITE_REQUEST_SENT' })).toBe(true);
+    expect(wasJoinRequestSent(new Error('FLOOD_WAIT_300'))).toBe(false);
+  });
+
+  it('joinRequestState: 요청없음/대기/승인/미승인', () => {
+    const now = new Date('2026-11-20T00:00:00Z');
+    expect(joinRequestState({ joinRequestedAt: null, hasAccess: false, now })).toBe('none');
+    expect(joinRequestState({ joinRequestedAt: new Date('2026-11-19'), hasAccess: false, now })).toBe('pending');
+    expect(joinRequestState({ joinRequestedAt: new Date('2026-11-01'), hasAccess: false, now })).toBe('unanswered');
+    // 승인되면 멤버가 되어 access 가 생김
+    expect(joinRequestState({ joinRequestedAt: new Date('2026-11-01'), hasAccess: true, now })).toBe('approved');
+  });
+
+  it('canSendJoinRequest: 한도·간격·중복 확인', () => {
+    const base = { requestsToday: 0, dailyMax: JOIN_REQUEST_DAILY_DEFAULT, lastRequestAt: 0, now: 1_000_000_000, alreadyRequested: false };
+    expect(canSendJoinRequest(base)).toBe(true);
+    expect(canSendJoinRequest({ ...base, alreadyRequested: true })).toBe(false);
+    expect(canSendJoinRequest({ ...base, requestsToday: 5 })).toBe(false);
+    expect(canSendJoinRequest({ ...base, dailyMax: 0 })).toBe(false);
+    // 간격 미달
+    expect(canSendJoinRequest({ ...base, lastRequestAt: base.now - 60_000 })).toBe(false);
+    // 간격 충분
+    expect(canSendJoinRequest({ ...base, lastRequestAt: base.now - 6 * 60_000 })).toBe(true);
+  });
+});
 
 describe('inviteMetadata (A안: 회원 아님 비공개방 공개 정보)', () => {
   it('ChatInvite 에서 제목·소개·참여자수를 뽑는다', () => {

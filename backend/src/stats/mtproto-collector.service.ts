@@ -103,15 +103,20 @@ import {
 } from './mtproto-reserve.logic';
 import {
   canJoinAnother,
+  canSendJoinRequest,
   describeUnjoinableInvite,
   type InviteMeta,
   inviteMetadata,
   isJoinableChannelInvite,
+  isRequestNeededChannel,
+  JOIN_REQUEST_AUTO_MIN_MEMBERS,
+  JOIN_REQUEST_DAILY_DEFAULT,
   joinedChannelFromUpdates,
   MTPROTO_JOIN_TOTAL_KEY,
   MTPROTO_JOIN_TOTAL_MAX,
   MTPROTO_JOIN_DAILY_DEFAULT,
   parseJoinDaily,
+  wasJoinRequestSent,
 } from './mtproto-join.logic';
 
 /** 풀 계정 한 칸: 연결·FloodWait 는 계정마다 따로 */
@@ -145,6 +150,9 @@ export type MtprotoPublicStatus = {
   specialReserve: number;
   joinDailyLimit: number;
   joinedTotal: number;
+  joinRequestsToday?: number;
+  joinRequestDailyLimit?: number;
+  joinRequestAuto?: boolean;
   joinTotalMax: number;
   lastError: string | null;
 };
@@ -202,6 +210,7 @@ const MTPROTO_DAILY_KEY = 'mtproto';
 /** 초대 링크 확인(CheckChatInvite) 하루 기본 한도. resolve(50)와 따로 */
 const INVITE_CHECK_DAILY_LIMIT_DEFAULT = 40;
 const MTPROTO_JOIN_DAILY_KEY = 'mtproto-join';
+const MTPROTO_JOIN_REQUEST_DAILY_KEY = 'mtproto-join-request';
 
 @Injectable()
 export class MtprotoCollectorService implements OnModuleInit {
@@ -230,6 +239,10 @@ export class MtprotoCollectorService implements OnModuleInit {
   private lastJoinAt = 0;
   /** 오늘 초대 링크 확인 결과별 수 (왜 가입이 안 됐는지 화면에서 보려고) */
   private joinOutcomes: Record<string, number> = {};
+  // 입장 요청(승인 필요 방) — 밴 방지로 하루 소량만
+  private joinRequestsToday = 0;
+  private joinRequestDay = '';
+  private lastJoinRequestAt = 0;
   private joinOutcomeDay = '';
   /** CHANNELS_TOO_MUCH 등으로 더 가입하면 안 될 때 */
   private joinBlocked = false;
@@ -341,6 +354,9 @@ export class MtprotoCollectorService implements OnModuleInit {
       joinDailyLimit: this.joinDailyLimit(),
       joinedTotal: this.joinedTotal,
       joinTotalMax: MTPROTO_JOIN_TOTAL_MAX,
+      joinRequestsToday: this.currentJoinRequestsToday(),
+      joinRequestDailyLimit: this.joinRequestDailyLimit(),
+      joinRequestAuto: this.joinRequestAutoEnabled(),
       lastError: this.lastError,
     };
   }
@@ -532,6 +548,23 @@ export class MtprotoCollectorService implements OnModuleInit {
         } else if (isJoinableChannelInvite(invite)) {
           // 비공개 채널: 하루 한도·전체 950·간격 3분 안에서 가입하고 글까지 읽는다
           chat = await this.tryJoinInvite(Api, hash, channel.id);
+        } else if (
+          isRequestNeededChannel(invite) &&
+          this.joinRequestAutoEnabled() &&
+          !channel.joinRequestedAt &&
+          (inviteMetadata(invite)?.participantsCount ??
+            channel.memberCount ??
+            0) >= JOIN_REQUEST_AUTO_MIN_MEMBERS &&
+          canSendJoinRequest({
+            requestsToday: this.currentJoinRequestsToday(),
+            dailyMax: this.joinRequestDailyLimit(),
+            lastRequestAt: this.lastJoinRequestAt,
+            now: Date.now(),
+            alreadyRequested: false,
+          })
+        ) {
+          // 승인 필요한 "값나가는"(회원 많은) 방: 하루 소량 자동 입장 요청(밴 방지)
+          chat = await this.requestJoinInvite(Api, hash, channel);
         } else {
           this.noteJoinOutcome(describeUnjoinableInvite(invite));
         }
@@ -617,6 +650,127 @@ export class MtprotoCollectorService implements OnModuleInit {
     return this.joinsToday;
   }
 
+  /** 입장 요청 하루 한도(밴 방지로 소량·계정 수만큼은 안 늘림). 0 이면 끔. */
+  private joinRequestDailyLimit(): number {
+    const raw = this.configService.get<string>('MTPROTO_JOIN_REQUEST_DAILY');
+    if (raw != null && String(raw).trim() !== '') {
+      const n = Number(raw);
+      return Number.isFinite(n) && n >= 0 ? Math.floor(n) : JOIN_REQUEST_DAILY_DEFAULT;
+    }
+    return JOIN_REQUEST_DAILY_DEFAULT;
+  }
+
+  /** 자동 입장 요청을 켤지 (기본 켜짐, env 로 끌 수 있음) */
+  private joinRequestAutoEnabled(): boolean {
+    const raw = this.configService.get<string>('MTPROTO_JOIN_REQUEST_AUTO');
+    if (raw == null || String(raw).trim() === '') return true;
+    return String(raw).trim().toLowerCase() !== 'false';
+  }
+
+  private currentJoinRequestsToday(): number {
+    const today = formatKstYmd();
+    if (this.joinRequestDay !== today) {
+      this.joinRequestDay = today;
+      this.joinRequestsToday = 0;
+    }
+    return this.joinRequestsToday;
+  }
+
+  /**
+   * 승인 필요 비공개 방에 입장 요청(ImportChatInvite)을 보낸다.
+   * 성공(바로 가입)하면 그 채널을 돌려주고, "요청 접수"면 joinRequestedAt 을 기록하고 null.
+   * 한도·간격·중복은 호출 전에 canSendJoinRequest 로 거른다.
+   */
+  private async requestJoinInvite(
+    Api: typeof import('telegram').Api,
+    hash: string,
+    channel: Channel,
+  ): Promise<ReturnType<typeof joinedChannelFromUpdates>> {
+    this.lastJoinRequestAt = Date.now();
+    this.currentJoinRequestsToday();
+    this.joinRequestsToday += 1;
+    this.saveJoinCounters();
+    try {
+      const res = await this.call(
+        'messages.ImportChatInvite',
+        new Api.messages.ImportChatInvite({ hash }),
+      );
+      // 승인 없이 바로 가입된 경우(간혹) — 멤버가 됨
+      const joined = joinedChannelFromUpdates(res);
+      if (joined) {
+        this.noteJoinOutcome('요청 없이 가입됨');
+        this.joinedTotal += 1;
+        this.saveJoinCounters();
+      }
+      // 요청을 보냈으니 기록은 남긴다(가입됐어도 요청 시도 기록)
+      await this.channelRepository.update(channel.id, {
+        joinRequestedAt: new Date(),
+      });
+      return joined;
+    } catch (error) {
+      if (wasJoinRequestSent(error)) {
+        await this.channelRepository.update(channel.id, {
+          joinRequestedAt: new Date(),
+        });
+        this.noteJoinOutcome('입장 요청 보냄');
+        return null;
+      }
+      // flood·인증 등은 원래 흐름(call)에서 이미 처리됨. 여기선 카운터만 되돌린다.
+      this.joinRequestsToday = Math.max(0, this.joinRequestsToday - 1);
+      this.saveJoinCounters();
+      this.noteJoinOutcome('입장 요청 실패');
+      return null;
+    }
+  }
+
+  /**
+   * 어드민이 고른 한 방에 수동으로 입장 요청. 한도/간격/중복을 지키고 결과 문구를 돌려준다.
+   */
+  async requestJoinForChannel(channelId: string): Promise<{
+    ok: boolean;
+    outcome: string;
+  }> {
+    if (!this.canUseMtproto()) {
+      return { ok: false, outcome: 'MTProto 를 쓸 수 없음(꺼짐·중단·한도)' };
+    }
+    const channel = await this.channelRepository.findOne({
+      where: { id: channelId },
+    });
+    if (!channel) return { ok: false, outcome: '방을 찾을 수 없음' };
+    const hash = inviteHashFromLink(channel.link);
+    if (!hash) return { ok: false, outcome: '초대 링크가 아님' };
+    if (channel.joinRequestedAt) {
+      return { ok: false, outcome: '이미 입장 요청함' };
+    }
+    if (
+      !canSendJoinRequest({
+        requestsToday: this.currentJoinRequestsToday(),
+        dailyMax: this.joinRequestDailyLimit(),
+        lastRequestAt: this.lastJoinRequestAt,
+        now: Date.now(),
+        alreadyRequested: false,
+      })
+    ) {
+      return {
+        ok: false,
+        outcome: `오늘 입장 요청 한도(${this.joinRequestDailyLimit()}) 초과 또는 간격 대기 중`,
+      };
+    }
+    const { Api } = await import('telegram');
+    const invite = await this.call(
+      'messages.CheckChatInvite',
+      new Api.messages.CheckChatInvite({ hash }),
+    );
+    if (memberChatFromInvite(invite)) {
+      return { ok: true, outcome: '이미 회원입니다(글 읽기 가능)' };
+    }
+    if (!isRequestNeededChannel(invite) && !isJoinableChannelInvite(invite)) {
+      return { ok: false, outcome: describeUnjoinableInvite(invite) };
+    }
+    await this.requestJoinInvite(Api, hash, channel);
+    return { ok: true, outcome: '입장 요청을 보냈습니다(운영자 승인 대기)' };
+  }
+
   /** 가입 1건. 실패·한도면 null (회원 아님으로 처리 → 공개 초대 페이지만 읽음) */
   private async tryJoinInvite(
     Api: typeof import('telegram').Api,
@@ -693,6 +847,18 @@ export class MtprotoCollectorService implements OnModuleInit {
         key: MTPROTO_JOIN_TOTAL_KEY,
       });
       if (row) this.joinedTotal = safeCount(Number(row.value));
+      if (this.dailyStore) {
+        const savedReq = await this.dailyStore.load<{ requests: number }>(
+          MTPROTO_JOIN_REQUEST_DAILY_KEY,
+        );
+        this.currentJoinRequestsToday();
+        if (savedReq) {
+          this.joinRequestsToday = Math.max(
+            this.joinRequestsToday,
+            safeCount(savedReq.requests),
+          );
+        }
+      }
     } catch (error) {
       this.logger.warn(
         `가입 수 불러오기 실패: ${error instanceof Error ? error.message : error}`,
@@ -704,6 +870,13 @@ export class MtprotoCollectorService implements OnModuleInit {
     this.dailyStore?.schedule(MTPROTO_JOIN_DAILY_KEY, () => {
       this.currentJoinsToday();
       return { date: this.joinDay, values: { joins: this.joinsToday } };
+    });
+    this.dailyStore?.schedule(MTPROTO_JOIN_REQUEST_DAILY_KEY, () => {
+      this.currentJoinRequestsToday();
+      return {
+        date: this.joinRequestDay,
+        values: { requests: this.joinRequestsToday },
+      };
     });
     void this.settings
       ?.save({ key: MTPROTO_JOIN_TOTAL_KEY, value: String(this.joinedTotal) })

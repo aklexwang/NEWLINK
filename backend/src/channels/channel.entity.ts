@@ -139,6 +139,14 @@ export class Channel {
   })
   telegramAccessHash: string | null;
 
+  /** 승인 필요 비공개 방에 입장 요청을 보낸 시각. 승인되면 멤버가 되어 접근 정보가 생긴다. */
+  @Column({
+    name: 'join_requested_at',
+    type: dateTimeColumnType(),
+    nullable: true,
+  })
+  joinRequestedAt: Date | null;
+
   /**
    * 연결된 대화방(채널 행) 또는 부모 채널(그룹 행)의 텔레그램 id. -100 을 뗀 양수.
    * MTProto GetFullChannel 의 linkedChatId 로 채운다.
