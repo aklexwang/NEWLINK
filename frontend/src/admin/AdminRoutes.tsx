@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { AdminDiscoveryPage } from '../pages/admin/AdminDiscoveryPage';
+import { AdminJoinRequestsPage } from '../pages/admin/AdminJoinRequestsPage';
 import { AdminAdsHubPage } from '../pages/admin/AdminAdsHubPage';
 import { AdminCategoriesPage } from '../pages/admin/AdminCategoriesPage';
 import { AdminManualRegisterPage } from '../pages/admin/AdminManualRegisterPage';
@@ -39,6 +40,7 @@ export default function AdminRoutes() {
         />
         <Route path="register-link" element={<AdminManualRegisterPage />} />
         <Route path="discovery" element={<AdminDiscoveryPage />} />
+        <Route path="join-requests" element={<AdminJoinRequestsPage />} />
         <Route path="ads" element={<AdminAdsHubPage />} />
         <Route path="search-insights" element={<AdminSearchInsightsPage />} />
         <Route path="opens" element={<AdminOpensPage />} />

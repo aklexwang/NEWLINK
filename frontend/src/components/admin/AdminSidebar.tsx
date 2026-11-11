@@ -9,6 +9,7 @@ import {
   List,
   MousePointerClick,
   RefreshCw,
+  DoorOpen,
   Search,
   SearchX,
   Server,
@@ -71,6 +72,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
 const MORE_ITEMS: NavItem[] = [
   { to: '/admin/collect', label: '수집 운영', icon: <Timer /> },
   { to: '/admin/discovery', label: '발견', icon: <RefreshCw /> },
+  { to: '/admin/join-requests', label: '입장 요청', icon: <DoorOpen /> },
   { to: '/admin/search-insights', label: '검색 인사이트', icon: <Search /> },
   { to: '/admin/opens', label: '텔레그램 이동 순위', icon: <MousePointerClick /> },
   { to: '/admin/server', label: '서버 상황', icon: <Server /> },

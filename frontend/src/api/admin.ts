@@ -621,6 +621,39 @@ export async function collectAdminChannels(
   return data;
 }
 
+export type JoinRequestStatus = 'none' | 'pending' | 'approved' | 'unanswered';
+
+export interface JoinRequestChannel {
+  id: string;
+  title: string;
+  link: string;
+  category: string | null;
+  memberCount: number | null;
+  joinRequestedAt: string | null;
+  joinRequestStatus: JoinRequestStatus;
+}
+
+/** 승인 필요 비공개 방에 수동으로 입장 요청 */
+export async function requestAdminChannelJoin(
+  id: string,
+): Promise<{ ok: boolean; outcome: string }> {
+  const { data } = await apiClient.post<{ ok: boolean; outcome: string }>(
+    `/admin/channels/${id}/join-request`,
+    {},
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+/** 입장 요청한 방 목록 + 상태 */
+export async function getAdminJoinRequests(): Promise<JoinRequestChannel[]> {
+  const { data } = await apiClient.get<JoinRequestChannel[]>(
+    '/admin/channels/join-requests',
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
 export async function deleteAdminChannel(id: string) {
   const { data } = await apiClient.delete(`/admin/channels/${id}`, {
     headers: getAdminAuthHeaders(),

@@ -5,6 +5,7 @@ import {
   getAdminStatsOps,
   collectAdminChannel,
   collectAdminChannels,
+  requestAdminChannelJoin,
   deleteAdminChannel,
   getAdminCategories,
   getAdminChannels,
@@ -242,6 +243,25 @@ export function AdminLinksManagePage() {
       setMessage(adminApiErrorMessage(error, '수집에 실패했습니다.'));
     } finally {
       setCollectingId(null);
+    }
+  };
+
+  const handleJoinRequest = async (id: string) => {
+    try {
+      const res = await requestAdminChannelJoin(id);
+      setMessage(`입장 요청: ${res.outcome}`);
+      setSaveHint((prev) => ({ ...prev, [id]: res.outcome }));
+      if (res.ok) {
+        setChannels((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? { ...item, joinRequestedAt: new Date().toISOString() }
+              : item,
+          ),
+        );
+      }
+    } catch (error) {
+      setMessage(adminApiErrorMessage(error, '입장 요청에 실패했습니다.'));
     }
   };
 
@@ -754,6 +774,25 @@ export function AdminLinksManagePage() {
                       텔레그램에서 열기
                     </button>
                   </div>
+
+                  {(focusedChannel.collectStatus === 'invite_only' ||
+                    focusedChannel.link.includes('/+') ||
+                    focusedChannel.link.includes('/joinchat/')) &&
+                    ((focusedChannel as { joinRequestedAt?: string | null })
+                      .joinRequestedAt ? (
+                      <p className="mt-3 text-sm text-subtle">
+                        🔒 입장 요청함 — 운영자 승인을 기다리는 중입니다. 승인되면 글·조회가
+                        자동으로 채워집니다. (상태는 <span className="font-semibold">입장 요청</span> 메뉴에서)
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handleJoinRequest(focusedChannel.id)}
+                        className="mt-3 inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-accent"
+                      >
+                        🔑 입장 요청 보내기 (승인 필요 방)
+                      </button>
+                    ))}
 
                   <ChannelQuickPreview channelId={focusedChannel.id} />
 
