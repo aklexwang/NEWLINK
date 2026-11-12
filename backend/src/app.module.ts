@@ -16,49 +16,10 @@ import { SeoModule } from './seo/seo.module';
 import { StatsModule } from './stats/stats.module';
 import { UsersModule } from './users/users.module';
 import { isPostgresConfig } from './common/db-types';
-import { AddChannelStats1760852400000 } from './migrations/1760852400000-AddChannelStats';
-import { AddChannelVerified1760860800000 } from './migrations/1760860800000-AddChannelVerified';
-import { AddChannelDiscovery1761019200000 } from './migrations/1761019200000-AddChannelDiscovery';
-import { AddCollectError1761033600000 } from './migrations/1761033600000-AddCollectError';
-import { AddCollectClassifyCache1761040800000 } from './migrations/1761040800000-AddCollectClassifyCache';
-import { AddChannelLanguage1761120000000 } from './migrations/1761120000000-AddChannelLanguage';
-import { AddChannelVisibility1761210000000 } from './migrations/1761210000000-AddChannelVisibility';
-import { AddMtprotoCollectColumns1761220000000 } from './migrations/1761220000000-AddMtprotoCollectColumns';
-import { AddSnapshotActivity1761230000000 } from './migrations/1761230000000-AddSnapshotActivity';
-import { AddLanguageHangulRatio1761240000000 } from './migrations/1761240000000-AddLanguageHangulRatio';
-import { AddStatsRuns1761260000000 } from './migrations/1761260000000-AddStatsRuns';
-import { AddUuidPkDefaults1761270000000 } from './migrations/1761270000000-AddUuidPkDefaults';
-import { AddStatsRunMode1761280000000 } from './migrations/1761280000000-AddStatsRunMode';
-import { AddAccessHashAndMtprotoState1761290000000 } from './migrations/1761290000000-AddAccessHashAndMtprotoState';
-import { AddChannelCollectTier1761300000000 } from './migrations/1761300000000-AddChannelCollectTier';
-import { AddAdminInspectJobs1761320000000 } from './migrations/1761320000000-AddAdminInspectJobs';
-import { AddDiscoveryKeywords1761330000000 } from './migrations/1761330000000-AddDiscoveryKeywords';
-import { AddRewardPayoutLedger1761340000000 } from './migrations/1761340000000-AddRewardPayoutLedger';
-import { AddIllegalCleared1761350000000 } from './migrations/1761350000000-AddIllegalCleared';
-import { AddSearchTerms1761360000000 } from './migrations/1761360000000-AddSearchTerms';
-import { AddSearchLogs1761370000000 } from './migrations/1761370000000-AddSearchLogs';
-import { AddTelegramOpens1761380000000 } from './migrations/1761380000000-AddTelegramOpens';
-import { AddTitleLocked1761390000000 } from './migrations/1761390000000-AddTitleLocked';
-import { AddChannelNextCollectAt1761400000000 } from './migrations/1761400000000-AddChannelNextCollectAt';
-import { AddLinkedChat1761410000000 } from './migrations/1761410000000-AddLinkedChat';
-import { AddMemberDeltas1761420000000 } from './migrations/1761420000000-AddMemberDeltas';
-import { AddCategoryProposals1761430000000 } from './migrations/1761430000000-AddCategoryProposals';
-import { AddCategorySuggestionsAndNotifications1761440000000 } from './migrations/1761440000000-AddCategorySuggestionsAndNotifications';
-import { AddRewardToggleLog1761450000000 } from './migrations/1761450000000-AddRewardToggleLog';
-import { AddAdBanners1761460000000 } from './migrations/1761460000000-AddAdBanners';
-import { AddRankAds1761470000000 } from './migrations/1761470000000-AddRankAds';
-import { AddAdPayments1761480000000 } from './migrations/1761480000000-AddAdPayments';
-import { AddUserAdvertiser1761490000000 } from './migrations/1761490000000-AddUserAdvertiser';
-import { AddAdAdvertiserAndStats1761500000000 } from './migrations/1761500000000-AddAdAdvertiserAndStats';
-import { AddStoredImages1761510000000 } from './migrations/1761510000000-AddStoredImages';
-import { AddChannelPostsPostedAtIndex1761520000000 } from './migrations/1761520000000-AddChannelPostsPostedAtIndex';
 import { MemberActivityModule } from './member-activity/member-activity.module';
-import { AddMemberActivities1761530000000 } from './migrations/1761530000000-AddMemberActivities';
-import { AddVisitors1761540000000 } from './migrations/1761540000000-AddVisitors';
-import { AddChannelJoinRequestedAt1761600000000 } from './migrations/1761600000000-AddChannelJoinRequestedAt';
-import { AddChannelJoinRequestAccount1761700000000 } from './migrations/1761700000000-AddChannelJoinRequestAccount';
 import { StoredImagesModule } from './stored-images/stored-images.module';
 import { ServerStatusModule } from './server-status/server-status.module';
+import { ALL_MIGRATIONS } from './migrations';
 
 function truthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
@@ -95,48 +56,7 @@ function truthy(value: string | undefined): boolean {
               url: databaseUrl,
               autoLoadEntities: true,
               synchronize,
-              migrations: [
-                AddChannelStats1760852400000,
-                AddChannelVerified1760860800000,
-                AddChannelDiscovery1761019200000,
-                AddCollectError1761033600000,
-                AddCollectClassifyCache1761040800000,
-                AddChannelLanguage1761120000000,
-                AddChannelVisibility1761210000000,
-                AddMtprotoCollectColumns1761220000000,
-                AddSnapshotActivity1761230000000,
-                AddLanguageHangulRatio1761240000000,
-                AddStatsRuns1761260000000,
-                AddUuidPkDefaults1761270000000,
-                AddStatsRunMode1761280000000,
-                AddAccessHashAndMtprotoState1761290000000,
-                AddChannelCollectTier1761300000000,
-                AddAdminInspectJobs1761320000000,
-                AddDiscoveryKeywords1761330000000,
-                AddRewardPayoutLedger1761340000000,
-                AddIllegalCleared1761350000000,
-                AddSearchTerms1761360000000,
-                AddSearchLogs1761370000000,
-                AddTelegramOpens1761380000000,
-                AddTitleLocked1761390000000,
-                AddChannelNextCollectAt1761400000000,
-                AddLinkedChat1761410000000,
-                AddMemberDeltas1761420000000,
-                AddCategoryProposals1761430000000,
-                AddCategorySuggestionsAndNotifications1761440000000,
-                AddRewardToggleLog1761450000000,
-                AddAdBanners1761460000000,
-                AddRankAds1761470000000,
-                AddAdPayments1761480000000,
-                AddUserAdvertiser1761490000000,
-                AddAdAdvertiserAndStats1761500000000,
-                AddStoredImages1761510000000,
-                AddChannelPostsPostedAtIndex1761520000000,
-                AddMemberActivities1761530000000,
-                AddVisitors1761540000000,
-                AddChannelJoinRequestedAt1761600000000,
-                AddChannelJoinRequestAccount1761700000000,
-              ],
+              migrations: ALL_MIGRATIONS,
               migrationsRun: !synchronize,
               ssl: sslDisabled ? false : { rejectUnauthorized: false },
               retryAttempts: 20,
@@ -153,48 +73,7 @@ function truthy(value: string | undefined): boolean {
             database: config.get<string>('DATABASE_NAME', 'newlink'),
             autoLoadEntities: true,
             synchronize,
-            migrations: [
-              AddChannelStats1760852400000,
-              AddChannelVerified1760860800000,
-              AddChannelDiscovery1761019200000,
-              AddCollectError1761033600000,
-              AddCollectClassifyCache1761040800000,
-              AddChannelLanguage1761120000000,
-              AddChannelVisibility1761210000000,
-              AddMtprotoCollectColumns1761220000000,
-              AddSnapshotActivity1761230000000,
-              AddLanguageHangulRatio1761240000000,
-              AddStatsRuns1761260000000,
-              AddUuidPkDefaults1761270000000,
-              AddStatsRunMode1761280000000,
-              AddAccessHashAndMtprotoState1761290000000,
-              AddChannelCollectTier1761300000000,
-              AddAdminInspectJobs1761320000000,
-              AddDiscoveryKeywords1761330000000,
-              AddRewardPayoutLedger1761340000000,
-              AddIllegalCleared1761350000000,
-              AddSearchTerms1761360000000,
-              AddSearchLogs1761370000000,
-              AddTelegramOpens1761380000000,
-              AddTitleLocked1761390000000,
-              AddChannelNextCollectAt1761400000000,
-              AddLinkedChat1761410000000,
-              AddMemberDeltas1761420000000,
-              AddCategoryProposals1761430000000,
-              AddCategorySuggestionsAndNotifications1761440000000,
-              AddRewardToggleLog1761450000000,
-              AddAdBanners1761460000000,
-              AddRankAds1761470000000,
-              AddAdPayments1761480000000,
-              AddUserAdvertiser1761490000000,
-              AddAdAdvertiserAndStats1761500000000,
-              AddStoredImages1761510000000,
-              AddChannelPostsPostedAtIndex1761520000000,
-              AddMemberActivities1761530000000,
-              AddVisitors1761540000000,
-              AddChannelJoinRequestedAt1761600000000,
-              AddChannelJoinRequestAccount1761700000000,
-            ],
+            migrations: ALL_MIGRATIONS,
             migrationsRun: !synchronize,
             ssl: sslDisabled ? false : { rejectUnauthorized: false },
             retryAttempts: 20,
@@ -207,48 +86,7 @@ function truthy(value: string | undefined): boolean {
           database: config.get<string>('DATABASE_PATH', 'data/newlink.sqlite'),
           autoLoadEntities: true,
           synchronize: true,
-          migrations: [
-            AddChannelStats1760852400000,
-            AddChannelVerified1760860800000,
-            AddChannelDiscovery1761019200000,
-            AddCollectError1761033600000,
-            AddCollectClassifyCache1761040800000,
-            AddChannelLanguage1761120000000,
-            AddChannelVisibility1761210000000,
-            AddMtprotoCollectColumns1761220000000,
-            AddSnapshotActivity1761230000000,
-            AddLanguageHangulRatio1761240000000,
-            AddStatsRuns1761260000000,
-            AddUuidPkDefaults1761270000000,
-            AddStatsRunMode1761280000000,
-            AddAccessHashAndMtprotoState1761290000000,
-            AddChannelCollectTier1761300000000,
-            AddAdminInspectJobs1761320000000,
-            AddDiscoveryKeywords1761330000000,
-            AddRewardPayoutLedger1761340000000,
-            AddIllegalCleared1761350000000,
-            AddSearchTerms1761360000000,
-            AddSearchLogs1761370000000,
-            AddTelegramOpens1761380000000,
-            AddTitleLocked1761390000000,
-            AddChannelNextCollectAt1761400000000,
-            AddLinkedChat1761410000000,
-            AddMemberDeltas1761420000000,
-            AddCategoryProposals1761430000000,
-            AddCategorySuggestionsAndNotifications1761440000000,
-            AddRewardToggleLog1761450000000,
-            AddAdBanners1761460000000,
-            AddRankAds1761470000000,
-            AddAdPayments1761480000000,
-            AddUserAdvertiser1761490000000,
-            AddAdAdvertiserAndStats1761500000000,
-            AddStoredImages1761510000000,
-            AddChannelPostsPostedAtIndex1761520000000,
-            AddMemberActivities1761530000000,
-            AddVisitors1761540000000,
-            AddChannelJoinRequestedAt1761600000000,
-            AddChannelJoinRequestAccount1761700000000,
-          ],
+          migrations: ALL_MIGRATIONS,
         };
       },
     }),

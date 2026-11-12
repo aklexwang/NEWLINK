@@ -181,6 +181,43 @@ export function pickPinnedAccount(
   return isAccountAvailable(accounts[pinnedIndex], now) ? pinnedIndex : null;
 }
 
+/**
+ * 한 채널 읽기에 쓸 계정을 고른다. 원칙: "한 채널 = 처음부터 끝까지 한 계정".
+ * 텔레그램 access_hash 는 계정마다 달라서, A 계정이 받은 hash 를 B 계정이 쓰면 실패한다.
+ * - 저장된 hash 의 주인 계정이 쓸 수 있으면 → 그 계정으로, hash 재사용
+ * - 주인 계정이 막혔거나 없어졌으면 → 다른 읽기 계정으로, hash 재사용 안 함(새로 조회)
+ * - 주인을 모르는 옛 데이터면 → 고른 계정으로 재사용 시도(실패하면 기존처럼 지우고 다시 조회)
+ * 쓸 계정이 하나도 없으면 index null.
+ */
+export function chooseReadAccount(input: {
+  accounts: PoolAccountFlood[];
+  pointer: number;
+  requestIndex: number | null;
+  storedOwner: number | null;
+  hasStoredHash: boolean;
+  now?: Date;
+}): { index: number | null; reuseStored: boolean } {
+  const { accounts, pointer, requestIndex, storedOwner, hasStoredHash } = input;
+  const now = input.now ?? new Date();
+  const pickRead = () =>
+    pickAccountIndexForRole({
+      accounts,
+      pointer,
+      isRequest: false,
+      requestIndex,
+      now,
+    });
+  if (hasStoredHash && storedOwner != null) {
+    const ownerOk =
+      storedOwner >= 0 &&
+      storedOwner < accounts.length &&
+      isAccountAvailable(accounts[storedOwner], now);
+    if (ownerOk) return { index: storedOwner, reuseStored: true };
+    return { index: pickRead(), reuseStored: false };
+  }
+  return { index: pickRead(), reuseStored: hasStoredHash };
+}
+
 /** 모든 계정이 막혔는가(FloodWait 또는 인증 중단). 하나라도 쓸 수 있으면 false */
 export function allAccountsBlocked(
   accounts: PoolAccountFlood[],

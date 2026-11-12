@@ -139,6 +139,13 @@ export class Channel {
   })
   telegramAccessHash: string | null;
 
+  /**
+   * telegram_access_hash 를 받은 수집 계정 index(0-based). access_hash 는 계정마다 달라서
+   * 다른 계정이 쓰면 실패한다 → 재사용할 땐 이 계정으로만. null 이면 옛 데이터(주인 모름).
+   */
+  @Column({ name: 'telegram_access_account', type: 'integer', nullable: true })
+  telegramAccessAccount: number | null;
+
   /** 승인 필요 비공개 방에 입장 요청을 보낸 시각. 승인되면 멤버가 되어 접근 정보가 생긴다. */
   @Column({
     name: 'join_requested_at',

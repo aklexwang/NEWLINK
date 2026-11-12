@@ -1,6 +1,7 @@
 import {
   accountStateId,
   allAccountsBlocked,
+  chooseReadAccount,
   earliestFloodRecovery,
   isAccountAvailable,
   parseSessionList,
@@ -59,6 +60,55 @@ describe('역할 분담 (요청 전용 계정)', () => {
   it('읽기 계정이 다 막히면 전용 계정이라도 써서 안 멈춘다', () => {
     const accounts = [blocked, blocked, free]; // 읽기(0,1) 막힘, 전용(2) 살아있음
     expect(pickAccountIndexForRole({ accounts, pointer: 0, isRequest: false, requestIndex: 2, now })).toBe(2);
+  });
+});
+
+describe('chooseReadAccount (한 채널 = 한 계정, access_hash 는 계정별)', () => {
+  const now = new Date('2026-11-13T00:00:00Z');
+  const free = { floodWaitUntil: null };
+  const blocked = { floodWaitUntil: new Date('2026-11-13T01:00:00Z') };
+  const base = { pointer: 0, requestIndex: 2, now };
+
+  it('저장된 hash 주인이 살아 있으면 그 계정으로 재사용', () => {
+    expect(
+      chooseReadAccount({ ...base, accounts: [free, free, free], storedOwner: 1, hasStoredHash: true }),
+    ).toEqual({ index: 1, reuseStored: true });
+  });
+
+  it('주인이 요청 전용 계정이어도 그 hash 는 그 계정으로만 재사용', () => {
+    expect(
+      chooseReadAccount({ ...base, accounts: [free, free, free], storedOwner: 2, hasStoredHash: true }),
+    ).toEqual({ index: 2, reuseStored: true });
+  });
+
+  it('주인이 막혔으면 다른 읽기 계정 + 재사용 안 함(다른 계정 hash 는 실패하니까)', () => {
+    expect(
+      chooseReadAccount({ ...base, accounts: [blocked, free, free], storedOwner: 0, hasStoredHash: true }),
+    ).toEqual({ index: 1, reuseStored: false });
+  });
+
+  it('주인 index 가 범위 밖(계정 줄어듦)이면 재사용 안 함', () => {
+    expect(
+      chooseReadAccount({ ...base, accounts: [free, free], requestIndex: null, storedOwner: 5, hasStoredHash: true }),
+    ).toEqual({ index: 0, reuseStored: false });
+  });
+
+  it('주인 모르는 옛 데이터면 고른 계정으로 재사용 시도', () => {
+    expect(
+      chooseReadAccount({ ...base, accounts: [free, free, free], storedOwner: null, hasStoredHash: true }),
+    ).toEqual({ index: 0, reuseStored: true });
+  });
+
+  it('hash 없으면 읽기 계정 하나(요청 전용 제외)', () => {
+    expect(
+      chooseReadAccount({ ...base, pointer: 2, accounts: [free, free, free], storedOwner: null, hasStoredHash: false }),
+    ).toEqual({ index: 0, reuseStored: false });
+  });
+
+  it('전부 막히면 index null', () => {
+    expect(
+      chooseReadAccount({ ...base, accounts: [blocked, blocked, blocked], storedOwner: null, hasStoredHash: false }).index,
+    ).toBeNull();
   });
 });
 

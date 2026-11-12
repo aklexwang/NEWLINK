@@ -9,7 +9,8 @@
     "node": "22.x"
   },
   "scripts": {
-    "build": "npx --yes @nestjs/cli@11 build",
+    "build": "node scripts/check-entity-migrations.js && npx --yes @nestjs/cli@11 build",
+    "check:migrations": "node scripts/check-entity-migrations.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

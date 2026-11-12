@@ -73,6 +73,7 @@ import {
   allAccountsBlocked,
   isJoinRequestMethod,
   parseSessionList,
+  chooseReadAccount,
   pickAccountIndexForRole,
   pickPinnedAccount,
   scaledDailyLimit,
@@ -130,8 +131,6 @@ interface AccountSlot {
   floodWaitUntil: Date | null;
   authStopped: boolean;
   lastError: string | null;
-  /** 이 계정의 표시 이름(@username 등). getMe 로 한 번 받아 캐시. 구분용. */
-  selfLabel: string | null;
 }
 
 export type MtprotoPublicStatus = {
@@ -319,7 +318,6 @@ export class MtprotoCollectorService implements OnModuleInit {
         floodWaitUntil: null,
         authStopped: false,
         lastError: null,
-        selfLabel: null,
       };
     });
     // 더 이상 안 쓰는 슬롯은 연결을 끊는다
@@ -516,17 +514,33 @@ export class MtprotoCollectorService implements OnModuleInit {
     const hash = inviteHashFromLink(channel.link) as string;
     // 비공개 방은 가입한 계정(요청 전용 계정)만 읽을 수 있다. 입장요청·가입·확인·글읽기를
     // 모두 그 계정으로 고정해야, 승인된 방을 그 계정이 읽어서 상태·글이 채워진다.
-    // (요청 전용 계정이 없으면 null → 기존 라운드로빈 그대로)
-    this.pinnedAccountIndex = this.requestAccountIndex();
+    // 요청 전용 계정이 없으면: 저장 hash 주인 → 없으면 읽기 계정 하나로 이 방을 끝까지 처리.
+    const prevPin = this.pinnedAccountIndex;
     try {
-      const Api = await this.api();
       const stored = await this.loadStoredAccess(channel.id);
+      const memberIdx =
+        this.requestAccountIndex() ??
+        chooseReadAccount({
+          accounts: this.accounts,
+          pointer: this.rrPointer,
+          requestIndex: null,
+          storedOwner: stored?.telegramAccessAccount ?? null,
+          hasStoredHash: Boolean(stored && canReuseStoredAccess(stored)),
+        }).index;
+      this.pinnedAccountIndex = memberIdx;
+      const Api = await this.api();
       let resolved: ResolvedPublicChannel | null = null;
-      if (stored && canReuseStoredAccess(stored) && !this.canSpendCollect()) {
+      // 저장 hash 는 받은 계정으로만 쓸 수 있다(주인이 다르면 재사용하지 않고 초대 링크로 다시 확인)
+      const storedUsable =
+        stored != null &&
+        canReuseStoredAccess(stored) &&
+        (stored.telegramAccessAccount == null ||
+          stored.telegramAccessAccount === memberIdx);
+      if (storedUsable && !this.canSpendCollect()) {
         // 이미 가입한 방 다시 읽기는 "수집"이라 예비분을 건드리지 않는다
         return { ok: false, reason: 'skipped' };
       }
-      if (stored && canReuseStoredAccess(stored)) {
+      if (stored && storedUsable) {
         try {
           resolved = await this.fetchFullFromInput(
             Api,
@@ -538,6 +552,7 @@ export class MtprotoCollectorService implements OnModuleInit {
           if (!isStoredAccessInvalid(mtprotoErrorCode(error))) throw error;
           await this.channelRepository.update(channel.id, {
             telegramAccessHash: null,
+            telegramAccessAccount: null,
           });
         }
       }
@@ -631,7 +646,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       );
       return { ok: false, reason: 'failed' };
     } finally {
-      this.pinnedAccountIndex = null;
+      this.pinnedAccountIndex = prevPin;
     }
   }
 
@@ -757,16 +772,12 @@ export class MtprotoCollectorService implements OnModuleInit {
     const { Api } = await import('telegram');
     // 멤버 여부는 "멤버가 될 계정"(요청 전용 계정)으로 확인해야 한다.
     // 읽기 풀(1·2번)로 확인하면 3번이 이미 회원이어도 "비회원"으로 잘못 보고 쓸데없이 또 요청한다.
-    this.pinnedAccountIndex = this.requestAccountIndex();
-    let invite: Awaited<ReturnType<typeof this.call>>;
-    try {
-      invite = await this.call(
+    const invite = await this.withAccount(this.requestAccountIndex(), () =>
+      this.call(
         'messages.CheckChatInvite',
         new Api.messages.CheckChatInvite({ hash }),
-      );
-    } finally {
-      this.pinnedAccountIndex = null;
-    }
+      ),
+    );
     if (memberChatFromInvite(invite)) {
       // 이미 회원 → 요청 소모 없이 끝. "지금 수집"을 누르면 글이 채워진다.
       return {
@@ -1088,6 +1099,7 @@ export class MtprotoCollectorService implements OnModuleInit {
     stored: {
       telegramChatId: number | null;
       telegramAccessHash: string | null;
+      telegramAccessAccount?: number | null;
     } | null,
     channelId: string | null,
   ): Promise<{
@@ -1105,13 +1117,37 @@ export class MtprotoCollectorService implements OnModuleInit {
     groupLanguage?: GroupHistorySummary['language'];
     hangulRatio?: number | null;
   }> {
-    const resolved = await this.resolvePublicChannel(
-      username,
-      stored,
-      channelId,
-    );
-    const history = await this.fetchHistory(resolved);
-    return { ...resolved, ...history };
+    // 한 채널 = 한 계정: 조회(Resolve)·정보(GetFullChannel)·글(GetHistory)을 같은 계정으로.
+    const hasStoredHash = Boolean(stored && canReuseStoredAccess(stored));
+    let accountIndex: number | null;
+    let reuseStored: boolean;
+    if (this.pinnedAccountIndex != null) {
+      // 바깥에서 이미 고정됨 → 그 계정. 저장 hash 는 주인이 같거나 모를 때만 재사용
+      accountIndex = this.pinnedAccountIndex;
+      const owner = stored?.telegramAccessAccount ?? null;
+      reuseStored = hasStoredHash && (owner == null || owner === accountIndex);
+    } else {
+      const choice = chooseReadAccount({
+        accounts: this.accounts,
+        pointer: this.rrPointer,
+        requestIndex: this.requestAccountIndex(),
+        storedOwner: stored?.telegramAccessAccount ?? null,
+        hasStoredHash,
+      });
+      if (choice.index == null) throw new Error('flood_wait');
+      accountIndex = choice.index;
+      reuseStored = choice.reuseStored;
+      this.rrPointer = choice.index + 1; // 다음 채널은 다음 계정(채널 단위로 돌림)
+    }
+    return this.withAccount(accountIndex, async () => {
+      const resolved = await this.resolvePublicChannel(
+        username,
+        reuseStored ? stored : null,
+        channelId,
+      );
+      const history = await this.fetchHistory(resolved);
+      return { ...resolved, ...history };
+    });
   }
 
   private async resolvePublicChannel(
@@ -1137,6 +1173,7 @@ export class MtprotoCollectorService implements OnModuleInit {
         if (channelId) {
           await this.channelRepository.update(channelId, {
             telegramAccessHash: null,
+            telegramAccessAccount: null,
           });
         }
       }
@@ -1516,7 +1553,11 @@ export class MtprotoCollectorService implements OnModuleInit {
     if (data.telegramChatId != null)
       channel.telegramChatId = data.telegramChatId;
     const accessHash = serializeAccessHash(data.inputChannel.accessHash);
-    if (accessHash) channel.telegramAccessHash = accessHash;
+    if (accessHash) {
+      channel.telegramAccessHash = accessHash;
+      // access_hash 는 계정마다 다르다 → 이 hash 를 받은 계정(이번 수집에 쓴 계정)을 같이 저장
+      channel.telegramAccessAccount = this.activeAccount?.index ?? null;
+    }
     if (data.createdOn) channel.createdOn = data.createdOn;
     if (channel.linkType !== data.linkType) {
       await this.eventRepository.save({
@@ -1793,6 +1834,7 @@ export class MtprotoCollectorService implements OnModuleInit {
   private async loadStoredAccess(channelId: string): Promise<{
     telegramChatId: number | null;
     telegramAccessHash: string | null;
+    telegramAccessAccount: number | null;
   } | null> {
     const row = await this.channelRepository
       .createQueryBuilder('c')
@@ -1803,7 +1845,27 @@ export class MtprotoCollectorService implements OnModuleInit {
     return {
       telegramChatId: row.telegramChatId ?? null,
       telegramAccessHash: row.telegramAccessHash ?? null,
+      telegramAccessAccount: row.telegramAccessAccount ?? null,
     };
+  }
+
+  /**
+   * fn 이 도는 동안 모든 MTProto 호출을 index 계정으로 고정한다(중첩 가능: 끝나면 이전 값 복원).
+   * 한 채널 처리 중 호출마다 계정이 바뀌면 access_hash·멤버십이 안 맞아 실패한다.
+   * index 가 null 이면 고정하지 않고 그대로 실행.
+   */
+  private async withAccount<T>(
+    index: number | null,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    if (index == null) return fn();
+    const prev = this.pinnedAccountIndex;
+    this.pinnedAccountIndex = index;
+    try {
+      return await fn();
+    } finally {
+      this.pinnedAccountIndex = prev;
+    }
   }
 
   /** FloodWait 은 계정별로 건다. 전역 stopped 은 건드리지 않아 다른 계정이 계속 쓰인다. */
@@ -1915,35 +1977,23 @@ export class MtprotoCollectorService implements OnModuleInit {
 
   /** 라운드로빈으로 쓸 수 있는 계정을 고른다. 없으면 null. */
   /** 요청 전용 계정 index(0-based). MTPROTO_REQUEST_ACCOUNT=3 → 3번째 계정만 입장요청·가입. */
-  /** 계정 표시 이름(@username 등). getMe 로 한 번 받아 캐시. 실패하면 '계정 N'. */
-  private async resolveAccountLabel(slot: AccountSlot | null): Promise<string> {
+  /**
+   * 계정 표시 이름. 텔레그램 호출 없이 정한다(getMe = users.GetUsers 는 금지 목록이고
+   * 안전 통로(call)를 우회하므로 쓰지 않는다).
+   * Render 에 MTPROTO_ACCOUNT_LABELS="메인1,메인2,@koreaman34" 처럼 넣으면 그 이름, 없으면 '계정 N'.
+   */
+  private accountLabel(slot: AccountSlot | null): string {
     if (!slot) return '알 수 없음';
-    if (slot.selfLabel) return slot.selfLabel;
-    const fallback = `계정 ${slot.index + 1}`;
-    try {
-      if (!slot.client) return fallback;
-      const me = (await slot.client.getMe()) as {
-        username?: string | null;
-        firstName?: string | null;
-        phone?: string | null;
-      } | null;
-      const label = me?.username
-        ? `@${me.username}`
-        : me?.firstName?.trim()
-          ? me.firstName.trim()
-          : me?.phone
-            ? `+${String(me.phone).replace(/[^0-9]/g, '')}`
-            : fallback;
-      slot.selfLabel = label.slice(0, 80);
-      return slot.selfLabel;
-    } catch {
-      return fallback;
-    }
+    const labels = (this.configService.get<string>('MTPROTO_ACCOUNT_LABELS') ?? '')
+      .split(',')
+      .map((v) => v.trim());
+    const named = labels[slot.index];
+    return (named ? named : `계정 ${slot.index + 1}`).slice(0, 80);
   }
 
   /** 입장 요청 기록 + 어느 계정으로 보냈는지 라벨 저장(방금 call 에 쓰인 계정). */
   private async markJoinRequested(channelId: string): Promise<void> {
-    const label = await this.resolveAccountLabel(this.activeAccount);
+    const label = this.accountLabel(this.activeAccount);
     await this.channelRepository.update(channelId, {
       joinRequestedAt: new Date(),
       joinRequestAccount: label,
