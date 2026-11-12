@@ -755,6 +755,27 @@ export class MtprotoCollectorService implements OnModuleInit {
     if (channel.joinRequestedAt) {
       return { ok: false, outcome: '이미 입장 요청함' };
     }
+    const { Api } = await import('telegram');
+    // 멤버 여부는 "멤버가 될 계정"(요청 전용 계정)으로 확인해야 한다.
+    // 읽기 풀(1·2번)로 확인하면 3번이 이미 회원이어도 "비회원"으로 잘못 보고 쓸데없이 또 요청한다.
+    this.pinnedAccountIndex = this.requestAccountIndex();
+    let invite: Awaited<ReturnType<typeof this.call>>;
+    try {
+      invite = await this.call(
+        'messages.CheckChatInvite',
+        new Api.messages.CheckChatInvite({ hash }),
+      );
+    } finally {
+      this.pinnedAccountIndex = null;
+    }
+    if (memberChatFromInvite(invite)) {
+      // 이미 회원 → 요청 소모 없이 끝. "지금 수집"을 누르면 글이 채워진다.
+      return {
+        ok: true,
+        outcome: '이미 회원입니다 — "지금 수집"을 누르면 글이 채워져요',
+      };
+    }
+    // 비회원 → 여기서부터 한도·간격 확인 후 요청
     if (
       !canSendJoinRequest({
         requestsToday: this.currentJoinRequestsToday(),
@@ -768,14 +789,6 @@ export class MtprotoCollectorService implements OnModuleInit {
         ok: false,
         outcome: `오늘 입장 요청 한도(${this.joinRequestDailyLimit()}) 초과 또는 간격 대기 중`,
       };
-    }
-    const { Api } = await import('telegram');
-    const invite = await this.call(
-      'messages.CheckChatInvite',
-      new Api.messages.CheckChatInvite({ hash }),
-    );
-    if (memberChatFromInvite(invite)) {
-      return { ok: true, outcome: '이미 회원입니다(글 읽기 가능)' };
     }
     if (!isRequestNeededChannel(invite) && !isJoinableChannelInvite(invite)) {
       return { ok: false, outcome: describeUnjoinableInvite(invite) };

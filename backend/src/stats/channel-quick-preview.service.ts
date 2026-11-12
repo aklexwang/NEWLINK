@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Channel, LinkType } from '../channels/channel.entity';
+import { ChannelPost } from './channel-post.entity';
 import { usernameFromChannelLink } from '../channels/telegram-username';
 import {
   parseTelegramChannelHtml,
@@ -36,11 +37,29 @@ export class ChannelQuickPreviewService {
   constructor(
     @InjectRepository(Channel)
     private readonly channelRepository: Repository<Channel>,
+    @InjectRepository(ChannelPost)
+    private readonly postRepository: Repository<ChannelPost>,
   ) {}
+
+  /** DB 에 저장된 최근 글(수집 계정이 회원이라 읽은 비공개방 글 포함) */
+  private async storedPosts(channelId: string): Promise<QuickPreviewPost[]> {
+    const rows = await this.postRepository.find({
+      where: { channelId, deletedAt: IsNull() },
+      order: { postedAt: 'DESC' },
+      take: 6,
+    });
+    return rows.map((p) => ({
+      postedAt: p.postedAt.toISOString(),
+      views: p.views,
+      mediaType: p.mediaType,
+      text: p.textExcerpt,
+    }));
+  }
 
   async preview(id: string): Promise<QuickPreview> {
     const hit = this.cache.get(id);
-    if (hit && Date.now() - hit.at < 10 * 60_000) return hit.value;
+    // 수집 직후 바로 반영되도록 캐시는 짧게(60초).
+    if (hit && Date.now() - hit.at < 60_000) return hit.value;
     const channel = await this.channelRepository.findOne({
       where: { id },
       select: ['id', 'link', 'username', 'description', 'linkType'],
@@ -52,11 +71,16 @@ export class ChannelQuickPreviewService {
       usernameFromChannelLink(channel.link);
     let value: QuickPreview;
     if (!username) {
-      value = {
-        description,
-        posts: [],
-        note: '비공개 초대방이라 글을 볼 수 없어요.',
-      };
+      // 비공개 초대방: 공개 t.me 가 없으니 저장된 글(수집 계정이 회원이면 읽어 둔 글)을 보여 준다.
+      const stored = await this.storedPosts(channel.id);
+      value =
+        stored.length > 0
+          ? { description, posts: stored, note: null }
+          : {
+              description,
+              posts: [],
+              note: '비공개 초대방이에요. 수집 계정이 회원이면 글이 채워져요(아직 저장된 글 없음).',
+            };
     } else {
       // 한 번만, 8초 안에 (어드민 화면이 오래 기다리지 않게)
       let html: string | null = null;
@@ -80,16 +104,23 @@ export class ChannelQuickPreviewService {
           mediaType: p.mediaType,
           text: p.textExcerpt,
         }));
-      value = {
-        description,
-        posts,
-        note:
-          posts.length > 0
-            ? null
-            : channel.linkType === LinkType.GROUP
-              ? '그룹은 밖에서 글을 볼 수 없어요.'
-              : '공개된 글이 없거나 불러오지 못했어요.',
-      };
+      if (posts.length > 0) {
+        value = { description, posts, note: null };
+      } else {
+        // 공개 미리보기가 비었으면(미리보기 막힘 등) 저장된 글로 대체
+        const stored = await this.storedPosts(channel.id);
+        value =
+          stored.length > 0
+            ? { description, posts: stored, note: null }
+            : {
+                description,
+                posts: [],
+                note:
+                  channel.linkType === LinkType.GROUP
+                    ? '그룹은 밖에서 글을 볼 수 없어요.'
+                    : '공개된 글이 없거나 불러오지 못했어요.',
+              };
+      }
     }
     this.cache.set(id, { at: Date.now(), value });
     if (this.cache.size > 500) {
