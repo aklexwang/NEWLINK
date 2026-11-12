@@ -74,6 +74,7 @@ import {
   isJoinRequestMethod,
   parseSessionList,
   pickAccountIndexForRole,
+  pickPinnedAccount,
   scaledDailyLimit,
 } from './mtproto-pool.logic';
 import {
@@ -223,6 +224,11 @@ export class MtprotoCollectorService implements OnModuleInit {
   private rrPointer = 0;
   /** call() 이 지금 쓰는 계정(인증 오류 처리용) */
   private activeAccount: AccountSlot | null = null;
+  /**
+   * 특정 계정으로 강제(핀). 비공개 방은 "가입한 계정"만 읽을 수 있어서, 그 방을 처리하는
+   * 동안 멤버 계정(요청 전용 계정)으로 고정한다. null 이면 일반 라운드로빈.
+   */
+  private pinnedAccountIndex: number | null = null;
   private stopped = false;
   private lastError: string | null = null;
   private requestsToday = 0;
@@ -505,6 +511,10 @@ export class MtprotoCollectorService implements OnModuleInit {
     if (!this.canCollectInvite(channel))
       return { ok: false, reason: 'skipped' };
     const hash = inviteHashFromLink(channel.link) as string;
+    // 비공개 방은 가입한 계정(요청 전용 계정)만 읽을 수 있다. 입장요청·가입·확인·글읽기를
+    // 모두 그 계정으로 고정해야, 승인된 방을 그 계정이 읽어서 상태·글이 채워진다.
+    // (요청 전용 계정이 없으면 null → 기존 라운드로빈 그대로)
+    this.pinnedAccountIndex = this.requestAccountIndex();
     try {
       const Api = await this.api();
       const stored = await this.loadStoredAccess(channel.id);
@@ -617,6 +627,8 @@ export class MtprotoCollectorService implements OnModuleInit {
         `MTProto 초대 링크 수집 실패: ${code}${this.lastErrorDetail ? ` (${this.lastErrorDetail})` : ''}`,
       );
       return { ok: false, reason: 'failed' };
+    } finally {
+      this.pinnedAccountIndex = null;
     }
   }
 
@@ -1901,6 +1913,17 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   private pickAccount(isRequest = false): AccountSlot | null {
+    // 비공개 방 읽기처럼 멤버 계정으로 고정된 경우: 그 계정만 쓴다(막혔으면 이번엔 건너뜀).
+    if (this.pinnedAccountIndex != null) {
+      const pinned = pickPinnedAccount(
+        this.accounts,
+        this.pinnedAccountIndex,
+        new Date(),
+      );
+      if (pinned == null) return null;
+      this.rrPointer = pinned + 1;
+      return this.accounts[pinned];
+    }
     const idx = pickAccountIndexForRole({
       accounts: this.accounts,
       pointer: this.rrPointer,

@@ -160,6 +160,27 @@ export function pickAccountIndexForRole(input: {
   return pickNextAccount(accounts, pointer, now);
 }
 
+/**
+ * 특정 계정으로 강제(핀)할 때 쓴다: 비공개 방은 "가입한 계정"만 읽을 수 있으므로,
+ * 그 방을 처리할 땐 멤버 계정(보통 요청 전용 계정)으로 고정해야 한다.
+ * 핀한 계정이 쓸 수 있으면 그 index, 아니면 null(이번엔 건너뜀 — 다른 계정으로 읽으면 안 됨).
+ * pinnedIndex 가 null/범위밖이면 null(호출부에서 일반 라운드로빈으로 폴백).
+ */
+export function pickPinnedAccount(
+  accounts: PoolAccountFlood[],
+  pinnedIndex: number | null,
+  now: Date = new Date(),
+): number | null {
+  if (
+    pinnedIndex == null ||
+    pinnedIndex < 0 ||
+    pinnedIndex >= accounts.length
+  ) {
+    return null;
+  }
+  return isAccountAvailable(accounts[pinnedIndex], now) ? pinnedIndex : null;
+}
+
 /** 모든 계정이 막혔는가(FloodWait 또는 인증 중단). 하나라도 쓸 수 있으면 false */
 export function allAccountsBlocked(
   accounts: PoolAccountFlood[],

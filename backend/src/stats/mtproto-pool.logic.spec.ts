@@ -7,6 +7,7 @@ import {
   pickAccountIndexForRole,
   pickNextAccount,
   pickNextAccountExcluding,
+  pickPinnedAccount,
   isJoinRequestMethod,
   scaledDailyLimit,
 } from './mtproto-pool.logic';
@@ -58,6 +59,27 @@ describe('역할 분담 (요청 전용 계정)', () => {
   it('읽기 계정이 다 막히면 전용 계정이라도 써서 안 멈춘다', () => {
     const accounts = [blocked, blocked, free]; // 읽기(0,1) 막힘, 전용(2) 살아있음
     expect(pickAccountIndexForRole({ accounts, pointer: 0, isRequest: false, requestIndex: 2, now })).toBe(2);
+  });
+});
+
+describe('pickPinnedAccount (비공개 방은 멤버 계정으로 고정)', () => {
+  const now = new Date('2026-11-12T00:00:00Z');
+  const free = { floodWaitUntil: null };
+  const blocked = { floodWaitUntil: new Date('2026-11-12T01:00:00Z') };
+
+  it('핀한 계정이 쓸 수 있으면 그 index', () => {
+    expect(pickPinnedAccount([free, free, free], 2, now)).toBe(2);
+    expect(pickPinnedAccount([free, free, free], 0, now)).toBe(0);
+  });
+
+  it('핀한 계정이 막혔으면 null(다른 계정으로 읽으면 안 됨 → 건너뜀)', () => {
+    expect(pickPinnedAccount([free, free, blocked], 2, now)).toBeNull();
+  });
+
+  it('핀 index 가 null/범위밖이면 null(라운드로빈 폴백)', () => {
+    expect(pickPinnedAccount([free, free], null, now)).toBeNull();
+    expect(pickPinnedAccount([free, free], 5, now)).toBeNull();
+    expect(pickPinnedAccount([free, free], -1, now)).toBeNull();
   });
 });
 
