@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  getAdminJoinBudget,
   getAdminJoinCandidates,
   getAdminJoinRequests,
   requestAdminChannelJoin,
   requestAdminJoinByLink,
+  type JoinBudget,
   type JoinCandidateChannel,
   type JoinRequestChannel,
   type JoinRequestStatus,
@@ -60,6 +62,7 @@ export function AdminJoinRequestsPage() {
   const [candidates, setCandidates] = useState<JoinCandidateChannel[] | null>(
     null,
   );
+  const [budget, setBudget] = useState<JoinBudget | null>(null);
   const [message, setMessage] = useState('');
   const [link, setLink] = useState('');
   const [sending, setSending] = useState(false);
@@ -67,16 +70,22 @@ export function AdminJoinRequestsPage() {
 
   const load = useCallback(async () => {
     try {
-      const [requested, cands] = await Promise.all([
+      const [requested, cands, bud] = await Promise.all([
         getAdminJoinRequests(),
         getAdminJoinCandidates().catch(() => [] as JoinCandidateChannel[]),
+        getAdminJoinBudget().catch(() => null),
       ]);
       setRows(requested);
       setCandidates(cands);
+      setBudget(bud);
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '입장 요청 목록을 불러오지 못했습니다.'));
     }
   }, []);
+
+  // 오늘 한도를 다 썼는가(버튼 비활성화용)
+  const limitReached =
+    budget != null && budget.limit > 0 && budget.today >= budget.limit;
 
   const handleRequestById = async (id: string) => {
     if (sendingId) return;
@@ -152,10 +161,10 @@ export function AdminJoinRequestsPage() {
           />
           <Button
             type="button"
-            disabled={sending || !link.trim()}
+            disabled={sending || !link.trim() || limitReached}
             onClick={() => void handleSendByLink()}
           >
-            {sending ? '요청 중…' : '입장 요청 보내기'}
+            {sending ? '요청 중…' : limitReached ? '오늘 한도 끝' : '입장 요청 보내기'}
           </Button>
         </div>
       </div>
@@ -172,12 +181,25 @@ export function AdminJoinRequestsPage() {
               같은 순서로 하루 소량씩 보냅니다.)
             </p>
           </div>
-          {candidates != null && (
-            <Badge variant="outline" className="shrink-0">
-              {candidates.length.toLocaleString()}개
-            </Badge>
-          )}
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {budget != null && budget.limit > 0 && (
+              <Badge variant={limitReached ? 'destructive' : 'secondary'}>
+                오늘 {budget.today}/{budget.limit}건
+              </Badge>
+            )}
+            {candidates != null && (
+              <Badge variant="outline">
+                {candidates.length.toLocaleString()}개
+              </Badge>
+            )}
+          </div>
         </div>
+        {limitReached && (
+          <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive">
+            오늘 입장 요청 한도({budget?.limit}건)를 다 썼어요. 내일 0시에 다시
+            열려요. (새 계정 보호를 위해 하루 소량만 보냅니다)
+          </div>
+        )}
         {candidates == null ? (
           <div className="space-y-2 p-4">
             <Skeleton className="h-8 w-full" />
@@ -225,10 +247,14 @@ export function AdminJoinRequestsPage() {
                       <Button
                         type="button"
                         size="sm"
-                        disabled={sendingId != null}
+                        disabled={sendingId != null || limitReached}
                         onClick={() => void handleRequestById(c.id)}
                       >
-                        {sendingId === c.id ? '요청 중…' : '입장 요청'}
+                        {sendingId === c.id
+                          ? '요청 중…'
+                          : limitReached
+                            ? '오늘 한도 끝'
+                            : '입장 요청'}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -272,6 +298,7 @@ export function AdminJoinRequestsPage() {
               <TableRow>
                 <TableHead>방</TableHead>
                 <TableHead className="w-24 text-right">회원</TableHead>
+                <TableHead className="w-28">요청 계정</TableHead>
                 <TableHead className="w-28">요청일</TableHead>
                 <TableHead className="w-40">상태</TableHead>
               </TableRow>
@@ -292,6 +319,13 @@ export function AdminJoinRequestsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {r.memberCount != null ? r.memberCount.toLocaleString() : '-'}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {r.joinRequestAccount ? (
+                      <Badge variant="outline">{r.joinRequestAccount}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatKst(r.joinRequestedAt)}

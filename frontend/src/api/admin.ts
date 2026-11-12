@@ -631,6 +631,23 @@ export interface JoinRequestChannel {
   memberCount: number | null;
   joinRequestedAt: string | null;
   joinRequestStatus: JoinRequestStatus;
+  /** 어느 수집 계정으로 요청했는지(@username 또는 '계정 N') */
+  joinRequestAccount: string | null;
+}
+
+export interface JoinBudget {
+  today: number;
+  limit: number;
+  auto: boolean;
+}
+
+/** 오늘 입장 요청 사용량/한도 */
+export async function getAdminJoinBudget(): Promise<JoinBudget> {
+  const { data } = await apiClient.get<JoinBudget>(
+    '/admin/channels/join-budget',
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
 }
 
 /** 승인 필요 비공개 방에 수동으로 입장 요청 */

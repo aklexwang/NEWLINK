@@ -90,6 +90,11 @@ export class AdminController {
     return this.channelsService.findJoinCandidates();
   }
 
+  @Get('join-budget')
+  getJoinBudget() {
+    return this.adminCollect.joinBudget();
+  }
+
   @Get('all')
   async findAll(
     @Query('status') status?: ChannelStatus,

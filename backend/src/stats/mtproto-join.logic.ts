@@ -147,7 +147,7 @@ export function wasJoinRequestSent(error: unknown): boolean {
   return /INVITE_REQUEST_SENT/i.test(msg);
 }
 
-export const JOIN_REQUEST_DAILY_DEFAULT = 5;
+export const JOIN_REQUEST_DAILY_DEFAULT = 3;
 export const JOIN_REQUEST_MIN_GAP_MS = 5 * 60 * 1000;
 /** 자동 입장 요청은 이 회원 수 이상인 "값나가는" 방에만 */
 export const JOIN_REQUEST_AUTO_MIN_MEMBERS = 3000;

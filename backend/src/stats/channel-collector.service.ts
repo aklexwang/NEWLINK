@@ -542,6 +542,16 @@ export class ChannelCollectorService {
     return this.mtproto.requestJoinForChannel(channelId);
   }
 
+  /** 오늘 입장 요청 사용량/한도(버튼 비활성화·안내용). */
+  joinRequestBudget(): { today: number; limit: number; auto: boolean } {
+    const s = this.mtproto.getPublicStatus();
+    return {
+      today: s.joinRequestsToday ?? 0,
+      limit: s.joinRequestDailyLimit ?? 0,
+      auto: s.joinRequestAuto ?? false,
+    };
+  }
+
   private async collectInviteChannel(
     channel: Channel,
   ): Promise<CollectOneResult> {

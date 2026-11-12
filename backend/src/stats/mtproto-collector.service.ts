@@ -130,6 +130,8 @@ interface AccountSlot {
   floodWaitUntil: Date | null;
   authStopped: boolean;
   lastError: string | null;
+  /** 이 계정의 표시 이름(@username 등). getMe 로 한 번 받아 캐시. 구분용. */
+  selfLabel: string | null;
 }
 
 export type MtprotoPublicStatus = {
@@ -317,6 +319,7 @@ export class MtprotoCollectorService implements OnModuleInit {
         floodWaitUntil: null,
         authStopped: false,
         lastError: null,
+        selfLabel: null,
       };
     });
     // 더 이상 안 쓰는 슬롯은 연결을 끊는다
@@ -716,15 +719,11 @@ export class MtprotoCollectorService implements OnModuleInit {
         this.saveJoinCounters();
       }
       // 요청을 보냈으니 기록은 남긴다(가입됐어도 요청 시도 기록)
-      await this.channelRepository.update(channel.id, {
-        joinRequestedAt: new Date(),
-      });
+      await this.markJoinRequested(channel.id);
       return joined;
     } catch (error) {
       if (wasJoinRequestSent(error)) {
-        await this.channelRepository.update(channel.id, {
-          joinRequestedAt: new Date(),
-        });
+        await this.markJoinRequested(channel.id);
         this.noteJoinOutcome('입장 요청 보냄');
         return null;
       }
@@ -1916,6 +1915,41 @@ export class MtprotoCollectorService implements OnModuleInit {
 
   /** 라운드로빈으로 쓸 수 있는 계정을 고른다. 없으면 null. */
   /** 요청 전용 계정 index(0-based). MTPROTO_REQUEST_ACCOUNT=3 → 3번째 계정만 입장요청·가입. */
+  /** 계정 표시 이름(@username 등). getMe 로 한 번 받아 캐시. 실패하면 '계정 N'. */
+  private async resolveAccountLabel(slot: AccountSlot | null): Promise<string> {
+    if (!slot) return '알 수 없음';
+    if (slot.selfLabel) return slot.selfLabel;
+    const fallback = `계정 ${slot.index + 1}`;
+    try {
+      if (!slot.client) return fallback;
+      const me = (await slot.client.getMe()) as {
+        username?: string | null;
+        firstName?: string | null;
+        phone?: string | null;
+      } | null;
+      const label = me?.username
+        ? `@${me.username}`
+        : me?.firstName?.trim()
+          ? me.firstName.trim()
+          : me?.phone
+            ? `+${String(me.phone).replace(/[^0-9]/g, '')}`
+            : fallback;
+      slot.selfLabel = label.slice(0, 80);
+      return slot.selfLabel;
+    } catch {
+      return fallback;
+    }
+  }
+
+  /** 입장 요청 기록 + 어느 계정으로 보냈는지 라벨 저장(방금 call 에 쓰인 계정). */
+  private async markJoinRequested(channelId: string): Promise<void> {
+    const label = await this.resolveAccountLabel(this.activeAccount);
+    await this.channelRepository.update(channelId, {
+      joinRequestedAt: new Date(),
+      joinRequestAccount: label,
+    });
+  }
+
   private requestAccountIndex(): number | null {
     const raw = this.configService.get<string>('MTPROTO_REQUEST_ACCOUNT');
     if (raw == null || String(raw).trim() === '') return null;

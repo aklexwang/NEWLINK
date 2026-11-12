@@ -44,6 +44,11 @@ export class AdminCollectService {
     return this.collector.requestJoin(id);
   }
 
+  /** 오늘 입장 요청 사용량/한도. */
+  joinBudget(): { today: number; limit: number; auto: boolean } {
+    return this.collector.joinRequestBudget();
+  }
+
   async collectOne(id: string) {
     await this.assertPipelineIdle();
     const channel = await this.channelsService.findById(id);

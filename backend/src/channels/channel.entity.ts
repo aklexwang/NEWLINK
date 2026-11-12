@@ -147,6 +147,15 @@ export class Channel {
   })
   joinRequestedAt: Date | null;
 
+  /** 어느 수집 계정으로 입장 요청을 보냈는지(계정 많아질 때 구분용). 예: '@koreaman34' 또는 '계정 3'. */
+  @Column({
+    name: 'join_request_account',
+    type: 'varchar',
+    length: 80,
+    nullable: true,
+  })
+  joinRequestAccount: string | null;
+
   /**
    * 연결된 대화방(채널 행) 또는 부모 채널(그룹 행)의 텔레그램 id. -100 을 뗀 양수.
    * MTProto GetFullChannel 의 linkedChatId 로 채운다.
