@@ -809,7 +809,10 @@ export class ChannelsService implements OnModuleInit {
       .createQueryBuilder('c')
       .addSelect('c.telegramAccessHash')
       .where('c.joinRequestedAt IS NOT NULL')
-      .orderBy('c.joinRequestedAt', 'DESC')
+      // 회원수 많은 방이 위로(값나가는 방 우선). 회원수 없으면 맨 뒤.
+      .orderBy(nullsLastCaseSql('c', 'member_count'), 'ASC')
+      .addOrderBy('c.memberCount', 'DESC')
+      .addOrderBy('c.joinRequestedAt', 'DESC')
       .getMany();
     return rows.map((c) =>
       Object.assign(c, {
@@ -819,6 +822,23 @@ export class ChannelsService implements OnModuleInit {
         }),
       }),
     );
+  }
+
+  /**
+   * 입장 요청 "후보": 아직 요청 안 보낸 비공개 초대방(초대링크 보유, 아직 가입 안 됨)을
+   * 회원수 많은순으로. 어드민에서 큰 방부터 수동으로 입장 요청을 넣을 수 있게 보여 준다.
+   */
+  async findJoinCandidates(limit = 200): Promise<Channel[]> {
+    return this.channelRepository
+      .createQueryBuilder('c')
+      .where('c.joinRequestedAt IS NULL')
+      .andWhere('c.telegramAccessHash IS NULL')
+      .andWhere("(c.link LIKE '%/+%' OR c.link LIKE '%/joinchat/%')")
+      .orderBy(nullsLastCaseSql('c', 'member_count'), 'ASC')
+      .addOrderBy('c.memberCount', 'DESC')
+      .addOrderBy('c.createdAt', 'DESC')
+      .limit(limit)
+      .getMany();
   }
 
   async getRecommendedChannelIds(userId: number): Promise<string[]> {

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  getAdminJoinCandidates,
   getAdminJoinRequests,
+  requestAdminChannelJoin,
   requestAdminJoinByLink,
+  type JoinCandidateChannel,
   type JoinRequestChannel,
   type JoinRequestStatus,
 } from '../../api/admin';
@@ -54,17 +57,40 @@ function statusBadge(status: JoinRequestStatus, requestedAt: string | null) {
 
 export function AdminJoinRequestsPage() {
   const [rows, setRows] = useState<JoinRequestChannel[] | null>(null);
+  const [candidates, setCandidates] = useState<JoinCandidateChannel[] | null>(
+    null,
+  );
   const [message, setMessage] = useState('');
   const [link, setLink] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setRows(await getAdminJoinRequests());
+      const [requested, cands] = await Promise.all([
+        getAdminJoinRequests(),
+        getAdminJoinCandidates().catch(() => [] as JoinCandidateChannel[]),
+      ]);
+      setRows(requested);
+      setCandidates(cands);
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '입장 요청 목록을 불러오지 못했습니다.'));
     }
   }, []);
+
+  const handleRequestById = async (id: string) => {
+    if (sendingId) return;
+    setSendingId(id);
+    try {
+      const res = await requestAdminChannelJoin(id);
+      setMessage(`입장 요청: ${res.outcome}`);
+      await load();
+    } catch (error) {
+      setMessage(adminApiErrorMessage(error, '입장 요청에 실패했습니다.'));
+    } finally {
+      setSendingId(null);
+    }
+  };
 
   const handleSendByLink = async () => {
     const value = link.trim();
@@ -134,7 +160,86 @@ export function AdminJoinRequestsPage() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3 sm:max-w-xl">
+      <div className="mt-6 rounded-xl border border-border">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold">
+              요청 후보 · 회원수 많은순
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              아직 요청 안 보낸 비공개 초대방이에요. 큰 방부터 보여 줍니다.
+              버튼을 누르면 입장 요청이 나가고 아래 대기로 넘어가요. (자동 요청도
+              같은 순서로 하루 소량씩 보냅니다.)
+            </p>
+          </div>
+          {candidates != null && (
+            <Badge variant="outline" className="shrink-0">
+              {candidates.length.toLocaleString()}개
+            </Badge>
+          )}
+        </div>
+        {candidates == null ? (
+          <div className="space-y-2 p-4">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : candidates.length === 0 ? (
+          <p className="p-6 text-sm text-muted-foreground">
+            요청할 비공개 초대방 후보가 없습니다.
+          </p>
+        ) : (
+          <div className="max-h-[420px] overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12 text-right">#</TableHead>
+                  <TableHead>방</TableHead>
+                  <TableHead className="w-24 text-right">회원</TableHead>
+                  <TableHead className="w-32 text-right">요청</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {candidates.map((c, i) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="text-right text-sm text-muted-foreground tabular-nums">
+                      {i + 1}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{c.title}</div>
+                      <a
+                        href={c.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        {c.link}
+                      </a>
+                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">
+                      {c.memberCount != null
+                        ? c.memberCount.toLocaleString()
+                        : '-'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={sendingId != null}
+                        onClick={() => void handleRequestById(c.id)}
+                      >
+                        {sendingId === c.id ? '요청 중…' : '입장 요청'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 grid grid-cols-3 gap-3 sm:max-w-xl">
         <div className="rounded-xl border border-border bg-secondary/40 px-4 py-4 text-center">
           <div className="text-3xl font-bold tabular-nums">{counts.pending}</div>
           <div className="mt-1 text-sm font-medium text-muted-foreground">대기</div>

@@ -85,6 +85,11 @@ export class AdminController {
     return this.channelsService.findJoinRequested();
   }
 
+  @Get('join-candidates')
+  getJoinCandidates() {
+    return this.channelsService.findJoinCandidates();
+  }
+
   @Get('all')
   async findAll(
     @Query('status') status?: ChannelStatus,

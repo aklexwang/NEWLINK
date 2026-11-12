@@ -670,6 +670,23 @@ export async function getAdminJoinRequests(): Promise<JoinRequestChannel[]> {
   return data;
 }
 
+export interface JoinCandidateChannel {
+  id: string;
+  title: string;
+  link: string;
+  category: string | null;
+  memberCount: number | null;
+}
+
+/** 아직 요청 안 보낸 비공개 초대방 후보(회원수 많은순) */
+export async function getAdminJoinCandidates(): Promise<JoinCandidateChannel[]> {
+  const { data } = await apiClient.get<JoinCandidateChannel[]>(
+    '/admin/channels/join-candidates',
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
 export async function deleteAdminChannel(id: string) {
   const { data } = await apiClient.delete(`/admin/channels/${id}`, {
     headers: getAdminAuthHeaders(),
