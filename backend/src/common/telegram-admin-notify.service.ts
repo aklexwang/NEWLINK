@@ -10,199 +10,43 @@ export type AdminSubmitAlertPayload = {
   reporterLabel?: string | null;
 };
 
+/**
+ * 관리자 알림 서비스.
+ *
+ * ⛔ 중요: TellLink 봇(TELEGRAM_BOT_TOKEN)으로는 어떤 관리자 알림도 보내지 않습니다.
+ * (운영자 요청: 제품 봇 채팅으로는 절대 메시지를 쏘지 말 것.)
+ * 모든 발신 메서드는 "아무것도 보내지 않고" 조용히 끝납니다. 호출부는 그대로 두되,
+ * 실제 전송(fetch sendMessage)은 전부 제거했습니다. 나중에 다른 채널로 알림을 보내고
+ * 싶으면, 여기서 그 채널로 보내도록만 바꾸면 됩니다(제품 봇은 쓰지 않음).
+ */
 @Injectable()
 export class TelegramAdminNotifyService {
   private readonly logger = new Logger(TelegramAdminNotifyService.name);
 
   constructor(private readonly configService: ConfigService) {}
 
-  async notifyNewSubmission(payload: AdminSubmitAlertPayload): Promise<void> {
-    const token = (
-      this.configService.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
-    ).trim();
-    if (!token || token.includes('placeholder') || token.includes('your_bot')) {
-      return;
-    }
-
-    const adminIds = (
-      this.configService.get<string>('TELEGRAM_ADMIN_IDS') ?? ''
-    )
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-
-    if (adminIds.length === 0) return;
-
-    const typeLabel = payload.linkType === 'group' ? '그룹' : '채널';
-    const reporter =
-      payload.reporterLabel?.trim() || `ID ${payload.submittedBy}`;
-    const text = [
-      '🆕 <b>새 제보 · 승인 대기</b>',
-      '',
-      `<b>${this.escape(payload.title)}</b>`,
-      `유형: ${typeLabel}`,
-      `카테고리: ${this.escape(payload.category || '-')}`,
-      `제보자: ${this.escape(reporter)}`,
-      `링크: ${this.escape(payload.link)}`,
-      '',
-      '관리자 페이지 → 승인 대기에서 확인하세요.',
-    ].join('\n');
-
-    await Promise.all(
-      adminIds.map(async (chatId) => {
-        try {
-          const res = await fetch(
-            `https://api.telegram.org/bot${token}/sendMessage`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: chatId,
-                text,
-                parse_mode: 'HTML',
-                disable_web_page_preview: true,
-              }),
-            },
-          );
-          if (!res.ok) {
-            const body = await res.text();
-            this.logger.warn(
-              `admin notify failed (${chatId}): ${res.status} ${body}`,
-            );
-          }
-        } catch (error) {
-          this.logger.warn(
-            `admin notify error (${chatId}): ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      }),
-    );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async notifyNewSubmission(_payload: AdminSubmitAlertPayload): Promise<void> {
+    // 봇 발신 비활성화: 새 제보는 관리자 페이지 → 승인 대기에서 확인.
+    return;
   }
 
-  /** 서버 설정 점검 경고 (시작할 때 한 번). 비밀 값은 넣지 않는다 */
-  async notifyConfigWarnings(lines: string[]): Promise<void> {
-    const token = (
-      this.configService.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
-    ).trim();
-    if (!token || token.includes('placeholder') || token.includes('your_bot')) {
-      return;
-    }
-    const adminIds = (
-      this.configService.get<string>('TELEGRAM_ADMIN_IDS') ?? ''
-    )
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-    if (adminIds.length === 0 || lines.length === 0) return;
-    const text = [
-      '⚠ <b>서버 설정 확인 필요</b>',
-      '',
-      ...lines.map((line) => `• ${this.escape(line)}`),
-      '',
-      'Render → newlink-api → Environment 에서 고쳐 주세요.',
-    ].join('\n');
-    await Promise.all(
-      adminIds.map(async (chatId) => {
-        try {
-          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text,
-              parse_mode: 'HTML',
-              disable_web_page_preview: true,
-            }),
-          });
-        } catch (error) {
-          this.logger.warn(
-            `config notify error (${chatId}): ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      }),
-    );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async notifyConfigWarnings(_lines: string[]): Promise<void> {
+    // 봇 발신 비활성화.
+    return;
   }
 
-  /** MTProto 세션 문제 등. 세션 문자열은 넣지 마세요. */
-  async notifyMtprotoStopped(reasonCode: string): Promise<void> {
-    const token = (
-      this.configService.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
-    ).trim();
-    if (!token || token.includes('placeholder') || token.includes('your_bot')) {
-      return;
-    }
-    const adminIds = (
-      this.configService.get<string>('TELEGRAM_ADMIN_IDS') ?? ''
-    )
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-    if (adminIds.length === 0) return;
-
-    const safe = reasonCode.replace(/[^A-Z0-9_]/g, '').slice(0, 64) || 'ERROR';
-    const text = [
-      '⚠ <b>MTProto 수집 중단</b>',
-      '',
-      `원인 코드: ${this.escape(safe)}`,
-      '공개 t.me 미리보기 수집으로 전환합니다.',
-    ].join('\n');
-
-    await Promise.all(
-      adminIds.map(async (chatId) => {
-        try {
-          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text,
-              parse_mode: 'HTML',
-              disable_web_page_preview: true,
-            }),
-          });
-        } catch (error) {
-          this.logger.warn(
-            `MTProto 중단 알림 실패: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      }),
-    );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async notifyMtprotoStopped(_reasonCode: string): Promise<void> {
+    // 봇 발신 비활성화: 상태는 수집 운영 페이지에서 확인.
+    return;
   }
 
-  /** 관리자들에게 HTML 글 하나 보내기 (토큰·관리자 ID 없으면 조용히 건너뜀) */
-  async notifyText(html: string): Promise<void> {
-    const token = (
-      this.configService.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
-    ).trim();
-    if (!token || token.includes('placeholder') || token.includes('your_bot')) {
-      return;
-    }
-    const adminIds = (
-      this.configService.get<string>('TELEGRAM_ADMIN_IDS') ?? ''
-    )
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-    await Promise.all(
-      adminIds.map(async (chatId) => {
-        try {
-          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: html,
-              parse_mode: 'HTML',
-              disable_web_page_preview: true,
-            }),
-          });
-        } catch (error) {
-          this.logger.warn(
-            `관리자 알림 실패: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      }),
-    );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async notifyText(_html: string): Promise<void> {
+    // 봇 발신 비활성화.
+    return;
   }
 
   escapeHtml(value: string): string {
