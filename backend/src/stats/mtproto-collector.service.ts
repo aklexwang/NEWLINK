@@ -71,8 +71,9 @@ import {
 import {
   accountStateId,
   allAccountsBlocked,
+  isJoinRequestMethod,
   parseSessionList,
-  pickNextAccount,
+  pickAccountIndexForRole,
   scaledDailyLimit,
 } from './mtproto-pool.logic';
 import {
@@ -1664,7 +1665,7 @@ export class MtprotoCollectorService implements OnModuleInit {
     ) {
       throw new Error('SEARCH_DAILY_LIMIT');
     }
-    const account = this.pickAccount();
+    const account = this.pickAccount(isJoinRequestMethod(method));
     if (!account) {
       throw new Error('flood_wait');
     }
@@ -1889,8 +1890,23 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   /** 라운드로빈으로 쓸 수 있는 계정을 고른다. 없으면 null. */
-  private pickAccount(): AccountSlot | null {
-    const idx = pickNextAccount(this.accounts, this.rrPointer);
+  /** 요청 전용 계정 index(0-based). MTPROTO_REQUEST_ACCOUNT=3 → 3번째 계정만 입장요청·가입. */
+  private requestAccountIndex(): number | null {
+    const raw = this.configService.get<string>('MTPROTO_REQUEST_ACCOUNT');
+    if (raw == null || String(raw).trim() === '') return null;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1) return null;
+    const idx = n - 1;
+    return idx < this.accounts.length ? idx : null;
+  }
+
+  private pickAccount(isRequest = false): AccountSlot | null {
+    const idx = pickAccountIndexForRole({
+      accounts: this.accounts,
+      pointer: this.rrPointer,
+      isRequest,
+      requestIndex: this.requestAccountIndex(),
+    });
     if (idx == null) return null;
     this.rrPointer = idx + 1;
     return this.accounts[idx];

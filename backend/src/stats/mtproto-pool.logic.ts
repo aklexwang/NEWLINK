@@ -96,6 +96,70 @@ export function pickNextAccount(
   return null;
 }
 
+/**
+ * 라운드로빈으로 다음 계정을 고르되 excludeIndex 는 건너뛴다(읽기 계정만 돌릴 때).
+ * 제외하고 쓸 수 있는 계정이 없으면 null.
+ */
+export function pickNextAccountExcluding(
+  accounts: PoolAccountFlood[],
+  pointer: number,
+  excludeIndex: number,
+  now: Date = new Date(),
+): number | null {
+  const n = accounts.length;
+  if (n === 0) return null;
+  for (let step = 0; step < n; step += 1) {
+    const idx = (pointer + step) % n;
+    if (idx === excludeIndex) continue;
+    if (isAccountAvailable(accounts[idx], now)) return idx;
+  }
+  return null;
+}
+
+/** 입장요청·가입처럼 "쓰기"에 해당하는 MTProto 메서드인가(전용 계정으로 보낼 대상) */
+export function isJoinRequestMethod(method: string): boolean {
+  return method === 'messages.ImportChatInvite';
+}
+
+/**
+ * 역할 분담 계정 선택(C1 확장):
+ * - 입장요청·가입(isRequest) → 전용 요청 계정으로만. 전용이 막혔거나 없으면 라운드로빈 폴백.
+ * - 읽기·조회·검색 → 전용 계정은 빼고 나머지로 라운드로빈(전용 계정을 깨끗하게 유지).
+ *   읽기 계정이 다 막혔으면 전용이라도 써서 수집이 멈추지 않게 한다.
+ */
+export function pickAccountIndexForRole(input: {
+  accounts: PoolAccountFlood[];
+  pointer: number;
+  isRequest: boolean;
+  requestIndex: number | null;
+  now?: Date;
+}): number | null {
+  const { accounts, pointer, isRequest, requestIndex } = input;
+  const now = input.now ?? new Date();
+  const hasDedicated =
+    requestIndex != null && requestIndex >= 0 && requestIndex < accounts.length;
+
+  if (isRequest) {
+    if (hasDedicated && isAccountAvailable(accounts[requestIndex], now)) {
+      return requestIndex;
+    }
+    return pickNextAccount(accounts, pointer, now);
+  }
+
+  if (hasDedicated) {
+    const readIdx = pickNextAccountExcluding(
+      accounts,
+      pointer,
+      requestIndex,
+      now,
+    );
+    if (readIdx != null) return readIdx;
+    // 읽기 계정이 다 막힘 → 전용이라도 써서 수집이 멈추지 않게
+    return pickNextAccount(accounts, pointer, now);
+  }
+  return pickNextAccount(accounts, pointer, now);
+}
+
 /** 모든 계정이 막혔는가(FloodWait 또는 인증 중단). 하나라도 쓸 수 있으면 false */
 export function allAccountsBlocked(
   accounts: PoolAccountFlood[],

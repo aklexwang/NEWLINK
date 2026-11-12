@@ -4,9 +4,62 @@ import {
   earliestFloodRecovery,
   isAccountAvailable,
   parseSessionList,
+  pickAccountIndexForRole,
   pickNextAccount,
+  pickNextAccountExcluding,
+  isJoinRequestMethod,
   scaledDailyLimit,
 } from './mtproto-pool.logic';
+
+describe('역할 분담 (요청 전용 계정)', () => {
+  const now = new Date('2026-11-12T00:00:00Z');
+  const free = { floodWaitUntil: null };
+  const blocked = { floodWaitUntil: new Date('2026-11-12T01:00:00Z') };
+
+  it('isJoinRequestMethod: ImportChatInvite 만 true', () => {
+    expect(isJoinRequestMethod('messages.ImportChatInvite')).toBe(true);
+    expect(isJoinRequestMethod('messages.CheckChatInvite')).toBe(false);
+    expect(isJoinRequestMethod('contacts.ResolveUsername')).toBe(false);
+  });
+
+  it('pickNextAccountExcluding: 전용 계정은 건너뛴다', () => {
+    // 0,1,2 모두 free, 2를 제외
+    expect(pickNextAccountExcluding([free, free, free], 0, 2, now)).toBe(0);
+    expect(pickNextAccountExcluding([free, free, free], 2, 2, now)).toBe(0);
+    // 0,1 막힘, 2만 free인데 2 제외 → null
+    expect(pickNextAccountExcluding([blocked, blocked, free], 0, 2, now)).toBeNull();
+  });
+
+  it('요청은 전용 계정(index2)으로만 간다', () => {
+    const accounts = [free, free, free];
+    expect(pickAccountIndexForRole({ accounts, pointer: 0, isRequest: true, requestIndex: 2, now })).toBe(2);
+    expect(pickAccountIndexForRole({ accounts, pointer: 1, isRequest: true, requestIndex: 2, now })).toBe(2);
+  });
+
+  it('읽기는 전용 계정(index2)을 빼고 돈다', () => {
+    const accounts = [free, free, free];
+    expect(pickAccountIndexForRole({ accounts, pointer: 0, isRequest: false, requestIndex: 2, now })).toBe(0);
+    expect(pickAccountIndexForRole({ accounts, pointer: 1, isRequest: false, requestIndex: 2, now })).toBe(1);
+    // pointer가 전용 자리를 가리켜도 건너뜀
+    expect(pickAccountIndexForRole({ accounts, pointer: 2, isRequest: false, requestIndex: 2, now })).toBe(0);
+  });
+
+  it('전용 계정 미지정이면 그냥 라운드로빈', () => {
+    const accounts = [free, free];
+    expect(pickAccountIndexForRole({ accounts, pointer: 0, isRequest: true, requestIndex: null, now })).toBe(0);
+    expect(pickAccountIndexForRole({ accounts, pointer: 1, isRequest: false, requestIndex: null, now })).toBe(1);
+  });
+
+  it('전용 계정이 막히면 요청도 다른 계정으로 폴백', () => {
+    const accounts = [free, free, blocked]; // 전용(2) 막힘
+    expect(pickAccountIndexForRole({ accounts, pointer: 0, isRequest: true, requestIndex: 2, now })).toBe(0);
+  });
+
+  it('읽기 계정이 다 막히면 전용 계정이라도 써서 안 멈춘다', () => {
+    const accounts = [blocked, blocked, free]; // 읽기(0,1) 막힘, 전용(2) 살아있음
+    expect(pickAccountIndexForRole({ accounts, pointer: 0, isRequest: false, requestIndex: 2, now })).toBe(2);
+  });
+});
 
 describe('scaledDailyLimit (C: 계정 수만큼 한도 상향)', () => {
   it('미설정이면 base × 계정 수', () => {
