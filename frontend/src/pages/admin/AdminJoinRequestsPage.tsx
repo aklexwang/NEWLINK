@@ -222,7 +222,7 @@ export function AdminJoinRequestsPage() {
 
         {message && <AdminMessage message={message} />}
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px] min-[2000px]:grid-cols-[minmax(0,1fr)_440px]">
+        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px] min-[2000px]:grid-cols-[minmax(0,1fr)_440px]!">
           {/* 왼쪽: 요청 후보 카드 */}
           <section className="min-w-0">
             <div className="mb-4 flex items-end justify-between gap-3">
@@ -235,7 +235,7 @@ export function AdminJoinRequestsPage() {
             </div>
 
             {candidates == null ? (
-              <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3 min-[2000px]:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3 min-[2000px]:grid-cols-4!">
                 {Array.from({ length: 6 }).map((_, k) => (
                   <Skeleton key={k} className="h-48 rounded-2xl" />
                 ))}
@@ -246,7 +246,7 @@ export function AdminJoinRequestsPage() {
               </p>
             ) : (
               <>
-                <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3 min-[2000px]:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3 min-[2000px]:grid-cols-4!">
                   {candidates.slice(0, shown).map((c, i) => {
                     const pct = Math.max(
                       4,
