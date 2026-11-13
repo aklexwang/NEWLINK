@@ -146,6 +146,10 @@ export class Channel {
   @Column({ name: 'telegram_access_account', type: 'integer', nullable: true })
   telegramAccessAccount: number | null;
 
+  /** 그룹: 최근 7일 대화(최근 50개 안)에 글을 쓴 사람 수. 누구인지는 저장하지 않는다 */
+  @Column({ name: 'group_active_senders', type: 'integer', nullable: true })
+  groupActiveSenders: number | null;
+
   /** 승인 필요 비공개 방에 입장 요청을 보낸 시각. 승인되면 멤버가 되어 접근 정보가 생긴다. */
   @Column({
     name: 'join_requested_at',

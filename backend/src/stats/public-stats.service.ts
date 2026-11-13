@@ -43,6 +43,7 @@ import {
   DATA_SHORT_DAYS,
   formatKstYmd,
 } from './channel-metrics.math';
+import { GroupMessage } from './group-message.entity';
 import { ChannelPost } from './channel-post.entity';
 import { dedupeByTitle, normalizeTitleKey } from './title-dedupe.logic';
 import { FeedFilterService } from './feed-filter.service';
@@ -151,6 +152,16 @@ export type ChannelSummary = {
   sparkline14: (number | null)[];
 };
 
+export type GroupConversationItem = {
+  messageId: number;
+  postedAt: string;
+  /** 개인정보를 가린 본문(사진만 있는 글이면 null) */
+  text: string | null;
+  mediaType: string;
+  isAdminPost: boolean;
+  isPinned: boolean;
+};
+
 @Injectable()
 export class PublicStatsService implements OnApplicationBootstrap {
   private readonly logger = new Logger(PublicStatsService.name);
@@ -184,6 +195,9 @@ export class PublicStatsService implements OnApplicationBootstrap {
     @InjectRepository(RankAd)
     private readonly rankAdRepository: Repository<RankAd>,
     @Optional() private readonly feedFilter?: FeedFilterService,
+    @Optional()
+    @InjectRepository(GroupMessage)
+    private readonly groupMessageRepository?: Repository<GroupMessage>,
   ) {}
 
   async getDetailByUsername(usernameRaw: string) {
@@ -257,6 +271,63 @@ export class PublicStatsService implements OnApplicationBootstrap {
         ? `https://t.me/${username}/${post.messageId}`
         : channel.link,
     }));
+  }
+
+  /**
+   * 그룹 대화(개인정보 가린 본문, 보낸 사람 없음) + 활동 숫자.
+   * 채널이면 빈 값. 수집 계정이 회원이 아닌 비공개 그룹도 빈 값(collected=false).
+   */
+  async getGroupConversation(id: string, limit = 30) {
+    const channel = await this.requireActive(id);
+    const empty = {
+      channelId: channel.id,
+      collected: false,
+      activity24h: null as number | null,
+      activity7d: null as number | null,
+      activeSenders7d: null as number | null,
+      lastMessageAt: null as string | null,
+      pinned: null as GroupConversationItem | null,
+      adminPosts: [] as GroupConversationItem[],
+      messages: [] as GroupConversationItem[],
+    };
+    if (channel.linkType !== LinkType.GROUP || !this.groupMessageRepository) {
+      return empty;
+    }
+    const rows = await this.groupMessageRepository.find({
+      where: { channelId: channel.id },
+      order: { messageId: 'DESC' },
+      take: 80,
+    });
+    const snap = await this.snapshotRepository.findOne({
+      where: { channelId: channel.id },
+      order: { capturedOn: 'DESC' },
+    });
+    const toItem = (r: GroupMessage): GroupConversationItem => ({
+      messageId: r.messageId,
+      postedAt: r.postedAt.toISOString(),
+      text: r.text,
+      mediaType: r.mediaType,
+      isAdminPost: r.isAdminPost,
+      isPinned: r.isPinned,
+    });
+    const pinned = rows.find((r) => r.isPinned) ?? null;
+    return {
+      ...empty,
+      collected: rows.length > 0,
+      activity24h: snap?.activity24h ?? null,
+      activity7d: snap?.activity7d ?? channel.posts7d ?? null,
+      activeSenders7d: channel.groupActiveSenders ?? null,
+      lastMessageAt: rows.length > 0 ? rows[0].postedAt.toISOString() : null,
+      pinned: pinned ? toItem(pinned) : null,
+      adminPosts: rows
+        .filter((r) => r.isAdminPost && !r.isPinned)
+        .slice(0, 5)
+        .map(toItem),
+      messages: rows
+        .filter((r) => !r.isPinned)
+        .slice(0, Math.max(1, Math.min(limit, 50)))
+        .map(toItem),
+    };
   }
 
   async getEvents(id: string, limit = 20) {

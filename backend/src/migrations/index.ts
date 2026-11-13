@@ -46,6 +46,7 @@ import { AddChannelJoinRequestedAt1761600000000 } from './1761600000000-AddChann
 import { AddChannelJoinRequestAccount1761700000000 } from './1761700000000-AddChannelJoinRequestAccount';
 import { AddChannelTelegramAccessAccount1761800000000 } from './1761800000000-AddChannelTelegramAccessAccount';
 
+import { AddGroupMessages1761900000000 } from './1761900000000-AddGroupMessages';
 export const ALL_MIGRATIONS = [
   AddChannelStats1760852400000,
   AddChannelVerified1760860800000,
@@ -88,4 +89,5 @@ export const ALL_MIGRATIONS = [
   AddChannelJoinRequestedAt1761600000000,
   AddChannelJoinRequestAccount1761700000000,
   AddChannelTelegramAccessAccount1761800000000,
+  AddGroupMessages1761900000000,
 ];

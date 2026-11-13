@@ -6,6 +6,7 @@ import type {
   ChannelPostItem,
   ChannelStatsSeries,
   CompareStats,
+  GroupConversation,
   WeeklyStats,
 } from '../types/stats';
 
@@ -55,6 +56,11 @@ export async function getChannelPosts(id: string, limit = 20): Promise<ChannelPo
   const { data } = await apiClient.get<ChannelPostItem[]>(`/channels/${id}/posts`, {
     params: { limit },
   });
+  return data;
+}
+
+export async function getChannelGroupConversation(id: string): Promise<GroupConversation> {
+  const { data } = await apiClient.get<GroupConversation>(`/channels/${id}/group-messages`);
   return data;
 }
 

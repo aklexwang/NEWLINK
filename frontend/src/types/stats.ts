@@ -120,6 +120,29 @@ export interface ChannelPostItem {
   link: string;
 }
 
+/** 그룹 대화 한 줄(개인정보 가림, 보낸 사람 없음) */
+export interface GroupConversationItem {
+  messageId: number;
+  postedAt: string;
+  text: string | null;
+  mediaType: string;
+  isAdminPost: boolean;
+  isPinned: boolean;
+}
+
+export interface GroupConversation {
+  channelId: string;
+  /** 수집 계정이 회원이라 대화를 읽어 둔 그룹인지 */
+  collected: boolean;
+  activity24h: number | null;
+  activity7d: number | null;
+  activeSenders7d: number | null;
+  lastMessageAt: string | null;
+  pinned: GroupConversationItem | null;
+  adminPosts: GroupConversationItem[];
+  messages: GroupConversationItem[];
+}
+
 export interface ChannelEventItem {
   id: string;
   type: ChannelEventType;

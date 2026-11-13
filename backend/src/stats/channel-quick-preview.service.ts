@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Channel, LinkType } from '../channels/channel.entity';
 import { ChannelPost } from './channel-post.entity';
+import { GroupMessage } from './group-message.entity';
 import { usernameFromChannelLink } from '../channels/telegram-username';
 import {
   parseTelegramChannelHtml,
@@ -39,7 +40,30 @@ export class ChannelQuickPreviewService {
     private readonly channelRepository: Repository<Channel>,
     @InjectRepository(ChannelPost)
     private readonly postRepository: Repository<ChannelPost>,
+    @Optional()
+    @InjectRepository(GroupMessage)
+    private readonly groupMessageRepository?: Repository<GroupMessage>,
   ) {}
+
+  /** 그룹: 저장된 최근 대화(개인정보 가림). 고정 글이 있으면 맨 앞 */
+  private async storedGroupMessages(
+    channelId: string,
+  ): Promise<QuickPreviewPost[]> {
+    if (!this.groupMessageRepository) return [];
+    const rows = await this.groupMessageRepository.find({
+      where: { channelId },
+      order: { messageId: 'DESC' },
+      take: 60,
+    });
+    const pinned = rows.filter((r) => r.isPinned);
+    const rest = rows.filter((r) => !r.isPinned).slice(0, 6);
+    return [...pinned, ...rest].map((m) => ({
+      postedAt: m.postedAt.toISOString(),
+      views: null,
+      mediaType: m.mediaType,
+      text: `${m.isPinned ? '📌 고정 · ' : m.isAdminPost ? '운영자 · ' : ''}${m.text ?? ''}`.trim() || null,
+    }));
+  }
 
   /** DB 에 저장된 최근 글(수집 계정이 회원이라 읽은 비공개방 글 포함) */
   private async storedPosts(channelId: string): Promise<QuickPreviewPost[]> {
@@ -70,7 +94,18 @@ export class ChannelQuickPreviewService {
       channel.username?.replace(/^@/, '') ||
       usernameFromChannelLink(channel.link);
     let value: QuickPreview;
-    if (!username) {
+    if (channel.linkType === LinkType.GROUP) {
+      // 그룹은 t.me 공개 미리보기가 없다 → 수집 계정이 읽어 저장한 대화(개인정보 가림)
+      const convo = await this.storedGroupMessages(channel.id);
+      value =
+        convo.length > 0
+          ? { description, posts: convo, note: null }
+          : {
+              description,
+              posts: [],
+              note: '그룹 대화가 아직 저장되지 않았어요. 수집 계정이 회원이면 [지금 수집] 후 보여요.',
+            };
+    } else if (!username) {
       // 비공개 초대방: 공개 t.me 가 없으니 저장된 글(수집 계정이 회원이면 읽어 둔 글)을 보여 준다.
       const stored = await this.storedPosts(channel.id);
       value =
@@ -115,10 +150,7 @@ export class ChannelQuickPreviewService {
             : {
                 description,
                 posts: [],
-                note:
-                  channel.linkType === LinkType.GROUP
-                    ? '그룹은 밖에서 글을 볼 수 없어요.'
-                    : '공개된 글이 없거나 불러오지 못했어요.',
+                note: '공개된 글이 없거나 불러오지 못했어요.',
               };
       }
     }

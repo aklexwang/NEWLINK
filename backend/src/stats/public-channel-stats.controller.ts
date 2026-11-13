@@ -66,6 +66,12 @@ export class PublicChannelStatsController {
     return this.publicStatsService.getPosts(id, query.limit ?? 20);
   }
 
+  /** 그룹 대화(개인정보 가림)·활동 숫자. 채널이면 빈 값 */
+  @Get(':id/group-messages')
+  getGroupMessages(@Param('id', ParseUUIDPipe) id: string) {
+    return this.publicStatsService.getGroupConversation(id);
+  }
+
   @Get(':id/events')
   getEvents(
     @Param('id', ParseUUIDPipe) id: string,

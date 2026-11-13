@@ -16,6 +16,7 @@ import {
   getChannelDetailById,
   getChannelDetailByUsername,
   getChannelEvents,
+  getChannelGroupConversation,
   getChannelMediaMix,
   getChannelPosts,
   getChannelStats,
@@ -39,6 +40,8 @@ import type {
   ChannelPostItem,
   ChannelPostMediaType,
   ChannelStatsSeries,
+  GroupConversation,
+  GroupConversationItem,
 } from '../types/stats';
 import { getChannelAvatarSources } from '../utils/channelAvatar';
 import { formatCount, formatPercent, formatRelativeKo } from '../utils/formatCount';
@@ -148,6 +151,8 @@ export function ChannelDetailPage() {
   const [postsShown, setPostsShown] = useState(5);
   const [events, setEvents] = useState<ChannelEventItem[]>([]);
   const [mediaMix, setMediaMix] = useState<ChannelMediaMix | null>(null);
+  /** 그룹: 저장된 대화(개인정보 가림) + 활동 숫자 */
+  const [groupConvo, setGroupConvo] = useState<GroupConversation | null>(null);
   const [range, setRange] = useState<7 | 14 | 30>(7);
   const [chartTab, setChartTab] = useState<'members' | 'views'>('members');
   const [loading, setLoading] = useState(true);
@@ -178,6 +183,7 @@ export function ChannelDetailPage() {
     setNotFound(false);
     setError('');
     setDetail(null);
+    setGroupConvo(null);
     void (async () => {
       try {
         const data = channelIdParam
@@ -189,8 +195,14 @@ export function ChannelDetailPage() {
           if (data.linkType === 'group') {
             setPosts([]);
             setMediaMix(null);
-            const eventList = await getChannelEvents(data.id, 20);
-            if (!cancelled) setEvents(eventList);
+            const [eventList, convo] = await Promise.all([
+              getChannelEvents(data.id, 20),
+              getChannelGroupConversation(data.id).catch(() => null),
+            ]);
+            if (!cancelled) {
+              setEvents(eventList);
+              setGroupConvo(convo);
+            }
           } else {
             await loadSecondary(data.id);
           }
@@ -698,7 +710,9 @@ export function ChannelDetailPage() {
         </div>
       </section>
 
-      {isGroup ? null : (
+      {isGroup ? (
+        <GroupConversationSection convo={groupConvo} />
+      ) : (
         <>
       <section className="mt-5 border-t border-nl-line px-4 pt-5">
         <h2 className="text-[15px] font-bold text-tg-text">글 구성 (90일)</h2>
@@ -957,6 +971,99 @@ function PostThread({
         </div>
       </div>
     </li>
+  );
+}
+
+const GROUP_MEDIA_LABEL: Record<string, string> = {
+  photo: '사진',
+  video: '동영상',
+  file: '파일',
+  other: '첨부',
+};
+
+/** 그룹 대화 한 줄: 보낸 사람은 보여 주지 않는다(저장도 안 함) */
+function GroupMessageRow({ item, tone = 'plain' }: { item: GroupConversationItem; tone?: 'plain' | 'notice' }) {
+  const text = (item.text ?? '').replace(/\n{2,}/g, '\n').trim();
+  const media = GROUP_MEDIA_LABEL[item.mediaType];
+  return (
+    <li
+      className={
+        tone === 'notice'
+          ? 'rounded-[16px] bg-amber-500/10 px-3.5 py-3 ring-1 ring-amber-500/25'
+          : 'border-b border-nl-line py-3 last:border-b-0'
+      }
+    >
+      <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-nl-muted">
+        {item.isPinned && <span className="rounded-full bg-amber-500/20 px-1.5 py-px font-semibold text-amber-500">📌 고정</span>}
+        {item.isAdminPost && <span className="rounded-full bg-[#229af0]/15 px-1.5 py-px font-semibold text-[#229af0]">운영자</span>}
+        <span>{formatRelativeKo(item.postedAt)}</span>
+        {media && <span>· {media} 포함</span>}
+      </p>
+      {text ? (
+        <p className="mt-1 line-clamp-6 whitespace-pre-line break-words text-[14.5px] leading-[1.5] text-nl-text">{text}</p>
+      ) : (
+        <p className="mt-1 text-[13px] text-nl-muted">{media ? `${media}만 있는 대화` : '내용 없음'}</p>
+      )}
+    </li>
+  );
+}
+
+function GroupConversationSection({ convo }: { convo: GroupConversation | null }) {
+  const [shown, setShown] = useState(10);
+  if (!convo) return null;
+  const notices = [...(convo.pinned ? [convo.pinned] : []), ...convo.adminPosts];
+  return (
+    <>
+      <section className="mt-5 border-t border-nl-line px-4 pt-5">
+        <h2 className="text-[15px] font-bold text-tg-text">대화 활동</h2>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <MetricCard label="24시간 대화" value={formatCount(convo.activity24h)} />
+          <MetricCard label="7일 참여자" value={convo.activeSenders7d != null ? `${formatCount(convo.activeSenders7d)}명` : '—'} />
+          <MetricCard label="마지막 대화" value={convo.lastMessageAt ? formatRelativeKo(convo.lastMessageAt) : '—'} />
+        </div>
+        {convo.activeSenders7d != null && (
+          <p className="mt-2 text-[11px] text-tg-hint">참여자는 최근 대화 50개 안에서 센 숫자예요.</p>
+        )}
+      </section>
+
+      {notices.length > 0 && (
+        <section className="mt-5 border-t border-nl-line px-4 pt-5">
+          <h2 className="text-[15px] font-bold text-tg-text">운영자 공지</h2>
+          <ul className="mt-3 space-y-2">
+            {notices.map((item) => (
+              <GroupMessageRow key={item.messageId} item={item} tone="notice" />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="mt-5 border-t border-nl-line px-4 pt-5">
+        <h2 className="text-[15px] font-bold text-tg-text">최근 대화</h2>
+        <p className="mt-1 text-[11px] text-tg-hint">전화번호·계좌·이메일·아이디는 가려서 보여 줘요. 보낸 사람은 표시하지 않아요.</p>
+        {convo.messages.length === 0 ? (
+          <p className="py-3 text-sm text-tg-hint">
+            {convo.collected ? '최근 대화가 없어요.' : '아직 저장된 대화가 없어요.'}
+          </p>
+        ) : (
+          <>
+            <ul className="mt-1">
+              {convo.messages.slice(0, shown).map((item) => (
+                <GroupMessageRow key={item.messageId} item={item} />
+              ))}
+            </ul>
+            {convo.messages.length > shown && (
+              <button
+                type="button"
+                onClick={() => setShown((n) => n + 10)}
+                className="w-full border-t border-nl-line py-3 text-[13px] font-semibold text-nl-muted"
+              >
+                대화 더 보기 ({shown} / {convo.messages.length})
+              </button>
+            )}
+          </>
+        )}
+      </section>
+    </>
   );
 }
 

@@ -11,6 +11,7 @@ import { Channel } from '../channels/channel.entity';
 import { ChannelsModule } from '../channels/channels.module';
 import { ChannelEvent } from './channel-event.entity';
 import { ChannelPost } from './channel-post.entity';
+import { GroupMessage } from './group-message.entity';
 import { ChannelScore } from './channel-score.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import { AutoExposeService } from './auto-expose.service';
@@ -51,6 +52,7 @@ import { StatsService } from './stats.service';
       Channel,
       ChannelSnapshot,
       ChannelPost,
+      GroupMessage,
       ChannelScore,
       ChannelEvent,
       ChannelImportCandidate,

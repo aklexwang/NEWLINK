@@ -20,6 +20,13 @@ import {
 } from '../channels/telegram-username';
 import { formatKstYmd } from './channel-metrics.math';
 import { ChannelEvent } from './channel-event.entity';
+import { GroupMessage } from './group-message.entity';
+import {
+  shouldCheckInviteGroup,
+  summarizeGroupMessages,
+  toGroupMessageRow,
+  type GroupMessageRow,
+} from './group-message.logic';
 import { ChannelPost, type ChannelPostMediaType } from './channel-post.entity';
 import { ChannelSnapshot } from './channel-snapshot.entity';
 import {
@@ -195,6 +202,8 @@ type ResolvedPublicChannel = {
   inputChannel: { channelId: unknown; accessHash: unknown };
   /** 채널이면 연결된 대화방, 그룹이면 부모 채널. 없으면 null */
   linkedChat: LinkedChatInfo | null;
+  /** 상단 고정 글 번호(없으면 null) */
+  pinnedMsgId?: number | null;
 };
 
 type HistoryPost = {
@@ -278,6 +287,9 @@ export class MtprotoCollectorService implements OnModuleInit {
     @Optional()
     @InjectRepository(AppSetting)
     private readonly settings?: Repository<AppSetting>,
+    @Optional()
+    @InjectRepository(GroupMessage)
+    private readonly groupMessageRepository?: Repository<GroupMessage>,
   ) {}
 
   async onModuleInit() {
@@ -529,7 +541,10 @@ export class MtprotoCollectorService implements OnModuleInit {
     >;
   }
 
-  private async collectInviteAndSaveInner(channel: Channel): Promise<MtprotoCollectResult> {
+  private async collectInviteAndSaveInner(
+    channel: Channel,
+    opts: { manual?: boolean } = {},
+  ): Promise<MtprotoCollectResult> {
     if (!this.canCollectInvite(channel))
       return { ok: false, reason: 'skipped' };
     const hash = inviteHashFromLink(channel.link) as string;
@@ -578,9 +593,14 @@ export class MtprotoCollectorService implements OnModuleInit {
           });
         }
       }
-      if (!resolved && channel.linkType === LinkType.GROUP) {
-        // 그룹은 가입하지 않고(대화 저장 금지) 수집 계정이 회원일 일도 거의 없다.
-        // 하루 40번인 초대 링크 확인을 그룹에 쓰면 정작 가입할 채널 확인이 밀린다
+      if (
+        !resolved &&
+        channel.linkType === LinkType.GROUP &&
+        !shouldCheckInviteGroup(channel, opts)
+      ) {
+        // 그룹은 자동으로 가입하지 않는다. 수집 계정이 회원일 수 있는 그룹(내가 앱에서 "요청함" 누른 방,
+        // 어드민 [지금 수집]/[지금 확인])만 초대 링크를 확인한다. 나머지 그룹에 하루 40번인 초대 링크
+        // 확인을 쓰면 정작 채널 확인이 밀린다
         return { ok: false, reason: 'not_member' };
       }
       if (!resolved) {
@@ -1395,6 +1415,7 @@ export class MtprotoCollectorService implements OnModuleInit {
         about?: string;
         participantsCount?: number;
         linkedChatId?: unknown;
+        pinnedMsgId?: number;
       };
       chats?: Array<{
         id?: unknown;
@@ -1423,6 +1444,11 @@ export class MtprotoCollectorService implements OnModuleInit {
       linkType: isGroup ? LinkType.GROUP : LinkType.CHANNEL,
       inputChannel: { channelId, accessHash: hash },
       linkedChat: parseLinkedChat(full),
+      pinnedMsgId:
+        typeof full.fullChat?.pinnedMsgId === 'number' &&
+        full.fullChat.pinnedMsgId > 0
+          ? full.fullChat.pinnedMsgId
+          : null,
     };
   }
 
@@ -1431,6 +1457,8 @@ export class MtprotoCollectorService implements OnModuleInit {
     activity: GroupActivityCounts;
     groupLanguage?: GroupHistorySummary['language'];
     hangulRatio?: number | null;
+    groupMessages?: GroupMessageRow[];
+    groupActiveSenders?: number;
   }> {
     if (resolved.linkType === LinkType.GROUP) {
       const nowMs = Date.now();
@@ -1453,7 +1481,28 @@ export class MtprotoCollectorService implements OnModuleInit {
         description: resolved.description,
         nowMs,
       });
+      // 대화 저장: 개인정보 가림 + 보낸 사람 저장 안 함(참여자 "수"만)
+      const pinnedMsgId = resolved.pinnedMsgId ?? null;
+      const convo = summarizeGroupMessages(recent, { pinnedMsgId, nowMs });
+      if (
+        pinnedMsgId != null &&
+        !convo.rows.some((r) => r.messageId === pinnedMsgId)
+      ) {
+        // 고정 글이 최근 50개 밖이면 그 한 개만 더 읽는다(GetHistory 1회)
+        try {
+          const around = await this.getHistory(resolved, 1, 0, pinnedMsgId + 1);
+          for (const raw of around) {
+            const row = toGroupMessageRow(raw, pinnedMsgId);
+            if (row && row.messageId === pinnedMsgId) convo.rows.push(row);
+          }
+        } catch (error) {
+          if (isMtprotoAuthFatal(error) || error instanceof FloodWaitTooLongError)
+            throw error;
+        }
+      }
       return {
+        groupMessages: convo.rows,
+        groupActiveSenders: convo.activeSenders7d,
         posts: [],
         activity: {
           activity24h: activityInWindow({
@@ -1489,6 +1538,7 @@ export class MtprotoCollectorService implements OnModuleInit {
     resolved: ResolvedPublicChannel,
     limit: number,
     offsetDate: number,
+    offsetId = 0,
   ): Promise<unknown[]> {
     const Api = await this.api();
     const hash = serializeAccessHash(resolved.inputChannel.accessHash);
@@ -1500,7 +1550,7 @@ export class MtprotoCollectorService implements OnModuleInit {
           channelId: resolved.inputChannel.channelId as never,
           accessHash: BigInt(hash) as never,
         }),
-        offsetId: 0,
+        offsetId,
         offsetDate,
         addOffset: 0,
         limit,
@@ -1602,12 +1652,32 @@ export class MtprotoCollectorService implements OnModuleInit {
       activity: GroupActivityCounts;
       groupLanguage?: GroupHistorySummary['language'];
       hangulRatio?: number | null;
+      groupMessages?: GroupMessageRow[];
+      groupActiveSenders?: number;
     },
   ) {
     const now = new Date();
     const savePosts = shouldSaveMtprotoPosts(data.linkType);
     if (!savePosts) {
       await this.postRepository.delete({ channelId: channel.id });
+      if (data.groupMessages && this.groupMessageRepository) {
+        // 그룹 대화는 최근 것으로 통째로 바꿔 끼운다(오래된·삭제된 대화가 남지 않게)
+        await this.groupMessageRepository.delete({ channelId: channel.id });
+        if (data.groupMessages.length > 0) {
+          await this.groupMessageRepository.insert(
+            data.groupMessages.map((m) => ({
+              channelId: channel.id,
+              messageId: m.messageId,
+              postedAt: m.postedAt,
+              text: m.text,
+              mediaType: m.mediaType,
+              isAdminPost: m.isAdminPost,
+              isPinned: m.isPinned,
+              collectedAt: now,
+            })),
+          );
+        }
+      }
     }
     const fetchedIds = savePosts ? data.posts.map((p) => p.messageId) : [];
     if (fetchedIds.length > 0) {
@@ -1727,6 +1797,9 @@ export class MtprotoCollectorService implements OnModuleInit {
     channel.collectGoneCount = 0;
     if (!savePosts) {
       channel.posts7d = data.activity.activity7d;
+      if (data.groupActiveSenders !== undefined) {
+        channel.groupActiveSenders = data.groupActiveSenders;
+      }
       if (!channel.languageLocked) {
         if (data.groupLanguage) channel.language = data.groupLanguage;
         channel.languageHangulRatio =

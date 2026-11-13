@@ -64,7 +64,10 @@ export class AdminCollectService {
     this.assertCooldown(channel.id);
     let note: string | undefined;
     try {
-      const result = await this.collector.collectPublicPageNow(channel);
+      // 어드민이 직접 누른 수집: 비공개 그룹도 수집 계정이 회원인지 확인한다
+      const result = await this.collector.collectPublicPageNow(channel, {
+        manual: true,
+      });
       note = result.note;
       const collected = await this.channelsService.findById(channel.id);
       await this.languages.classifyOne(collected);

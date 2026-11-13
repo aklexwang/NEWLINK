@@ -623,11 +623,12 @@ export class ChannelCollectorService {
 
   private async collectInviteChannel(
     channel: Channel,
+    opts: { manual?: boolean } = {},
   ): Promise<CollectOneResult> {
     let note: string;
     let inviteMeta: InviteMeta | undefined;
     if (this.mtproto.canCollectInvite(channel)) {
-      const viaMember = await this.mtproto.collectInviteAndSave(channel);
+      const viaMember = await this.mtproto.collectInviteAndSave(channel, opts);
       if (viaMember.ok)
         return {
           ...viaMember,
@@ -649,7 +650,10 @@ export class ChannelCollectorService {
   }
 
   /** 등록 직후: t.me 공개 페이지만 보고 first_observed_at 을 채운다 */
-  async collectPublicPageNow(channelInput: Channel): Promise<CollectOneResult> {
+  async collectPublicPageNow(
+    channelInput: Channel,
+    opts: { manual?: boolean } = {},
+  ): Promise<CollectOneResult> {
     const channel = await this.channelRepository.findOneBy({
       id: channelInput.id,
     });
@@ -657,7 +661,7 @@ export class ChannelCollectorService {
       return { ok: false, reason: 'failed' };
     }
     if (isInviteOnlyLink(channel.link)) {
-      return this.collectInviteChannel(channel);
+      return this.collectInviteChannel(channel, opts);
     }
     const username = this.resolveUsername(channel);
     if (!username) {
