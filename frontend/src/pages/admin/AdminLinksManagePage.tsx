@@ -821,6 +821,33 @@ export function AdminLinksManagePage() {
 
                   <ChannelQuickPreview channelId={focusedChannel.id} />
 
+                  {!focusedChannel.illegalCleared &&
+                    (focusedChannel.memberPageReasonKey || focusedChannel.memberPageHiddenReason) === '불법 의심(관리자 확인)' && (
+                      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-amber-500/10 px-4 py-3 ring-1 ring-amber-500/30">
+                        <p className="min-w-0 flex-1 text-sm text-foreground">
+                          <b className="text-amber-700">불법 의심으로 숨겨진 방이에요.</b> 카테고리를 골라도 이 숨김은 그대로예요.
+                          소개글을 보고 문제없으면 오른쪽 버튼을 누르세요.
+                        </p>
+                        <button
+                          type="button"
+                          disabled={confirming}
+                          onClick={async () => {
+                            try {
+                              await updateAdminChannel(focusedChannel.id, { illegalCleared: true });
+                              setMessage(`"${focusedChannel.title}" 불법 의심을 문제없음으로 풀었어요.`);
+                              setChannels((prev) => prev.map((c) => (c.id === focusedChannel.id ? { ...c, illegalCleared: true } : c)));
+                              void load({ silent: true });
+                            } catch (error) {
+                              setMessage(adminApiErrorMessage(error, '풀지 못했습니다.'));
+                            }
+                          }}
+                          className="h-10 shrink-0 rounded-xl bg-amber-500 px-4 text-sm font-bold text-white hover:bg-amber-600 disabled:opacity-40"
+                        >
+                          문제없음 → 숨김 풀기
+                        </button>
+                      </div>
+                    )}
+
                   <p className="mt-6 text-sm font-semibold text-subtle">
                     카테고리 고르기 <span className="font-normal">(고른 뒤 [확인]을 누르면 저장·고정되고 다음 방으로 넘어가요)</span>
                   </p>

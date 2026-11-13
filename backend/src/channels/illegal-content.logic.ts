@@ -77,7 +77,18 @@ export const FOOD_SUFFIXES = [
 
 /** "마약" 주변에 이런 말이 있으면 규칙·금지 문구로 본다 */
 const PROHIBIT_CONTEXT_RE =
-  /금지|불가|제외|제재|추방|강퇴|퇴장|퇴출|차단|제한|빼고|금함|일절|절대|즉시|강제|칼밴|음란|야동|야짤|사기꾼|성매매|19금|성착취|성인물|먹튀|패드립|위조|박사|아동/;
+  /금지|불가|제외|제재|추방|강퇴|퇴장|퇴출|차단|제한|빼고|금함|일절|절대|즉시|강제|칼밴|밴|벤|\bban\b|규칙|위반|음란|야동|야짤|사기꾼|성매매|19금|성착취|성인물|먹튀|패드립|위조|박사|아동/i;
+
+/**
+ * "마약X", "마약x 성인x", "(마약.성X)", "마약,성X", "마약❌" 처럼 "안 됨" 표시가 바로 뒤에 붙은 경우.
+ * 홍보방 규칙·제목에 흔하다(불법 방이 아니라 금지 표시).
+ */
+const X_MARK_AFTER_RE =
+  /^(?:[\s,./·ㆍ、&+_-]*[가-힣A-Za-z]{1,4}){0,3}[\s,./·ㆍ、&+_-]*[xX✕❌✖×🚫⛔]/u;
+
+function isProhibitMarked(text: string, afterIndex: number): boolean {
+  return X_MARK_AFTER_RE.test(text.slice(afterIndex, afterIndex + 16));
+}
 
 export const ILLEGAL_HIDE_REASON = '불법 의심(관리자 확인)';
 
@@ -98,7 +109,8 @@ function titleHasNonFoodGenericMention(title: string): boolean {
     const index = title.indexOf(GENERIC_DRUG_WORD, from);
     if (index < 0) return false;
     const after = index + GENERIC_DRUG_WORD.length;
-    if (!isFoodMention(title, after)) return true;
+    if (!isFoodMention(title, after) && !isProhibitMarked(title, after))
+      return true;
     from = after;
   }
   return false;
@@ -113,6 +125,7 @@ function hasNonRuleGenericMention(description: string): boolean {
     const around = description.slice(Math.max(0, index - 14), after + 22);
     if (
       !isFoodMention(description, after) &&
+      !isProhibitMarked(description, after) &&
       !PROHIBIT_CONTEXT_RE.test(around)
     ) {
       return true;

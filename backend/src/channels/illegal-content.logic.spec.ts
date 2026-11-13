@@ -128,3 +128,27 @@ describe('불법 의심 소개글 SQL (Postgres)', () => {
     expect(sql).not.toContain('LIKE');
   });
 });
+
+describe('금지 표시(마약X 등)는 불법 의심 아님 — 2026-11-13 숨김 10개 확인분', () => {
+  const no = (title: string, desc: string) =>
+    expect(hasIllegalDrugSuspicion(title, desc)).toBe(false);
+  const yes = (title: string, desc: string) =>
+    expect(hasIllegalDrugSuspicion(title, desc)).toBe(true);
+  it('소개글 규칙', () => {
+    no('🎬CGV', '<CGV 소통그룹입니다>\n\n편하게 소통/홍보/링공 하시면됩니다.\n\n도배X\n마약X\n고어X\n사기X');
+    no('올인구조대 자유홍보방', '자유로운 홍보\n마약x 성인x 성업하세요');
+    no('야놀자 낚시터', '야한소통/자유링공(개인 및 소통방)/업자홍보는 따로문의\n(마약X,아청X,딥페X)');
+    no('제왕 - 본방', '*마약, 사기, 사칭, 포르노 등 규칙위반시 즉시 벤');
+    no('구인구직 홍보방', '소통방,채널,마약,통장홍보는 밴사유이니 주의해주세요');
+  });
+  it('제목 금지 표시', () => {
+    no('BOX NO.1홍보(마약.성X)', 'NO.1 communication room');
+    no('PINNACLE (피나클홍보/마약,성X)', 'gaming communication room');
+  });
+  it('진짜 의심은 그대로', () => {
+    yes('大 KOREAYB 공지채널', '아이스팝니다 떨팝니다 아이스1g 떨사는곳 대마초 허브 케타민');
+    yes('[ ⌦ DRUG 백과사전 ]', '🖥️ 모든 종류의 마약 정보 🖥️');
+    yes('마약 판매', '');
+    yes('채널', '마약 삽니다 문의');
+  });
+});
