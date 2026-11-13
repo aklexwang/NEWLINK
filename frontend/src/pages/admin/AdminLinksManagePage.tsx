@@ -756,6 +756,7 @@ export function AdminLinksManagePage() {
                         {linkTypeLabel(focusedChannel.linkType)} · 회원{' '}
                         {focusedChannel.memberCount != null ? Number(focusedChannel.memberCount).toLocaleString() : '-'}
                       </p>
+                      <LinkCopyRow link={focusedChannel.link} />
                       <p className="mt-2 text-sm font-semibold">
                         {focusedChannel.memberPageVisible ? (
                           <span className="text-green-600">
@@ -1211,6 +1212,50 @@ function PendingAiPanel({ onDone }: { onDone: () => void }) {
         className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
       >
         {running ? 'AI 분류 중…' : left === 0 ? '오늘 AI 한도 다 씀' : 'AI로 분류하기'}
+      </button>
+    </div>
+  );
+}
+
+/** 상세 패널: 텔레그램 주소 + 복사 버튼 (주소를 보고 직접 열어 판단할 수 있게) */
+function LinkCopyRow({ link }: { link: string }) {
+  const [copied, setCopied] = useState(false);
+  if (!link) return null;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      const area = document.createElement('textarea');
+      area.value = link;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div className="mt-1.5 flex min-w-0 items-center gap-2">
+      <a
+        href={link}
+        target="_blank"
+        rel="noreferrer"
+        className="min-w-0 truncate font-mono text-sm text-sky-600 hover:underline"
+        title={link}
+      >
+        {link.replace(/^https?:\/\//, '')}
+      </a>
+      <button
+        type="button"
+        onClick={() => void copy()}
+        className={`shrink-0 rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors ${
+          copied
+            ? 'border-green-500 bg-green-50 text-green-700'
+            : 'border-border bg-card text-foreground hover:bg-muted'
+        }`}
+      >
+        {copied ? '복사됨' : '복사'}
       </button>
     </div>
   );
