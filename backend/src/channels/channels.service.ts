@@ -38,7 +38,10 @@ import {
   type DuplicateMatch,
 } from './link-duplicate.logic';
 import { isTitleLocked } from './title-lock.logic';
-import { describeAdminMemberVisibility } from '../stats/public-list-visibility.logic';
+import {
+  describeAdminMemberVisibility,
+  MEMBER_PAGE_REASON,
+} from '../stats/public-list-visibility.logic';
 import { shouldHideIllegalSuspicion } from './illegal-content.logic';
 import { selectMemberVisibleRows } from '../stats/member-visible.logic';
 import { buildMemberRankingCounts } from '../stats/member-page-count.logic';
@@ -834,6 +837,10 @@ export class ChannelsService implements OnModuleInit {
       .where('c.joinRequestedAt IS NULL')
       .andWhere('c.telegramAccessHash IS NULL')
       .andWhere("(c.link LIKE '%/+%' OR c.link LIKE '%/joinchat/%')")
+      // 합쳐진 중복·만료된 초대·사라진 방·채널 아님은 요청할 필요 없음
+      .andWhere(
+        "(c.collectStatus IS NULL OR c.collectStatus NOT IN ('merged', 'invite_expired', 'gone', 'invalid'))",
+      )
       .orderBy(nullsLastCaseSql('c', 'member_count'), 'ASC')
       .addOrderBy('c.memberCount', 'DESC')
       .addOrderBy('c.createdAt', 'DESC')
@@ -1186,8 +1193,20 @@ export class ChannelsService implements OnModuleInit {
     source?: AdminRegisterSource;
     createdFrom?: 'today' | '7d';
     promoted?: boolean;
+    hideReason?: string;
   }) {
     const qb = this.channelRepository.createQueryBuilder('channel');
+    // 같은 방이 링크만 달라 중복 등록돼 합쳐진 행(merged)은 기본 목록에서 뺀다.
+    // 기록은 지우지 않고 남겨 둔다(그 링크가 다시 제보·발견돼도 "이미 등록"으로 걸러지게).
+    // "숨김 이유: 합쳐진 채널"을 고를 때만 보인다.
+    const wantsMerged =
+      filters.hideReason === MEMBER_PAGE_REASON.merged ||
+      filters.collectStatus === 'merged';
+    if (!wantsMerged) {
+      qb.andWhere(
+        "(channel.collect_status IS NULL OR channel.collect_status <> 'merged')",
+      );
+    }
     if (filters.status)
       qb.andWhere('channel.status = :status', { status: filters.status });
     if (filters.category)
