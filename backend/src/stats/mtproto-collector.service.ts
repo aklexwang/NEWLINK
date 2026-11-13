@@ -767,7 +767,7 @@ export class MtprotoCollectorService implements OnModuleInit {
   /**
    * 운영자가 텔레그램 앱에서 수집 계정으로 직접 "입장 요청"을 누른 뒤 어드민에서 "요청함" 표시.
    * 텔레그램에는 아무것도 보내지 않고 기록만 한다(대기 목록으로). 승인되면 정기 확인이 읽어 온다.
-   * 하루 한도(서버 요청과 합산)를 넘으면 막는다 — 새 계정 보호.
+   * 기록이라 하루 제한은 없다(앱에서 몇 건 누를지는 운영자가 조절).
    */
   async markJoinRequestedManually(
     channelId: string,
@@ -790,14 +790,9 @@ export class MtprotoCollectorService implements OnModuleInit {
     if (channel.joinRequestedAt) {
       return { ok: true, outcome: '이미 요청함으로 표시돼 있어요(대기 중).' };
     }
+    // 기록일 뿐이라(텔레그램엔 아무것도 안 보냄) 하루 제한을 걸지 않는다.
+    // 앱에서 실제로 누른 방은 전부 기록할 수 있어야 승인 확인이 된다.
     const used = await this.refreshJoinRequestCount();
-    const limit = this.joinRequestDailyLimit();
-    if (used >= limit) {
-      return {
-        ok: false,
-        outcome: `오늘 입장 요청 한도(${limit}건)를 다 썼어요. 내일 0시에 다시 열려요.`,
-      };
-    }
     await this.channelRepository.update(channelId, {
       joinRequestedAt: new Date(),
       joinRequestAccount: `${this.requestAccountLabel()} · 앱`.slice(0, 80),

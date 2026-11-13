@@ -89,10 +89,6 @@ export function AdminJoinRequestsPage() {
     void load();
   }, [load]);
 
-  // 오늘 한도를 다 썼는가("요청함" 버튼 비활성화)
-  const limitReached =
-    budget != null && budget.limit > 0 && budget.today >= budget.limit;
-
   const run = async (
     key: string,
     action: () => Promise<string>,
@@ -151,6 +147,9 @@ export function AdminJoinRequestsPage() {
     );
   };
 
+  // 승인된 방은 데이터를 이미 가져오므로 목록에서 빼고(채널·그룹 관리에서 봄) 숫자만 센다
+  const waitingRows = rows?.filter((r) => r.joinRequestStatus !== 'approved') ?? null;
+
   const counts = {
     pending: rows?.filter((r) => r.joinRequestStatus === 'pending').length ?? 0,
     approved: rows?.filter((r) => r.joinRequestStatus === 'approved').length ?? 0,
@@ -182,8 +181,8 @@ export function AdminJoinRequestsPage() {
             </li>
           </ol>
           <p className="mt-2 text-xs text-muted-foreground">
-            새 계정 보호를 위해 하루 {budget?.limit ?? 3}건까지만 표시할 수 있어요. 텔레그램
-            앱에서도 하루 이 정도만, 간격을 두고 눌러 주세요.
+            승인된 방은 이 화면에서 빠지고 채널·그룹 관리에서 보여요. 새 계정 보호를 위해
+            텔레그램 앱에서는 하루 2~3건 정도, 간격을 두고 눌러 주세요.
           </p>
         </div>
         <Button type="button" variant="outline" onClick={() => void load()}>
@@ -202,10 +201,8 @@ export function AdminJoinRequestsPage() {
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
-            {budget != null && budget.limit > 0 && (
-              <Badge variant={limitReached ? 'destructive' : 'secondary'}>
-                오늘 {budget.today}/{budget.limit}건
-              </Badge>
+            {budget != null && (
+              <Badge variant="secondary">오늘 요청함 {budget.today}건</Badge>
             )}
             {candidates != null && (
               <Badge variant="outline">
@@ -214,12 +211,6 @@ export function AdminJoinRequestsPage() {
             )}
           </div>
         </div>
-        {limitReached && (
-          <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive">
-            오늘 입장 요청 한도({budget?.limit}건)를 다 썼어요. 내일 0시에 다시 열려요.
-            (새 계정 보호)
-          </div>
-        )}
         {candidates == null ? (
           <div className="space-y-2 p-4">
             <Skeleton className="h-8 w-full" />
@@ -268,14 +259,10 @@ export function AdminJoinRequestsPage() {
                         size="sm"
                         className="mr-2"
                         title="텔레그램 앱에서 입장 요청을 누른 뒤 눌러 주세요(기록만 해요)"
-                        disabled={busy != null || limitReached}
+                        disabled={busy != null}
                         onClick={() => void handleMark(c)}
                       >
-                        {busy === `mark:${c.id}`
-                          ? '표시 중…'
-                          : limitReached
-                            ? '오늘 한도 끝'
-                            : '요청함'}
+                        {busy === `mark:${c.id}` ? '표시 중…' : '요청함'}
                       </Button>
                       <Button
                         type="button"
@@ -314,10 +301,10 @@ export function AdminJoinRequestsPage() {
           />
           <Button
             type="button"
-            disabled={busy != null || !link.trim() || limitReached}
+            disabled={busy != null || !link.trim()}
             onClick={() => void handleMarkByLink()}
           >
-            {busy === 'link' ? '표시 중…' : limitReached ? '오늘 한도 끝' : '등록 + 요청함'}
+            {busy === 'link' ? '표시 중…' : '등록 + 요청함'}
           </Button>
         </div>
       </div>
@@ -338,15 +325,15 @@ export function AdminJoinRequestsPage() {
       </div>
 
       <div className="mt-4 rounded-xl border border-border">
-        {rows == null ? (
+        {waitingRows == null ? (
           <div className="space-y-2 p-4">
             <Skeleton className="h-8 w-full" />
             <Skeleton className="h-8 w-full" />
             <Skeleton className="h-8 w-full" />
           </div>
-        ) : rows.length === 0 ? (
+        ) : waitingRows.length === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">
-            아직 요청함으로 표시한 방이 없습니다.
+            승인 기다리는 방이 없습니다.
           </p>
         ) : (
           <Table>
@@ -361,7 +348,7 @@ export function AdminJoinRequestsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((r) => (
+              {waitingRows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>
                     <div className="font-medium">{r.title}</div>
