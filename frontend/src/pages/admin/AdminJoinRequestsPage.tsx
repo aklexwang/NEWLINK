@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 import {
   collectAdminChannel,
   getAdminJoinBudget,
@@ -69,6 +70,23 @@ export function AdminJoinRequestsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   /** 후보 카드는 30개씩 보여 준다 */
   const [shown, setShown] = useState(PAGE);
+  /** 방금 주소를 복사한 카드(잠깐 "복사됨" 표시) */
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyLink = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // 클립보드 권한이 없으면 임시 입력칸으로 복사
+      const area = document.createElement('textarea');
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    setCopiedId(id);
+    window.setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1500);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -265,9 +283,37 @@ export function AdminJoinRequestsPage() {
                             PRIVATE · INVITE
                           </span>
                         </div>
-                        <h3 className="mt-3 truncate text-xl font-bold" title={c.title}>
-                          {c.title}
-                        </h3>
+                        <div className="mt-3 flex min-w-0 items-center gap-2">
+                          <h3
+                            className="max-w-[55%] shrink-0 truncate text-xl font-bold"
+                            title={c.title}
+                          >
+                            {c.title}
+                          </h3>
+                          <span
+                            className="min-w-0 truncate font-mono text-xs text-muted-foreground"
+                            title={c.link}
+                          >
+                            {c.link.replace(/^https?:\/\//, '')}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void copyLink(c.id, c.link)}
+                            title="주소 복사"
+                            className={`inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-xs font-medium transition ${
+                              copiedId === c.id
+                                ? 'border-green-500/40 bg-green-500/10 text-green-600'
+                                : 'border-border hover:bg-secondary'
+                            }`}
+                          >
+                            {copiedId === c.id ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                            {copiedId === c.id ? '복사됨' : '복사'}
+                          </button>
+                        </div>
                         <div className="mt-3 flex items-baseline gap-1">
                           <span className="font-mono text-2xl font-bold tabular-nums">
                             {fmt(c.memberCount)}
