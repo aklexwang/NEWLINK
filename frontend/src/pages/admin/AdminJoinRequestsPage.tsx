@@ -159,6 +159,7 @@ export function AdminJoinRequestsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
+      <div className="mx-auto max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl rounded-xl border border-border bg-secondary/30 p-4 text-sm">
           <p className="font-semibold">입장 요청은 텔레그램 앱에서 직접 해요</p>
@@ -195,7 +196,7 @@ export function AdminJoinRequestsPage() {
       <div className="mt-6 rounded-xl border border-border">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <p className="text-sm font-semibold">요청 후보 · 회원수 많은순</p>
+            <p className="text-lg font-semibold">요청 후보 · 회원수 많은순</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               아직 요청 안 한 비공개 초대방이에요. 큰 방부터 보여 줍니다.
             </p>
@@ -222,64 +223,60 @@ export function AdminJoinRequestsPage() {
             요청할 비공개 초대방 후보가 없습니다.
           </p>
         ) : (
-          <div className="max-h-[480px] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12 text-right">#</TableHead>
-                  <TableHead>방</TableHead>
-                  <TableHead className="w-24 text-right">회원</TableHead>
-                  <TableHead className="w-[330px] text-right">동작</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {candidates.map((c, i) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="text-right text-sm text-muted-foreground tabular-nums">
-                      {i + 1}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{c.title}</div>
-                      <div className="text-xs text-muted-foreground">{c.link}</div>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      {c.memberCount != null ? c.memberCount.toLocaleString() : '-'}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-right">
-                      <a
-                        href={c.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mr-2 inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-secondary"
-                      >
-                        텔레그램에서 열기
-                      </a>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="mr-2"
-                        title="텔레그램 앱에서 입장 요청을 누른 뒤 눌러 주세요(기록만 해요)"
-                        disabled={busy != null}
-                        onClick={() => void handleMark(c)}
-                      >
-                        {busy === `mark:${c.id}` ? '표시 중…' : '요청함'}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        title="바로 가입되는 방에 이미 들어갔으면 바로 글을 읽어요(한도와 무관)"
-                        disabled={busy != null}
-                        onClick={() => void handleCollect(c)}
-                      >
-                        {busy === `collect:${c.id}` ? '수집 중…' : '지금 수집'}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <ul className="max-h-[70vh] divide-y divide-border overflow-y-auto">
+            {candidates.map((c, i) => (
+              <li
+                key={c.id}
+                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-4">
+                  <span className="w-8 shrink-0 text-center text-lg font-bold tabular-nums text-muted-foreground">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate text-lg font-semibold">{c.title}</div>
+                    <div className="mt-0.5 text-base text-muted-foreground">
+                      회원{' '}
+                      <b className="text-foreground tabular-nums">
+                        {c.memberCount != null ? c.memberCount.toLocaleString() : '-'}
+                      </b>
+                      명
+                    </div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-2 sm:pl-4">
+                  <a
+                    href={c.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={c.link}
+                    className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium hover:bg-secondary"
+                  >
+                    텔레그램에서 열기
+                  </a>
+                  <Button
+                    type="button"
+                    size="lg"
+                    title="텔레그램 앱에서 입장 요청을 누른 뒤 눌러 주세요(기록만 해요)"
+                    disabled={busy != null}
+                    onClick={() => void handleMark(c)}
+                  >
+                    {busy === `mark:${c.id}` ? '표시 중…' : '요청함'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="outline"
+                    title="바로 가입되는 방에 이미 들어갔으면 바로 글을 읽어요"
+                    disabled={busy != null}
+                    onClick={() => void handleCollect(c)}
+                  >
+                    {busy === `collect:${c.id}` ? '수집 중…' : '지금 수집'}
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
@@ -415,6 +412,7 @@ export function AdminJoinRequestsPage() {
             </TableBody>
           </Table>
         )}
+      </div>
       </div>
     </div>
   );
