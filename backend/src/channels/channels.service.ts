@@ -839,7 +839,8 @@ export class ChannelsService implements OnModuleInit {
    * 입장 요청 "후보": 아직 요청 안 보낸 비공개 초대방(초대링크 보유, 아직 가입 안 됨)을
    * 회원수 많은순으로. 어드민에서 큰 방부터 수동으로 입장 요청을 넣을 수 있게 보여 준다.
    */
-  async findJoinCandidates(limit = 200): Promise<CandidateGroup[]> {
+  // 예전엔 200개만 보여 줘서 회원 1,346명 미만 방(예: 빌리지 1,266명)은 후보에 안 보였다 → 전부 보여 줌(화면은 30개씩)
+  async findJoinCandidates(limit = 3000): Promise<CandidateGroup[]> {
     const notDead =
       "(c.collectStatus IS NULL OR c.collectStatus NOT IN ('merged', 'invite_expired', 'gone', 'invalid'))";
     const candidates = await this.channelRepository

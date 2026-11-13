@@ -72,6 +72,8 @@ export function AdminJoinRequestsPage() {
   const [shown, setShown] = useState(PAGE);
   /** 방금 주소를 복사한 카드(잠깐 "복사됨" 표시) */
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  /** 후보 검색(이름·링크) */
+  const [query, setQuery] = useState('');
   const copyLink = async (id: string, text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -188,6 +190,17 @@ export function AdminJoinRequestsPage() {
     { label: '승인됨', value: rows ? counts.approved : null },
   ];
 
+  const q = query.trim().toLowerCase();
+  const visibleCandidates = (candidates ?? [])
+    .map((c, i) => ({ c, i }))
+    .filter(
+      ({ c }) =>
+        !q ||
+        c.title.toLowerCase().includes(q) ||
+        c.link.toLowerCase().includes(q) ||
+        (c.links ?? []).some((l) => l.link.toLowerCase().includes(q)),
+    );
+
   return (
     <div className="flex-1 overflow-y-auto bg-background">
       <div className="mx-auto w-full max-w-[2240px] px-4 py-6 sm:px-6 xl:px-10">
@@ -248,8 +261,18 @@ export function AdminJoinRequestsPage() {
                 <h2 className="text-xl font-bold">요청 후보</h2>
                 <p className="text-sm text-muted-foreground">
                   아직 요청 안 한 비공개 초대방 · 회원 많은 순 · 같은 방(링크만 다른 것)은 한 장으로 묶음
+                  {candidates ? ` · 전체 ${candidates.length.toLocaleString()}개` : ''}
                 </p>
               </div>
+              <input
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setShown(PAGE);
+                }}
+                placeholder="방 이름·링크 검색"
+                className="h-10 w-64 shrink-0 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              />
             </div>
 
             {candidates == null ? (
@@ -265,7 +288,7 @@ export function AdminJoinRequestsPage() {
             ) : (
               <>
                 <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3 min-[2000px]:grid-cols-4!">
-                  {candidates.slice(0, shown).map((c, i) => {
+                  {visibleCandidates.slice(0, shown).map(({ c, i }) => {
                     const pct = Math.max(
                       4,
                       Math.round(((c.memberCount ?? 0) / maxMembers) * 100),
@@ -371,7 +394,12 @@ export function AdminJoinRequestsPage() {
                     );
                   })}
                 </div>
-                {shown < candidates.length && (
+                {visibleCandidates.length === 0 && (
+                  <p className="rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground">
+                    "{query}" 에 맞는 후보가 없어요. 이미 요청함·승인된 방이거나 공개방일 수 있어요.
+                  </p>
+                )}
+                {shown < visibleCandidates.length && (
                   <div className="mt-5 flex justify-center">
                     <Button
                       type="button"
@@ -379,7 +407,7 @@ export function AdminJoinRequestsPage() {
                       size="lg"
                       onClick={() => setShown((n) => n + PAGE)}
                     >
-                      더 보기 · 남은 {(candidates.length - shown).toLocaleString()}개
+                      더 보기 · 남은 {(visibleCandidates.length - shown).toLocaleString()}개
                     </Button>
                   </div>
                 )}
