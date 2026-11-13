@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  collectAdminChannel,
   getAdminJoinBudget,
   getAdminJoinCandidates,
   getAdminJoinRequests,
@@ -86,6 +87,23 @@ export function AdminJoinRequestsPage() {
   // 오늘 한도를 다 썼는가(버튼 비활성화용)
   const limitReached =
     budget != null && budget.limit > 0 && budget.today >= budget.limit;
+
+  // 텔레그램 앱에서 수집 계정으로 직접 들어간 방: 요청 없이 바로 읽기(하루 요청 한도와 무관)
+  const [collectingId, setCollectingId] = useState<string | null>(null);
+  const handleCollectById = async (id: string, title: string) => {
+    if (collectingId) return;
+    setCollectingId(id);
+    try {
+      const updated = await collectAdminChannel(id);
+      const note = (updated as { collectNote?: string | null }).collectNote;
+      setMessage(`${title}: 수집 끝${note ? ` · ${note}` : ''}`);
+      await load();
+    } catch (error) {
+      setMessage(adminApiErrorMessage(error, '수집에 실패했습니다.'));
+    } finally {
+      setCollectingId(null);
+    }
+  };
 
   const handleRequestById = async (id: string) => {
     if (sendingId) return;
@@ -178,7 +196,8 @@ export function AdminJoinRequestsPage() {
             <p className="mt-0.5 text-xs text-muted-foreground">
               아직 요청 안 보낸 비공개 초대방이에요. 큰 방부터 보여 줍니다.
               버튼을 누르면 입장 요청이 나가고 아래 대기로 넘어가요. (자동 요청도
-              같은 순서로 하루 소량씩 보냅니다.)
+              같은 순서로 하루 소량씩 보냅니다.) 텔레그램 앱에서 수집 계정으로 직접
+              들어간 방은 "지금 수집"을 누르면 바로 글이 채워지고 목록에서 빠져요.
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
@@ -218,7 +237,7 @@ export function AdminJoinRequestsPage() {
                   <TableHead className="w-12 text-right">#</TableHead>
                   <TableHead>방</TableHead>
                   <TableHead className="w-24 text-right">회원</TableHead>
-                  <TableHead className="w-32 text-right">요청</TableHead>
+                  <TableHead className="w-56 text-right">수집 · 요청</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -243,7 +262,18 @@ export function AdminJoinRequestsPage() {
                         ? c.memberCount.toLocaleString()
                         : '-'}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mr-2"
+                        title="앱에서 수집 계정으로 이미 들어간 방이면 바로 글을 읽어요(요청 한도와 무관)"
+                        disabled={collectingId != null}
+                        onClick={() => void handleCollectById(c.id, c.title)}
+                      >
+                        {collectingId === c.id ? '수집 중…' : '지금 수집'}
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
