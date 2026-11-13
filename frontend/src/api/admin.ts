@@ -729,6 +729,9 @@ export interface JoinCandidateChannel {
   link: string;
   category: string | null;
   memberCount: number | null;
+  /** 같은 방으로 추정돼 묶인 링크 수(1이면 묶인 것 없음) */
+  linkCount?: number;
+  links?: Array<{ id: string; link: string; memberCount: number | null }>;
 }
 
 /** 아직 요청 안 보낸 비공개 초대방 후보(회원수 많은순) */

@@ -247,7 +247,7 @@ export function AdminJoinRequestsPage() {
               <div>
                 <h2 className="text-xl font-bold">요청 후보</h2>
                 <p className="text-sm text-muted-foreground">
-                  아직 요청 안 한 비공개 초대방 · 회원 많은 순
+                  아직 요청 안 한 비공개 초대방 · 회원 많은 순 · 같은 방(링크만 다른 것)은 한 장으로 묶음
                 </p>
               </div>
             </div>
@@ -279,9 +279,20 @@ export function AdminJoinRequestsPage() {
                           <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">
                             #{String(i + 1).padStart(2, '0')}
                           </span>
-                          <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
-                            PRIVATE · INVITE
-                          </span>
+                          {(c.linkCount ?? 1) > 1 ? (
+                            <span
+                              className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                              title={`같은 이름·비슷한 회원 수라 같은 방으로 보고 묶었어요. 하나만 요청하면 돼요.\n${(c.links ?? [])
+                                .map((l) => l.link.replace(/^https?:\/\//, ''))
+                                .join('\n')}`}
+                            >
+                              같은 방 추정 · 링크 {c.linkCount}개
+                            </span>
+                          ) : (
+                            <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
+                              PRIVATE · INVITE
+                            </span>
+                          )}
                         </div>
                         <div className="mt-3 flex min-w-0 items-center gap-2">
                           <h3

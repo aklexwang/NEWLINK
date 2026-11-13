@@ -40,6 +40,13 @@ import {
 import { isTitleLocked } from './title-lock.logic';
 import { isSubscriberInflationSuspected } from '../stats/channel-badges';
 import {
+  CandidateGroup,
+  groupSameRoomCandidates,
+} from './join-candidate-group.logic';
+
+/** 입장 요청 후보: 같은 방 묶기 전에 훑어보는 최대 링크 수 */
+const JOIN_CANDIDATE_SCAN_MAX = 3000;
+import {
   describeAdminMemberVisibility,
   MEMBER_PAGE_REASON,
 } from '../stats/public-list-visibility.logic';
@@ -832,21 +839,39 @@ export class ChannelsService implements OnModuleInit {
    * 입장 요청 "후보": 아직 요청 안 보낸 비공개 초대방(초대링크 보유, 아직 가입 안 됨)을
    * 회원수 많은순으로. 어드민에서 큰 방부터 수동으로 입장 요청을 넣을 수 있게 보여 준다.
    */
-  async findJoinCandidates(limit = 200): Promise<Channel[]> {
-    return this.channelRepository
+  async findJoinCandidates(limit = 200): Promise<CandidateGroup[]> {
+    const notDead =
+      "(c.collectStatus IS NULL OR c.collectStatus NOT IN ('merged', 'invite_expired', 'gone', 'invalid'))";
+    const candidates = await this.channelRepository
       .createQueryBuilder('c')
+      .select(['c.id', 'c.title', 'c.link', 'c.category', 'c.memberCount'])
       .where('c.joinRequestedAt IS NULL')
       .andWhere('c.telegramAccessHash IS NULL')
       .andWhere("(c.link LIKE '%/+%' OR c.link LIKE '%/joinchat/%')")
       // 합쳐진 중복·만료된 초대·사라진 방·채널 아님은 요청할 필요 없음
-      .andWhere(
-        "(c.collectStatus IS NULL OR c.collectStatus NOT IN ('merged', 'invite_expired', 'gone', 'invalid'))",
-      )
+      .andWhere(notDead)
       .orderBy(nullsLastCaseSql('c', 'member_count'), 'ASC')
       .addOrderBy('c.memberCount', 'DESC')
-      .addOrderBy('c.createdAt', 'DESC')
-      .limit(limit)
+      .limit(JOIN_CANDIDATE_SCAN_MAX)
       .getMany();
+    // 이미 요청함/승인된 방(같은 방의 다른 링크를 후보에서 빼려고 이름·회원 수만)
+    const taken = await this.channelRepository
+      .createQueryBuilder('c')
+      .select(['c.id', 'c.title', 'c.memberCount'])
+      .where('(c.joinRequestedAt IS NOT NULL OR c.telegramAccessHash IS NOT NULL)')
+      .andWhere(notDead)
+      .getMany();
+    return groupSameRoomCandidates(
+      candidates.map((c) => ({
+        id: c.id,
+        title: c.title,
+        link: c.link,
+        category: c.category ?? null,
+        memberCount: c.memberCount ?? null,
+      })),
+      taken.map((t) => ({ title: t.title, memberCount: t.memberCount ?? null })),
+      limit,
+    );
   }
 
   async getRecommendedChannelIds(userId: number): Promise<string[]> {
