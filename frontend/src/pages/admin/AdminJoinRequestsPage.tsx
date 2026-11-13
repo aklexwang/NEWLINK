@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collectAdminChannel,
   getAdminJoinBudget,
@@ -18,14 +18,6 @@ import { Badge } from '@/components/admin/ui/badge';
 import { Button } from '@/components/admin/ui/button';
 import { Input } from '@/components/admin/ui/input';
 import { Skeleton } from '@/components/admin/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/admin/ui/table';
 
 function formatKst(value: string | null): string {
   if (!value) return '-';
@@ -59,6 +51,12 @@ function statusBadge(status: JoinRequestStatus, requestedAt: string | null) {
   return <Badge variant="outline">요청 없음</Badge>;
 }
 
+const PAGE = 30;
+
+function fmt(n: number | null | undefined): string {
+  return n != null ? n.toLocaleString() : '-';
+}
+
 export function AdminJoinRequestsPage() {
   const [rows, setRows] = useState<JoinRequestChannel[] | null>(null);
   const [candidates, setCandidates] = useState<JoinCandidateChannel[] | null>(
@@ -69,6 +67,8 @@ export function AdminJoinRequestsPage() {
   const [link, setLink] = useState('');
   /** 지금 처리 중인 버튼(한 번에 하나) */
   const [busy, setBusy] = useState<string | null>(null);
+  /** 후보 카드는 30개씩 보여 준다 */
+  const [shown, setShown] = useState(PAGE);
 
   const load = useCallback(async () => {
     try {
@@ -157,262 +157,298 @@ export function AdminJoinRequestsPage() {
       rows?.filter((r) => r.joinRequestStatus === 'unanswered').length ?? 0,
   };
 
+  const maxMembers = useMemo(
+    () => Math.max(1, ...(candidates ?? []).map((c) => c.memberCount ?? 0)),
+    [candidates],
+  );
+  const waitingCount = counts.pending + counts.unanswered;
+
+  const tiles = [
+    { label: '오늘 요청함', value: budget?.today ?? null },
+    { label: '요청 후보', value: candidates?.length ?? null },
+    { label: '승인 대기', value: rows ? waitingCount : null },
+    { label: '승인됨', value: rows ? counts.approved : null },
+  ];
+
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-      <div className="mx-auto max-w-5xl">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="max-w-3xl rounded-xl border border-border bg-secondary/30 p-4 text-sm">
-          <p className="font-semibold">입장 요청은 텔레그램 앱에서 직접 해요</p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-            <li>
-              아래 후보에서 <b>텔레그램에서 열기</b> → 수집 계정(3번)으로 <b>입장 요청</b>을
-              누르세요.
-            </li>
-            <li>
-              여기서 <b>요청함</b>을 누르면 대기 목록으로 옮겨져요. (서버는 텔레그램에 아무것도
-              보내지 않고 기록만 해요)
-            </li>
-            <li>
-              서버가 <b>3시간마다</b> 대기 중인 방을 확인해서, 승인됐으면 <b>승인됨</b>으로
-              바꾸고 글·조회수까지 가져와요. 급하면 대기 목록의 <b>지금 확인</b>.
-            </li>
-            <li>
-              바로 가입되는 방(승인 필요 없음)에 들어갔으면 요청함 대신 <b>지금 수집</b>만
-              누르면 돼요.
-            </li>
-          </ol>
-          <p className="mt-2 text-xs text-muted-foreground">
-            승인된 방은 이 화면에서 빠지고 채널·그룹 관리에서 보여요. 새 계정 보호를 위해
-            텔레그램 앱에서는 하루 2~3건 정도, 간격을 두고 눌러 주세요.
-          </p>
-        </div>
-        <Button type="button" variant="outline" onClick={() => void load()}>
-          새로고침
-        </Button>
-      </div>
-
-      {message && <AdminMessage message={message} />}
-
-      <div className="mt-6 rounded-xl border border-border">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div>
-            <p className="text-lg font-semibold">요청 후보 · 회원수 많은순</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              아직 요청 안 한 비공개 초대방이에요. 큰 방부터 보여 줍니다.
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            {budget != null && (
-              <Badge variant="secondary">오늘 요청함 {budget.today}건</Badge>
-            )}
-            {candidates != null && (
-              <Badge variant="outline">
-                {candidates.length.toLocaleString()}개
-              </Badge>
-            )}
-          </div>
-        </div>
-        {candidates == null ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-          </div>
-        ) : candidates.length === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">
-            요청할 비공개 초대방 후보가 없습니다.
-          </p>
-        ) : (
-          <ul className="max-h-[70vh] divide-y divide-border overflow-y-auto">
-            {candidates.map((c, i) => (
-              <li
-                key={c.id}
-                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-4">
-                  <span className="w-8 shrink-0 text-center text-lg font-bold tabular-nums text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="truncate text-lg font-semibold">{c.title}</div>
-                    <div className="mt-0.5 text-base text-muted-foreground">
-                      회원{' '}
-                      <b className="text-foreground tabular-nums">
-                        {c.memberCount != null ? c.memberCount.toLocaleString() : '-'}
-                      </b>
-                      명
+    <div className="flex-1 overflow-y-auto bg-background">
+      <div className="mx-auto w-full max-w-[1760px] px-4 py-6 sm:px-6 xl:px-10">
+        {/* 상단: 콘솔 헤더 + 숫자 타일 */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0a1230] via-[#122a6e] to-[#1d4ed8] p-6 text-white shadow-lg">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:28px_28px]"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-400/30 blur-3xl"
+          />
+          <div className="relative flex flex-wrap items-end justify-between gap-6">
+            <div className="min-w-0">
+              <p className="font-mono text-[11px] tracking-[0.3em] text-sky-300">
+                JOIN REQUEST CONSOLE
+              </p>
+              <h1 className="mt-1 text-2xl font-bold sm:text-3xl">비공개 방 입장 요청</h1>
+              <p className="mt-2 text-sm text-white/70">
+                텔레그램 앱에서 요청 → 여기서 <b className="text-white">요청함</b> → 승인되면
+                서버가 자동으로 글·조회수를 가져와요
+              </p>
+            </div>
+            <div className="flex items-end gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {tiles.map((t) => (
+                  <div
+                    key={t.label}
+                    className="min-w-[120px] rounded-xl bg-white/10 px-4 py-3 ring-1 ring-white/15 backdrop-blur"
+                  >
+                    <div className="text-xs text-white/60">{t.label}</div>
+                    <div className="mt-1 font-mono text-3xl font-bold tabular-nums">
+                      {t.value == null ? '–' : t.value.toLocaleString()}
                     </div>
                   </div>
-                </div>
-                <div className="flex shrink-0 gap-2 sm:pl-4">
-                  <a
-                    href={c.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={c.link}
-                    className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm font-medium hover:bg-secondary"
-                  >
-                    텔레그램에서 열기
-                  </a>
-                  <Button
-                    type="button"
-                    size="lg"
-                    title="텔레그램 앱에서 입장 요청을 누른 뒤 눌러 주세요(기록만 해요)"
-                    disabled={busy != null}
-                    onClick={() => void handleMark(c)}
-                  >
-                    {busy === `mark:${c.id}` ? '표시 중…' : '요청함'}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="lg"
-                    variant="outline"
-                    title="바로 가입되는 방에 이미 들어갔으면 바로 글을 읽어요"
-                    disabled={busy != null}
-                    onClick={() => void handleCollect(c)}
-                  >
-                    {busy === `collect:${c.id}` ? '수집 중…' : '지금 수집'}
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="mt-4 rounded-xl border border-border p-4">
-        <p className="text-sm font-semibold">목록에 없는 방</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          텔레그램에서 입장 요청한 방이 위 목록에 없으면 초대 링크(t.me/+…)를 붙여넣으세요.
-          없으면 등록하고 요청함으로 표시해요.
-        </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Input
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleMarkByLink();
-            }}
-            placeholder="https://t.me/+초대코드"
-            className="flex-1"
-          />
-          <Button
-            type="button"
-            disabled={busy != null || !link.trim()}
-            onClick={() => void handleMarkByLink()}
-          >
-            {busy === 'link' ? '표시 중…' : '등록 + 요청함'}
-          </Button>
-        </div>
-      </div>
-
-      <div className="mt-6 grid grid-cols-3 gap-3 sm:max-w-xl">
-        <div className="rounded-xl border border-border bg-secondary/40 px-4 py-4 text-center">
-          <div className="text-3xl font-bold tabular-nums">{counts.pending}</div>
-          <div className="mt-1 text-sm font-medium text-muted-foreground">대기</div>
-        </div>
-        <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-4 text-center">
-          <div className="text-3xl font-bold tabular-nums text-primary">{counts.approved}</div>
-          <div className="mt-1 text-sm font-medium text-muted-foreground">승인됨</div>
-        </div>
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-center">
-          <div className="text-3xl font-bold tabular-nums text-destructive">{counts.unanswered}</div>
-          <div className="mt-1 text-sm font-medium text-muted-foreground">미승인</div>
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-border">
-        {waitingRows == null ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                onClick={() => void load()}
+              >
+                새로고침
+              </Button>
+            </div>
           </div>
-        ) : waitingRows.length === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">
-            승인 기다리는 방이 없습니다.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>방</TableHead>
-                <TableHead className="w-24 text-right">회원</TableHead>
-                <TableHead className="w-32">요청 계정</TableHead>
-                <TableHead className="w-28">요청일</TableHead>
-                <TableHead className="w-40">상태</TableHead>
-                <TableHead className="w-44 text-right">동작</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {waitingRows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>
-                    <div className="font-medium">{r.title}</div>
-                    <a
-                      href={r.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline"
-                    >
-                      {r.link}
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {r.memberCount != null ? r.memberCount.toLocaleString() : '-'}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {r.joinRequestAccount ? (
-                      <Badge variant="outline">{r.joinRequestAccount}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatKst(r.joinRequestedAt)}
-                  </TableCell>
-                  <TableCell>
-                    {statusBadge(r.joinRequestStatus, r.joinRequestedAt)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-right">
+        </section>
+
+        {message && <AdminMessage message={message} />}
+
+        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+          {/* 왼쪽: 요청 후보 카드 */}
+          <section className="min-w-0">
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold">요청 후보</h2>
+                <p className="text-sm text-muted-foreground">
+                  아직 요청 안 한 비공개 초대방 · 회원 많은 순
+                </p>
+              </div>
+            </div>
+
+            {candidates == null ? (
+              <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, k) => (
+                  <Skeleton key={k} className="h-48 rounded-2xl" />
+                ))}
+              </div>
+            ) : candidates.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
+                요청할 비공개 초대방 후보가 없어요.
+              </p>
+            ) : (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                  {candidates.slice(0, shown).map((c, i) => {
+                    const pct = Math.max(
+                      4,
+                      Math.round(((c.memberCount ?? 0) / maxMembers) * 100),
+                    );
+                    return (
+                      <article
+                        key={c.id}
+                        className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">
+                            #{String(i + 1).padStart(2, '0')}
+                          </span>
+                          <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
+                            PRIVATE · INVITE
+                          </span>
+                        </div>
+                        <h3 className="mt-3 truncate text-xl font-bold" title={c.title}>
+                          {c.title}
+                        </h3>
+                        <div className="mt-3 flex items-baseline gap-1">
+                          <span className="font-mono text-2xl font-bold tabular-nums">
+                            {fmt(c.memberCount)}
+                          </span>
+                          <span className="text-sm text-muted-foreground">명</span>
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-600"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="mt-5 grid grid-cols-3 gap-2">
+                          <a
+                            href={c.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={c.link}
+                            className="inline-flex h-10 items-center justify-center rounded-md border border-border text-sm font-medium hover:bg-secondary"
+                          >
+                            텔레그램
+                          </a>
+                          <Button
+                            type="button"
+                            className="h-10"
+                            title="텔레그램 앱에서 입장 요청을 누른 뒤 눌러 주세요(기록만 해요)"
+                            disabled={busy != null}
+                            onClick={() => void handleMark(c)}
+                          >
+                            {busy === `mark:${c.id}` ? '표시 중…' : '요청함'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10"
+                            title="바로 가입되는 방에 이미 들어갔으면 바로 글을 읽어요"
+                            disabled={busy != null}
+                            onClick={() => void handleCollect(c)}
+                          >
+                            {busy === `collect:${c.id}` ? '수집 중…' : '지금 수집'}
+                          </Button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+                {shown < candidates.length && (
+                  <div className="mt-5 flex justify-center">
                     <Button
                       type="button"
-                      size="sm"
                       variant="outline"
-                      className="mr-2"
-                      title={
-                        r.joinRequestStatus === 'approved'
-                          ? '글·조회 새로 읽기'
-                          : '승인됐는지 지금 확인(승인됐으면 글까지 읽어요)'
-                      }
-                      disabled={busy != null}
-                      onClick={() => void handleCollect(r)}
+                      size="lg"
+                      onClick={() => setShown((n) => n + PAGE)}
                     >
-                      {busy === `collect:${r.id}`
-                        ? '확인 중…'
-                        : r.joinRequestStatus === 'approved'
-                          ? '지금 수집'
-                          : '지금 확인'}
+                      더 보기 · 남은 {(candidates.length - shown).toLocaleString()}개
                     </Button>
-                    {r.joinRequestStatus !== 'approved' && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        title="잘못 눌렀으면 취소(후보 목록으로 돌아가요)"
-                        disabled={busy != null}
-                        onClick={() => void handleUnmark(r)}
-                      >
-                        {busy === `unmark:${r.id}` ? '취소 중…' : '취소'}
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+
+          {/* 오른쪽: 사용 순서 · 링크 입력 · 승인 대기 */}
+          <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <p className="font-mono text-[11px] tracking-[0.25em] text-primary">HOW IT WORKS</p>
+              <ol className="mt-3 space-y-3 text-sm">
+                {[
+                  ['텔레그램', '카드의 텔레그램 → 3번 계정으로 입장 요청'],
+                  ['요청함', '여기서 요청함 → 승인 대기로 이동(기록만)'],
+                  ['자동 확인', '3시간마다 승인 확인 → 글·조회 수집'],
+                  ['바로 가입', '승인 필요 없는 방은 지금 수집만'],
+                ].map(([t, d], k) => (
+                  <li key={t} className="flex gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary font-mono text-xs font-bold text-primary-foreground">
+                      {k + 1}
+                    </span>
+                    <div>
+                      <div className="font-semibold">{t}</div>
+                      <div className="text-muted-foreground">{d}</div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-4 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+                새 계정 보호: 앱에서는 하루 2~3건, 간격을 두고 요청해 주세요.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <p className="font-semibold">목록에 없는 방</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                요청한 방이 후보에 없으면 초대 링크를 붙여넣으세요.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Input
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handleMarkByLink();
+                  }}
+                  placeholder="https://t.me/+초대코드"
+                  className="h-10 flex-1 font-mono text-sm"
+                />
+                <Button
+                  type="button"
+                  className="h-10"
+                  disabled={busy != null || !link.trim()}
+                  onClick={() => void handleMarkByLink()}
+                >
+                  {busy === 'link' ? '…' : '요청함'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card shadow-sm">
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <p className="font-semibold">승인 대기</p>
+                <span className="font-mono text-sm font-bold tabular-nums text-primary">
+                  {waitingRows ? waitingRows.length : '–'}
+                </span>
+              </div>
+              {waitingRows == null ? (
+                <div className="space-y-2 p-4">
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                </div>
+              ) : waitingRows.length === 0 ? (
+                <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+                  승인 기다리는 방이 없어요.
+                </p>
+              ) : (
+                <ul className="max-h-[520px] divide-y divide-border overflow-y-auto">
+                  {waitingRows.map((r) => (
+                    <li key={r.id} className="px-5 py-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <a
+                          href={r.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="min-w-0 truncate font-semibold hover:underline"
+                          title={r.link}
+                        >
+                          {r.title}
+                        </a>
+                        {statusBadge(r.joinRequestStatus, r.joinRequestedAt)}
+                      </div>
+                      <div className="mt-1 font-mono text-xs text-muted-foreground">
+                        {fmt(r.memberCount)}명 · {formatKst(r.joinRequestedAt)}
+                        {r.joinRequestAccount ? ` · ${r.joinRequestAccount}` : ''}
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          title="승인됐는지 지금 확인(승인됐으면 글까지 읽어요)"
+                          disabled={busy != null}
+                          onClick={() => void handleCollect(r)}
+                        >
+                          {busy === `collect:${r.id}` ? '확인 중…' : '지금 확인'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          title="오래 기다렸거나 잘못 눌렀으면 취소(후보로 돌아가요)"
+                          disabled={busy != null}
+                          onClick={() => void handleUnmark(r)}
+                        >
+                          {busy === `unmark:${r.id}` ? '취소 중…' : '취소'}
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );
