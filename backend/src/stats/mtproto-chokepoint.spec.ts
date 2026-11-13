@@ -18,6 +18,26 @@ describe('MTProto 호출 단일 통로', () => {
     expect(count).toBe(1);
   });
 
+  it('외부 진입점은 모두 줄(exclusive)을 거친다 — 동시 실행 금지', () => {
+    const entries = [
+      'collectAndSave',
+      'collectInviteAndSave',
+      'requestJoinForChannel',
+      'inspectPublicUsername',
+      'searchPublicByKeyword',
+      'testPublicUsername',
+    ];
+    for (const m of entries) {
+      expect(src).toContain(`this.exclusive(() => this.${m}Inner(`);
+      expect(src).toMatch(new RegExp(`private async ${m}Inner\\(`));
+    }
+    // 새 public async 진입점이 줄 없이 추가되지 않았는지(onModuleInit·prepare 는 MTProto 호출 없음)
+    const publicAsync = [...src.matchAll(/^ {2}async (\w+)\(/gm)].map(
+      (m) => m[1],
+    );
+    expect(publicAsync.sort()).toEqual(['onModuleInit', 'prepareForCollectRun']);
+  });
+
   it('gramJS 편의 함수를 직접 부르지 않는다(call 우회 금지)', () => {
     const bypass = src.match(
       /\.(getMe|getEntity|getInputEntity|getMessages|getDialogs|getParticipants|sendMessage|sendFile|iterMessages|iterDialogs|iterParticipants)\(/g,

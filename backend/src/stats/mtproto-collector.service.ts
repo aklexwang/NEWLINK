@@ -74,6 +74,7 @@ import {
   isJoinRequestMethod,
   parseSessionList,
   chooseReadAccount,
+  createSerialRunner,
   pickAccountIndexForRole,
   pickPinnedAccount,
   scaledDailyLimit,
@@ -230,6 +231,8 @@ export class MtprotoCollectorService implements OnModuleInit {
    * 동안 멤버 계정(요청 전용 계정)으로 고정한다. null 이면 일반 라운드로빈.
    */
   private pinnedAccountIndex: number | null = null;
+  /** MTProto 작업 줄: 한 번에 하나씩 (createSerialRunner 설명 참고) */
+  private readonly exclusive = createSerialRunner();
   private stopped = false;
   private lastError: string | null = null;
   private requestsToday = 0;
@@ -442,7 +445,16 @@ export class MtprotoCollectorService implements OnModuleInit {
     return Boolean(this.resolveUsername(channel));
   }
 
-  async collectAndSave(channel: Channel): Promise<MtprotoCollectResult> {
+  /** 줄(한 번에 하나)을 거쳐 실행 — 동시에 들어와도 계정 고정·한도가 섞이지 않게 */
+  collectAndSave(
+    ...args: Parameters<MtprotoCollectorService['collectAndSaveInner']>
+  ): ReturnType<MtprotoCollectorService['collectAndSaveInner']> {
+    return this.exclusive(() => this.collectAndSaveInner(...args)) as ReturnType<
+      MtprotoCollectorService['collectAndSaveInner']
+    >;
+  }
+
+  private async collectAndSaveInner(channel: Channel): Promise<MtprotoCollectResult> {
     if (!this.canUseMtproto()) {
       return { ok: false, reason: 'disabled' };
     }
@@ -508,7 +520,16 @@ export class MtprotoCollectorService implements OnModuleInit {
     );
   }
 
-  async collectInviteAndSave(channel: Channel): Promise<MtprotoCollectResult> {
+  /** 줄(한 번에 하나)을 거쳐 실행 — 동시에 들어와도 계정 고정·한도가 섞이지 않게 */
+  collectInviteAndSave(
+    ...args: Parameters<MtprotoCollectorService['collectInviteAndSaveInner']>
+  ): ReturnType<MtprotoCollectorService['collectInviteAndSaveInner']> {
+    return this.exclusive(() => this.collectInviteAndSaveInner(...args)) as ReturnType<
+      MtprotoCollectorService['collectInviteAndSaveInner']
+    >;
+  }
+
+  private async collectInviteAndSaveInner(channel: Channel): Promise<MtprotoCollectResult> {
     if (!this.canCollectInvite(channel))
       return { ok: false, reason: 'skipped' };
     const hash = inviteHashFromLink(channel.link) as string;
@@ -753,7 +774,16 @@ export class MtprotoCollectorService implements OnModuleInit {
   /**
    * 어드민이 고른 한 방에 수동으로 입장 요청. 한도/간격/중복을 지키고 결과 문구를 돌려준다.
    */
-  async requestJoinForChannel(channelId: string): Promise<{
+  /** 줄(한 번에 하나)을 거쳐 실행 — 동시에 들어와도 계정 고정·한도가 섞이지 않게 */
+  requestJoinForChannel(
+    ...args: Parameters<MtprotoCollectorService['requestJoinForChannelInner']>
+  ): ReturnType<MtprotoCollectorService['requestJoinForChannelInner']> {
+    return this.exclusive(() => this.requestJoinForChannelInner(...args)) as ReturnType<
+      MtprotoCollectorService['requestJoinForChannelInner']
+    >;
+  }
+
+  private async requestJoinForChannelInner(channelId: string): Promise<{
     ok: boolean;
     outcome: string;
   }> {
@@ -984,7 +1014,16 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   /** ResolveUsername + GetFullChannel 만. 게시글·가입은 하지 않습니다. */
-  async inspectPublicUsername(usernameRaw: string): Promise<{
+  /** 줄(한 번에 하나)을 거쳐 실행 — 동시에 들어와도 계정 고정·한도가 섞이지 않게 */
+  inspectPublicUsername(
+    ...args: Parameters<MtprotoCollectorService['inspectPublicUsernameInner']>
+  ): ReturnType<MtprotoCollectorService['inspectPublicUsernameInner']> {
+    return this.exclusive(() => this.inspectPublicUsernameInner(...args)) as ReturnType<
+      MtprotoCollectorService['inspectPublicUsernameInner']
+    >;
+  }
+
+  private async inspectPublicUsernameInner(usernameRaw: string): Promise<{
     username: string;
     title: string | null;
     description: string | null;
@@ -1020,7 +1059,16 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   /** contacts.Search. 사용자 계정은 파서에서 버립니다. 가입하지 않습니다. */
-  async searchPublicByKeyword(query: string): Promise<PublicSearchHit[]> {
+  /** 줄(한 번에 하나)을 거쳐 실행 — 동시에 들어와도 계정 고정·한도가 섞이지 않게 */
+  searchPublicByKeyword(
+    ...args: Parameters<MtprotoCollectorService['searchPublicByKeywordInner']>
+  ): ReturnType<MtprotoCollectorService['searchPublicByKeywordInner']> {
+    return this.exclusive(() => this.searchPublicByKeywordInner(...args)) as ReturnType<
+      MtprotoCollectorService['searchPublicByKeywordInner']
+    >;
+  }
+
+  private async searchPublicByKeywordInner(query: string): Promise<PublicSearchHit[]> {
     if (!this.canUseMtproto()) return [];
     if (this.remainingSearches() < 1) return [];
     const q = query.trim();
@@ -1046,7 +1094,16 @@ export class MtprotoCollectorService implements OnModuleInit {
     }
   }
 
-  async testPublicUsername(usernameRaw: string): Promise<MtprotoTestSummary> {
+  /** 줄(한 번에 하나)을 거쳐 실행 — 동시에 들어와도 계정 고정·한도가 섞이지 않게 */
+  testPublicUsername(
+    ...args: Parameters<MtprotoCollectorService['testPublicUsernameInner']>
+  ): ReturnType<MtprotoCollectorService['testPublicUsernameInner']> {
+    return this.exclusive(() => this.testPublicUsernameInner(...args)) as ReturnType<
+      MtprotoCollectorService['testPublicUsernameInner']
+    >;
+  }
+
+  private async testPublicUsernameInner(usernameRaw: string): Promise<MtprotoTestSummary> {
     if (!this.canUseMtproto()) {
       return { ok: false, reason: 'disabled' };
     }
@@ -1735,6 +1792,13 @@ export class MtprotoCollectorService implements OnModuleInit {
       throw new Error('flood_wait');
     }
     this.activeAccount = account;
+    // 한도 검사 바로 다음에(중간에 await 없이) 카운트를 먼저 올린다.
+    // 연결·간격 대기(await) 뒤에 올리면 그 사이 다른 작업이 같은 검사를 통과해 한도를 넘는다.
+    this.requestsToday += 1;
+    if (method === 'contacts.ResolveUsername') this.resolvesToday += 1;
+    if (method === 'contacts.Search') this.searchesToday += 1;
+    if (method === 'messages.CheckChatInvite') this.invitesToday += 1;
+    this.saveDailyCounters();
     const client = await this.ensureClientFor(account);
     const wait = mtprotoCallGapMs({
       method,
@@ -1743,14 +1807,9 @@ export class MtprotoCollectorService implements OnModuleInit {
     });
     if (wait > 0) await sleep(wait);
     this.lastCallAt = Date.now();
-    this.requestsToday += 1;
     if (isResolveOrSearchMethod(method)) {
       this.lastResolveOrSearchAt = this.lastCallAt;
-      if (method === 'contacts.ResolveUsername') this.resolvesToday += 1;
-      if (method === 'contacts.Search') this.searchesToday += 1;
-      if (method === 'messages.CheckChatInvite') this.invitesToday += 1;
     }
-    this.saveDailyCounters();
 
     try {
       const result = await retryAfterFloodWait(

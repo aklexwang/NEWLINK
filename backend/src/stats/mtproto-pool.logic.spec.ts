@@ -2,6 +2,7 @@ import {
   accountStateId,
   allAccountsBlocked,
   chooseReadAccount,
+  createSerialRunner,
   earliestFloodRecovery,
   isAccountAvailable,
   parseSessionList,
@@ -109,6 +110,58 @@ describe('chooseReadAccount (한 채널 = 한 계정, access_hash 는 계정별)
     expect(
       chooseReadAccount({ ...base, accounts: [blocked, blocked, blocked], storedOwner: null, hasStoredHash: false }).index,
     ).toBeNull();
+  });
+});
+
+describe('createSerialRunner (MTProto 작업은 한 번에 하나)', () => {
+  const tick = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  it('동시에 넣어도 앞 작업이 끝나야 다음 작업이 시작된다', async () => {
+    const run = createSerialRunner();
+    const log: string[] = [];
+    const job = (name: string, ms: number) => async () => {
+      log.push(`${name}:start`);
+      await tick(ms);
+      log.push(`${name}:end`);
+      return name;
+    };
+    const results = await Promise.all([
+      run(job('A', 20)),
+      run(job('B', 5)),
+      run(job('C', 1)),
+    ]);
+    expect(results).toEqual(['A', 'B', 'C']);
+    expect(log).toEqual([
+      'A:start', 'A:end',
+      'B:start', 'B:end',
+      'C:start', 'C:end',
+    ]);
+  });
+
+  it('앞 작업이 실패해도 다음 작업은 실행되고, 실패는 그 호출자에게만 간다', async () => {
+    const run = createSerialRunner();
+    const failed = run(async () => {
+      throw new Error('boom');
+    });
+    const ok = run(async () => 'ok');
+    await expect(failed).rejects.toThrow('boom');
+    await expect(ok).resolves.toBe('ok');
+  });
+
+  it('한도 검사→증가 사이에 끼어들 수 없다(동시 5개, 한도 2)', async () => {
+    const run = createSerialRunner();
+    let used = 0;
+    const limit = 2;
+    const tryResolve = () =>
+      run(async () => {
+        if (used >= limit) return false;
+        await tick(5); // 검사와 증가 사이의 대기(계정 연결·호출 간격)
+        used += 1;
+        return true;
+      });
+    const results = await Promise.all([1, 2, 3, 4, 5].map(tryResolve));
+    expect(results.filter(Boolean)).toHaveLength(2);
+    expect(used).toBe(2);
   });
 });
 

@@ -218,6 +218,25 @@ export function chooseReadAccount(input: {
   return { index: pickRead(), reuseStored: hasStoredHash };
 }
 
+/**
+ * 작업을 한 번에 하나씩 순서대로 실행하는 줄(뮤텍스).
+ * MTProto 수집기는 계정 고정·하루 한도 카운터·호출 간격이 서비스 전체 상태라서,
+ * light 워커 4개·발견·어드민 수동 수집이 동시에 들어오면 서로 섞인다
+ * (예: resolve 한도 50 을 여럿이 동시에 통과해 76 까지 감, A 채널 계정 고정이 B 채널에 섞임).
+ * 앞 작업이 실패해도 다음 작업은 그대로 실행된다.
+ */
+export function createSerialRunner(): <T>(fn: () => Promise<T>) => Promise<T> {
+  let chain: Promise<unknown> = Promise.resolve();
+  return <T>(fn: () => Promise<T>): Promise<T> => {
+    const next = chain.then(fn, fn);
+    chain = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
+  };
+}
+
 /** 모든 계정이 막혔는가(FloodWait 또는 인증 중단). 하나라도 쓸 수 있으면 false */
 export function allAccountsBlocked(
   accounts: PoolAccountFlood[],
