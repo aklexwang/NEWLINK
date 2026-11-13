@@ -83,6 +83,11 @@ import {
   type ParsedTelegramPreview,
 } from './telegram-preview-html';
 
+/** 입장 요청 승인 확인: light 회차마다 최대 개수 · 같은 방 다시 보는 간격 · 며칠까지 볼지 */
+const PENDING_JOIN_RECHECK_MAX = 8;
+const PENDING_JOIN_RECHECK_GAP_MS = 150 * 60 * 1000;
+const PENDING_JOIN_RECHECK_DAYS = 14;
+
 const EXTRA_PAGES = 3;
 const FETCH_TIMEOUT_MS = 12_000;
 /** 쿨다운이 이보다 길면 full 수집 요청은 기다리지 않고 429 로 돌려보낸다 */
@@ -542,14 +547,78 @@ export class ChannelCollectorService {
     return this.mtproto.requestJoinForChannel(channelId);
   }
 
-  /** 오늘 입장 요청 사용량/한도(버튼 비활성화·안내용). */
-  joinRequestBudget(): { today: number; limit: number; auto: boolean } {
-    const s = this.mtproto.getPublicStatus();
-    return {
-      today: s.joinRequestsToday ?? 0,
-      limit: s.joinRequestDailyLimit ?? 0,
-      auto: s.joinRequestAuto ?? false,
-    };
+  /** 오늘 입장 요청 사용량/한도(버튼 비활성화·안내용) — DB 기준(서버 요청 + 앱에서 직접 한 것) */
+  joinRequestBudget(): Promise<{ today: number; limit: number; auto: boolean }> {
+    return this.mtproto.joinRequestBudget();
+  }
+
+  /** 앱에서 직접 입장 요청한 방을 "요청함"으로 표시(텔레그램에는 아무것도 안 보냄) */
+  markJoinRequested(channelId: string): Promise<{ ok: boolean; outcome: string }> {
+    return this.mtproto.markJoinRequestedManually(channelId);
+  }
+
+  unmarkJoinRequested(channelId: string): Promise<{ ok: boolean; outcome: string }> {
+    return this.mtproto.unmarkJoinRequested(channelId);
+  }
+
+  /**
+   * 대기 중인 입장 요청이 승인됐는지 확인한다(light 회차마다, 소량).
+   * 수집 계정이 회원이 됐으면 collectInviteAndSave 가 글·조회까지 읽고 접근 정보를 저장 → "승인됨".
+   * 아직이면 공개 정보만 갱신. 같은 방을 너무 자주 보지 않게 마지막 확인 뒤 2.5시간 지난 것만,
+   * 오래 확인 안 한 순서로 최대 limit 개(초대 링크 확인 하루 한도를 아끼려고).
+   * 승인돼서 새로 읽힌 방 id 를 돌려준다(언어·점수 계산용).
+   */
+  async recheckPendingJoinRequests(options?: {
+    limit?: number;
+    deadlineMs?: number;
+  }): Promise<{ checked: number; approvedIds: string[] }> {
+    if (!this.mtproto.canUseMtproto()) return { checked: 0, approvedIds: [] };
+    const limit = options?.limit ?? PENDING_JOIN_RECHECK_MAX;
+    const staleBefore = new Date(Date.now() - PENDING_JOIN_RECHECK_GAP_MS);
+    const since = new Date(Date.now() - PENDING_JOIN_RECHECK_DAYS * 86_400_000);
+    const pending = await this.channelRepository
+      .createQueryBuilder('c')
+      .where('c.joinRequestedAt IS NOT NULL')
+      .andWhere('c.joinRequestedAt >= :since', { since })
+      .andWhere('c.telegramAccessHash IS NULL')
+      .andWhere("(c.link LIKE '%/+%' OR c.link LIKE '%/joinchat/%')")
+      .andWhere(
+        "(c.collectStatus IS NULL OR c.collectStatus NOT IN ('merged', 'invite_expired', 'gone', 'invalid'))",
+      )
+      .andWhere('(c.lastCollectedAt IS NULL OR c.lastCollectedAt < :staleBefore)', {
+        staleBefore,
+      })
+      // 한 번도 확인 안 한 방(NULL)부터, 그다음 오래된 순(DB 종류와 무관하게)
+      .orderBy('CASE WHEN c.last_collected_at IS NULL THEN 0 ELSE 1 END', 'ASC')
+      .addOrderBy('c.lastCollectedAt', 'ASC')
+      .take(limit)
+      .getMany();
+    const approvedIds: string[] = [];
+    let checked = 0;
+    for (const channel of pending) {
+      if (checked > 0 && isCollectBudgetOver(options?.deadlineMs)) break;
+      try {
+        const result = await withTimeout(
+          this.collectPublicPageNow(channel),
+          CHANNEL_COLLECT_TIMEOUT_MS,
+          'timeout:channel',
+        );
+        checked += 1;
+        if (result.ok && result.mode === 'mtproto') approvedIds.push(channel.id);
+      } catch (error) {
+        checked += 1;
+        this.logger.warn(
+          `입장 요청 승인 확인 실패(${channel.id}): ${error instanceof Error ? error.message : error}`,
+        );
+      }
+      await sleep(CHANNEL_GAP_MS);
+    }
+    if (pending.length > 0) {
+      this.logger.log(
+        `입장 요청 승인 확인: ${checked}개 확인 · 승인돼 읽음 ${approvedIds.length}개`,
+      );
+    }
+    return { checked, approvedIds };
   }
 
   private async collectInviteChannel(

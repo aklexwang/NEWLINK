@@ -44,9 +44,18 @@ export class AdminCollectService {
     return this.collector.requestJoin(id);
   }
 
-  /** 오늘 입장 요청 사용량/한도. */
-  joinBudget(): { today: number; limit: number; auto: boolean } {
+  /** 오늘 입장 요청 사용량/한도(DB 기준). */
+  joinBudget(): Promise<{ today: number; limit: number; auto: boolean }> {
     return this.collector.joinRequestBudget();
+  }
+
+  /** 앱에서 직접 입장 요청한 방을 "요청함"으로 표시 */
+  markJoinRequested(id: string): Promise<{ ok: boolean; outcome: string }> {
+    return this.collector.markJoinRequested(id);
+  }
+
+  unmarkJoinRequested(id: string): Promise<{ ok: boolean; outcome: string }> {
+    return this.collector.unmarkJoinRequested(id);
   }
 
   async collectOne(id: string) {

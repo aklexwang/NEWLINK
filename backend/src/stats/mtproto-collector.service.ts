@@ -561,6 +561,7 @@ export class MtprotoCollectorService implements OnModuleInit {
         // 이미 가입한 방 다시 읽기는 "수집"이라 예비분을 건드리지 않는다
         return { ok: false, reason: 'skipped' };
       }
+      await this.refreshJoinRequestCount();
       if (stored && storedUsable) {
         try {
           resolved = await this.fetchFullFromInput(
@@ -719,13 +720,110 @@ export class MtprotoCollectorService implements OnModuleInit {
     return String(raw).trim().toLowerCase() !== 'false';
   }
 
+  /** 오늘 DB 에 기록된 입장 요청 수(서버 요청 + 앱에서 직접 하고 "요청함" 표시한 것). 재시작해도 유지 */
+  private joinRequestsTodayDb = 0;
+  private joinRequestsTodayDbDay = '';
+
   private currentJoinRequestsToday(): number {
     const today = formatKstYmd();
     if (this.joinRequestDay !== today) {
       this.joinRequestDay = today;
       this.joinRequestsToday = 0;
     }
-    return this.joinRequestsToday;
+    const fromDb =
+      this.joinRequestsTodayDbDay === today ? this.joinRequestsTodayDb : 0;
+    return Math.max(this.joinRequestsToday, fromDb);
+  }
+
+  /** DB 에서 오늘(한국 0시 이후) 입장 요청 기록 수를 다시 센다 */
+  private async refreshJoinRequestCount(): Promise<number> {
+    const today = formatKstYmd();
+    const start = new Date(`${today}T00:00:00+09:00`);
+    const n = await this.channelRepository
+      .createQueryBuilder('c')
+      .where('c.joinRequestedAt >= :start', { start })
+      .getCount();
+    this.joinRequestsTodayDb = n;
+    this.joinRequestsTodayDbDay = today;
+    return this.currentJoinRequestsToday();
+  }
+
+  /** 오늘 입장 요청 사용량/한도(버튼 비활성화·안내용) — DB 기준 */
+  async joinRequestBudget(): Promise<{ today: number; limit: number; auto: boolean }> {
+    return {
+      today: await this.refreshJoinRequestCount(),
+      limit: this.joinRequestDailyLimit(),
+      auto: this.joinRequestAutoEnabled(),
+    };
+  }
+
+  /** 요청 전용 계정 이름(예: '계정 3'). 앱에서 직접 요청한 기록에 붙인다 */
+  private requestAccountLabel(): string {
+    this.ensurePool();
+    const idx = this.requestAccountIndex();
+    return idx == null ? '수집 계정' : this.accountLabel(this.accounts[idx] ?? null);
+  }
+
+  /**
+   * 운영자가 텔레그램 앱에서 수집 계정으로 직접 "입장 요청"을 누른 뒤 어드민에서 "요청함" 표시.
+   * 텔레그램에는 아무것도 보내지 않고 기록만 한다(대기 목록으로). 승인되면 정기 확인이 읽어 온다.
+   * 하루 한도(서버 요청과 합산)를 넘으면 막는다 — 새 계정 보호.
+   */
+  async markJoinRequestedManually(
+    channelId: string,
+  ): Promise<{ ok: boolean; outcome: string }> {
+    const channel = await this.channelRepository
+      .createQueryBuilder('c')
+      .addSelect('c.telegramAccessHash')
+      .where('c.id = :id', { id: channelId })
+      .getOne();
+    if (!channel) return { ok: false, outcome: '방을 찾을 수 없습니다.' };
+    if (!inviteHashFromLink(channel.link)) {
+      return { ok: false, outcome: '초대 링크(t.me/+…) 방이 아닙니다.' };
+    }
+    if (channel.telegramAccessHash) {
+      return {
+        ok: false,
+        outcome: '이미 회원이라 글을 읽고 있어요 ("지금 수집"으로 갱신).',
+      };
+    }
+    if (channel.joinRequestedAt) {
+      return { ok: true, outcome: '이미 요청함으로 표시돼 있어요(대기 중).' };
+    }
+    const used = await this.refreshJoinRequestCount();
+    const limit = this.joinRequestDailyLimit();
+    if (used >= limit) {
+      return {
+        ok: false,
+        outcome: `오늘 입장 요청 한도(${limit}건)를 다 썼어요. 내일 0시에 다시 열려요.`,
+      };
+    }
+    await this.channelRepository.update(channelId, {
+      joinRequestedAt: new Date(),
+      joinRequestAccount: `${this.requestAccountLabel()} · 앱`.slice(0, 80),
+    });
+    this.joinRequestsTodayDb = used + 1;
+    return { ok: true, outcome: '요청함으로 표시했어요. 승인되면 자동으로 글을 읽어 와요.' };
+  }
+
+  /** "요청함" 표시 취소(잘못 누른 경우). 이미 회원이 된 방은 취소하지 않는다 */
+  async unmarkJoinRequested(
+    channelId: string,
+  ): Promise<{ ok: boolean; outcome: string }> {
+    const channel = await this.channelRepository
+      .createQueryBuilder('c')
+      .addSelect('c.telegramAccessHash')
+      .where('c.id = :id', { id: channelId })
+      .getOne();
+    if (!channel) return { ok: false, outcome: '방을 찾을 수 없습니다.' };
+    if (channel.telegramAccessHash) {
+      return { ok: false, outcome: '이미 승인돼 회원이라 취소할 수 없어요.' };
+    }
+    await this.channelRepository.update(channelId, {
+      joinRequestedAt: null,
+      joinRequestAccount: null,
+    });
+    return { ok: true, outcome: '요청함 표시를 취소했어요(후보 목록으로 돌아감).' };
   }
 
   /**
@@ -816,6 +914,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       };
     }
     // 비회원 → 여기서부터 한도·간격 확인 후 요청
+    await this.refreshJoinRequestCount();
     if (
       !canSendJoinRequest({
         requestsToday: this.currentJoinRequestsToday(),

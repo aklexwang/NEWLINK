@@ -448,6 +448,8 @@ export class StatsJobService implements OnModuleInit {
       // 새로 들어온 그룹·초대방은 light 미리보기로 못 읽어 새벽까지 회원 페이지에 안 보인다 → 먼저 첫 수집
       await this.inspectQueuedInvitesLight();
       await this.collectFirstSeenGroupsAndInvites();
+      // 대기 중인 입장 요청이 승인됐는지 확인(승인됐으면 글·조회까지 읽어 "승인됨")
+      await this.recheckPendingJoinRequests();
       await this.collector.collectLightAll(
         (progress) => this.noteProgress(progress),
         { deadlineMs: this.collectDeadline('light') },
@@ -487,6 +489,25 @@ export class StatsJobService implements OnModuleInit {
     } catch (error) {
       this.logger.warn(
         `초대 링크 낮 검사 실패: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
+
+  /** light 앞부분: 입장 요청 승인 확인(최대 8개·3분). 승인된 방은 언어·점수 바로 계산 */
+  private async recheckPendingJoinRequests() {
+    try {
+      const { approvedIds } = await this.collector.recheckPendingJoinRequests({
+        deadlineMs: Date.now() + 3 * 60 * 1000,
+      });
+      for (const id of approvedIds) {
+        const channel = await this.channelRepository.findOneBy({ id });
+        if (!channel) continue;
+        await this.languages.classifyOne(channel);
+      }
+      if (approvedIds.length > 0) await this.metrics.computeMany(approvedIds);
+    } catch (error) {
+      this.logger.warn(
+        `입장 요청 승인 확인 실패: ${error instanceof Error ? error.message : error}`,
       );
     }
   }

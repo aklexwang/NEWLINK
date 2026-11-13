@@ -189,6 +189,28 @@ export class AdminController {
     return this.adminCollect.requestJoin(id);
   }
 
+  /** 앱에서 직접 입장 요청한 방 → "요청함" 표시(텔레그램에는 아무것도 안 보냄) */
+  @Post(':id/join-mark')
+  markJoin(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminCollect.markJoinRequested(id);
+  }
+
+  @Post(':id/join-unmark')
+  unmarkJoin(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminCollect.unmarkJoinRequested(id);
+  }
+
+  /** 초대 링크로 방 등록(없으면) + "요청함" 표시 */
+  @Post('join-mark-by-link')
+  async markJoinByLink(@Body('link') link?: string) {
+    const trimmed = (link ?? '').trim();
+    if (!trimmed) return { ok: false, outcome: '링크를 입력하세요.' };
+    const ensured = await this.inspect.ensureInviteChannelByLink(trimmed);
+    if ('error' in ensured) return { ok: false, outcome: ensured.error };
+    const res = await this.adminCollect.markJoinRequested(ensured.channelId);
+    return { ...res, channelId: ensured.channelId };
+  }
+
   @Post('join-request-by-link')
   async requestJoinByLink(@Body('link') link?: string) {
     const trimmed = (link ?? '').trim();

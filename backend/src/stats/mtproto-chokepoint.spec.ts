@@ -7,6 +7,16 @@ import { join } from 'path';
  * (허용 메서드 검사·호출 간격·FloodWait·계정 선택/고정·하루 한도가 전부 거기 있다)
  * gramJS 의 편의 함수(getMe·getEntity 등)를 직접 부르면 이 안전장치를 다 건너뛴다.
  */
+
+/** 소스에서 "  async name(" 로 시작하는 메서드 본문(다음 메서드 전까지) */
+function methodBody(src: string, name: string): string {
+  const start = src.indexOf(`  async ${name}(`);
+  if (start < 0) return '';
+  const rest = src.slice(start + 1);
+  const next = rest.search(/\n {2}(private |async |[a-zA-Z]+\()/);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
 describe('MTProto 호출 단일 통로', () => {
   const src = readFileSync(
     join(__dirname, 'mtproto-collector.service.ts'),
@@ -35,7 +45,19 @@ describe('MTProto 호출 단일 통로', () => {
     const publicAsync = [...src.matchAll(/^ {2}async (\w+)\(/gm)].map(
       (m) => m[1],
     );
-    expect(publicAsync.sort()).toEqual(['onModuleInit', 'prepareForCollectRun']);
+    // 줄 없이 둬도 되는 것: MTProto 를 부르지 않는 메서드만(DB 읽기·쓰기)
+    const dbOnly = [
+      'joinRequestBudget',
+      'markJoinRequestedManually',
+      'unmarkJoinRequested',
+    ];
+    expect(publicAsync.sort()).toEqual(
+      ['onModuleInit', 'prepareForCollectRun', ...dbOnly].sort(),
+    );
+    for (const m of dbOnly) {
+      const body = methodBody(src, m);
+      expect(body).not.toMatch(/this\.call\(|readPublicChannel|collectInviteAndSave/);
+    }
   });
 
   it('gramJS 편의 함수를 직접 부르지 않는다(call 우회 금지)', () => {

@@ -4,8 +4,9 @@ import {
   getAdminJoinBudget,
   getAdminJoinCandidates,
   getAdminJoinRequests,
-  requestAdminChannelJoin,
-  requestAdminJoinByLink,
+  markAdminJoinRequested,
+  markAdminJoinRequestedByLink,
+  unmarkAdminJoinRequested,
   type JoinBudget,
   type JoinCandidateChannel,
   type JoinRequestChannel,
@@ -66,8 +67,8 @@ export function AdminJoinRequestsPage() {
   const [budget, setBudget] = useState<JoinBudget | null>(null);
   const [message, setMessage] = useState('');
   const [link, setLink] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sendingId, setSendingId] = useState<string | null>(null);
+  /** 지금 처리 중인 버튼(한 번에 하나) */
+  const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -84,60 +85,71 @@ export function AdminJoinRequestsPage() {
     }
   }, []);
 
-  // 오늘 한도를 다 썼는가(버튼 비활성화용)
-  const limitReached =
-    budget != null && budget.limit > 0 && budget.today >= budget.limit;
-
-  // 텔레그램 앱에서 수집 계정으로 직접 들어간 방: 요청 없이 바로 읽기(하루 요청 한도와 무관)
-  const [collectingId, setCollectingId] = useState<string | null>(null);
-  const handleCollectById = async (id: string, title: string) => {
-    if (collectingId) return;
-    setCollectingId(id);
-    try {
-      const updated = await collectAdminChannel(id);
-      const note = (updated as { collectNote?: string | null }).collectNote;
-      setMessage(`${title}: 수집 끝${note ? ` · ${note}` : ''}`);
-      await load();
-    } catch (error) {
-      setMessage(adminApiErrorMessage(error, '수집에 실패했습니다.'));
-    } finally {
-      setCollectingId(null);
-    }
-  };
-
-  const handleRequestById = async (id: string) => {
-    if (sendingId) return;
-    setSendingId(id);
-    try {
-      const res = await requestAdminChannelJoin(id);
-      setMessage(`입장 요청: ${res.outcome}`);
-      await load();
-    } catch (error) {
-      setMessage(adminApiErrorMessage(error, '입장 요청에 실패했습니다.'));
-    } finally {
-      setSendingId(null);
-    }
-  };
-
-  const handleSendByLink = async () => {
-    const value = link.trim();
-    if (!value || sending) return;
-    setSending(true);
-    try {
-      const res = await requestAdminJoinByLink(value);
-      setMessage(`입장 요청: ${res.outcome}`);
-      if (res.ok) setLink('');
-      await load();
-    } catch (error) {
-      setMessage(adminApiErrorMessage(error, '입장 요청에 실패했습니다.'));
-    } finally {
-      setSending(false);
-    }
-  };
-
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 오늘 한도를 다 썼는가("요청함" 버튼 비활성화)
+  const limitReached =
+    budget != null && budget.limit > 0 && budget.today >= budget.limit;
+
+  const run = async (
+    key: string,
+    action: () => Promise<string>,
+    fallbackError: string,
+  ) => {
+    if (busy) return;
+    setBusy(key);
+    try {
+      setMessage(await action());
+      await load();
+    } catch (error) {
+      setMessage(adminApiErrorMessage(error, fallbackError));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** 앱에서 입장 요청을 눌렀음 → 기록만(텔레그램엔 아무것도 안 보냄) */
+  const handleMark = (c: { id: string; title: string }) =>
+    run(
+      `mark:${c.id}`,
+      async () => `${c.title}: ${(await markAdminJoinRequested(c.id)).outcome}`,
+      '요청함 표시에 실패했습니다.',
+    );
+
+  const handleUnmark = (r: { id: string; title: string }) =>
+    run(
+      `unmark:${r.id}`,
+      async () => `${r.title}: ${(await unmarkAdminJoinRequested(r.id)).outcome}`,
+      '취소에 실패했습니다.',
+    );
+
+  /** 수집 계정으로 바로 읽기(이미 들어간 방 / 승인됐는지 지금 확인) — 요청 한도와 무관 */
+  const handleCollect = (c: { id: string; title: string }) =>
+    run(
+      `collect:${c.id}`,
+      async () => {
+        const updated = await collectAdminChannel(c.id);
+        const note = (updated as { collectNote?: string | null }).collectNote;
+        return `${c.title}: 확인 끝${note ? ` · ${note}` : ''}`;
+      },
+      '확인에 실패했습니다.',
+    );
+
+  const handleMarkByLink = () => {
+    const value = link.trim();
+    if (!value) return;
+    return run(
+      'link',
+      async () => {
+        const res = await markAdminJoinRequestedByLink(value);
+        if (res.ok) setLink('');
+        return `초대 링크: ${res.outcome}`;
+      },
+      '요청함 표시에 실패했습니다.',
+    );
+  };
 
   const counts = {
     pending: rows?.filter((r) => r.joinRequestStatus === 'pending').length ?? 0,
@@ -149,11 +161,31 @@ export function AdminJoinRequestsPage() {
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          승인이 필요한 비공개 방에 보낸 입장 요청과 그 결과입니다. 승인되면 글·조회까지
-          자동으로 채워집니다. 요청은 밴 방지를 위해 하루 소량(큰 방 우선)만 자동으로 보냅니다.
-          특정 방은 채널·그룹 관리에서 직접 요청할 수 있습니다.
-        </p>
+        <div className="max-w-3xl rounded-xl border border-border bg-secondary/30 p-4 text-sm">
+          <p className="font-semibold">입장 요청은 텔레그램 앱에서 직접 해요</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+            <li>
+              아래 후보에서 <b>텔레그램에서 열기</b> → 수집 계정(3번)으로 <b>입장 요청</b>을
+              누르세요.
+            </li>
+            <li>
+              여기서 <b>요청함</b>을 누르면 대기 목록으로 옮겨져요. (서버는 텔레그램에 아무것도
+              보내지 않고 기록만 해요)
+            </li>
+            <li>
+              서버가 <b>3시간마다</b> 대기 중인 방을 확인해서, 승인됐으면 <b>승인됨</b>으로
+              바꾸고 글·조회수까지 가져와요. 급하면 대기 목록의 <b>지금 확인</b>.
+            </li>
+            <li>
+              바로 가입되는 방(승인 필요 없음)에 들어갔으면 요청함 대신 <b>지금 수집</b>만
+              누르면 돼요.
+            </li>
+          </ol>
+          <p className="mt-2 text-xs text-muted-foreground">
+            새 계정 보호를 위해 하루 {budget?.limit ?? 3}건까지만 표시할 수 있어요. 텔레그램
+            앱에서도 하루 이 정도만, 간격을 두고 눌러 주세요.
+          </p>
+        </div>
         <Button type="button" variant="outline" onClick={() => void load()}>
           새로고침
         </Button>
@@ -161,43 +193,12 @@ export function AdminJoinRequestsPage() {
 
       {message && <AdminMessage message={message} />}
 
-      <div className="mt-4 rounded-xl border border-border p-4">
-        <p className="text-sm font-semibold">초대 링크로 바로 입장 요청</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          승인 필요 비공개 방의 초대 링크(t.me/+…)를 붙여넣으면, 없으면 자동으로 등록하고
-          입장 요청까지 보냅니다. 승인되면 글·조회가 채워집니다.
-        </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Input
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleSendByLink();
-            }}
-            placeholder="https://t.me/+초대코드"
-            className="flex-1"
-          />
-          <Button
-            type="button"
-            disabled={sending || !link.trim() || limitReached}
-            onClick={() => void handleSendByLink()}
-          >
-            {sending ? '요청 중…' : limitReached ? '오늘 한도 끝' : '입장 요청 보내기'}
-          </Button>
-        </div>
-      </div>
-
       <div className="mt-6 rounded-xl border border-border">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <p className="text-sm font-semibold">
-              요청 후보 · 회원수 많은순
-            </p>
+            <p className="text-sm font-semibold">요청 후보 · 회원수 많은순</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              아직 요청 안 보낸 비공개 초대방이에요. 큰 방부터 보여 줍니다.
-              버튼을 누르면 입장 요청이 나가고 아래 대기로 넘어가요. (자동 요청도
-              같은 순서로 하루 소량씩 보냅니다.) 텔레그램 앱에서 수집 계정으로 직접
-              들어간 방은 "지금 수집"을 누르면 바로 글이 채워지고 목록에서 빠져요.
+              아직 요청 안 한 비공개 초대방이에요. 큰 방부터 보여 줍니다.
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
@@ -215,8 +216,8 @@ export function AdminJoinRequestsPage() {
         </div>
         {limitReached && (
           <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive">
-            오늘 입장 요청 한도({budget?.limit}건)를 다 썼어요. 내일 0시에 다시
-            열려요. (새 계정 보호를 위해 하루 소량만 보냅니다)
+            오늘 입장 요청 한도({budget?.limit}건)를 다 썼어요. 내일 0시에 다시 열려요.
+            (새 계정 보호)
           </div>
         )}
         {candidates == null ? (
@@ -230,14 +231,14 @@ export function AdminJoinRequestsPage() {
             요청할 비공개 초대방 후보가 없습니다.
           </p>
         ) : (
-          <div className="max-h-[420px] overflow-y-auto">
+          <div className="max-h-[480px] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12 text-right">#</TableHead>
                   <TableHead>방</TableHead>
                   <TableHead className="w-24 text-right">회원</TableHead>
-                  <TableHead className="w-56 text-right">수집 · 요청</TableHead>
+                  <TableHead className="w-[330px] text-right">동작</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -248,43 +249,43 @@ export function AdminJoinRequestsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">{c.title}</div>
+                      <div className="text-xs text-muted-foreground">{c.link}</div>
+                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">
+                      {c.memberCount != null ? c.memberCount.toLocaleString() : '-'}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right">
                       <a
                         href={c.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline"
+                        className="mr-2 inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-secondary"
                       >
-                        {c.link}
+                        텔레그램에서 열기
                       </a>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      {c.memberCount != null
-                        ? c.memberCount.toLocaleString()
-                        : '-'}
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
                       <Button
                         type="button"
                         size="sm"
-                        variant="outline"
                         className="mr-2"
-                        title="앱에서 수집 계정으로 이미 들어간 방이면 바로 글을 읽어요(요청 한도와 무관)"
-                        disabled={collectingId != null}
-                        onClick={() => void handleCollectById(c.id, c.title)}
+                        title="텔레그램 앱에서 입장 요청을 누른 뒤 눌러 주세요(기록만 해요)"
+                        disabled={busy != null || limitReached}
+                        onClick={() => void handleMark(c)}
                       >
-                        {collectingId === c.id ? '수집 중…' : '지금 수집'}
+                        {busy === `mark:${c.id}`
+                          ? '표시 중…'
+                          : limitReached
+                            ? '오늘 한도 끝'
+                            : '요청함'}
                       </Button>
                       <Button
                         type="button"
                         size="sm"
-                        disabled={sendingId != null || limitReached}
-                        onClick={() => void handleRequestById(c.id)}
+                        variant="outline"
+                        title="바로 가입되는 방에 이미 들어갔으면 바로 글을 읽어요(한도와 무관)"
+                        disabled={busy != null}
+                        onClick={() => void handleCollect(c)}
                       >
-                        {sendingId === c.id
-                          ? '요청 중…'
-                          : limitReached
-                            ? '오늘 한도 끝'
-                            : '입장 요청'}
+                        {busy === `collect:${c.id}` ? '수집 중…' : '지금 수집'}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -293,6 +294,32 @@ export function AdminJoinRequestsPage() {
             </Table>
           </div>
         )}
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border p-4">
+        <p className="text-sm font-semibold">목록에 없는 방</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          텔레그램에서 입장 요청한 방이 위 목록에 없으면 초대 링크(t.me/+…)를 붙여넣으세요.
+          없으면 등록하고 요청함으로 표시해요.
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <Input
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void handleMarkByLink();
+            }}
+            placeholder="https://t.me/+초대코드"
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            disabled={busy != null || !link.trim() || limitReached}
+            onClick={() => void handleMarkByLink()}
+          >
+            {busy === 'link' ? '표시 중…' : limitReached ? '오늘 한도 끝' : '등록 + 요청함'}
+          </Button>
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-3 gap-3 sm:max-w-xl">
@@ -319,8 +346,7 @@ export function AdminJoinRequestsPage() {
           </div>
         ) : rows.length === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">
-            아직 입장 요청을 보낸 방이 없습니다. 새벽 수집에서 승인필요 큰 방을 찾으면
-            자동으로 요청하거나, 채널·그룹 관리에서 직접 요청하세요.
+            아직 요청함으로 표시한 방이 없습니다.
           </p>
         ) : (
           <Table>
@@ -328,9 +354,10 @@ export function AdminJoinRequestsPage() {
               <TableRow>
                 <TableHead>방</TableHead>
                 <TableHead className="w-24 text-right">회원</TableHead>
-                <TableHead className="w-28">요청 계정</TableHead>
+                <TableHead className="w-32">요청 계정</TableHead>
                 <TableHead className="w-28">요청일</TableHead>
                 <TableHead className="w-40">상태</TableHead>
+                <TableHead className="w-44 text-right">동작</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -362,6 +389,39 @@ export function AdminJoinRequestsPage() {
                   </TableCell>
                   <TableCell>
                     {statusBadge(r.joinRequestStatus, r.joinRequestedAt)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-right">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mr-2"
+                      title={
+                        r.joinRequestStatus === 'approved'
+                          ? '글·조회 새로 읽기'
+                          : '승인됐는지 지금 확인(승인됐으면 글까지 읽어요)'
+                      }
+                      disabled={busy != null}
+                      onClick={() => void handleCollect(r)}
+                    >
+                      {busy === `collect:${r.id}`
+                        ? '확인 중…'
+                        : r.joinRequestStatus === 'approved'
+                          ? '지금 수집'
+                          : '지금 확인'}
+                    </Button>
+                    {r.joinRequestStatus !== 'approved' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        title="잘못 눌렀으면 취소(후보 목록으로 돌아가요)"
+                        disabled={busy != null}
+                        onClick={() => void handleUnmark(r)}
+                      >
+                        {busy === `unmark:${r.id}` ? '취소 중…' : '취소'}
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

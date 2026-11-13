@@ -641,6 +641,42 @@ export interface JoinBudget {
   auto: boolean;
 }
 
+/** 앱에서 직접 입장 요청한 방 → "요청함" 표시(서버는 텔레그램에 아무것도 안 보냄) */
+export async function markAdminJoinRequested(
+  id: string,
+): Promise<{ ok: boolean; outcome: string }> {
+  const { data } = await apiClient.post<{ ok: boolean; outcome: string }>(
+    `/admin/channels/${id}/join-mark`,
+    {},
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+/** "요청함" 표시 취소 */
+export async function unmarkAdminJoinRequested(
+  id: string,
+): Promise<{ ok: boolean; outcome: string }> {
+  const { data } = await apiClient.post<{ ok: boolean; outcome: string }>(
+    `/admin/channels/${id}/join-unmark`,
+    {},
+    { headers: getAdminAuthHeaders() },
+  );
+  return data;
+}
+
+/** 초대 링크로 방 등록(없으면) + "요청함" 표시 */
+export async function markAdminJoinRequestedByLink(
+  link: string,
+): Promise<{ ok: boolean; outcome: string; channelId?: string }> {
+  const { data } = await apiClient.post<{
+    ok: boolean;
+    outcome: string;
+    channelId?: string;
+  }>('/admin/channels/join-mark-by-link', { link }, { headers: getAdminAuthHeaders() });
+  return data;
+}
+
 /** 오늘 입장 요청 사용량/한도 */
 export async function getAdminJoinBudget(): Promise<JoinBudget> {
   const { data } = await apiClient.get<JoinBudget>(
