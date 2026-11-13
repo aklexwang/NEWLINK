@@ -38,6 +38,7 @@ import {
   type DuplicateMatch,
 } from './link-duplicate.logic';
 import { isTitleLocked } from './title-lock.logic';
+import { isSubscriberInflationSuspected } from '../stats/channel-badges';
 import {
   describeAdminMemberVisibility,
   MEMBER_PAGE_REASON,
@@ -1338,7 +1339,13 @@ export class ChannelsService implements OnModuleInit {
 
   private sanitizeChannelForResponse(channel: Channel): Channel {
     channel.avatarUrl = stripUnsafeAvatarUrl(channel.avatarUrl);
-    return channel;
+    // 어드민 전용: 구독자 부풀림 의심(조회율 3% 미만, 구독자 1000+)
+    return Object.assign(channel, {
+      inflationSuspected: isSubscriberInflationSuspected({
+        memberCount: channel.memberCount,
+        viewRate: channel.viewRate,
+      }),
+    });
   }
 
   async updateAdmin(

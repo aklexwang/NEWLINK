@@ -1,4 +1,7 @@
-import { buildChannelBadges } from './channel-badges';
+import {
+  buildChannelBadges,
+  isSubscriberInflationSuspected,
+} from './channel-badges';
 
 describe('buildChannelBadges', () => {
   const today = '2026-10-19';
@@ -90,5 +93,44 @@ describe('isMemberSurgeSuspected', () => {
       categoryRank: null, categoryCount: 0, manipulationSuspected: true, memberSurgeSuspected: true, todayYmd: '2026-11-08',
     });
     expect(b[0].code).toBe('member_surge');
+  });
+});
+
+describe('isSubscriberInflationSuspected (어드민: 구독자 부풀림 의심)', () => {
+  it('구독자 22,517 · 최근 조회 중간값 약 2% → 의심 (텔레일보 사례)', () => {
+    expect(
+      isSubscriberInflationSuspected({ memberCount: 22517, viewRate: 438 / 22517 }),
+    ).toBe(true);
+  });
+  it('조회율 3% 이상이면 의심 아님', () => {
+    expect(
+      isSubscriberInflationSuspected({ memberCount: 20000, viewRate: 0.03 }),
+    ).toBe(false);
+  });
+  it('구독자 1000 미만은 숫자가 작아 판단하지 않음', () => {
+    expect(
+      isSubscriberInflationSuspected({ memberCount: 900, viewRate: 0.001 }),
+    ).toBe(false);
+  });
+  it('조회율 없음(그룹·글 못 읽음·최근 글 없음)은 판단하지 않음', () => {
+    expect(
+      isSubscriberInflationSuspected({ memberCount: 50000, viewRate: null }),
+    ).toBe(false);
+  });
+});
+
+describe('활발한 채널 배지(회원 화면)', () => {
+  it('조회율 30% 이상이면 "활발한 채널"', () => {
+    const badges = buildChannelBadges({
+      viewRate: 0.35,
+      firstObservedAt: new Date('2026-01-01T00:00:00Z'),
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+      observedDays: 60,
+      categoryRank: null,
+      categoryCount: 0,
+      manipulationSuspected: false,
+      todayYmd: '2026-11-13',
+    });
+    expect(badges.find((b) => b.code === 'high_engagement')?.label).toBe('활발한 채널');
   });
 });

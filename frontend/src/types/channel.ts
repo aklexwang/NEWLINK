@@ -75,6 +75,8 @@ export interface Channel {
   memberPageVisible?: boolean;
   memberPageHiddenReason?: string;
   memberPageReasonKey?: string;
+  /** 어드민 전용: 구독자 부풀림 의심(조회율 3% 미만, 구독자 1000+) */
+  inflationSuspected?: boolean;
 }
 
 export interface ChannelPreview {

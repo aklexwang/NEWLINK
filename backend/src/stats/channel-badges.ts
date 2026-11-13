@@ -19,7 +19,7 @@ export interface ChannelBadge {
 }
 
 const LABELS: Record<ChannelBadgeCode, string> = {
-  high_engagement: '높은 참여',
+  high_engagement: '활발한 채널',
   new: '신규',
   popular: '인기',
   low_data: '데이터 부족',
@@ -60,6 +60,24 @@ export function isMemberSurgeSuspected(input: {
   if (ratio >= SURGE_RATIO && lowView) return true;
   if (ratio >= SURGE_FAST_RATIO && noActivity) return true;
   return false;
+}
+
+/**
+ * 구독자 부풀림 의심(어드민 전용 표시 — 회원 화면에는 내보내지 않는다).
+ * 최근 7일 글 조회수 중간값이 구독자의 3% 미만. 정상 운영 채널은 보통 10~40%.
+ * 산 구독자·대량 강제 초대·재활용 채널에서 흔하다.
+ * 조회율이 없는 방(그룹, 글을 못 읽은 방, 최근 글 없음)은 판단하지 않는다.
+ */
+export const INFLATION_MIN_MEMBERS = 1000;
+export const INFLATION_MAX_VIEW_RATE = 0.03;
+
+export function isSubscriberInflationSuspected(input: {
+  memberCount: number | null;
+  viewRate: number | null;
+}): boolean {
+  if (input.viewRate == null) return false;
+  if ((input.memberCount ?? 0) < INFLATION_MIN_MEMBERS) return false;
+  return input.viewRate < INFLATION_MAX_VIEW_RATE;
 }
 
 export function buildChannelBadges(input: {

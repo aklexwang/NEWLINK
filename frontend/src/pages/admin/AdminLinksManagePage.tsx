@@ -82,6 +82,13 @@ function param(params: URLSearchParams, key: string) {
   return params.get(key) ?? '';
 }
 
+/** 조회율(0~1)을 "2%" / "0.5%" 로 */
+function formatViewRatePct(rate: number | null | undefined): string {
+  if (rate == null) return '-';
+  const pct = rate * 100;
+  return `${pct < 1 ? pct.toFixed(1) : Math.round(pct)}%`;
+}
+
 export function AdminLinksManagePage() {
   const [params, setParams] = useSearchParams();
   const [channels, setChannels] = useState<PendingChannel[]>([]);
@@ -708,6 +715,14 @@ export function AdminLinksManagePage() {
                         🔞 성인 카테고리에서만
                       </span>
                     )}
+                    {channel.inflationSuspected && (
+                      <span
+                        className="shrink-0 rounded-lg bg-red-500/15 px-2 py-1 text-[11px] font-semibold text-red-600"
+                        title="최근 7일 글 조회수 중간값 ÷ 구독자. 정상 채널은 보통 10~40%"
+                      >
+                        구독자 부풀림 의심 · 조회율 {formatViewRatePct(channel.viewRate)}
+                      </span>
+                    )}
                     {!channel.memberPageVisible && (
                       <span className="shrink-0 rounded-lg bg-amber-500/15 px-2 py-1 text-[11px] font-semibold text-amber-600">
                         숨김 · {channel.memberPageReasonKey || channel.memberPageHiddenReason || '숨김'}
@@ -752,6 +767,14 @@ export function AdminLinksManagePage() {
                           </span>
                         )}
                       </p>
+                      {focusedChannel.inflationSuspected && (
+                        <p className="mt-1 text-sm font-semibold text-red-600">
+                          ● 구독자 부풀림 의심 · 조회율 {formatViewRatePct(focusedChannel.viewRate)}
+                          <span className="ml-1 font-normal text-muted-foreground">
+                            (최근 글 조회수가 구독자에 비해 너무 적어요. 정상 채널은 보통 10~40%)
+                          </span>
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"
