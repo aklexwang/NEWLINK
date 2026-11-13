@@ -260,7 +260,7 @@ export function AdminJoinRequestsPage() {
               <div>
                 <h2 className="text-xl font-bold">요청 후보</h2>
                 <p className="text-sm text-muted-foreground">
-                  아직 요청 안 한 비공개 초대방 · 회원 많은 순 · 같은 방(링크만 다른 것)은 한 장으로 묶음
+                  승인이 필요한(또는 확인 전) 비공개 초대방 · 바로 입장되는 방은 제외 · 회원 많은 순 · 같은 방(링크만 다른 것)은 한 장으로 묶음
                   {candidates ? ` · 전체 ${candidates.length.toLocaleString()}개` : ''}
                 </p>
               </div>
@@ -302,6 +302,21 @@ export function AdminJoinRequestsPage() {
                           <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">
                             #{String(i + 1).padStart(2, '0')}
                           </span>
+                          <span
+                            className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+                              c.requestNeeded
+                                ? 'bg-red-500/10 text-red-600'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                            title={
+                              c.requestNeeded
+                                ? '초대 링크 확인 결과 운영자 승인이 필요한 방'
+                                : '승인이 필요한지 아직 확인 전(바로 들어가지면 [지금 수집])'
+                            }
+                          >
+                            {c.requestNeeded ? '승인 필요' : '확인 전'}
+                          </span>
+                          <span className="flex-1" />
                           {(c.linkCount ?? 1) > 1 ? (
                             <span
                               className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700"

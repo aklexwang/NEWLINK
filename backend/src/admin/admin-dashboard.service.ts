@@ -7,6 +7,7 @@ import {
   emptySourceCounts,
   kstDayStart,
   kstRollingStart,
+  privateJoinCountSelects,
   registerSourceSql,
   sqlBoolLiterals,
 } from './admin-dashboard.logic';
@@ -226,6 +227,32 @@ export class AdminDashboardService {
       count: toCount(row),
     }));
 
+    // 비공개 입장요청 분류(입장됨/대기/미입장/확인 전)
+    let privateJoinQb = this.channelRepository
+      .createQueryBuilder('channel')
+      .select('COUNT(*)', 'all')
+      .where(
+        "(channel.link LIKE '%t.me/+%' OR channel.link LIKE '%/joinchat/%')",
+      )
+      .andWhere(
+        "(channel.collect_status IS NULL OR channel.collect_status NOT IN ('merged', 'invite_expired', 'gone', 'invalid'))",
+      );
+    for (const [expr, alias] of privateJoinCountSelects('channel', bool)) {
+      privateJoinQb = privateJoinQb.addSelect(expr, alias);
+    }
+    const pj =
+      (await privateJoinQb
+        .getRawOne<Record<string, unknown>>()
+        .catch(() => null)) ?? {};
+    const pjNum = (k: string) => Number(pj[k] ?? 0) || 0;
+    const privateJoin = {
+      total: pjNum('total'),
+      joined: pjNum('joined'),
+      pending: pjNum('pending'),
+      notJoined: pjNum('notJoined'),
+      unchecked: pjNum('unchecked'),
+    };
+
     const run = latest[0] ?? null;
     // 이번 수집에서 실제로 성공(수집 상태 정상)한 채널 수: 수집 시각이 이번 실행 시간 안이고 상태가 ok
     let succeeded: number | null = null;
@@ -243,6 +270,7 @@ export class AdminDashboardService {
     return {
       channelCount,
       groupCount,
+      privateJoin,
       privateRooms: {
         channel: privateRows
           .filter((r) => String(r.linkType) !== 'group')

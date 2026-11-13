@@ -161,3 +161,13 @@ describe('비공개 채널 자동 가입', () => {
     expect(joinedChannelFromUpdates(null)).toBeNull();
   });
 });
+
+describe('inviteRequestNeededFrom', () => {
+  it('비회원 초대: 승인 필요 여부, 회원·엿보기는 모름', () => {
+    const { inviteRequestNeededFrom } = jest.requireActual('./mtproto-join.logic');
+    expect(inviteRequestNeededFrom({ className: 'ChatInvite', requestNeeded: true })).toBe(true);
+    expect(inviteRequestNeededFrom({ className: 'ChatInvite' })).toBe(false);
+    expect(inviteRequestNeededFrom({ className: 'ChatInviteAlready' })).toBeUndefined();
+    expect(inviteRequestNeededFrom(null)).toBeUndefined();
+  });
+});

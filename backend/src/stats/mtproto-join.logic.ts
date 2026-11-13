@@ -211,3 +211,14 @@ export function describeUnjoinableInvite(result: unknown): string {
   if (r.megagroup || r.broadcast !== true) return '그룹(가입 안 함)';
   return '기타';
 }
+
+/**
+ * CheckChatInvite 결과로 "입장 요청(운영자 승인) 필요" 여부.
+ * 아직 회원 아님(ChatInvite)일 때만 알 수 있다. 이미 회원·엿보기(ChatInviteAlready/Peek)면 undefined(그대로 둠).
+ */
+export function inviteRequestNeededFrom(result: unknown): boolean | undefined {
+  if (!result || typeof result !== 'object') return undefined;
+  const r = result as { className?: string; requestNeeded?: boolean };
+  if (r.className !== 'ChatInvite') return undefined;
+  return r.requestNeeded === true;
+}

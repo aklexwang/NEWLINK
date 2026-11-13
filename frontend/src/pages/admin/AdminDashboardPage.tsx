@@ -26,6 +26,43 @@ import {
   TableRow,
 } from '@/components/admin/ui/table';
 
+/** 비공개 입장요청 방(운영자 승인 필요)만 따로: 입장됨 / 대기 / 미입장 / 확인 전 */
+function PrivateJoinCard({
+  pj,
+}: {
+  pj: { total: number; joined: number; pending: number; notJoined: number; unchecked: number };
+}) {
+  const tiles: Array<{ label: string; value: number; hint: string; tone: string }> = [
+    { label: '입장됨', value: pj.joined, hint: '수집 계정이 회원 · 글 수집 중', tone: 'text-green-600 bg-green-500/10 ring-green-500/30' },
+    { label: '대기', value: pj.pending, hint: '요청함 · 운영자 승인 기다림', tone: 'text-amber-600 bg-amber-500/10 ring-amber-500/30' },
+    { label: '미입장', value: pj.notJoined, hint: '승인 필요 · 아직 요청 안 함', tone: 'text-red-600 bg-red-500/10 ring-red-500/30' },
+    { label: '확인 전', value: pj.unchecked, hint: '승인 필요한지 아직 모름', tone: 'text-muted-foreground bg-muted ring-border' },
+  ];
+  return (
+    <Link to="/admin/join-requests" className="mt-5 block">
+      <Card className="gap-4 px-5 py-5 transition hover:shadow-xl hover:ring-2 hover:ring-primary/40">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <p className="flex items-center gap-2 text-lg font-bold">
+            <Lock className="size-5 text-primary" /> 비공개 입장요청
+          </p>
+          <p className="text-sm text-muted-foreground">
+            운영자 승인 후 들어갈 수 있는 방 {pj.total.toLocaleString('ko-KR')}개 · 누르면 입장 요청 메뉴로
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {tiles.map((t) => (
+            <div key={t.label} className={`rounded-2xl px-4 py-3 ring-1 ${t.tone}`}>
+              <p className="text-sm font-semibold">{t.label}</p>
+              <p className="mt-0.5 text-3xl font-bold tabular-nums text-foreground">{t.value.toLocaleString('ko-KR')}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t.hint}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </Link>
+  );
+}
+
 function StatCard({
   to,
   label,
@@ -181,6 +218,8 @@ export function AdminDashboardPage() {
             <StatCard to="/admin/links?createdFrom=7d" label="최근 7일 등록" icon={<CalendarDays />} value={data.registered.last7d.total} />
             <StatCard to="/admin/collect" label="마지막 수집" icon={<Timer />} value={runLabel} />
           </div>
+
+          {data.privateJoin && <PrivateJoinCard pj={data.privateJoin} />}
 
           <TodoCard data={data} ops={ops} />
 

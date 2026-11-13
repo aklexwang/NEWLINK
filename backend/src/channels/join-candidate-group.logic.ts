@@ -16,6 +16,8 @@ export interface CandidateRow {
   link: string;
   category: string | null;
   memberCount: number | null;
+  /** 입장 요청(승인) 필요로 확인됨 = true, 확인 전 = null */
+  requestNeeded?: boolean | null;
 }
 
 export interface TakenRow {
@@ -84,6 +86,9 @@ export function groupSameRoomCandidates(
       if (!already) {
         groups.push({
           ...rep,
+          requestNeeded: current.some((r) => r.requestNeeded === true)
+            ? true
+            : (rep.requestNeeded ?? null),
           linkCount: current.length,
           links: current.map((r) => ({
             id: r.id,

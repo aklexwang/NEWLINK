@@ -166,6 +166,8 @@ export interface AdminDashboard {
   >;
   /** 비공개(초대 링크) 방 수와 검사 대기 중인 초대 링크 수 */
   privateRooms?: { channel: number; group: number; queuedInvites: number };
+  /** 비공개 입장요청 분류: 입장됨/대기/미입장/확인 전 */
+  privateJoin?: { total: number; joined: number; pending: number; notJoined: number; unchecked: number };
   /** 링크 등록(어드민)으로 넣은 방과 그중 회원 화면 노출 수 */
   adminRegistered?: {
     today: { total: number; visible: number; hidden: number };
@@ -731,6 +733,8 @@ export interface JoinCandidateChannel {
   memberCount: number | null;
   /** 같은 방으로 추정돼 묶인 링크 수(1이면 묶인 것 없음) */
   linkCount?: number;
+  /** 입장 요청(승인) 필요로 확인됨 = true, 확인 전 = null */
+  requestNeeded?: boolean | null;
   links?: Array<{ id: string; link: string; memberCount: number | null }>;
 }
 

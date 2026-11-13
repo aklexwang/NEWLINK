@@ -845,9 +845,20 @@ export class ChannelsService implements OnModuleInit {
       "(c.collectStatus IS NULL OR c.collectStatus NOT IN ('merged', 'invite_expired', 'gone', 'invalid'))";
     const candidates = await this.channelRepository
       .createQueryBuilder('c')
-      .select(['c.id', 'c.title', 'c.link', 'c.category', 'c.memberCount'])
+      .select([
+        'c.id',
+        'c.title',
+        'c.link',
+        'c.category',
+        'c.memberCount',
+        'c.inviteRequestNeeded',
+      ])
       .where('c.joinRequestedAt IS NULL')
       .andWhere('c.telegramAccessHash IS NULL')
+      // 바로 입장 가능한 방(승인 필요 없음)은 입장 요청 메뉴 대상이 아님. 승인 필요 + 아직 확인 전만
+      .andWhere('(c.inviteRequestNeeded IS NULL OR c.inviteRequestNeeded = :needTrue)', {
+        needTrue: true,
+      })
       .andWhere("(c.link LIKE '%/+%' OR c.link LIKE '%/joinchat/%')")
       // 합쳐진 중복·만료된 초대·사라진 방·채널 아님은 요청할 필요 없음
       .andWhere(notDead)
@@ -869,6 +880,7 @@ export class ChannelsService implements OnModuleInit {
         link: c.link,
         category: c.category ?? null,
         memberCount: c.memberCount ?? null,
+        requestNeeded: c.inviteRequestNeeded ?? null,
       })),
       taken.map((t) => ({ title: t.title, memberCount: t.memberCount ?? null })),
       limit,

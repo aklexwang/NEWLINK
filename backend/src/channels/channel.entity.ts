@@ -146,6 +146,13 @@ export class Channel {
   @Column({ name: 'telegram_access_account', type: 'integer', nullable: true })
   telegramAccessAccount: number | null;
 
+  /**
+   * 비공개 초대 링크가 "운영자 승인 후 입장"(입장 요청 필요)인지. CheckChatInvite 로 확인한 값.
+   * null = 아직 확인 전, false = 바로 입장 가능, true = 입장 요청 필요
+   */
+  @Column({ name: 'invite_request_needed', type: 'boolean', nullable: true })
+  inviteRequestNeeded: boolean | null;
+
   /** 그룹: 최근 7일 대화(최근 50개 안)에 글을 쓴 사람 수. 누구인지는 저장하지 않는다 */
   @Column({ name: 'group_active_senders', type: 'integer', nullable: true })
   groupActiveSenders: number | null;

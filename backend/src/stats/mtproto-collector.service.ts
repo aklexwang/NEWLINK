@@ -118,6 +118,7 @@ import {
   describeUnjoinableInvite,
   type InviteMeta,
   inviteMetadata,
+  inviteRequestNeededFrom,
   isJoinableChannelInvite,
   isRequestNeededChannel,
   JOIN_REQUEST_AUTO_MIN_MEMBERS,
@@ -613,6 +614,7 @@ export class MtprotoCollectorService implements OnModuleInit {
           'messages.CheckChatInvite',
           new Api.messages.CheckChatInvite({ hash }),
         );
+        await this.noteInviteRequestNeeded(channel, invite);
         let chat = memberChatFromInvite(invite);
         if (chat) {
           this.noteJoinOutcome('이미 회원');
@@ -689,6 +691,25 @@ export class MtprotoCollectorService implements OnModuleInit {
       return { ok: false, reason: 'failed' };
     } finally {
       this.pinnedAccountIndex = prevPin;
+    }
+  }
+
+  /** 초대 링크가 "입장 요청 필요"인지 저장(대시보드 비공개 입장요청 분류·입장 요청 메뉴용). DB 만 쓴다 */
+  private async noteInviteRequestNeeded(
+    channel: Channel,
+    invite: unknown,
+  ): Promise<void> {
+    const needed = inviteRequestNeededFrom(invite);
+    if (needed === undefined || channel.inviteRequestNeeded === needed) return;
+    channel.inviteRequestNeeded = needed;
+    try {
+      await this.channelRepository.update(channel.id, {
+        inviteRequestNeeded: needed,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `입장 요청 필요 여부 저장 실패(${channel.id}): ${error instanceof Error ? error.message : error}`,
+      );
     }
   }
 
@@ -921,6 +942,7 @@ export class MtprotoCollectorService implements OnModuleInit {
         new Api.messages.CheckChatInvite({ hash }),
       ),
     );
+    await this.noteInviteRequestNeeded(channel, invite);
     if (memberChatFromInvite(invite)) {
       // 이미 회원 → 요청 소모 없이 끝. "지금 수집"을 누르면 글이 채워진다.
       return {

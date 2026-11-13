@@ -127,3 +127,36 @@ export function registerSourceSql(
     ELSE 'admin'
   END`;
 }
+
+/**
+ * 대시보드 "비공개 입장요청" 칸. 초대 링크 방 중
+ *  - 입장 요청 방 = 승인 필요로 확인됐거나(invite_request_needed) 내가 요청함을 누른 방
+ *  - 입장됨  : 수집 계정이 회원(접근 정보 있음)
+ *  - 대기    : 요청함 눌렀고 아직 회원 아님
+ *  - 미입장  : 승인 필요인데 아직 요청 안 함
+ *  - 확인 전 : 승인 필요인지 아직 모름(초대 링크 확인 전)
+ */
+export function privateJoinCountSelects(
+  alias: string,
+  bool: { t: string; f: string },
+): Array<[string, string]> {
+  const has = `${alias}.telegram_access_hash IS NOT NULL`;
+  const noHash = `${alias}.telegram_access_hash IS NULL`;
+  const requested = `${alias}.join_requested_at IS NOT NULL`;
+  const notRequested = `${alias}.join_requested_at IS NULL`;
+  const needed = `${alias}.invite_request_needed = ${bool.t}`;
+  const room = `(${needed} OR ${requested})`;
+  const sum = (cond: string) => `SUM(CASE WHEN ${cond} THEN 1 ELSE 0 END)`;
+  return [
+    [sum(room), 'total'],
+    [sum(`${room} AND ${has}`), 'joined'],
+    [sum(`${requested} AND ${noHash}`), 'pending'],
+    [sum(`${needed} AND ${notRequested} AND ${noHash}`), 'notJoined'],
+    [
+      sum(
+        `${alias}.invite_request_needed IS NULL AND ${notRequested} AND ${noHash}`,
+      ),
+      'unchecked',
+    ],
+  ];
+}
