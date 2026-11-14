@@ -22,10 +22,6 @@ import {
 import { adminApiErrorMessage } from '../../../utils/adminApiError';
 import { walletKindLabel } from '../../../utils/payoutDisplay';
 
-async function copyText(text: string) {
-  await copyText(text);
-}
-
 export function PendingApproveTab() {
   const [pending, setPending] = useState<PendingChannel[]>([]);
   const [loading, setLoading] = useState(true);
