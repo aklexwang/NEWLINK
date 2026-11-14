@@ -7,13 +7,6 @@ export class AppController {
     return {
       name: 'TellLink API',
       status: 'ok',
-      endpoints: {
-        search: 'GET /api/channels/search',
-        submit: 'POST /api/channels',
-        recommend: 'POST /api/channels/:id/recommend',
-        adminPending: 'GET /api/admin/channels/pending',
-        paymentInvoice: 'POST /api/payments/invoice',
-      },
     };
   }
 

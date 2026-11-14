@@ -72,10 +72,8 @@ export class TelegramAuthService {
     );
 
     if (!matched) {
-      const botId = this.botToken.split(':')[0] || '?';
-      throw new UnauthorizedException(
-        `initData 무결성 검증에 실패했습니다. (서버 봇ID ${botId}) BotFather 토큰과 backend/.env 의 TELEGRAM_BOT_TOKEN이 같은지 확인하세요.`,
-      );
+      // 밖으로 나가는 오류에는 서버 설정(봇 ID·환경 파일 이름)을 담지 않는다
+      throw new UnauthorizedException('initData 무결성 검증에 실패했습니다.');
     }
 
     const authDate = Number(params.get('auth_date'));

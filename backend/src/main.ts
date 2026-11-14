@@ -19,6 +19,24 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // Render 등 프록시 한 단계 뒤의 클라이언트 IP (관리자 로그인 잠금)
   app.set('trust proxy', 1);
+  // 서버 종류(Express)를 알리지 않고, 기본 보안 헤더를 붙인다
+  app.disable('x-powered-by');
+  app.use(
+    (
+      _req: unknown,
+      res: { setHeader(name: string, value: string): void },
+      next: () => void,
+    ) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Referrer-Policy', 'no-referrer');
+      res.setHeader(
+        'Strict-Transport-Security',
+        'max-age=31536000; includeSubDomains',
+      );
+      next();
+    },
+  );
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/api/uploads/',
   });
