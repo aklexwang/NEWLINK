@@ -7,6 +7,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { ChannelCollectorService } from '../stats/channel-collector.service';
 import { CHANNEL_GAP_MS } from '../stats/collect-fetch';
+
+/** 어드민 수동 수집 사이 최소 간격(텔레그램 flood_wait 방지) */
+export const MANUAL_COLLECT_GAP_MS = 10_000;
 import { StatsJobService } from '../stats/stats-job.service';
 import { StatsRun } from '../stats/stats-run.entity';
 import { ChannelsService } from '../channels/channels.service';
@@ -26,6 +29,13 @@ import {
 @Injectable()
 export class AdminCollectService {
   private readonly lastCollectAt = new Map<string, number>();
+  /**
+   * 어드민 [지금 수집]은 한 번에 하나씩, 앞 수집이 끝나고 최소 10초 뒤에 시작한다.
+   * 2026-11-14: 초대 링크 확인을 몇 초 간격으로 연달아 보내자 텔레그램이 flood_wait(잠깐 쉬어라)를 보냈다.
+   * 여러 번 눌러도(또는 여러 개 선택해도) 서버가 알아서 줄 세워 간격을 둔다.
+   */
+  private manualChain: Promise<unknown> = Promise.resolve();
+  private lastManualEndAt = 0;
 
   constructor(
     private readonly collector: ChannelCollectorService,
@@ -59,6 +69,20 @@ export class AdminCollectService {
   }
 
   async collectOne(id: string) {
+    const run = this.manualChain.then(async () => {
+      const wait = this.lastManualEndAt + MANUAL_COLLECT_GAP_MS - Date.now();
+      if (wait > 0) await sleep(wait);
+      try {
+        return await this.collectOneNow(id);
+      } finally {
+        this.lastManualEndAt = Date.now();
+      }
+    });
+    this.manualChain = run.catch(() => undefined);
+    return run;
+  }
+
+  private async collectOneNow(id: string) {
     await this.assertPipelineIdle();
     const channel = await this.channelsService.findById(id);
     this.assertCooldown(channel.id);
