@@ -150,6 +150,8 @@ export type MtprotoPublicStatus = {
   accountsAvailable?: number;
   requestsToday: number;
   resolvesToday: number;
+  resolveDailyLimit?: number;
+  searchDailyLimit?: number;
   searchesToday: number;
   invitesToday: number;
   inviteDailyLimit: number;
@@ -371,6 +373,9 @@ export class MtprotoCollectorService implements OnModuleInit {
       searchesToday: this.searchesToday,
       invitesToday: this.invitesToday,
       inviteDailyLimit: this.inviteCheckDailyLimit(),
+      // 실제로 적용되는 한도(계정 수만큼 늘어난 값). 화면도 이 값을 보여 줘야 "111/50" 같은 착시가 없다
+      resolveDailyLimit: this.resolveDailyLimit(),
+      searchDailyLimit: this.searchDailyLimit(),
       joinsToday: this.currentJoinsToday(),
       joinOutcomes: this.todayJoinOutcomes(),
       dailyLimit: this.dailyLimit(),

@@ -135,15 +135,16 @@ export class AdminStatsService implements OnModuleInit {
         enabled: mtproto.enabled,
         requestsToday: mtproto.requestsToday,
         resolvesToday: mtproto.resolvesToday,
-        resolveDailyLimit: this.envPositive(
-          'RESOLVE_DAILY_LIMIT',
-          RESOLVE_DAILY_LIMIT_DEFAULT,
-        ),
+        resolveDailyLimit:
+          mtproto.resolveDailyLimit ??
+          this.envPositive('RESOLVE_DAILY_LIMIT', RESOLVE_DAILY_LIMIT_DEFAULT),
         searchesToday: mtproto.searchesToday,
-        searchDailyLimit: this.envPositive(
-          'KEYWORD_SEARCH_DAILY_LIMIT',
-          KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
-        ),
+        searchDailyLimit:
+          mtproto.searchDailyLimit ??
+          this.envPositive(
+            'KEYWORD_SEARCH_DAILY_LIMIT',
+            KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
+          ),
         invitesToday: mtproto.invitesToday,
         inviteDailyLimit: mtproto.inviteDailyLimit,
         joinsToday: mtproto.joinsToday,
