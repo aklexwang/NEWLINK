@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { isNewerBuild } from '../../utils/appVersion';
 import { Clock, Menu, PanelLeft } from 'lucide-react';
 import '@/styles/admin.css';
 import { AdminPendingAlertBanner } from './AdminPendingAlertBanner';
@@ -102,6 +103,33 @@ function LoginTime() {
 
 function AdminShell({ onLogout }: { onLogout: () => void }) {
   const location = useLocation();
+
+  // 메뉴를 옮길 때 새 버전이 배포돼 있으면 바로 새로고침(열어 둔 화면이 옛 버전으로 남지 않게)
+  useEffect(() => {
+    let stopped = false;
+    void (async () => {
+      try {
+        const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data: unknown = await res.json().catch(() => null);
+        if (stopped || !isNewerBuild(__APP_BUILD_ID__, data)) return;
+        // 같은 버전으로 두 번 새로고침하지 않는다(무한 새로고침 방지)
+        const build = String((data as { build?: unknown }).build);
+        try {
+          if (sessionStorage.getItem('tl-admin-reloaded-for') === build) return;
+          sessionStorage.setItem('tl-admin-reloaded-for', build);
+        } catch {
+          return;
+        }
+        window.location.reload();
+      } catch {
+        /* 확인 실패는 조용히 넘긴다 */
+      }
+    })();
+    return () => {
+      stopped = true;
+    };
+  }, [location.pathname]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readCollapsed);
 

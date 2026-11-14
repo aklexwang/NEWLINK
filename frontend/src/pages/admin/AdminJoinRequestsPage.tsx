@@ -191,6 +191,9 @@ export function AdminJoinRequestsPage() {
   ];
 
   const q = query.trim().toLowerCase();
+  const visibleWaiting = (waitingRows ?? []).filter(
+    (r) => !q || r.title.toLowerCase().includes(q) || r.link.toLowerCase().includes(q),
+  );
   const visibleCandidates = (candidates ?? [])
     .map((c, i) => ({ c, i }))
     .filter(
@@ -270,8 +273,8 @@ export function AdminJoinRequestsPage() {
                   setQuery(e.target.value);
                   setShown(PAGE);
                 }}
-                placeholder="방 이름·링크 검색"
-                className="h-10 w-64 shrink-0 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                placeholder="🔍 방 이름·링크 검색 (후보 + 승인 대기)"
+                className="h-11 w-80 shrink-0 rounded-xl border border-border bg-card px-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
 
@@ -380,6 +383,7 @@ export function AdminJoinRequestsPage() {
                             href={c.link}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={(e) => openTelegramWindow(e, c.link)}
                             title={c.link}
                             className="inline-flex h-10 items-center justify-center rounded-md border border-border text-sm font-medium hover:bg-secondary"
                           >
@@ -501,13 +505,19 @@ export function AdminJoinRequestsPage() {
                 </p>
               ) : (
                 <ul className="max-h-[520px] divide-y divide-border overflow-y-auto">
-                  {waitingRows.map((r) => (
+                  {visibleWaiting.length === 0 && (
+                    <li className="px-5 py-6 text-center text-sm text-muted-foreground">
+                      "{query}" 에 맞는 대기 방이 없어요.
+                    </li>
+                  )}
+                  {visibleWaiting.map((r) => (
                     <li key={r.id} className="px-5 py-4">
                       <div className="flex items-start justify-between gap-2">
                         <a
                           href={r.link}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => openTelegramWindow(e, r.link)}
                           className="min-w-0 truncate font-semibold hover:underline"
                           title={r.link}
                         >
@@ -552,4 +562,23 @@ export function AdminJoinRequestsPage() {
       </div>
     </div>
   );
+}
+
+/**
+ * 텔레그램 링크를 어드민 옆에 따로 뜨는 새 창으로 연다(어드민 화면은 그대로).
+ * 같은 이름의 창을 다시 써서 창이 계속 쌓이지 않는다. 창을 못 띄우면(팝업 차단) 원래대로 새 탭.
+ */
+function openTelegramWindow(e: { preventDefault(): void }, link: string) {
+  const w = 560;
+  const h = Math.min(820, window.screen.availHeight - 80);
+  const left = Math.max(0, window.screen.availWidth - w - 40);
+  const win = window.open(
+    link,
+    'telllink_telegram',
+    `popup=yes,width=${w},height=${h},left=${left},top=40,noopener=no`,
+  );
+  if (win) {
+    e.preventDefault();
+    win.focus();
+  }
 }
