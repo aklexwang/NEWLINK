@@ -2,6 +2,7 @@
  * 회원·공개 API 로 내보내도 되는 채널 칸만 남긴다(허용 목록).
  * 2026-10-30 점검: 공개 검색·광고 목록이 채널 행 전체를 돌려줘서
  * 제보자 텔레그램 ID·보상 지갑·광고주 정보·수집 메모 등이 그대로 보였다.
+ * 2026-11-14: 텔레그램 내부 번호(telegramChatId)·광고주 정보(adClient)도 뺐다(회원 화면에 필요 없음).
  * 새 칸을 엔티티에 추가해도 여기 넣기 전에는 밖으로 나가지 않는다.
  */
 export const PUBLIC_CHANNEL_FIELDS = [
@@ -16,7 +17,6 @@ export const PUBLIC_CHANNEL_FIELDS = [
   'isPromoted',
   'promotedUntil',
   'promotionSortOrder',
-  'adClient',
   'avatarUrl',
   'avatarApproved',
   'isVerified',
@@ -28,7 +28,6 @@ export const PUBLIC_CHANNEL_FIELDS = [
   'language',
   'memberCount',
   'createdOn',
-  'telegramChatId',
   'posts7d',
   'observedDays',
   'growth24h',
@@ -53,4 +52,24 @@ export function toPublicChannel<T extends object>(row: T): Partial<T> {
 
 export function toPublicChannels<T extends object>(rows: T[]): Partial<T>[] {
   return rows.map((row) => toPublicChannel(row));
+}
+
+/** 내 제보 목록: 공개 칸 + 본인 보상 정보만. 수집 메모·내부 번호 같은 운영용 칸은 내보내지 않는다 */
+const MY_SUBMISSION_EXTRA_FIELDS = [
+  'rewardTonAmount',
+  'rewardUsdAmount',
+  'rewardStarsAmount',
+  'rewardPaidAt',
+  'payoutStatus',
+] as const;
+
+export function toMySubmissions<T extends object>(rows: T[]): Partial<T>[] {
+  return rows.map((row) => {
+    const out = toPublicChannel(row) as Record<string, unknown>;
+    const src = row as Record<string, unknown>;
+    for (const key of MY_SUBMISSION_EXTRA_FIELDS) {
+      if (key in src) out[key] = src[key];
+    }
+    return out as Partial<T>;
+  });
 }

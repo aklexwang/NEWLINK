@@ -360,11 +360,6 @@ export function ChannelCard({
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <InfoCell label="구분" value={isGroup ? '그룹' : '채널'} />
             <InfoCell
-              label="텔레그램 ID"
-              value={channel.telegramChatId != null ? String(channel.telegramChatId) : '-'}
-              mono
-            />
-            <InfoCell
               label="아이디"
               value={handle ? `@${handle}` : isInviteOnly ? '🔒 비공개 초대방' : '-'}
               mono={Boolean(handle)}

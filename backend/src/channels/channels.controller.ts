@@ -14,7 +14,7 @@ import {
 import { ModuleRef } from '@nestjs/core';
 import type { Request } from 'express';
 import { SearchLogService } from '../analytics/search-log.service';
-import { toPublicChannels } from './public-channel.logic';
+import { toMySubmissions, toPublicChannels } from './public-channel.logic';
 import { MemberActivityService } from '../member-activity/member-activity.service';
 import { SearchTermsService } from '../analytics/search-terms.service';
 import { SEARCH_BLOCKED_MESSAGE } from '../analytics/search-text.logic';
@@ -129,9 +129,9 @@ export class ChannelsController {
       const rewards = this.moduleRef.get(RewardPayoutService, {
         strict: false,
       });
-      return rewards.attachMemberRewards(rows);
+      return toMySubmissions(await rewards.attachMemberRewards(rows));
     } catch {
-      return rows;
+      return toMySubmissions(rows);
     }
   }
 
