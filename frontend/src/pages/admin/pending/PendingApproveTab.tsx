@@ -1,3 +1,4 @@
+import { copyText } from '../../../utils/copyText';
 import { useCallback, useEffect, useState } from 'react';
 import {
   approveChannel,
@@ -22,7 +23,7 @@ import { adminApiErrorMessage } from '../../../utils/adminApiError';
 import { walletKindLabel } from '../../../utils/payoutDisplay';
 
 async function copyText(text: string) {
-  await navigator.clipboard.writeText(text);
+  await copyText(text);
 }
 
 export function PendingApproveTab() {

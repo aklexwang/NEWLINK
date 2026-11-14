@@ -1,3 +1,4 @@
+import { copyText } from '../../../utils/copyText';
 import { useCallback, useEffect, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { useTonConnectUI } from '@tonconnect/ui-react';
@@ -265,7 +266,7 @@ export function PendingPayoutTab() {
                           type="button"
                           variant="ghost"
                           className="ml-2 align-middle"
-                          onClick={() => void navigator.clipboard.writeText(String(telegramId))}
+                          onClick={() => void copyText(String(telegramId))}
                         >
                           복사
                         </Button>
@@ -278,7 +279,7 @@ export function PendingPayoutTab() {
                           type="button"
                           variant="ghost"
                           className="ml-2 align-middle"
-                          onClick={() => void navigator.clipboard.writeText(`@${reporter.username}`)}
+                          onClick={() => void copyText(`@${reporter.username}`)}
                         >
                           복사
                         </Button>

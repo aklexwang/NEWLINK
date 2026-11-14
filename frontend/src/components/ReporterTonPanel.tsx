@@ -1,3 +1,4 @@
+import { copyText } from '../utils/copyText';
 import { useState } from 'react';
 import { isAxiosError } from 'axios';
 import { useTonConnectUI } from '@tonconnect/ui-react';
@@ -44,7 +45,7 @@ export function ReporterTonPanel({ item, onRecorded }: ReporterTonPanelProps) {
 
   const copyText = async (text: string, label: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       window.alert(`${label} 복사됨`);
     } catch {
       window.alert('복사에 실패했습니다.');

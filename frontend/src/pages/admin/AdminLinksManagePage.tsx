@@ -1,3 +1,4 @@
+import { copyText } from '../../utils/copyText';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -1249,15 +1250,10 @@ function LinkCopyRow({ link }: { link: string }) {
   const [copied, setCopied] = useState(false);
   if (!link) return null;
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(link);
-    } catch {
-      const area = document.createElement('textarea');
-      area.value = link;
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand('copy');
-      area.remove();
+    const ok = await copyText(link);
+    if (!ok) {
+      window.prompt('자동 복사가 막혀 있어요. 아래 주소를 직접 복사해 주세요 (Ctrl+C)', link);
+      return;
     }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);

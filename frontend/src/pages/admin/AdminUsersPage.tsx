@@ -1,3 +1,4 @@
+import { copyText } from '../../utils/copyText';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -46,7 +47,7 @@ export function AdminUsersPage() {
 
   const copyText = async (text: string, label: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       setMessage(`${label} 복사됨`);
     } catch {
       setMessage('복사에 실패했습니다.');

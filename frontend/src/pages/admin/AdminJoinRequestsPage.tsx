@@ -1,3 +1,4 @@
+import { copyText } from '../../utils/copyText';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import {
@@ -75,16 +76,11 @@ export function AdminJoinRequestsPage() {
   /** 후보 검색(이름·링크) */
   const [query, setQuery] = useState('');
   const copyLink = async (id: string, text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      // 클립보드 권한이 없으면 임시 입력칸으로 복사
-      const area = document.createElement('textarea');
-      area.value = text;
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand('copy');
-      area.remove();
+    const ok = await copyText(text);
+    if (!ok) {
+      // 브라우저가 복사를 막으면 주소를 직접 고를 수 있게 보여 준다
+      window.prompt('자동 복사가 막혀 있어요. 아래 주소를 직접 복사해 주세요 (Ctrl+C)', text);
+      return;
     }
     setCopiedId(id);
     window.setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1500);

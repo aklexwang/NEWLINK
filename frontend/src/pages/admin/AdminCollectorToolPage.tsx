@@ -1,3 +1,4 @@
+import { copyText } from '../../utils/copyText';
 import { useMemo, useRef, useState, type DragEvent } from 'react';
 import '@/styles/admin.css';
 import { AdminThemeProvider } from '../../components/admin/AdminThemeProvider';
@@ -158,7 +159,7 @@ function CollectorTool() {
 
   const copyValues = async () => {
     if (!shown?.length) return;
-    await navigator.clipboard.writeText(shown.map((r) => r.value).join('\n'));
+    await copyText(shown.map((r) => r.value).join('\n'));
     setNotice(`${shown.length.toLocaleString('ko-KR')}개 값을 복사했어요.`);
   };
 
@@ -390,7 +391,7 @@ function CollectorTool() {
                       className="cursor-pointer border-t border-border hover:bg-muted/60"
                       title="더블클릭하면 값이 복사돼요"
                       onDoubleClick={() => {
-                        void navigator.clipboard.writeText(row.value);
+                        void copyText(row.value);
                         setNotice(`복사했어요: ${row.value.slice(0, 60)}`);
                       }}
                     >
