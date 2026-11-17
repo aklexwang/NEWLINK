@@ -428,7 +428,7 @@ export function HomePage() {
     onSearch: handleSearch,
     isLoading: searchLoading,
     variant: 'dashboard' as const,
-    placeholder: '채널 이름, @아이디, t.me 링크',
+    placeholder: 'TellLink 검색',
     linkType: searchType,
     onLinkTypeChange: setSearchType,
     suggestions,
@@ -515,9 +515,9 @@ export function HomePage() {
   const top = topChannels.length > 0 ? topChannels[topIndex % topChannels.length] : null;
   const topRank = top ? (topIndex % topChannels.length) + 1 : 0;
   const hasBanner = Boolean(bannerAds && bannerAds.banners.length > 0);
-  // 배너 광고는 기존처럼 위쪽(검색창 바로 아래)
+  // 배너 광고는 맨 위(검색창 바로 위)
   const banner = hasBanner && bannerAds && (
-    <div className="px-4 pb-3">
+    <div className="px-4 pt-1 pb-2">
       <BannerCarousel banners={bannerAds.banners} rotateSeconds={bannerAds.rotateSeconds} />
     </div>
   );
@@ -527,10 +527,11 @@ export function HomePage() {
       {/* 검색창·배너·탭·이번 주 순위는 스크롤해도 위에 고정 */}
       <div className="sticky top-[var(--nl-safe-top)] z-30 bg-nl-bg">
         {header}
+        {/* 배너가 위, 검색창은 그 아래(목록 바로 위라 눈에 잘 들어오게) */}
+        {banner}
         <div className="px-4 pt-1 pb-3">
           <SearchBar {...searchBarProps} />
         </div>
-        {banner}
 
       <nav aria-label="홈 메뉴" className="flex border-b border-nl-line">
         {HOME_TABS.map((tab) =>

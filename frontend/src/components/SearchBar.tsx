@@ -103,13 +103,19 @@ export function SearchBar({
   if (variant === 'dashboard') {
     return (
       <div id="search-section" ref={rootRef} className={`relative w-full ${className}`}>
+        {/* 눈에 띄는 검색창: 텔레그램 파랑 그라데이션 테두리 + 은은한 빛 */}
         <div
-          className={`flex h-12 items-stretch overflow-hidden rounded-2xl border border-nl-line bg-nl-elev ${
+          className={`rounded-2xl bg-gradient-to-r from-[#2aabee] via-[#38c6f4] to-[#229af0] p-[2px] shadow-[0_6px_22px_rgba(42,171,238,0.35)] ${
+            open ? 'rounded-b-none' : ''
+          }`}
+        >
+        <div
+          className={`flex h-[52px] items-stretch overflow-hidden rounded-[14px] bg-nl-elev ${
             open ? 'rounded-b-none' : ''
           }`}
         >
           <span className="flex shrink-0 items-center pl-3.5" aria-hidden>
-            <SearchIcon className="h-[18px] w-[18px] fill-nl-muted" />
+            <SearchIcon className="h-[21px] w-[21px] fill-[#2aabee]" />
           </span>
           <input
             id="search-input"
@@ -123,7 +129,7 @@ export function SearchBar({
             autoComplete="off"
             spellCheck={false}
             placeholder={placeholder}
-            className="min-w-0 flex-1 bg-transparent px-2.5 text-[15px] text-nl-text outline-none placeholder:text-nl-muted"
+            className="min-w-0 flex-1 bg-transparent px-2.5 text-[16px] font-semibold text-nl-text outline-none placeholder:font-semibold placeholder:text-nl-muted"
           />
           {isLoading ? (
             <span className="flex items-center px-3 text-xs text-nl-muted">...</span>
@@ -131,11 +137,12 @@ export function SearchBar({
             <button
               type="button"
               onClick={onSearch}
-              className="m-1 shrink-0 rounded-xl bg-nl-accent px-3 text-[13px] font-bold text-white dark:text-white"
+              className="m-1.5 shrink-0 rounded-xl bg-gradient-to-r from-[#2aabee] to-[#229af0] px-4 text-[14px] font-bold text-white dark:text-white"
             >
               검색
             </button>
           )}
+        </div>
         </div>
         {open ? (
           <ul
