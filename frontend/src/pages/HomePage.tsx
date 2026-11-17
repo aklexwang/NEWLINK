@@ -524,7 +524,7 @@ export function HomePage() {
 
   return (
     <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg pb-4">
-      {/* 검색창·배너·탭·이번 주 순위는 스크롤해도 위에 고정 */}
+      {/* 로고·배너·검색창만 스크롤해도 위에 고정. 탭·이번 주 순위는 피드와 같이 올라간다 */}
       <div className="sticky top-[var(--nl-safe-top)] z-30 bg-nl-bg">
         {header}
         {/* 배너가 위, 검색창은 그 아래(목록 바로 위라 눈에 잘 들어오게) */}
@@ -532,6 +532,7 @@ export function HomePage() {
         <div className="px-4 pt-1 pb-3">
           <SearchBar {...searchBarProps} />
         </div>
+      </div>
 
       <nav aria-label="홈 메뉴" className="flex border-b border-nl-line">
         {HOME_TABS.map((tab) =>
@@ -575,7 +576,6 @@ export function HomePage() {
           <span className="shrink-0 text-[12px] text-nl-muted">{formatMembers(top.memberCount)}</span>
         </button>
       ) : null}
-      </div>
 
       <section aria-label="최근 활발한 채널">
         {feedLoading && feed.length === 0
