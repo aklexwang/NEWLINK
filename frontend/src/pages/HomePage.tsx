@@ -428,7 +428,7 @@ export function HomePage() {
     onSearch: handleSearch,
     isLoading: searchLoading,
     variant: 'dashboard' as const,
-    placeholder: 'TellLink 검색',
+    placeholder: 'TellLink',
     linkType: searchType,
     onLinkTypeChange: setSearchType,
     suggestions,
