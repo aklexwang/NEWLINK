@@ -149,3 +149,19 @@ html.nl-member *::-webkit-scrollbar { display: none; width: 0; height: 0; }
   transform: scale(0.95);
   background: #1e96d6;
 }
+
+/*
+ * 검색창과 같은 "빛나는 파랑 테두리".
+ * 테두리는 텔레그램 파랑 그라데이션, 바깥은 은은한 파란 빛. 안쪽 색은 --nl-glow-fill(기본 카드색).
+ */
+.nl-glow {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--nl-glow-fill, var(--nl-card)), var(--nl-glow-fill, var(--nl-card))) padding-box,
+    linear-gradient(90deg, #2aabee, #38c6f4, #229af0) border-box;
+  box-shadow: 0 6px 22px rgba(42, 171, 238, 0.35);
+}
+.nl-glow-btn {
+  background: linear-gradient(90deg, #2aabee, #229af0);
+  box-shadow: 0 6px 22px rgba(42, 171, 238, 0.45);
+}

@@ -158,7 +158,7 @@ export function SubmitPage() {
   const linkReady = /t(elegram)?\.me\//i.test(normalizeSubmitLink(form.link));
   const canSubmit = isLoggedIn && linkReady && form.title.trim() !== '' && form.description.trim() !== '';
   const fieldClass =
-    'w-full rounded-2xl bg-nl-card px-4 py-3.5 text-[15px] text-nl-text ring-1 ring-nl-line outline-none placeholder:text-nl-muted focus:ring-2 focus:ring-[#229af0]';
+    'nl-glow w-full rounded-2xl px-4 py-3.5 text-[15px] text-nl-text outline-none placeholder:text-nl-muted';
 
   return (
     <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg pb-6">
@@ -311,8 +311,7 @@ export function SubmitPage() {
         <button
           type="submit"
           disabled={isSubmitting || !canSubmit}
-          className="mt-1 w-full rounded-2xl py-4 text-[16px] font-bold text-white transition-opacity disabled:opacity-40"
-          style={{ background: BLUE }}
+          className="nl-glow-btn mt-1 w-full rounded-2xl py-4 text-[16px] font-bold text-white transition-opacity disabled:opacity-40"
         >
           {isSubmitting ? '접수 중…' : '제보하기'}
         </button>

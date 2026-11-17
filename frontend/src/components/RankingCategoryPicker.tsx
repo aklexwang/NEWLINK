@@ -53,7 +53,7 @@ export function RankingCategoryPicker({
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 rounded-2xl bg-nl-card px-3.5 py-3 text-left ring-1 ring-nl-line active:scale-[0.99]"
+        className="nl-glow flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left active:scale-[0.99]"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-nl-elev">
           <CategoryIcon emoji={selectedCategory.emoji} iconUrl={selectedCategory.iconUrl} size="sm" />
