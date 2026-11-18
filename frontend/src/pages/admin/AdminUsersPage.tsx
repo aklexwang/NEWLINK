@@ -207,6 +207,13 @@ export function AdminUsersPage() {
           })}
         </div>
 
+        <p className="mb-3 text-xs text-muted-foreground">
+          ✉️ 메시지를 누르면 텔레그램에서 그 회원과 1:1 대화가 열려요. 관리자 계정{' '}
+          <a href={ADMIN_TELEGRAM} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-600 hover:underline">
+            @Kplay33
+          </a>{' '}
+          으로 로그인한 텔레그램에서 열어 직접 보내세요. @아이디가 없는 회원은 텔레그램 앱이 깔린 PC·폰에서만 열려요.
+        </p>
         {kind === 'visitor' ? (
           <VisitorsPanel />
         ) : (
@@ -281,8 +288,9 @@ export function AdminUsersPage() {
                                 </span>
                               )}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="flex items-center gap-2 text-xs text-muted-foreground">
                               {user.username ? `@${user.username}` : 'username 없음'}
+                              <MessageButton telegramId={user.telegramId} username={user.username} />
                             </p>
                           </div>
                         </div>
@@ -500,7 +508,10 @@ function VisitorsPanel() {
                       {v.firstName ?? '-'}
                       {v.isPremium && <span className="ml-1 text-xs text-amber-500">★</span>}
                     </p>
-                    <p className="text-xs text-muted-foreground">{v.username ? `@${v.username}` : 'username 없음'}</p>
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {v.username ? `@${v.username}` : 'username 없음'}
+                      <MessageButton telegramId={v.telegramId} username={v.username} />
+                    </p>
                   </td>
                   <td className="px-4 py-3 font-mono text-subtle">{v.telegramId}</td>
                   <td className="px-4 py-3">
@@ -524,5 +535,33 @@ function VisitorsPanel() {
         </div>
       )}
     </div>
+  );
+}
+
+/** 관리자 텔레그램 계정(이 계정으로 로그인한 텔레그램에서 회원과 1:1 대화를 연다) */
+const ADMIN_TELEGRAM = 'https://t.me/Kplay33';
+
+/**
+ * 회원에게 텔레그램 메시지 보내기: 그 회원과의 1:1 대화를 연다.
+ * 서버가 대신 보내지 않는다. 관리자가 Kplay33 계정으로 직접 써서 보낸다.
+ * @아이디가 있으면 t.me/아이디(어디서나 열림), 없으면 tg://user?id= (텔레그램 앱이 설치된 PC·폰에서만 열림).
+ */
+function MessageButton({ telegramId, username }: { telegramId: number; username: string | null }) {
+  const href = username ? `https://t.me/${username}` : `tg://user?id=${telegramId}`;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      title={
+        username
+          ? `텔레그램에서 @${username} 와 대화 열기 (관리자 계정 ${ADMIN_TELEGRAM.replace('https://', '')} 로 보내세요)`
+          : `@아이디가 없는 회원이라 텔레그램 앱에서만 열려요 (관리자 계정 ${ADMIN_TELEGRAM.replace('https://', '')} 로 보내세요)`
+      }
+      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-sky-600 hover:bg-sky-500/20"
+    >
+      ✉️ 메시지{username ? '' : ' (앱)'}
+    </a>
   );
 }
