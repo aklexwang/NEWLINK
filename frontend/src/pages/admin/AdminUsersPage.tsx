@@ -208,11 +208,11 @@ export function AdminUsersPage() {
         </div>
 
         <p className="mb-3 text-xs text-muted-foreground">
-          ✉️ 메시지를 누르면 텔레그램에서 그 회원과 1:1 대화가 열려요. 관리자 계정{' '}
+          ✉️ 메시지를 누르면 PC·폰의 텔레그램 앱에서 그 회원과 1:1 대화가 바로 열려요(앱이 안 열리면 옆의 [웹]). 관리자 계정{' '}
           <a href={ADMIN_TELEGRAM} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-600 hover:underline">
             @Kplay33
           </a>{' '}
-          으로 로그인한 텔레그램에서 열어 직접 보내세요. @아이디가 없는 회원은 텔레그램 앱이 깔린 PC·폰에서만 열려요.
+          으로 로그인한 텔레그램에서 직접 보내세요. @아이디가 없는 회원은 앱에서만 열려요.
         </p>
         {kind === 'visitor' ? (
           <VisitorsPanel />
@@ -542,26 +542,34 @@ function VisitorsPanel() {
 const ADMIN_TELEGRAM = 'https://t.me/Kplay33';
 
 /**
- * 회원에게 텔레그램 메시지 보내기: 그 회원과의 1:1 대화를 연다.
- * 서버가 대신 보내지 않는다. 관리자가 Kplay33 계정으로 직접 써서 보낸다.
- * @아이디가 있으면 t.me/아이디(어디서나 열림), 없으면 tg://user?id= (텔레그램 앱이 설치된 PC·폰에서만 열림).
+ * 회원에게 텔레그램 메시지 보내기: 그 회원과의 1:1 대화를 연다(서버가 대신 보내지 않는다).
+ * - [✉️ 메시지]: PC·폰의 텔레그램 앱을 바로 연다(tg://). t.me 웹페이지를 거치면 브라우저가
+ *   앱 열기를 막아 "SEND MESSAGE"를 눌러도 반응이 없는 경우가 있어서 앱 주소로 바로 연다.
+ * - [웹]: 앱이 안 열리면 브라우저의 텔레그램 웹(web.telegram.org)에서 연다(@아이디 있는 회원만).
  */
 function MessageButton({ telegramId, username }: { telegramId: number; username: string | null }) {
-  const href = username ? `https://t.me/${username}` : `tg://user?id=${telegramId}`;
+  const appHref = username ? `tg://resolve?domain=${username}` : `tg://user?id=${telegramId}`;
+  const webHref = username ? `https://web.telegram.org/k/#@${username}` : null;
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
-      title={
-        username
-          ? `텔레그램에서 @${username} 와 대화 열기 (관리자 계정 ${ADMIN_TELEGRAM.replace('https://', '')} 로 보내세요)`
-          : `@아이디가 없는 회원이라 텔레그램 앱에서만 열려요 (관리자 계정 ${ADMIN_TELEGRAM.replace('https://', '')} 로 보내세요)`
-      }
-      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-sky-600 hover:bg-sky-500/20"
-    >
-      ✉️ 메시지{username ? '' : ' (앱)'}
-    </a>
+    <span className="inline-flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      <a
+        href={appHref}
+        title={`텔레그램 앱에서 ${username ? '@' + username : '이 회원'} 과 대화 열기 (관리자 계정 @Kplay33 으로 보내세요)`}
+        className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-sky-600 hover:bg-sky-500/20"
+      >
+        ✉️ 메시지
+      </a>
+      {webHref && (
+        <a
+          href={webHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="앱이 안 열리면 텔레그램 웹에서 열기"
+          className="rounded-md border border-border px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-secondary"
+        >
+          웹
+        </a>
+      )}
+    </span>
   );
 }
