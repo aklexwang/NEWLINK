@@ -521,6 +521,32 @@ export function AdminJoinRequestsPage() {
                         </a>
                         {statusBadge(r.joinRequestStatus, r.joinRequestedAt)}
                       </div>
+                      {/* 다시 요청할 때 쓰도록 주소 + 복사 */}
+                      <div className="mt-1.5 flex min-w-0 items-center gap-2">
+                        <a
+                          href={r.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => openTelegramWindow(e, r.link)}
+                          className="min-w-0 truncate font-mono text-xs text-sky-600 hover:underline"
+                          title={r.link}
+                        >
+                          {r.link.replace(/^https?:\/\//, '')}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => void copyLink(`w:${r.id}`, r.link)}
+                          title="주소 복사"
+                          className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[11px] font-medium transition ${
+                            copiedId === `w:${r.id}`
+                              ? 'border-green-500/40 bg-green-500/10 text-green-600'
+                              : 'border-border hover:bg-secondary'
+                          }`}
+                        >
+                          {copiedId === `w:${r.id}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          {copiedId === `w:${r.id}` ? '복사됨' : '복사'}
+                        </button>
+                      </div>
                       <div className="mt-1 font-mono text-xs text-muted-foreground">
                         {fmt(r.memberCount)}명 · {formatKst(r.joinRequestedAt)}
                         {r.joinRequestAccount ? ` · ${r.joinRequestAccount}` : ''}
