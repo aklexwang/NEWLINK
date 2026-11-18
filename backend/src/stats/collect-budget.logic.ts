@@ -1,6 +1,10 @@
 export const COLLECT_LIGHT_BUDGET_MIN_DEFAULT = 25;
-/** 11/9 70→100분: 매일 full 이 시간 안에 못 끝내고 남기는 수가 늘어서(1,044→1,217→1,485) */
-export const COLLECT_FULL_BUDGET_MIN_DEFAULT = 100;
+/**
+ * 11/9 70→100분: 매일 full 이 시간 안에 못 끝내고 남기는 수가 늘어서(1,044→1,217→1,485)
+ * 11/18 100→150분: 방이 늘어 다시 밀림(새벽 수집 3,301개 중 1,675개, 밀린 방 1,417→1,775).
+ * 03:00 시작 → 05:30 끝. 06:05 첫 light 와 겹치지 않는다. 텔레그램 일일 한도는 그대로.
+ */
+export const COLLECT_FULL_BUDGET_MIN_DEFAULT = 150;
 export const DISCOVERY_BUDGET_MIN_DEFAULT = 15;
 export const VERIFY_RECHECK_BUDGET_MIN_DEFAULT = 5;
 
