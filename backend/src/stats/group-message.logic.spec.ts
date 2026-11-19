@@ -1,4 +1,5 @@
 import {
+  groupLinksFrom,
   shouldCheckInviteGroup,
   summarizeGroupMessages,
   toGroupMessageRow,
@@ -26,7 +27,9 @@ describe('group-message.logic', () => {
   });
 
   it('서비스 메시지·빈 글은 버리고, 사진만 있는 글은 남김', () => {
-    expect(toGroupMessageRow({ className: 'MessageService', id: 2, date: sec(H) })).toBeNull();
+    expect(
+      toGroupMessageRow({ className: 'MessageService', id: 2, date: sec(H) }),
+    ).toBeNull();
     expect(toGroupMessageRow(msg(3, { message: '' }))).toBeNull();
     const photo = toGroupMessageRow(
       msg(4, { message: '', media: { className: 'MessageMediaPhoto' } }),
@@ -35,7 +38,11 @@ describe('group-message.logic', () => {
   });
 
   it('운영자 글(익명 운영자·채널) / 고정 글 표시', () => {
-    expect(toGroupMessageRow(msg(5, { fromId: { className: 'PeerChannel', channelId: 9 } }))?.isAdminPost).toBe(true);
+    expect(
+      toGroupMessageRow(
+        msg(5, { fromId: { className: 'PeerChannel', channelId: 9 } }),
+      )?.isAdminPost,
+    ).toBe(true);
     expect(toGroupMessageRow(msg(6, { post: true }))?.isAdminPost).toBe(true);
     expect(toGroupMessageRow(msg(7))?.isAdminPost).toBe(false);
     expect(toGroupMessageRow(msg(8, { pinned: true }))?.isPinned).toBe(true);
@@ -48,7 +55,10 @@ describe('group-message.logic', () => {
         msg(10, { fromId: { className: 'PeerUser', userId: 1 } }),
         msg(12, { fromId: { className: 'PeerUser', userId: 1 } }),
         msg(11, { fromId: { className: 'PeerUser', userId: 2 } }),
-        msg(13, { date: sec(8 * 24 * H), fromId: { className: 'PeerUser', userId: 3 } }),
+        msg(13, {
+          date: sec(8 * 24 * H),
+          fromId: { className: 'PeerUser', userId: 3 },
+        }),
         msg(14, { fromId: { className: 'PeerChannel', channelId: 5 } }),
       ],
       { nowMs: NOW },
@@ -65,6 +75,27 @@ describe('group-message.logic', () => {
   it('비공개 그룹 초대 링크 확인: 요청함 표시했거나 어드민이 직접 누를 때만', () => {
     expect(shouldCheckInviteGroup({ joinRequestedAt: null })).toBe(false);
     expect(shouldCheckInviteGroup({ joinRequestedAt: new Date() })).toBe(true);
-    expect(shouldCheckInviteGroup({ joinRequestedAt: null }, { manual: true })).toBe(true);
+    expect(
+      shouldCheckInviteGroup({ joinRequestedAt: null }, { manual: true }),
+    ).toBe(true);
+  });
+
+  it('그룹 대화 속 다른 방 링크를 뽑는다(숨긴 링크 포함, 자기 자신 제외)', () => {
+    const { usernames, inviteHashes } = groupLinksFrom(
+      [
+        msg(30, {
+          message: '홍보 https://t.me/newroom_kr 와 t.me/+AbCdEfGhIjKl12',
+        }),
+        msg(31, {
+          message: '여기',
+          entities: [{ url: 'https://t.me/hidden_link_ch' }],
+        }),
+        msg(32, { message: '우리방 t.me/selfgroup' }),
+        { className: 'MessageService', id: 33, date: 1 },
+      ],
+      'selfgroup',
+    );
+    expect(usernames.sort()).toEqual(['hidden_link_ch', 'newroom_kr']);
+    expect(inviteHashes).toEqual(['+AbCdEfGhIjKl12']);
   });
 });

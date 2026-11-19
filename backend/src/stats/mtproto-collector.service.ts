@@ -22,6 +22,7 @@ import { formatKstYmd } from './channel-metrics.math';
 import { ChannelEvent } from './channel-event.entity';
 import { GroupMessage } from './group-message.entity';
 import {
+  groupLinksFrom,
   shouldCheckInviteGroup,
   summarizeGroupMessages,
   toGroupMessageRow,
@@ -395,9 +396,7 @@ export class MtprotoCollectorService implements OnModuleInit {
     // (한 계정이 막혀도 다른 계정이 있으면 계속 쓴다. 전부 막혀야 멈춘다)
     this.ensurePool();
     return (
-      this.isEnabled() &&
-      !this.stopped &&
-      !allAccountsBlocked(this.accounts)
+      this.isEnabled() && !this.stopped && !allAccountsBlocked(this.accounts)
     );
   }
 
@@ -467,12 +466,14 @@ export class MtprotoCollectorService implements OnModuleInit {
   collectAndSave(
     ...args: Parameters<MtprotoCollectorService['collectAndSaveInner']>
   ): ReturnType<MtprotoCollectorService['collectAndSaveInner']> {
-    return this.exclusive(() => this.collectAndSaveInner(...args)) as ReturnType<
-      MtprotoCollectorService['collectAndSaveInner']
-    >;
+    return this.exclusive(() =>
+      this.collectAndSaveInner(...args),
+    ) as ReturnType<MtprotoCollectorService['collectAndSaveInner']>;
   }
 
-  private async collectAndSaveInner(channel: Channel): Promise<MtprotoCollectResult> {
+  private async collectAndSaveInner(
+    channel: Channel,
+  ): Promise<MtprotoCollectResult> {
     if (!this.canUseMtproto()) {
       return { ok: false, reason: 'disabled' };
     }
@@ -542,9 +543,9 @@ export class MtprotoCollectorService implements OnModuleInit {
   collectInviteAndSave(
     ...args: Parameters<MtprotoCollectorService['collectInviteAndSaveInner']>
   ): ReturnType<MtprotoCollectorService['collectInviteAndSaveInner']> {
-    return this.exclusive(() => this.collectInviteAndSaveInner(...args)) as ReturnType<
-      MtprotoCollectorService['collectInviteAndSaveInner']
-    >;
+    return this.exclusive(() =>
+      this.collectInviteAndSaveInner(...args),
+    ) as ReturnType<MtprotoCollectorService['collectInviteAndSaveInner']>;
   }
 
   private async collectInviteAndSaveInner(
@@ -754,7 +755,9 @@ export class MtprotoCollectorService implements OnModuleInit {
     const raw = this.configService.get<string>('MTPROTO_JOIN_REQUEST_DAILY');
     if (raw != null && String(raw).trim() !== '') {
       const n = Number(raw);
-      return Number.isFinite(n) && n >= 0 ? Math.floor(n) : JOIN_REQUEST_DAILY_DEFAULT;
+      return Number.isFinite(n) && n >= 0
+        ? Math.floor(n)
+        : JOIN_REQUEST_DAILY_DEFAULT;
     }
     return JOIN_REQUEST_DAILY_DEFAULT;
   }
@@ -795,7 +798,11 @@ export class MtprotoCollectorService implements OnModuleInit {
   }
 
   /** 오늘 입장 요청 사용량/한도(버튼 비활성화·안내용) — DB 기준 */
-  async joinRequestBudget(): Promise<{ today: number; limit: number; auto: boolean }> {
+  async joinRequestBudget(): Promise<{
+    today: number;
+    limit: number;
+    auto: boolean;
+  }> {
     return {
       today: await this.refreshJoinRequestCount(),
       limit: this.joinRequestDailyLimit(),
@@ -807,7 +814,9 @@ export class MtprotoCollectorService implements OnModuleInit {
   private requestAccountLabel(): string {
     this.ensurePool();
     const idx = this.requestAccountIndex();
-    return idx == null ? '수집 계정' : this.accountLabel(this.accounts[idx] ?? null);
+    return idx == null
+      ? '수집 계정'
+      : this.accountLabel(this.accounts[idx] ?? null);
   }
 
   /**
@@ -844,7 +853,10 @@ export class MtprotoCollectorService implements OnModuleInit {
       joinRequestAccount: `${this.requestAccountLabel()} · 앱`.slice(0, 80),
     });
     this.joinRequestsTodayDb = used + 1;
-    return { ok: true, outcome: '요청함으로 표시했어요. 승인되면 자동으로 글을 읽어 와요.' };
+    return {
+      ok: true,
+      outcome: '요청함으로 표시했어요. 승인되면 자동으로 글을 읽어 와요.',
+    };
   }
 
   /** "요청함" 표시 취소(잘못 누른 경우). 이미 회원이 된 방은 취소하지 않는다 */
@@ -864,7 +876,10 @@ export class MtprotoCollectorService implements OnModuleInit {
       joinRequestedAt: null,
       joinRequestAccount: null,
     });
-    return { ok: true, outcome: '요청함 표시를 취소했어요(후보 목록으로 돌아감).' };
+    return {
+      ok: true,
+      outcome: '요청함 표시를 취소했어요(후보 목록으로 돌아감).',
+    };
   }
 
   /**
@@ -917,9 +932,9 @@ export class MtprotoCollectorService implements OnModuleInit {
   requestJoinForChannel(
     ...args: Parameters<MtprotoCollectorService['requestJoinForChannelInner']>
   ): ReturnType<MtprotoCollectorService['requestJoinForChannelInner']> {
-    return this.exclusive(() => this.requestJoinForChannelInner(...args)) as ReturnType<
-      MtprotoCollectorService['requestJoinForChannelInner']
-    >;
+    return this.exclusive(() =>
+      this.requestJoinForChannelInner(...args),
+    ) as ReturnType<MtprotoCollectorService['requestJoinForChannelInner']>;
   }
 
   private async requestJoinForChannelInner(channelId: string): Promise<{
@@ -1159,9 +1174,9 @@ export class MtprotoCollectorService implements OnModuleInit {
   inspectPublicUsername(
     ...args: Parameters<MtprotoCollectorService['inspectPublicUsernameInner']>
   ): ReturnType<MtprotoCollectorService['inspectPublicUsernameInner']> {
-    return this.exclusive(() => this.inspectPublicUsernameInner(...args)) as ReturnType<
-      MtprotoCollectorService['inspectPublicUsernameInner']
-    >;
+    return this.exclusive(() =>
+      this.inspectPublicUsernameInner(...args),
+    ) as ReturnType<MtprotoCollectorService['inspectPublicUsernameInner']>;
   }
 
   private async inspectPublicUsernameInner(usernameRaw: string): Promise<{
@@ -1204,12 +1219,14 @@ export class MtprotoCollectorService implements OnModuleInit {
   searchPublicByKeyword(
     ...args: Parameters<MtprotoCollectorService['searchPublicByKeywordInner']>
   ): ReturnType<MtprotoCollectorService['searchPublicByKeywordInner']> {
-    return this.exclusive(() => this.searchPublicByKeywordInner(...args)) as ReturnType<
-      MtprotoCollectorService['searchPublicByKeywordInner']
-    >;
+    return this.exclusive(() =>
+      this.searchPublicByKeywordInner(...args),
+    ) as ReturnType<MtprotoCollectorService['searchPublicByKeywordInner']>;
   }
 
-  private async searchPublicByKeywordInner(query: string): Promise<PublicSearchHit[]> {
+  private async searchPublicByKeywordInner(
+    query: string,
+  ): Promise<PublicSearchHit[]> {
     if (!this.canUseMtproto()) return [];
     if (this.remainingSearches() < 1) return [];
     const q = query.trim();
@@ -1239,12 +1256,14 @@ export class MtprotoCollectorService implements OnModuleInit {
   testPublicUsername(
     ...args: Parameters<MtprotoCollectorService['testPublicUsernameInner']>
   ): ReturnType<MtprotoCollectorService['testPublicUsernameInner']> {
-    return this.exclusive(() => this.testPublicUsernameInner(...args)) as ReturnType<
-      MtprotoCollectorService['testPublicUsernameInner']
-    >;
+    return this.exclusive(() =>
+      this.testPublicUsernameInner(...args),
+    ) as ReturnType<MtprotoCollectorService['testPublicUsernameInner']>;
   }
 
-  private async testPublicUsernameInner(usernameRaw: string): Promise<MtprotoTestSummary> {
+  private async testPublicUsernameInner(
+    usernameRaw: string,
+  ): Promise<MtprotoTestSummary> {
     if (!this.canUseMtproto()) {
       return { ok: false, reason: 'disabled' };
     }
@@ -1486,6 +1505,8 @@ export class MtprotoCollectorService implements OnModuleInit {
     hangulRatio?: number | null;
     groupMessages?: GroupMessageRow[];
     groupActiveSenders?: number;
+    groupLinkUsernames?: string[];
+    groupInviteHashes?: string[];
   }> {
     if (resolved.linkType === LinkType.GROUP) {
       const nowMs = Date.now();
@@ -1523,13 +1544,20 @@ export class MtprotoCollectorService implements OnModuleInit {
             if (row && row.messageId === pinnedMsgId) convo.rows.push(row);
           }
         } catch (error) {
-          if (isMtprotoAuthFatal(error) || error instanceof FloodWaitTooLongError)
+          if (
+            isMtprotoAuthFatal(error) ||
+            error instanceof FloodWaitTooLongError
+          )
             throw error;
         }
       }
+      // 그룹 대화 속 다른 방 링크 → 발견 대기열(새 방 찾기). 계정 호출 없음
+      const links = groupLinksFrom(recent, resolved.username ?? null);
       return {
         groupMessages: convo.rows,
         groupActiveSenders: convo.activeSenders7d,
+        groupLinkUsernames: links.usernames,
+        groupInviteHashes: links.inviteHashes,
         posts: [],
         activity: {
           activity24h: activityInWindow({
@@ -1681,12 +1709,21 @@ export class MtprotoCollectorService implements OnModuleInit {
       hangulRatio?: number | null;
       groupMessages?: GroupMessageRow[];
       groupActiveSenders?: number;
+      groupLinkUsernames?: string[];
+      groupInviteHashes?: string[];
     },
   ) {
     const now = new Date();
     const savePosts = shouldSaveMtprotoPosts(data.linkType);
     if (!savePosts) {
       await this.postRepository.delete({ channelId: channel.id });
+      // 그룹 대화 속 링크로 새 방 찾기(검사는 새벽 발견이 하루 한도 안에서)
+      if (data.groupInviteHashes?.length) {
+        await this.inviteQueue?.enqueue(data.groupInviteHashes);
+      }
+      if (data.groupLinkUsernames?.length) {
+        await this.inviteQueue?.enqueueUsernames(data.groupLinkUsernames);
+      }
       if (data.groupMessages && this.groupMessageRepository) {
         // 그룹 대화는 최근 것으로 통째로 바꿔 끼운다(오래된·삭제된 대화가 남지 않게)
         await this.groupMessageRepository.delete({ channelId: channel.id });
@@ -2062,7 +2099,10 @@ export class MtprotoCollectorService implements OnModuleInit {
 
   private inviteCheckDailyLimit(): number {
     return scaledDailyLimit(
-      envPositiveInt(this.configService.get<string>('INVITE_CHECK_DAILY_LIMIT'), 0) || null,
+      envPositiveInt(
+        this.configService.get<string>('INVITE_CHECK_DAILY_LIMIT'),
+        0,
+      ) || null,
       INVITE_CHECK_DAILY_LIMIT_DEFAULT,
       this.poolSize(),
     );
@@ -2070,7 +2110,10 @@ export class MtprotoCollectorService implements OnModuleInit {
 
   private resolveDailyLimit(): number {
     return scaledDailyLimit(
-      envPositiveInt(this.configService.get<string>('RESOLVE_DAILY_LIMIT'), 0) || null,
+      envPositiveInt(
+        this.configService.get<string>('RESOLVE_DAILY_LIMIT'),
+        0,
+      ) || null,
       RESOLVE_DAILY_LIMIT_DEFAULT,
       this.poolSize(),
     );
@@ -2078,7 +2121,10 @@ export class MtprotoCollectorService implements OnModuleInit {
 
   private searchDailyLimit(): number {
     return scaledDailyLimit(
-      envPositiveInt(this.configService.get<string>('KEYWORD_SEARCH_DAILY_LIMIT'), 0) || null,
+      envPositiveInt(
+        this.configService.get<string>('KEYWORD_SEARCH_DAILY_LIMIT'),
+        0,
+      ) || null,
       KEYWORD_SEARCH_DEFAULT_DAILY_LIMIT,
       this.poolSize(),
     );
@@ -2150,7 +2196,8 @@ export class MtprotoCollectorService implements OnModuleInit {
         !isFloodWaitBlocking(account.floodWaitUntil)
       ) {
         account.floodWaitUntil = null;
-        if (account.lastError?.startsWith('flood_wait')) account.lastError = null;
+        if (account.lastError?.startsWith('flood_wait'))
+          account.lastError = null;
         await this.stateRepository.save({
           id: accountStateId(account.index),
           floodWaitStartedAt: null,
@@ -2165,7 +2212,11 @@ export class MtprotoCollectorService implements OnModuleInit {
     const envNum = Number(envRaw);
     const envVal =
       envRaw != null && Number.isFinite(envNum) && envNum > 0 ? envNum : null;
-    return scaledDailyLimit(envVal, MTPROTO_DEFAULT_DAILY_LIMIT, this.poolSize());
+    return scaledDailyLimit(
+      envVal,
+      MTPROTO_DEFAULT_DAILY_LIMIT,
+      this.poolSize(),
+    );
   }
 
   /** 서버를 다시 켜도 오늘 요청·조회·검색 수가 이어지게 */
@@ -2237,7 +2288,9 @@ export class MtprotoCollectorService implements OnModuleInit {
    */
   private accountLabel(slot: AccountSlot | null): string {
     if (!slot) return '알 수 없음';
-    const labels = (this.configService.get<string>('MTPROTO_ACCOUNT_LABELS') ?? '')
+    const labels = (
+      this.configService.get<string>('MTPROTO_ACCOUNT_LABELS') ?? ''
+    )
       .split(',')
       .map((v) => v.trim());
     const named = labels[slot.index];
@@ -2375,10 +2428,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       /* ignore */
     }
     account.client = null;
-    if (
-      this.accounts.length > 0 &&
-      this.accounts.every((a) => a.authStopped)
-    ) {
+    if (this.accounts.length > 0 && this.accounts.every((a) => a.authStopped)) {
       this.stopped = true;
     }
     await this.adminNotify.notifyMtprotoStopped(account.lastError);

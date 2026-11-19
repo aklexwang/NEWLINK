@@ -3,6 +3,10 @@
  * 보낸 사람 ID 는 "몇 명인지" 세는 데만 쓰고 결과에 넣지 않는다.
  */
 import { maskPersonalInfo } from './pii-mask.logic';
+import {
+  extractTmeInvitesFromText,
+  extractTmeUsernamesFromHtml,
+} from './telegram-preview-html';
 
 export const GROUP_MESSAGE_TEXT_MAX = 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -66,7 +70,8 @@ export function toGroupMessageRow(
     mediaType,
     // 익명 운영자(그룹 이름으로 보냄)·연결 채널 글은 fromId 가 채널이거나 post=true
     isAdminPost: msg.post === true || msg.fromId?.className === 'PeerChannel',
-    isPinned: msg.pinned === true || (pinnedMsgId != null && id === pinnedMsgId),
+    isPinned:
+      msg.pinned === true || (pinnedMsgId != null && id === pinnedMsgId),
   };
 }
 
@@ -107,4 +112,39 @@ export function shouldCheckInviteGroup(
   opts: { manual?: boolean } = {},
 ): boolean {
   return opts.manual === true || channel.joinRequestedAt != null;
+}
+
+/**
+ * 그룹 대화 속 다른 방 링크(발견용). 원문에서 뽑는다(저장용 본문은 가려지지만 링크는 방 소개라 그대로 씀).
+ * - t.me/아이디 → 공개 채널·그룹 후보
+ * - t.me/+초대해시 → 비공개 방 후보
+ * 글자에 숨겨 건 링크(텍스트 링크)까지 본다.
+ */
+export function groupLinksFrom(
+  messages: unknown[],
+  selfUsername?: string | null,
+): { usernames: string[]; inviteHashes: string[] } {
+  const usernames = new Set<string>();
+  const invites = new Set<string>();
+  for (const raw of messages) {
+    if (!raw || typeof raw !== 'object') continue;
+    const msg = raw as {
+      className?: string;
+      message?: unknown;
+      entities?: Array<{ url?: unknown }>;
+    };
+    if (msg.className && msg.className !== 'Message') continue;
+    const text = [
+      typeof msg.message === 'string' ? msg.message : '',
+      ...(msg.entities ?? []).map((e) =>
+        typeof e?.url === 'string' ? e.url : '',
+      ),
+    ].join(' ');
+    if (!/t(elegram)?\.me\//i.test(text)) continue;
+    for (const u of extractTmeUsernamesFromHtml(text, selfUsername)) {
+      usernames.add(u);
+    }
+    for (const h of extractTmeInvitesFromText(text)) invites.add(h);
+  }
+  return { usernames: [...usernames], inviteHashes: [...invites] };
 }
