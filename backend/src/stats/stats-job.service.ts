@@ -307,6 +307,9 @@ export class StatsJobService implements OnModuleInit {
     }
   }
 
+  /** startPipeline 이 실행 기록을 만드는 중(동시 시작 방지) */
+  private pipelineStarting = false;
+
   async startPipeline(
     mode: StatsCollectMode = 'full',
     options: { skipIfRecent?: boolean } = {},
@@ -321,9 +324,10 @@ export class StatsJobService implements OnModuleInit {
       // 배포·재시작 뒤에는 메모리 기록이 없으니 DB 의 마지막 시작 시각을 쓴다
       this.lastStartedAt[mode] = await this.loadLastStartedAt(mode);
     }
+    // 진행 중이어도 먼저 본다: 예전엔 light 가 도는 동안 온 GitHub 예비 full 이 이 확인을 건너뛰고
+    // light 가 끝나길 기다렸다가 그대로 시작했다(11/19 09:17 하루 두 번째 full).
     if (
       options.skipIfRecent &&
-      !this.status.running &&
       startedRecently({
         mode,
         lastStartedAtMs: this.lastStartedAt[mode],
@@ -370,7 +374,23 @@ export class StatsJobService implements OnModuleInit {
         };
       }
     }
-    const run = await this.beginRun(0, mode);
+    // 기다리던 요청이 둘 이상이면(GitHub curl 재시도) 둘 다 깨어나 동시에 시작했다
+    // → 시작은 한 번에 하나만. beginRun 의 await 전에 동기적으로 잡는다
+    if (this.status.running || this.pipelineStarting) {
+      return {
+        started: false,
+        skipped: true,
+        runId: this.currentRunId,
+        mode,
+      };
+    }
+    this.pipelineStarting = true;
+    let run: StatsRun;
+    try {
+      run = await this.beginRun(0, mode);
+    } finally {
+      this.pipelineStarting = false;
+    }
     this.lastStartedAt[mode] = Date.now();
     const gate = getTmeGate();
     gate.beginRun(mode);
@@ -546,7 +566,9 @@ export class StatsJobService implements OnModuleInit {
     }
   }
 
-  private async loadLastStartedAt(mode: StatsCollectMode): Promise<number | null> {
+  private async loadLastStartedAt(
+    mode: StatsCollectMode,
+  ): Promise<number | null> {
     try {
       const last = await this.runRepository.findOne({
         // 채널 하나만 도는 '지금 수집'(total 1)도 full 로 남아서 빼고 본다
