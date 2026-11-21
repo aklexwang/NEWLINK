@@ -20,7 +20,7 @@ export class StoredImagesService {
 
   /** 저장하고 화면에서 쓸 주소(/api/images/<id>)를 돌려준다 */
   async save(
-    kind: 'category-icon' | 'channel-avatar',
+    kind: 'category-icon' | 'channel-avatar' | 'promo-image',
     file: { buffer?: Buffer; mimetype?: string; size?: number } | undefined,
   ): Promise<string> {
     if (!file?.buffer || !file.size) {

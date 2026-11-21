@@ -210,8 +210,11 @@ function drawLoginQr(token: Buffer): void {
 /**
  * 저장할 환경변수 키. 멀티 계정(C#1)용으로 --slot=N 을 주면 TELEGRAM_SESSION_N 에 저장한다.
  * (slot 1 또는 생략 = TELEGRAM_SESSION, 기존과 동일)
+ * --promo 를 주면 홍보 전용 계정 TELEGRAM_PROMO_SESSION 에 저장한다(수집에 절대 안 쓰임).
  */
 function sessionEnvKey(): string {
+  // 홍보 전용 계정: 수집 계정 풀(TELEGRAM_SESSION_N)에 섞이지 않게 다른 이름에 저장
+  if (process.argv.includes('--promo')) return 'TELEGRAM_PROMO_SESSION';
   const arg = process.argv.find((a) => a.startsWith('--slot='));
   const n = arg ? Number(arg.slice('--slot='.length)) : 1;
   if (!Number.isInteger(n) || n <= 1) return 'TELEGRAM_SESSION';

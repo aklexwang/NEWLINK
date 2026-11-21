@@ -38,7 +38,10 @@ describe('MTProto 호출 단일 통로', () => {
       'testPublicUsername',
     ];
     for (const m of entries) {
-      expect(src).toContain(`this.exclusive(() => this.${m}Inner(`);
+      // 줄바꿈·띄어쓰기(코드 정리 도구)와 상관없이 확인
+      expect(src).toMatch(
+        new RegExp(`this\\.exclusive\\(\\(\\)\\s*=>\\s*this\\.${m}Inner\\(`),
+      );
       expect(src).toMatch(new RegExp(`private async ${m}Inner\\(`));
     }
     // 새 public async 진입점이 줄 없이 추가되지 않았는지(onModuleInit·prepare 는 MTProto 호출 없음)

@@ -11,6 +11,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ChannelsModule } from './channels/channels.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AutoManageModule } from './auto-manage/auto-manage.module';
+import { PromoModule } from './promo/promo.module';
 import { RankingModule } from './ranking/ranking.module';
 import { SeoModule } from './seo/seo.module';
 import { StatsModule } from './stats/stats.module';
@@ -101,6 +102,7 @@ function truthy(value: string | undefined): boolean {
     MemberActivityModule,
     ServerStatusModule,
     AutoManageModule,
+    PromoModule,
     PaymentsModule,
     RankingModule,
     StatsModule,
