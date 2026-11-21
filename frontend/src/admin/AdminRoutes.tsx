@@ -17,6 +17,7 @@ import { AdminCollectorToolPage } from '../pages/admin/AdminCollectorToolPage';
 import { AdminServerStatusPage } from '../pages/admin/AdminServerStatusPage';
 import { AdminFeedFilterPage } from '../pages/admin/AdminFeedFilterPage';
 import { AdminSecurityPage } from '../pages/admin/AdminSecurityPage';
+import { AdminPromoPage } from '../pages/admin/AdminPromoPage';
 import { TonConnectProvider } from '../providers/TonConnectProvider';
 
 export default function AdminRoutes() {
@@ -50,6 +51,7 @@ export default function AdminRoutes() {
         <Route path="server" element={<AdminServerStatusPage />} />
         <Route path="feed-filter" element={<AdminFeedFilterPage />} />
         <Route path="security" element={<AdminSecurityPage />} />
+        <Route path="promo" element={<AdminPromoPage />} />
       </Route>
     </Routes>
   );

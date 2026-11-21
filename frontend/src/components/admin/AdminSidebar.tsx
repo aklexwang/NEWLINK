@@ -18,6 +18,7 @@ import {
   Timer,
   Users,
   LogOut,
+  Megaphone,
 } from 'lucide-react';
 import { getPendingChannelCount } from '../../api/admin';
 import { getAdminBanners } from '../../api/ads';
@@ -56,6 +57,10 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
       { to: '/admin/ads', label: '광고 관리', icon: <Star />, badge: 'ads' },
       { to: '/admin/users', label: '회원 관리', icon: <Users /> },
     ],
+  },
+  {
+    title: 'PROMOTION',
+    items: [{ to: '/admin/promo', label: '홍보 자동화', icon: <Megaphone /> }],
   },
   {
     title: 'SETTINGS',

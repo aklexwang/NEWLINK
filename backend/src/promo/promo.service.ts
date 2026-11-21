@@ -254,6 +254,10 @@ export class PromoService {
       where: { ok: true },
       order: { postedAt: 'DESC' },
     });
+    // 이미지 문구용: 회원 화면 방 수(대략)
+    const rooms = await this.channels.count({
+      where: { status: ChannelStatus.ACTIVE },
+    });
     return {
       configured,
       account,
@@ -265,6 +269,7 @@ export class PromoService {
         settings.hourEnd,
       ),
       todaySent: today.total,
+      rooms,
       targetTotal,
       targetOn,
       creativeOn,
