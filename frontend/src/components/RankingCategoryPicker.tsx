@@ -62,11 +62,6 @@ export function RankingCategoryPicker({
           <span className="block truncate text-[17px] leading-tight font-bold text-tg-text">
             {selectedCategory.name}
           </span>
-          {selectedCategory.id === 'all' && (
-            <span className="mt-0.5 block text-[12px] text-tg-hint">
-              방 {selectedCategory.count.toLocaleString()}개
-            </span>
-          )}
         </span>
         <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#229af0] px-3.5 py-2 text-[13px] font-bold text-white">
           카테고리
