@@ -1,6 +1,8 @@
 import { useMemo, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getRankingCategories } from '../api/ranking';
+import { getBanners, type PublicBanner } from '../api/ads';
+import { BannerCarousel } from '../components/BannerCarousel';
 import { useRankingInfiniteList } from '../hooks/useRankingInfiniteList';
 import { useRankAds } from '../hooks/useRankAds';
 import { mergeRankAds } from '../utils/mergeRankAds';
@@ -43,6 +45,19 @@ export function CategoriesPage() {
   const category = searchParams.get('category') || 'all';
 
   const [categories, setCategories] = useState<RankingCategoryItem[]>([]);
+  // 홈과 같은 배너 광고(카테고리 선택 상자 바로 아래)
+  const [bannerAds, setBannerAds] = useState<{ rotateSeconds: number; banners: PublicBanner[] } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getBanners()
+      .then((data) => {
+        if (!cancelled) setBannerAds(data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [adultOpen, setAdultOpen] = useState(
     () => (searchParams.get('category') || '') === '성인' && !hasConfirmedAdult(),
@@ -106,6 +121,13 @@ export function CategoriesPage() {
             patchParams({ category: id, sort: 'score' });
           }}
         />
+      )}
+
+      {bannerAds && bannerAds.banners.length > 0 && (
+        // 카테고리 상자와 같은 너비(좌우 여백 16px)
+        <div className="px-4 pb-1">
+          <BannerCarousel banners={bannerAds.banners} rotateSeconds={bannerAds.rotateSeconds} />
+        </div>
       )}
 
       <div className="px-4 pt-3">
