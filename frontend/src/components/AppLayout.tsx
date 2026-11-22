@@ -6,6 +6,7 @@ import { NewLinkLogo } from './NewLinkLogo';
 import { useAuth } from '../providers/AuthProvider';
 import { HOME_RESET_EVENT } from '../utils/homeReset';
 import { BottomNav } from './BottomNav';
+import { ScrollTopButton } from './ScrollTopButton';
 
 /** 화면(경로)별 스크롤 위치. 뒤로 가기 때 복원하는 데 쓴다 */
 const savedScroll = new Map<string, number>();
@@ -148,6 +149,7 @@ export function AppLayout() {
         <TelegramBarContent />
       </div>
       <Outlet />
+      <ScrollTopButton />
       <BottomNav />
     </div>
   );
