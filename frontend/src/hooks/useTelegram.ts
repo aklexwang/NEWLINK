@@ -90,10 +90,70 @@ export function setRoomLinkAllowed(allowed: boolean) {
   roomLinkAllowed = allowed;
 }
 
+// 마지막으로 누른 위치 (안내 말풍선을 그 자리에 띄우려고)
+let lastTap: { x: number; y: number } | null = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'pointerdown',
+    (e) => {
+      lastTap = { x: e.clientX, y: e.clientY };
+    },
+    { capture: true, passive: true },
+  );
+}
+
+/** 누른 자리 바로 위에 텔레그램 파란 말풍선으로 로그인 안내 */
+function showLoginBubble() {
+  if (typeof document === 'undefined') return;
+  document.getElementById('nl-login-bubble')?.remove();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const tap = lastTap ?? { x: vw / 2, y: vh / 2 };
+  const el = document.createElement('div');
+  el.id = 'nl-login-bubble';
+  el.setAttribute('role', 'alert');
+  el.textContent = '🔒 로그인 후 이용 가능합니다';
+  Object.assign(el.style, {
+    position: 'fixed',
+    zIndex: '9999',
+    left: '0px',
+    top: '0px',
+    padding: '12px 18px',
+    borderRadius: '16px',
+    background: '#2AABEE',
+    color: '#fff',
+    fontSize: '15px',
+    fontWeight: '800',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 8px 28px rgba(42,171,238,0.55), 0 0 0 3px rgba(255,255,255,0.9)',
+    pointerEvents: 'none',
+    opacity: '0',
+    transform: 'scale(0.85)',
+    transition: 'opacity .15s ease, transform .15s ease',
+  } as Partial<CSSStyleDeclaration>);
+  document.body.appendChild(el);
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  const left = Math.min(Math.max(tap.x - w / 2, 8), vw - w - 8);
+  // 손가락에 가리지 않게 누른 자리 위쪽, 공간이 없으면 아래쪽
+  let top = tap.y - h - 18;
+  if (top < 8) top = Math.min(tap.y + 24, vh - h - 8);
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+    el.style.transform = 'scale(1)';
+  });
+  window.setTimeout(() => {
+    el.style.opacity = '0';
+    window.setTimeout(() => el.remove(), 200);
+  }, 2200);
+}
+
 /** 방으로 이동: 로그인 안 했으면 안내만 하고 false */
 export function openRoomLink(webApp: typeof WebApp, isLocalBrowser: boolean, link: string): boolean {
   if (!roomLinkAllowed) {
-    toastMessage('로그인 후 이용 가능합니다.', 'info');
+    showLoginBubble();
     return false;
   }
   openTelegramChannel(webApp, isLocalBrowser, link);
