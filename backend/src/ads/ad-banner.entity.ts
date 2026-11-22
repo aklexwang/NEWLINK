@@ -40,6 +40,12 @@ export class AdBanner {
   @Column({ name: 'ends_at', type: dateTimeColumnType(), nullable: true })
   endsAt: Date | null;
 
+  /**
+   * 어디에 보일지: home(회원 홈) | category:all(카테고리 화면 메인) | category:<카테고리 이름>(그 카테고리)
+   */
+  @Column({ type: 'varchar', length: 60, default: 'home' })
+  placement: string;
+
   @Column({ name: 'sort_order', type: 'integer', default: 0 })
   sortOrder: number;
 

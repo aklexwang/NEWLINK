@@ -7,6 +7,8 @@ export type AdminBanner = PublicBanner & {
   startsAt: string | null;
   endsAt: string | null;
   sortOrder: number;
+  /** home | category:all | category:<카테고리 이름> */
+  placement: string;
   isActive: boolean;
   clicks: number;
   /** 받은 광고비(USDT)·받은 날 */
@@ -27,9 +29,24 @@ export type AdminBanner = PublicBanner & {
 export const BANNER_SIZE = { width: 1200, height: 400, maxMb: 1 };
 export const BANNER_ROTATE_CHOICES = [1, 2, 3, 5, 7, 10];
 
-export async function getBanners(): Promise<{ rotateSeconds: number; banners: PublicBanner[] }> {
-  const { data } = await apiClient.get('/ads/banners');
+/** 회원 화면 배너. 카테고리 화면은 { place: 'category', category } (그 카테고리 → 카테고리 메인 → 홈 순) */
+export async function getBanners(
+  opts: { place?: 'home' | 'category'; category?: string } = {},
+): Promise<{ rotateSeconds: number; banners: PublicBanner[] }> {
+  const params: Record<string, string> = {};
+  if (opts.place === 'category') {
+    params.place = 'category';
+    if (opts.category) params.category = opts.category;
+  }
+  const { data } = await apiClient.get('/ads/banners', { params });
   return data;
+}
+
+/** 광고 자리 이름 */
+export function bannerPlacementLabel(placement: string | undefined): string {
+  if (!placement || placement === 'home') return '홈';
+  if (placement === 'category:all') return '카테고리 메인';
+  return `카테고리 · ${placement.slice('category:'.length)}`;
 }
 
 /** 배너 클릭 기록. 이동을 막지 않게 기다리지 않는다 */
@@ -55,6 +72,7 @@ export type BannerForm = {
   startsOn?: string;
   endsOn?: string;
   sortOrder?: number;
+  placement?: string;
   isActive?: boolean;
   paidUsdt?: string;
   paidOn?: string;
@@ -71,6 +89,7 @@ function toFormData(form: BannerForm): FormData {
   if (form.endsOn !== undefined) data.append('endsOn', form.endsOn);
   if (form.sortOrder !== undefined) data.append('sortOrder', String(form.sortOrder));
   if (form.isActive !== undefined) data.append('isActive', String(form.isActive));
+  if (form.placement !== undefined) data.append('placement', form.placement);
   if (form.paidUsdt !== undefined) data.append('paidUsdt', form.paidUsdt);
   if (form.paidOn !== undefined) data.append('paidOn', form.paidOn);
   if (form.advertiserTelegramId !== undefined)

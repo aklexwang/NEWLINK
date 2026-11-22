@@ -43,13 +43,10 @@ export function CategoriesPage() {
   const sort = parseSort(searchParams.get('sort'));
   const type = parseType(searchParams.get('type'));
   const category = searchParams.get('category') || 'all';
-
-  const [categories, setCategories] = useState<RankingCategoryItem[]>([]);
-  // 홈과 같은 배너 광고(카테고리 선택 상자 바로 아래)
-  const [bannerAds, setBannerAds] = useState<{ rotateSeconds: number; banners: PublicBanner[] } | null>(null);
+  // 카테고리 광고: 고른 카테고리 광고 → 없으면 카테고리 메인 광고 → 없으면 홈 광고
   useEffect(() => {
     let cancelled = false;
-    getBanners()
+    getBanners({ place: 'category', category })
       .then((data) => {
         if (!cancelled) setBannerAds(data);
       })
@@ -57,7 +54,12 @@ export function CategoriesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [category]);
+
+  const [categories, setCategories] = useState<RankingCategoryItem[]>([]);
+  // 카테고리 화면 배너 광고(카테고리 선택 상자 바로 아래)
+  const [bannerAds, setBannerAds] = useState<{ rotateSeconds: number; banners: PublicBanner[] } | null>(null);
+
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [adultOpen, setAdultOpen] = useState(
     () => (searchParams.get('category') || '') === '성인' && !hasConfirmedAdult(),

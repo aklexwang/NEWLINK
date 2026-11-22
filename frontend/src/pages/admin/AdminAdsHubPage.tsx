@@ -3,7 +3,7 @@ import { AdminBannerAdsPage } from './AdminBannerAdsPage';
 import { AdminRankAdsPage } from './AdminRankAdsPage';
 
 const TABS = [
-  { id: 'banner', label: '🖼️ 배너 광고', desc: '회원 홈 맨 위 슬라이드 배너' },
+  { id: 'banner', label: '🖼️ 배너 광고', desc: '회원 홈 · 카테고리 화면 슬라이드 배너' },
   { id: 'rooms', label: '📢 텔레그램방 광고', desc: '카테고리 목록 1~5위 자리' },
 ] as const;
 

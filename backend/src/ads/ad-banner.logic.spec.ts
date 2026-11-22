@@ -1,4 +1,8 @@
 import {
+  normalizeBannerPlacement,
+  pickCategoryBanners,
+} from './ad-banner.logic';
+import {
   isBannerLive,
   kstDateBoundary,
   normalizeBannerLink,
@@ -73,5 +77,35 @@ describe('ad-banner.logic', () => {
       '2026-11-30T15:00:00.000Z',
     );
     expect(kstDateBoundary('', false)).toBeNull();
+  });
+});
+
+describe('배너 자리(홈·카테고리 메인·카테고리별)', () => {
+  it('자리 값 정리', () => {
+    expect(normalizeBannerPlacement(undefined)).toBe('home');
+    expect(normalizeBannerPlacement('home')).toBe('home');
+    expect(normalizeBannerPlacement('category:all')).toBe('category:all');
+    expect(normalizeBannerPlacement('category: 코인 ')).toBe('category:코인');
+    expect(normalizeBannerPlacement('etc')).toBeNull();
+  });
+  const live = [
+    { id: 'h', placement: 'home' },
+    { id: 'm', placement: 'category:all' },
+    { id: 'c', placement: 'category:코인' },
+  ];
+  it('그 카테고리 광고 우선', () => {
+    expect(pickCategoryBanners(live, '코인').map((b) => b.id)).toEqual(['c']);
+  });
+  it('없으면 카테고리 메인', () => {
+    expect(pickCategoryBanners(live, '뉴스').map((b) => b.id)).toEqual(['m']);
+    expect(pickCategoryBanners(live, 'all').map((b) => b.id)).toEqual(['m']);
+  });
+  it('메인도 없으면 홈 광고(자리가 비지 않게)', () => {
+    expect(
+      pickCategoryBanners(
+        live.filter((b) => b.id === 'h'),
+        '뉴스',
+      ).map((b) => b.id),
+    ).toEqual(['h']);
   });
 });

@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Put,
   Res,
   UploadedFile,
@@ -39,9 +40,16 @@ export class PublicAdsController {
     private readonly stats: AdStatsService,
   ) {}
 
+  /** 회원 화면 배너. ?place=category&category=이름 이면 카테고리 화면 광고 */
   @Get('banners')
-  banners() {
-    return this.ads.listPublic();
+  banners(
+    @Query('place') place?: string,
+    @Query('category') category?: string,
+  ) {
+    return this.ads.listPublic(
+      place === 'category' ? 'category' : 'home',
+      typeof category === 'string' ? category.slice(0, 48) : undefined,
+    );
   }
 
   @Get('banners/:id/image')

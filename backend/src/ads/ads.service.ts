@@ -11,6 +11,9 @@ import { AdStatsService } from './ad-stats.service';
 import { AppSetting } from './app-setting.entity';
 import {
   BANNER_MAX_BYTES,
+  BANNER_PLACEMENT_HOME,
+  normalizeBannerPlacement,
+  pickCategoryBanners,
   BANNER_ROTATE_KEY,
   isBannerLive,
   kstDateBoundary,
@@ -30,6 +33,7 @@ export type BannerInput = {
   paidUsdt?: unknown;
   paidOn?: unknown;
   advertiserTelegramId?: unknown;
+  placement?: unknown;
 };
 
 function toBool(value: unknown, fallback: boolean): boolean {
@@ -39,7 +43,10 @@ function toBool(value: unknown, fallback: boolean): boolean {
 
 @Injectable()
 export class AdsService {
-  private publicCache: { at: number; value: unknown } | null = null;
+  private publicCache: {
+    at: number;
+    value: { rotateSeconds: number; live: AdBanner[] };
+  } | null = null;
 
   constructor(
     @InjectRepository(AdBanner)
@@ -83,23 +90,36 @@ export class AdsService {
     };
   }
 
-  /** 회원 홈: 지금 보여 줄 배너 + 넘김 간격(1분 캐시) */
-  async listPublic() {
-    if (this.publicCache && Date.now() - this.publicCache.at < 60_000) {
-      return this.publicCache.value;
+  /**
+   * 회원 화면 배너 + 넘김 간격(1분 캐시).
+   * place='home'(기본) 이면 홈 광고, 'category' 면 category 에 맞는 광고(없으면 카테고리 메인 → 홈).
+   */
+  async listPublic(place: string = 'home', category?: string) {
+    if (!this.publicCache || Date.now() - this.publicCache.at >= 60_000) {
+      const rows = await this.bannerRepository.find({
+        order: { sortOrder: 'ASC', createdAt: 'DESC' },
+      });
+      const now = new Date();
+      this.publicCache = {
+        at: Date.now(),
+        value: {
+          rotateSeconds: await this.rotateSeconds(),
+          live: rows.filter((row) => isBannerLive(row, now)),
+        },
+      };
     }
-    const rows = await this.bannerRepository.find({
-      order: { sortOrder: 'ASC', createdAt: 'DESC' },
-    });
-    const now = new Date();
-    const value = {
-      rotateSeconds: await this.rotateSeconds(),
-      banners: rows
-        .filter((row) => isBannerLive(row, now))
-        .map((row) => this.publicShape(row)),
+    const { rotateSeconds, live } = this.publicCache.value;
+    const picked =
+      place === 'category'
+        ? pickCategoryBanners(live, category)
+        : live.filter(
+            (b) =>
+              (b.placement || BANNER_PLACEMENT_HOME) === BANNER_PLACEMENT_HOME,
+          );
+    return {
+      rotateSeconds,
+      banners: picked.map((row) => this.publicShape(row)),
     };
-    this.publicCache = { at: Date.now(), value };
-    return value;
   }
 
   async image(id: string): Promise<{ mime: string; data: Buffer }> {
@@ -139,6 +159,7 @@ export class AdsService {
         startsAt: row.startsAt,
         endsAt: row.endsAt,
         sortOrder: row.sortOrder,
+        placement: row.placement || BANNER_PLACEMENT_HOME,
         isActive: row.isActive,
         clicks: row.clicks,
         paidUsdt: row.paidUsdt,
@@ -189,6 +210,12 @@ export class AdsService {
     }
     if (input.isActive !== undefined || creating) {
       row.isActive = toBool(input.isActive, true);
+    }
+    if (input.placement !== undefined || creating) {
+      const placement = normalizeBannerPlacement(input.placement);
+      if (!placement)
+        throw new BadRequestException('광고 자리를 다시 골라 주세요.');
+      row.placement = placement;
     }
     applyPayment(row, input);
   }

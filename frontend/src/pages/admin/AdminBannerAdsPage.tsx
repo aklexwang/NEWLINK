@@ -9,7 +9,9 @@ import {
   updateAdminBanner,
   type AdminBanner,
   type BannerForm,
+  bannerPlacementLabel,
 } from '../../api/ads';
+import { getAdminCategories } from '../../api/admin';
 import { AdPaymentChips, AdPaymentFields } from '../../components/admin/AdPayment';
 import { AdPerfLine, AdPerfPanel, AdvertiserPicker } from '../../components/admin/AdExtras';
 import { AdminDatePicker } from '../../components/admin/AdminDatePicker';
@@ -42,6 +44,13 @@ function BannerEditor({
   const [endsOn, setEndsOn] = useState(kstDateInput(banner?.endsAt ?? null, true));
   const [sortOrder, setSortOrder] = useState(String(banner?.sortOrder ?? 0));
   const [isActive, setIsActive] = useState(banner?.isActive ?? true);
+  const [placement, setPlacement] = useState(banner?.placement ?? 'home');
+  const [categoryNames, setCategoryNames] = useState<string[]>([]);
+  useEffect(() => {
+    void getAdminCategories()
+      .then((list) => setCategoryNames(list.filter((c) => c.isActive !== false).map((c) => c.name)))
+      .catch(() => undefined);
+  }, []);
   const [paidUsdt, setPaidUsdt] = useState(banner?.paidUsdt != null ? String(banner.paidUsdt) : '');
   const [paidOn, setPaidOn] = useState(banner?.paidOn ?? '');
   const [advertiser, setAdvertiser] = useState(
@@ -87,6 +96,7 @@ function BannerEditor({
         startsOn,
         endsOn,
         sortOrder: Number(sortOrder) || 0,
+        placement,
         isActive,
         paidUsdt,
         paidOn,
@@ -128,6 +138,21 @@ function BannerEditor({
         {sizeNote && <p className="mt-1.5 text-xs text-subtle">{sizeNote}</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-sm font-medium text-subtle sm:col-span-2">
+          광고 자리
+          <select value={placement} onChange={(e) => setPlacement(e.target.value)} className={inputClass}>
+            <option value="home">홈 (회원 홈 맨 위)</option>
+            <option value="category:all">카테고리 메인 (카테고리 화면 · 전용 광고 없는 카테고리에도 나옴)</option>
+            {categoryNames.map((name) => (
+              <option key={name} value={`category:${name}`}>
+                카테고리 · {name} (그 카테고리를 볼 때만)
+              </option>
+            ))}
+            {placement.startsWith('category:') &&
+              placement !== 'category:all' &&
+              !categoryNames.includes(placement.slice(9)) && <option value={placement}>{bannerPlacementLabel(placement)}</option>}
+          </select>
+        </label>
         <label className="block text-sm font-medium text-subtle">
           광고 이름 (관리용)
           <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} placeholder="예: AXPAY 11월" />
@@ -225,7 +250,8 @@ export function AdminBannerAdsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          회원 홈에 보이는 배너 {liveCount}개 · 전체 {banners.length}개
+          노출 중 {liveCount}개 · 전체 {banners.length}개 · 홈 {banners.filter((b) => (b.placement ?? 'home') === 'home').length} · 카테고리{' '}
+          {banners.filter((b) => (b.placement ?? 'home') !== 'home').length}
         </p>
         <button type="button" onClick={() => setAdding((v) => !v)} className="h-11 rounded-xl bg-primary px-5 text-[15px] font-semibold text-white">
           {adding ? '닫기' : '+ 배너 추가'}
@@ -314,6 +340,9 @@ export function AdminBannerAdsPage() {
                       />
                     </p>
                     <p className="mt-1 text-sm text-subtle">
+                      <span className="mr-1.5 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                        📍 {bannerPlacementLabel(banner.placement)}
+                      </span>
                       순서 {banner.sortOrder} ·{' '}
                       {kstDateInput(banner.startsAt, false) || '처음부터'} ~ {kstDateInput(banner.endsAt, true) || '계속'}
                     </p>

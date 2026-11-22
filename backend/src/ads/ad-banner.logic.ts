@@ -84,3 +84,37 @@ export function kstDateBoundary(raw: unknown, end: boolean): Date | null {
   if (!Number.isFinite(base.getTime())) return null;
   return end ? new Date(base.getTime() + 86_400_000) : base;
 }
+
+/** 배너 자리: 홈 / 카테고리 메인 / 카테고리별 */
+export const BANNER_PLACEMENT_HOME = 'home';
+export const BANNER_PLACEMENT_CATEGORY_MAIN = 'category:all';
+
+export function normalizeBannerPlacement(raw: unknown): string | null {
+  if (raw === undefined || raw === null || raw === '')
+    return BANNER_PLACEMENT_HOME;
+  if (typeof raw !== 'string') return null;
+  const v = raw.trim();
+  if (v === BANNER_PLACEMENT_HOME) return v;
+  const m = /^category:(.{1,48})$/.exec(v);
+  return m ? `category:${m[1].trim()}` : null;
+}
+
+/**
+ * 카테고리 화면에 보일 배너 고르기.
+ * 그 카테고리 광고 → 없으면 카테고리 메인 광고 → 그것도 없으면 홈 광고(자리가 비지 않게).
+ */
+export function pickCategoryBanners<T extends { placement: string }>(
+  live: T[],
+  category: string | null | undefined,
+): T[] {
+  const cat = (category ?? '').trim();
+  if (cat && cat !== 'all') {
+    const own = live.filter((b) => b.placement === `category:${cat}`);
+    if (own.length > 0) return own;
+  }
+  const main = live.filter(
+    (b) => b.placement === BANNER_PLACEMENT_CATEGORY_MAIN,
+  );
+  if (main.length > 0) return main;
+  return live.filter((b) => b.placement === BANNER_PLACEMENT_HOME);
+}
