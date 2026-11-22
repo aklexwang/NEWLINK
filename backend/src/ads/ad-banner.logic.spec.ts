@@ -100,12 +100,12 @@ describe('배너 자리(홈·카테고리 메인·카테고리별)', () => {
     expect(pickCategoryBanners(live, '뉴스').map((b) => b.id)).toEqual(['m']);
     expect(pickCategoryBanners(live, 'all').map((b) => b.id)).toEqual(['m']);
   });
-  it('메인도 없으면 홈 광고(자리가 비지 않게)', () => {
+  it('메인도 없으면 비움(홈 광고는 크기가 달라 안 씀)', () => {
     expect(
       pickCategoryBanners(
         live.filter((b) => b.id === 'h'),
         '뉴스',
-      ).map((b) => b.id),
-    ).toEqual(['h']);
+      ),
+    ).toEqual([]);
   });
 });

@@ -126,9 +126,9 @@ export function CategoriesPage() {
       )}
 
       {bannerAds && bannerAds.banners.length > 0 && (
-        // 카테고리 상자와 같은 너비(좌우 여백 16px)
+        // 카테고리 선택 상자와 같은 너비·높이(68px)
         <div className="px-4 pb-1">
-          <BannerCarousel banners={bannerAds.banners} rotateSeconds={bannerAds.rotateSeconds} />
+          <BannerCarousel banners={bannerAds.banners} rotateSeconds={bannerAds.rotateSeconds} slim />
         </div>
       )}
 

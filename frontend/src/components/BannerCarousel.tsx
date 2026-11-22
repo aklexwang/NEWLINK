@@ -17,9 +17,12 @@ const EASE = 'cubic-bezier(0.25, 0.8, 0.25, 1)';
 export function BannerCarousel({
   banners,
   rotateSeconds,
+  slim = false,
 }: {
   banners: PublicBanner[];
   rotateSeconds: number;
+  /** 카테고리 화면용 얇은 배너: 카테고리 선택 상자와 같은 높이(68px). 권장 이미지 1200×228 */
+  slim?: boolean;
 }) {
   const { webApp, isLocalBrowser } = useTelegram();
   const count = banners.length;
@@ -191,7 +194,7 @@ export function BannerCarousel({
               draggable={false}
               loading="eager"
               decoding="async"
-              className="block aspect-[3/1] w-full bg-nl-elev object-cover"
+              className={`block w-full bg-nl-elev object-cover ${slim ? 'h-[68px]' : 'aspect-[3/1]'}`}
             />
           </button>
         ))}

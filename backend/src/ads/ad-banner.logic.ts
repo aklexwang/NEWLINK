@@ -101,7 +101,7 @@ export function normalizeBannerPlacement(raw: unknown): string | null {
 
 /**
  * 카테고리 화면에 보일 배너 고르기.
- * 그 카테고리 광고 → 없으면 카테고리 메인 광고 → 그것도 없으면 홈 광고(자리가 비지 않게).
+ * 그 카테고리 광고 → 없으면 카테고리 메인 광고. (홈 광고는 3:1 이라 얇은 카테고리 자리에 맞지 않아 쓰지 않음)
  */
 export function pickCategoryBanners<T extends { placement: string }>(
   live: T[],
@@ -112,9 +112,6 @@ export function pickCategoryBanners<T extends { placement: string }>(
     const own = live.filter((b) => b.placement === `category:${cat}`);
     if (own.length > 0) return own;
   }
-  const main = live.filter(
-    (b) => b.placement === BANNER_PLACEMENT_CATEGORY_MAIN,
-  );
-  if (main.length > 0) return main;
-  return live.filter((b) => b.placement === BANNER_PLACEMENT_HOME);
+  // 홈 광고(3:1)는 얇은 카테고리 자리에 맞지 않아 쓰지 않는다
+  return live.filter((b) => b.placement === BANNER_PLACEMENT_CATEGORY_MAIN);
 }

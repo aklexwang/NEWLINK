@@ -45,6 +45,9 @@ function BannerEditor({
   const [sortOrder, setSortOrder] = useState(String(banner?.sortOrder ?? 0));
   const [isActive, setIsActive] = useState(banner?.isActive ?? true);
   const [placement, setPlacement] = useState(banner?.placement ?? 'home');
+  // 카테고리 자리는 얇은 배너(카테고리 선택 상자와 같은 높이)
+  const slim = placement.startsWith('category:');
+  const size = slim ? { w: 1200, h: 228, ratio: 1200 / 228, label: '1200×228px (얇은 배너)' } : { w: BANNER_SIZE.width, h: BANNER_SIZE.height, ratio: 3, label: `${BANNER_SIZE.width}×${BANNER_SIZE.height}px (3:1)` };
   const [categoryNames, setCategoryNames] = useState<string[]>([]);
   useEffect(() => {
     void getAdminCategories()
@@ -78,8 +81,8 @@ function BannerEditor({
     img.onload = () => {
       const ratio = img.width / img.height;
       setSizeNote(
-        Math.abs(ratio - 3) > 0.15
-          ? `지금 ${img.width}×${img.height} — 3:1 비율(${BANNER_SIZE.width}×${BANNER_SIZE.height})이 아니라 위아래가 잘릴 수 있어요`
+        Math.abs(ratio - size.ratio) > size.ratio * 0.06
+          ? `지금 ${img.width}×${img.height} — 권장 ${size.w}×${size.h} 비율이 아니라 위아래가 잘릴 수 있어요`
           : `${img.width}×${img.height} ✓`,
       );
     };
@@ -118,13 +121,14 @@ function BannerEditor({
       <h3 className="text-base font-bold text-foreground">{banner ? '배너 수정' : '새 배너'}</h3>
       <div>
         <p className="text-sm font-medium text-subtle">
-          배너 이미지 · {BANNER_SIZE.width}×{BANNER_SIZE.height}px (3:1), JPG·PNG·WebP, {BANNER_SIZE.maxMb}MB 이하
+          배너 이미지 · {size.label}, JPG·PNG·WebP, {BANNER_SIZE.maxMb}MB 이하
+          {slim && ' · 카테고리 화면은 카테고리 선택 상자와 같은 높이로 나와요'}
         </p>
         <label className="mt-2 block max-w-[600px] cursor-pointer overflow-hidden rounded-xl bg-muted ring-1 ring-border">
           {preview ? (
-            <img src={preview} alt="" className="block aspect-[3/1] w-full object-cover" />
+            <img src={preview} alt="" className={`block w-full object-cover ${slim ? 'aspect-[1200/228]' : 'aspect-[3/1]'}`} />
           ) : (
-            <div className="flex aspect-[3/1] w-full items-center justify-center text-sm text-muted-foreground">
+            <div className={`flex w-full items-center justify-center text-sm text-muted-foreground ${slim ? 'aspect-[1200/228]' : 'aspect-[3/1]'}`}>
               눌러서 이미지 선택
             </div>
           )}
@@ -309,7 +313,11 @@ export function AdminBannerAdsPage() {
               />
             ) : (
               <div key={banner.id} className="flex flex-col flex-wrap overflow-hidden rounded-2xl bg-card shadow-[var(--hz-shadow)] sm:flex-row sm:items-center">
-                <img src={resolveMediaUrl(banner.imageUrl)} alt={banner.title} className="block aspect-[3/1] w-full shrink-0 object-cover sm:w-[360px]" />
+                <img
+                  src={resolveMediaUrl(banner.imageUrl)}
+                  alt={banner.title}
+                  className={`block w-full shrink-0 object-cover sm:w-[360px] ${banner.placement?.startsWith('category:') ? 'aspect-[1200/228]' : 'aspect-[3/1]'}`}
+                />
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 p-4">
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 text-base font-bold text-foreground">
