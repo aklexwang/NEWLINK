@@ -20,7 +20,7 @@ import { SearchBar } from '../components/SearchBar';
 import { useCategories } from '../hooks/useCategories';
 import { useMyFavorites } from '../hooks/useMyFavorites';
 import { useMyRecommendations } from '../hooks/useMyRecommendations';
-import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
+import { hapticSuccess, notifyUser, openRoomLink, useTelegram } from '../hooks/useTelegram';
 import { trackTelegramOpen } from '../api/opens';
 import { channelDetailPath } from '../utils/channelDetailPath';
 import { useAuth } from '../providers/AuthProvider';
@@ -640,7 +640,7 @@ function ThreadItem({
     resolveMemberDelta(item.memberDelta7d, item.memberCount, item.growth7d),
   );
   const openRoom = () => {
-    openTelegramChannel(webApp, isLocalBrowser, item.link);
+    openRoomLink(webApp, isLocalBrowser, item.link);
     trackTelegramOpen(item.id);
   };
   // 아이폰은 텔레그램 게시글 상자(iframe)가 터치를 가로채서, 글·사진을 우리가 직접 그린다

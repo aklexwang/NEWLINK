@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trackTelegramOpen } from '../api/opens';
-import { openTelegramChannel, useTelegram } from '../hooks/useTelegram';
+import { openRoomLink, useTelegram } from '../hooks/useTelegram';
 import type { ChannelSummary } from '../api/stats';
 import type { Channel } from '../types/channel';
 import { extractTelegramUsername, getChannelAvatarSources } from '../utils/channelAvatar';
@@ -116,7 +116,7 @@ export function ChannelCard({
   const stop = (event: MouseEvent | KeyboardEvent) => event.stopPropagation();
   const openHandle = (event: MouseEvent, target: string) => {
     event.stopPropagation();
-    openTelegramChannel(webApp, isLocalBrowser, `https://t.me/${target}`);
+    openRoomLink(webApp, isLocalBrowser, `https://t.me/${target}`);
   };
 
   const createdShort = createdOn ? createdOn.replace(/년 |월 /g, '.').replace('일', '') : null;
@@ -237,7 +237,7 @@ export function ChannelCard({
           <button
             type="button"
             onClick={() => {
-              openTelegramChannel(webApp, isLocalBrowser, channel.link);
+              openRoomLink(webApp, isLocalBrowser, channel.link);
               trackTelegramOpen(channel.id);
             }}
             aria-label={`${channel.title} 텔레그램에서 바로가기`}

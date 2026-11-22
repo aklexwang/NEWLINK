@@ -84,6 +84,22 @@ function insideTelegramApp(webApp: typeof WebApp): boolean {
   }
 }
 
+// 방 링크 이동은 로그인한 회원만 (AuthProvider 가 로그인 상태를 알려 준다)
+let roomLinkAllowed = false;
+export function setRoomLinkAllowed(allowed: boolean) {
+  roomLinkAllowed = allowed;
+}
+
+/** 방으로 이동: 로그인 안 했으면 안내만 하고 false */
+export function openRoomLink(webApp: typeof WebApp, isLocalBrowser: boolean, link: string): boolean {
+  if (!roomLinkAllowed) {
+    toastMessage('로그인 후 이용 가능합니다.', 'info');
+    return false;
+  }
+  openTelegramChannel(webApp, isLocalBrowser, link);
+  return true;
+}
+
 export function openTelegramChannel(webApp: typeof WebApp, isLocalBrowser: boolean, link: string) {
   const raw = link.startsWith('http') ? link : `https://${link}`;
   // telegram.me → t.me (텔레그램 열기 함수는 t.me 만 받는다)

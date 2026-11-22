@@ -28,7 +28,7 @@ import { GradeBadge } from '../components/GradeBadge';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { useCategories } from '../hooks/useCategories';
 import { useMyFavorites } from '../hooks/useMyFavorites';
-import { openTelegramChannel, useTelegram } from '../hooks/useTelegram';
+import { openRoomLink, useTelegram } from '../hooks/useTelegram';
 import { useAuth } from '../providers/AuthProvider';
 import { toastMessage } from '../providers/ToastProvider';
 import type {
@@ -308,7 +308,7 @@ export function ChannelDetailPage() {
   const openTelegram = () => {
     if (!detail) return;
     // 이동 기록은 링크 이동을 막지 않게 먼저 쏘고 기다리지 않는다. (게시글 링크는 기록하지 않음)
-    openTelegramChannel(webApp, isLocalBrowser, detail.link);
+    openRoomLink(webApp, isLocalBrowser, detail.link);
     trackTelegramOpen(detail.id);
   };
 
@@ -368,7 +368,7 @@ export function ChannelDetailPage() {
   };
 
   const openPost = (link: string) => {
-    openTelegramChannel(webApp, isLocalBrowser, link);
+    openRoomLink(webApp, isLocalBrowser, link);
   };
 
   const handleFavorite = async () => {

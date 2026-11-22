@@ -1,3 +1,4 @@
+import { setRoomLinkAllowed } from '../hooks/useTelegram';
 import {
   createContext,
   useCallback,
@@ -218,6 +219,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refreshAuth();
   }, [refreshAuth]);
+
+  useEffect(() => {
+    setRoomLinkAllowed(status === 'authenticated' && Boolean(user));
+  }, [status, user]);
 
   const value = useMemo(
     () => ({

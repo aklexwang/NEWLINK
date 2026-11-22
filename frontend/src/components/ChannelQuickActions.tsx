@@ -1,7 +1,7 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { trackTelegramOpen } from '../api/opens';
 import { useMyFavorites } from '../hooks/useMyFavorites';
-import { hapticSuccess, notifyUser, openTelegramChannel, useTelegram } from '../hooks/useTelegram';
+import { hapticSuccess, notifyUser, openRoomLink, useTelegram } from '../hooks/useTelegram';
 import { useAuth } from '../providers/AuthProvider';
 import { openLoginPrompt } from '../utils/loginPrompt';
 
@@ -62,7 +62,7 @@ export function ChannelQuickActions({
     event.stopPropagation();
     event.preventDefault();
     if (!link) return;
-    openTelegramChannel(webApp, isLocalBrowser, link);
+    if (!openRoomLink(webApp, isLocalBrowser, link)) return;
     trackTelegramOpen(channelId);
   };
 
