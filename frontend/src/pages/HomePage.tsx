@@ -754,11 +754,13 @@ function ThreadItem({
   };
   // 아이폰은 텔레그램 게시글 상자(iframe)가 터치를 가로채서, 글·사진을 우리가 직접 그린다
   const ios = isIosDevice(webApp);
+  // 그룹 글은 텔레그램 상자(원문, 개인정보 그대로) 대신 저장된 가림 글을 그린다
+  const isGroupItem = item.linkType === "group";
   const postUrl =
-    post && item.username && !ios
+    post && item.username && !ios && !isGroupItem
       ? `https://t.me/${item.username}/${post.messageId}`
       : null;
-  const ownPreview = Boolean(post && ios && item.username);
+  const ownPreview = Boolean(post && ios && item.username && !isGroupItem);
   const mediaLabel = post ? MEDIA_LABEL[post.mediaType] : undefined;
 
   return (

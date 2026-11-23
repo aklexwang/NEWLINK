@@ -63,20 +63,30 @@ export class FeedRefreshService {
       await this.channelRepository.find({
         where: { status: ChannelStatus.ACTIVE, feedPicked: true },
       })
-    ).filter(
-      (c) =>
-        !SKIP_STATUSES.has(c.collectStatus ?? '') &&
-        c.linkType === LinkType.CHANNEL,
-    );
+    ).filter((c) => !SKIP_STATUSES.has(c.collectStatus ?? ''));
+    const isGroup = (c: Channel) => c.linkType === LinkType.GROUP;
     const needsAccount = (c: Channel) =>
-      isInviteOnlyLink(c.link) || isPreviewBlocked(c);
+      !isGroup(c) && (isInviteOnlyLink(c.link) || isPreviewBlocked(c));
     const accountRooms = rooms.filter(needsAccount);
-    const accountInterval = feedMtprotoIntervalMs(accountRooms.length);
+    const groups = rooms.filter(isGroup);
+    // 그룹은 대화를 읽는 데 요청이 4번쯤 들어서 4개 몫으로 센다(최소 1시간)
+    const accountInterval = feedMtprotoIntervalMs(
+      accountRooms.length + groups.length * 4,
+    );
+    const groupInterval = Math.max(60 * 60 * 1000, accountInterval);
 
     let checked = 0;
     let changed = 0;
     for (const room of rooms) {
-      if (needsAccount(room)) {
+      if (isGroup(room)) {
+        if (!isRefreshDue(this.lastQuickAt.get(room.id), groupInterval, nowMs))
+          continue;
+        this.lastQuickAt.set(room.id, nowMs);
+        // 그룹 대화는 정식 수집(수집 계정)으로만 읽힌다
+        const result = await this.collector.collectOne(room);
+        checked += 1;
+        if (result.ok) changed += 1;
+      } else if (needsAccount(room)) {
         if (
           !isRefreshDue(this.lastQuickAt.get(room.id), accountInterval, nowMs)
         )

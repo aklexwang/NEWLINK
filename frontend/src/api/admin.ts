@@ -1443,6 +1443,7 @@ export interface AdminFeedRoom {
   category: string;
   memberCount: number | null;
   feedPicked: boolean;
+  linkType?: 'channel' | 'group';
   latestPost: { text: string | null; mediaType: string; postedAt: string } | null;
 }
 

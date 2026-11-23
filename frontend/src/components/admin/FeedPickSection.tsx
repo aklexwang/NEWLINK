@@ -141,7 +141,7 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            채널 {total.toLocaleString()}개{total > rooms.length ? ` · 구독자 많은 순 ${rooms.length}개까지 보여요 (검색으로 좁히세요)` : ''}
+            방 {total.toLocaleString()}개{total > rooms.length ? ` · 구독자 많은 순 ${rooms.length}개까지 보여요 (검색으로 좁히세요)` : ''}
           </p>
         </div>
       )}
@@ -181,7 +181,8 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
                   </a>
                 </div>
                 <p className="mt-0.5 text-xs text-subtle">
-                  {room.category} · 구독 {(room.memberCount ?? 0).toLocaleString()}
+                  {room.linkType === 'group' ? '그룹' : '채널'} · {room.category} · {room.linkType === 'group' ? '회원' : '구독'}{' '}
+                  {(room.memberCount ?? 0).toLocaleString()}
                   {room.username && (
                     <a
                       href={`https://t.me/${room.username}`}

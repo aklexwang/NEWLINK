@@ -1,3 +1,4 @@
+import { ADULT_CATEGORY } from '../channels/auto-expose.logic';
 import {
   BadRequestException,
   Injectable,
@@ -638,21 +639,22 @@ export class PublicStatsService implements OnApplicationBootstrap {
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 50);
     const cacheKey = `feed:${type}:${query.cursor ?? ''}:${limit}`;
 
-    let channels = await this.channelRepository.find({
+    const allRows = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
+    // 관리자가 홈 피드 방을 골라 두었으면 고른 방만 (tele.wiki 처럼 방마다 최신 글 1개, 새 글 순).
+    // 관리자가 직접 고른 방은 성인·그룹도 나온다
+    const picked = selectMemberVisibleRows(allRows, ADULT_CATEGORY).filter(
+      (c) => c.feedPicked,
+    );
+    const pickMode = picked.length > 0;
     // 회원 노출 규칙은 한 곳(describeMemberPageVisibility), 같은 링크는 가장 좋은 행 1개
-    channels = selectMemberVisibleRows(channels);
-    if (type === 'channel') {
+    let channels = pickMode ? picked : selectMemberVisibleRows(allRows);
+    if (!pickMode && type === 'channel') {
       channels = channels.filter((c) => c.linkType === LinkType.CHANNEL);
-    } else if (type === 'group') {
+    } else if (!pickMode && type === 'group') {
       channels = channels.filter((c) => c.linkType === LinkType.GROUP);
     }
-
-    // 관리자가 홈 피드 방을 골라 두었으면 고른 방만 (tele.wiki 처럼 방마다 최신 글 1개, 새 글 순)
-    const picked = channels.filter((c) => c.feedPicked);
-    const pickMode = picked.length > 0;
-    if (pickMode) channels = picked;
 
     const lastQuery = this.postRepository
       .createQueryBuilder('post')
@@ -672,6 +674,10 @@ export class PublicStatsService implements OnApplicationBootstrap {
     const lastPosts = await lastQuery
       .groupBy('post.channel_id')
       .getRawMany<Record<string, unknown>>();
+    const pickedGroupIds = pickMode
+      ? picked.filter((c) => c.linkType === LinkType.GROUP).map((c) => c.id)
+      : [];
+    const groupLatest = await this.latestGroupMessagesFor(pickedGroupIds);
     const lastMap = new Map<string, Date>();
     for (const row of lastPosts) {
       const id = asText(row.channelId ?? row.channel_id);
@@ -684,6 +690,18 @@ export class PublicStatsService implements OnApplicationBootstrap {
 
     const rows = channels
       .map((channel) => {
+        if (
+          channel.linkType === LinkType.GROUP &&
+          groupLatest.has(channel.id)
+        ) {
+          // 고른 그룹: 저장된 대화(개인정보 가림)의 최신 글을 피드 글로
+          const g = groupLatest.get(channel.id)!;
+          return {
+            channel,
+            lastPostAt: new Date(g.postedAt) as Date | null,
+            activityKind: 'post' as const,
+          };
+        }
         if (channel.linkType === LinkType.GROUP) {
           if (channel.collectStatus !== 'ok' || !channel.lastCollectedAt) {
             return {
@@ -754,6 +772,8 @@ export class PublicStatsService implements OnApplicationBootstrap {
         const post = posts.get(row.channel.id);
         if (filter && post && isAdPost(post.text, filter)) continue;
         if (post) latestPosts.set(row.channel.id, post);
+        const g = groupLatest.get(row.channel.id);
+        if (g) latestPosts.set(row.channel.id, g);
         slice.push(row);
         if (slice.length >= limit) break;
       }
@@ -804,9 +824,8 @@ export class PublicStatsService implements OnApplicationBootstrap {
     let channels = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
-    channels = selectMemberVisibleRows(channels).filter(
-      (c) => c.linkType === LinkType.CHANNEL,
-    );
+    // 관리자 고르기 목록: 성인 카테고리도 보여 준다(회원 일반 목록에선 숨는 방)
+    channels = selectMemberVisibleRows(channels, ADULT_CATEGORY);
     const pickedTotal = channels.filter((c) => c.feedPicked).length;
     if (opts.pickedOnly) channels = channels.filter((c) => c.feedPicked);
     if (opts.category)
@@ -834,6 +853,17 @@ export class PublicStatsService implements OnApplicationBootstrap {
       const active = new Set(
         recent.map((r) => asText(r.channelId ?? r.channel_id)),
       );
+      if (this.groupMessageRepository) {
+        const groupRecent = await this.groupMessageRepository
+          .createQueryBuilder('m')
+          .select('DISTINCT m.channel_id', 'channelId')
+          .where('m.posted_at >= :since', {
+            since: new Date(Date.now() - 30 * 86_400_000),
+          })
+          .getRawMany<Record<string, unknown>>();
+        for (const r of groupRecent)
+          active.add(asText(r.channelId ?? r.channel_id));
+      }
       channels = channels.filter((c) => active.has(c.id));
     }
     const total = channels.length;
@@ -843,7 +873,13 @@ export class PublicStatsService implements OnApplicationBootstrap {
         (b.memberCount ?? 0) - (a.memberCount ?? 0),
     );
     const page = channels.slice(0, limit);
-    const posts = await this.latestPostsFor(page.map((c) => c.id));
+    const posts = await this.latestPostsFor(
+      page.filter((c) => c.linkType === LinkType.CHANNEL).map((c) => c.id),
+    );
+    const groupPosts = await this.latestGroupMessagesFor(
+      page.filter((c) => c.linkType === LinkType.GROUP).map((c) => c.id),
+    );
+    for (const [id, g] of groupPosts) posts.set(id, g);
     return {
       pickedTotal,
       total,
@@ -856,6 +892,7 @@ export class PublicStatsService implements OnApplicationBootstrap {
         category: c.category,
         memberCount: c.memberCount,
         feedPicked: c.feedPicked,
+        linkType: c.linkType,
         latestPost: posts.get(c.id) ?? null,
       })),
     };
@@ -870,6 +907,43 @@ export class PublicStatsService implements OnApplicationBootstrap {
     if (!result.affected) throw new NotFoundException('방을 찾지 못했어요.');
     this.clearPublicCaches();
     return { id, feedPicked: picked };
+  }
+
+  /** 그룹마다 저장된 대화(개인정보 가림) 중 가장 최근 글 하나 (최근 30일) */
+  private async latestGroupMessagesFor(groupIds: string[]) {
+    const map = new Map<
+      string,
+      {
+        messageId: number;
+        text: string | null;
+        mediaType: string;
+        views: number | null;
+        postedAt: string;
+      }
+    >();
+    if (groupIds.length === 0 || !this.groupMessageRepository) return map;
+    const rows = await this.groupMessageRepository
+      .createQueryBuilder('m')
+      .where('m.channelId IN (:...ids)', { ids: groupIds })
+      .andWhere('m.postedAt >= :since', {
+        since: new Date(Date.now() - 30 * 86_400_000),
+      })
+      .orderBy('m.postedAt', 'DESC')
+      .addOrderBy('m.messageId', 'DESC')
+      .getMany();
+    for (const m of rows) {
+      if (map.has(m.channelId)) continue;
+      if (!m.text && (m.mediaType === 'text' || m.mediaType === 'service'))
+        continue;
+      map.set(m.channelId, {
+        messageId: m.messageId,
+        text: m.text,
+        mediaType: m.mediaType,
+        views: null,
+        postedAt: new Date(m.postedAt).toISOString(),
+      });
+    }
+    return map;
   }
 
   /** 채널마다 지워지지 않은 가장 최근 글 하나 */
