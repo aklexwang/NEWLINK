@@ -25,7 +25,7 @@ const STARTED_AT = new Date();
 
 /**
  * 서버 상황: DB 용량(요금제 한도 대비), 서버 메모리, 재시작 시각.
- * 한도는 Render 요금제 기준 (DB 1GB, 서버 512MB). 바뀌면 환경변수로 맞춘다.
+ * 한도는 Render 요금제 기준 (DB 1GB, 서버 2GB). 바뀌면 환경변수로 맞춘다.
  */
 @Injectable()
 export class ServerStatusService implements OnApplicationBootstrap {
@@ -43,7 +43,7 @@ export class ServerStatusService implements OnApplicationBootstrap {
   }
 
   private memLimitMb() {
-    return parseLimitMb(process.env.SERVER_MEMORY_LIMIT_MB, 512);
+    return parseLimitMb(process.env.SERVER_MEMORY_LIMIT_MB, 2048);
   }
 
   private isPostgres() {
@@ -108,7 +108,7 @@ export class ServerStatusService implements OnApplicationBootstrap {
         load1m: Math.round(os.loadavg()[0] * 100) / 100,
       },
       plan: {
-        web: process.env.SERVER_PLAN_WEB ?? 'Starter 0.5 CPU · 512MB',
+        web: process.env.SERVER_PLAN_WEB ?? 'Standard 1 CPU · 2GB',
         db: process.env.SERVER_PLAN_DB ?? 'Basic-256mb · 저장 1GB',
       },
     };
