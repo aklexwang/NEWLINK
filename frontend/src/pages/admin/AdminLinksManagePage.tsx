@@ -685,6 +685,35 @@ export function AdminLinksManagePage() {
           <button type="submit" className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white">검색</button>
         </form>
 
+        {!loading && channels.length > 0 && (
+          <label className="mb-2 flex w-1/2 cursor-pointer items-center gap-3 rounded-xl bg-card px-4 py-3 text-[15px] font-semibold shadow-[var(--hz-shadow)] hover:bg-muted">
+            <input
+              type="checkbox"
+              className="h-5 w-5"
+              checked={channels.every((c) => selectedIds.has(c.id))}
+              ref={(el) => {
+                if (el) {
+                  const some = channels.some((c) => selectedIds.has(c.id));
+                  el.indeterminate = some && !channels.every((c) => selectedIds.has(c.id));
+                }
+              }}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setSelectedIds((prev) => {
+                  const next = new Set(prev);
+                  for (const c of channels) {
+                    if (on) next.add(c.id);
+                    else next.delete(c.id);
+                  }
+                  return next;
+                });
+              }}
+            />
+            {param(params, 'q') ? `검색 결과 전체 선택 (${channels.length}개)` : `목록 전체 선택 (${channels.length}개)`}
+            {selectedList.length > 0 && <span className="ml-auto text-sm text-primary">{selectedList.length}개 선택됨</span>}
+          </label>
+        )}
+
         {loading ? (
           <div className="h-32 animate-pulse rounded-[20px] bg-card shadow-[var(--hz-shadow)]" />
         ) : channels.length === 0 ? (
