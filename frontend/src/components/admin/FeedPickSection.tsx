@@ -85,6 +85,9 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
               ? '지금 홈 피드는 고른 방만 나와요.'
               : '아직 고른 방이 없어서 지금은 아래 "광고 거르기" 자동 피드가 나와요.'}
           </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            새 글 확인: 공개 채널 15분마다 · 비공개(초대 링크) 방은 30분마다 (고른 비공개 방이 많아지면 수집 계정 한도에 맞춰 간격이 늘어나요)
+          </p>
         </div>
         <div className="flex gap-3">
           <button

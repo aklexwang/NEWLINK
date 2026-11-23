@@ -550,6 +550,102 @@ export class MtprotoCollectorService implements OnModuleInit {
     );
   }
 
+  /**
+   * 홈 피드 방 빠른 새 글 확인: 이미 받은 접근 정보로 최근 글 10개만 읽는다(요청 1번).
+   * 채널 정보·회원 수는 건드리지 않는다(그건 정기 수집이). 접근 정보가 없으면 'skipped'.
+   */
+  refreshRecentPosts(
+    channel: Channel,
+  ): Promise<{ ok: boolean; reason?: string; newPosts?: number }> {
+    return this.exclusive(() => this.refreshRecentPostsInner(channel)) as Promise<{
+      ok: boolean;
+      reason?: string;
+      newPosts?: number;
+    }>;
+  }
+
+  private async refreshRecentPostsInner(
+    channel: Channel,
+  ): Promise<{ ok: boolean; reason?: string; newPosts?: number }> {
+    if (!this.canUseMtproto() || !this.canSpendCollect())
+      return { ok: false, reason: 'skipped' };
+    if (channel.linkType !== LinkType.CHANNEL)
+      return { ok: false, reason: 'skipped' };
+    const stored = await this.loadStoredAccess(channel.id);
+    if (
+      !stored ||
+      !canReuseStoredAccess(stored) ||
+      stored.telegramAccessAccount == null
+    )
+      return { ok: false, reason: 'no_access' };
+    try {
+      return await this.withAccount(stored.telegramAccessAccount, async () => {
+        const resolved = {
+          username: channel.username ?? '',
+          title: channel.title,
+          description: null,
+          memberCount: null,
+          createdOn: null,
+          telegramChatId: stored.telegramChatId,
+          linkType: LinkType.CHANNEL,
+          inputChannel: {
+            channelId: stored.telegramChatId,
+            accessHash: stored.telegramAccessHash,
+          },
+          linkedChat: null,
+        } as ResolvedPublicChannel;
+        const raw = await this.getHistory(resolved, 10, 0);
+        const posts: HistoryPost[] = [];
+        for (const m of raw) {
+          const parsed = this.parseHistoryMessage(m, resolved.username);
+          if (parsed) posts.push(parsed);
+        }
+        if (posts.length === 0) return { ok: true, newPosts: 0 };
+        const previous = await this.postRepository.find({
+          where: {
+            channelId: channel.id,
+            messageId: In(posts.map((p) => p.messageId)),
+          },
+        });
+        const prevMap = new Map(previous.map((row) => [row.messageId, row]));
+        const now = new Date();
+        await this.postRepository.upsert(
+          posts.map((post) => {
+            const old = prevMap.get(post.messageId);
+            return {
+              channelId: channel.id,
+              messageId: post.messageId,
+              postedAt: post.postedAt,
+              views: post.views,
+              mediaType: post.mediaType,
+              forwardedFrom: post.forwardedFrom,
+              mentionedUsernames: joinMentionedUsernames(
+                post.mentionedUsernames,
+              ),
+              textExcerpt: post.textExcerpt,
+              isEdited: post.isEdited || Boolean(old?.isEdited),
+              lastSeenAt: now,
+              deletedAt: null,
+            };
+          }),
+          ['channelId', 'messageId'],
+        );
+        return {
+          ok: true,
+          newPosts: posts.filter((p) => !prevMap.has(p.messageId)).length,
+        };
+      });
+    } catch (error) {
+      if (isMtprotoAuthFatal(error)) {
+        await this.stopForAuth(error);
+        return { ok: false, reason: 'failed' };
+      }
+      if (error instanceof FloodWaitTooLongError)
+        return { ok: false, reason: 'disabled' };
+      return { ok: false, reason: mtprotoErrorCode(error) };
+    }
+  }
+
   /** 줄(한 번에 하나)을 거쳐 실행 — 동시에 들어와도 계정 고정·한도가 섞이지 않게 */
   collectInviteAndSave(
     ...args: Parameters<MtprotoCollectorService['collectInviteAndSaveInner']>

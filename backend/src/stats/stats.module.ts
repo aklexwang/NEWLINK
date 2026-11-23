@@ -1,3 +1,4 @@
+import { FeedRefreshService } from './feed-refresh.service';
 import { ChannelQuickPreviewService } from './channel-quick-preview.service';
 import { RankAd } from '../ads/rank-ad.entity';
 import { Module } from '@nestjs/common';
@@ -93,6 +94,7 @@ import { StatsService } from './stats.service';
     StatsJobService,
     InternalCronGuard,
     PublicStatsService,
+    FeedRefreshService,
   ],
   exports: [
     ChannelQuickPreviewService,
