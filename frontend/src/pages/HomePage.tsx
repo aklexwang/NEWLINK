@@ -1,68 +1,93 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { InitialAvatar } from '../components/InitialAvatar';
-import { isBlankAvatarImage } from '../utils/avatarFallback';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { searchChannels } from '../api/channels';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { InitialAvatar } from "../components/InitialAvatar";
+import { isBlankAvatarImage } from "../utils/avatarFallback";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { searchChannels } from "../api/channels";
 import {
   getHomeDashboard,
   getHomeFeed,
   type HomeDashboard,
   type HomeFeedItem,
-} from '../api/stats';
-import { ChannelList } from '../components/ChannelList';
-import { PublicPrivateBadge } from '../components/PublicPrivateBadge';
-import { NewLinkLogo } from '../components/NewLinkLogo';
-import { OwnPostPreview, TelegramPostEmbed } from '../components/TelegramPostView';
-import { isIosDevice, MEDIA_LABEL, MEDIA_ONLY_LABEL, TG_PATH } from '../utils/telegramPost';
-import { BannerCarousel } from '../components/BannerCarousel';
-import { getBanners, type PublicBanner } from '../api/ads';
-import { SearchBar } from '../components/SearchBar';
-import { useCategories } from '../hooks/useCategories';
-import { useMyFavorites } from '../hooks/useMyFavorites';
-import { useMyRecommendations } from '../hooks/useMyRecommendations';
-import { hapticSuccess, notifyUser, openRoomLink, useTelegram } from '../hooks/useTelegram';
-import { trackTelegramOpen } from '../api/opens';
-import { channelDetailPath } from '../utils/channelDetailPath';
-import { useAuth } from '../providers/AuthProvider';
-import { HOME_RESET_EVENT } from '../utils/homeReset';
-import type { Channel } from '../types/channel';
-import { getChannelAvatarSources } from '../utils/channelAvatar';
-import { formatRelativeKo } from '../utils/formatCount';
-import { formatDeltaLine, formatMembers, resolveMemberDelta } from '../utils/memberDisplay';
-import { BLOCKED_SEARCH_MESSAGE } from '../utils/searchMessage';
-import { openLoginPrompt } from '../utils/loginPrompt';
+} from "../api/stats";
+import { ChannelList } from "../components/ChannelList";
+import { PublicPrivateBadge } from "../components/PublicPrivateBadge";
+import { NewLinkLogo } from "../components/NewLinkLogo";
+import {
+  OwnPostPreview,
+  TelegramPostEmbed,
+} from "../components/TelegramPostView";
+import {
+  isIosDevice,
+  MEDIA_LABEL,
+  MEDIA_ONLY_LABEL,
+  TG_PATH,
+} from "../utils/telegramPost";
+import { BannerCarousel } from "../components/BannerCarousel";
+import { getBanners, type PublicBanner } from "../api/ads";
+import { SearchBar } from "../components/SearchBar";
+import { useCategories } from "../hooks/useCategories";
+import { useMyFavorites } from "../hooks/useMyFavorites";
+import { useMyRecommendations } from "../hooks/useMyRecommendations";
+import {
+  hapticSuccess,
+  notifyUser,
+  openRoomLink,
+  useTelegram,
+} from "../hooks/useTelegram";
+import { trackTelegramOpen } from "../api/opens";
+import { channelDetailPath } from "../utils/channelDetailPath";
+import { useAuth } from "../providers/AuthProvider";
+import { HOME_RESET_EVENT } from "../utils/homeReset";
+import type { Channel } from "../types/channel";
+import { getChannelAvatarSources } from "../utils/channelAvatar";
+import { formatRelativeKo } from "../utils/formatCount";
+import {
+  formatDeltaLine,
+  formatMembers,
+  resolveMemberDelta,
+} from "../utils/memberDisplay";
+import { BLOCKED_SEARCH_MESSAGE } from "../utils/searchMessage";
+import { openLoginPrompt } from "../utils/loginPrompt";
 
-type HomeView = 'dash' | 'search';
-type SearchType = 'all' | 'channel' | 'group';
-type FeedType = 'channel' | 'all' | 'group';
+type HomeView = "dash" | "search";
+type SearchType = "all" | "channel" | "group";
+type FeedType = "channel" | "all" | "group";
 
 const SUGGEST_LIMIT = 8;
 const SUGGEST_DEBOUNCE_MS = 200;
 
-
 function Avatar({
   channel,
-  size = 'md',
+  size = "md",
 }: {
   channel: { avatarUrl?: string | null; link: string; title: string };
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'thread';
+  size?: "xs" | "sm" | "md" | "lg" | "thread";
 }) {
   const sources = useMemo(() => getChannelAvatarSources(channel), [channel]);
   const [i, setI] = useState(0);
   const [failed, setFailed] = useState(false);
   const src = failed ? undefined : sources[i];
   const box =
-    size === 'lg'
-      ? 'h-14 w-14 rounded-2xl'
-      : size === 'sm'
-        ? 'h-7 w-7 rounded-lg'
-        : size === 'xs'
-          ? 'h-[22px] w-[22px] rounded-full'
-          : size === 'thread'
-            ? 'h-9 w-9 rounded-full'
-            : 'h-11 w-11 rounded-full';
+    size === "lg"
+      ? "h-14 w-14 rounded-2xl"
+      : size === "sm"
+        ? "h-7 w-7 rounded-lg"
+        : size === "xs"
+          ? "h-[22px] w-[22px] rounded-full"
+          : size === "thread"
+            ? "h-9 w-9 rounded-full"
+            : "h-11 w-11 rounded-full";
   return (
-    <div className={`${box} shrink-0 overflow-hidden bg-nl-elev ring-1 ring-nl-line`}>
+    <div
+      className={`${box} shrink-0 overflow-hidden bg-nl-elev ring-1 ring-nl-line`}
+    >
       {src ? (
         <img
           src={src}
@@ -81,15 +106,19 @@ function Avatar({
           }}
         />
       ) : (
-        <InitialAvatar title={channel.title} seed={channel.link} textClass={
-            size === 'lg'
-              ? 'text-[18px]'
-              : size === 'sm' || size === 'thread'
-                ? 'text-[11px]'
-                : size === 'xs'
-                  ? 'text-[8px]'
-                  : 'text-[15px]'
-          } />
+        <InitialAvatar
+          title={channel.title}
+          seed={channel.link}
+          textClass={
+            size === "lg"
+              ? "text-[18px]"
+              : size === "sm" || size === "thread"
+                ? "text-[11px]"
+                : size === "xs"
+                  ? "text-[8px]"
+                  : "text-[15px]"
+          }
+        />
       )}
     </div>
   );
@@ -101,10 +130,21 @@ export function HomePage() {
   const { webApp, isLocalBrowser } = useTelegram();
   const { user, status: authStatus } = useAuth();
   const { searchCategories } = useCategories();
-  const { recommendedIds, load: loadRecommended, recommend } = useMyRecommendations();
-  const { favoriteIds, load: loadFavoriteIds, toggleFavorite } = useMyFavorites();
+  const {
+    recommendedIds,
+    load: loadRecommended,
+    recommend,
+  } = useMyRecommendations();
+  const {
+    favoriteIds,
+    load: loadFavoriteIds,
+    toggleFavorite,
+  } = useMyFavorites();
   // 홈 배너 광고(텔레그램 방 광고 아이콘 줄 대신)
-  const [bannerAds, setBannerAds] = useState<{ rotateSeconds: number; banners: PublicBanner[] } | null>(null);
+  const [bannerAds, setBannerAds] = useState<{
+    rotateSeconds: number;
+    banners: PublicBanner[];
+  } | null>(null);
   useEffect(() => {
     let cancelled = false;
     getBanners()
@@ -117,15 +157,15 @@ export function HomePage() {
     };
   }, []);
 
-  const [query, setQuery] = useState('');
-  const [searchType, setSearchType] = useState<SearchType>('all');
-  const [view, setView] = useState<HomeView>('dash');
+  const [query, setQuery] = useState("");
+  const [searchType, setSearchType] = useState<SearchType>("all");
+  const [view, setView] = useState<HomeView>("dash");
   const [searchChannelsList, setSearchChannelsList] = useState<Channel[]>([]);
   /** 검색 결과 전체 개수와 더 보기용 다음 페이지 */
   const [searchTotal, setSearchTotal] = useState<number | null>(null);
   const [searchPage, setSearchPage] = useState(1);
   const [searchTotalPages, setSearchTotalPages] = useState(1);
-  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [searchMoreLoading, setSearchMoreLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Channel[]>([]);
@@ -134,7 +174,9 @@ export function HomePage() {
   /** 금지어로 막힌 검색일 때 서버가 준 안내 문구 (검색 결과 화면) */
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   /** 입력 중 자동완성이 금지어에 걸렸을 때 안내 문구 */
-  const [suggestBlockedMessage, setSuggestBlockedMessage] = useState<string | null>(null);
+  const [suggestBlockedMessage, setSuggestBlockedMessage] = useState<
+    string | null
+  >(null);
   const suggestRequestId = useRef(0);
 
   const [home, setHome] = useState<HomeDashboard | null>(null);
@@ -143,23 +185,23 @@ export function HomePage() {
   const [topIndex, setTopIndex] = useState(0);
 
   // 홈 피드는 채널만 (그룹은 글을 저장하지 않아 보여 줄 글이 없음)
-  const feedType: FeedType = 'channel';
+  const feedType: FeedType = "channel";
   const [feed, setFeed] = useState<HomeFeedItem[]>([]);
   const [feedCursor, setFeedCursor] = useState<string | null>(null);
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedMore, setFeedMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const isLoggedIn = authStatus === 'authenticated' && Boolean(user);
+  const isLoggedIn = authStatus === "authenticated" && Boolean(user);
 
   const resetToHome = useCallback(() => {
-    setQuery('');
+    setQuery("");
     setSearchChannelsList([]);
     setSuggestions([]);
     setShowSuggestions(false);
     setBlockedMessage(null);
     setSuggestBlockedMessage(null);
-    setView('dash');
+    setView("dash");
   }, []);
 
   useEffect(() => {
@@ -179,22 +221,26 @@ export function HomePage() {
       try {
         const result = await searchChannels({
           q: keyword,
-          type: searchType === 'all' ? undefined : searchType,
+          type: searchType === "all" ? undefined : searchType,
           record,
         });
         setSearchChannelsList(result.items);
-        setSearchTotal(result.blocked ? 0 : result.total ?? result.items.length);
+        setSearchTotal(
+          result.blocked ? 0 : (result.total ?? result.items.length),
+        );
         setSearchPage(result.page ?? 1);
         setSearchTotalPages(result.totalPages ?? 1);
         setSearchKeyword(keyword);
-        setBlockedMessage(result.blocked ? result.message ?? BLOCKED_SEARCH_MESSAGE : null);
-        setView('search');
+        setBlockedMessage(
+          result.blocked ? (result.message ?? BLOCKED_SEARCH_MESSAGE) : null,
+        );
+        setView("search");
       } catch {
-        notifyUser(webApp, isLocalBrowser, '검색 결과를 불러오지 못했습니다.');
+        notifyUser(webApp, isLocalBrowser, "검색 결과를 불러오지 못했습니다.");
         setSearchChannelsList([]);
         setSearchTotal(null);
         setBlockedMessage(null);
-        setView('search');
+        setView("search");
       } finally {
         setSearchLoading(false);
       }
@@ -203,12 +249,13 @@ export function HomePage() {
   );
 
   const loadMoreSearch = useCallback(async () => {
-    if (searchMoreLoading || searchPage >= searchTotalPages || !searchKeyword) return;
+    if (searchMoreLoading || searchPage >= searchTotalPages || !searchKeyword)
+      return;
     setSearchMoreLoading(true);
     try {
       const result = await searchChannels({
         q: searchKeyword,
-        type: searchType === 'all' ? undefined : searchType,
+        type: searchType === "all" ? undefined : searchType,
         page: searchPage + 1,
       });
       setSearchChannelsList((prev) => {
@@ -218,14 +265,23 @@ export function HomePage() {
       setSearchPage(result.page ?? searchPage + 1);
       setSearchTotalPages(result.totalPages ?? searchTotalPages);
     } catch {
-      notifyUser(webApp, isLocalBrowser, '검색 결과를 더 불러오지 못했습니다.');
+      notifyUser(webApp, isLocalBrowser, "검색 결과를 더 불러오지 못했습니다.");
     } finally {
       setSearchMoreLoading(false);
     }
-  }, [searchMoreLoading, searchPage, searchTotalPages, searchKeyword, searchType, webApp, isLocalBrowser]);
+  }, [
+    searchMoreLoading,
+    searchPage,
+    searchTotalPages,
+    searchKeyword,
+    searchType,
+    webApp,
+    isLocalBrowser,
+  ]);
 
   useEffect(() => {
-    const resetAt = (location.state as { homeResetAt?: number } | null)?.homeResetAt;
+    const resetAt = (location.state as { homeResetAt?: number } | null)
+      ?.homeResetAt;
     if (!resetAt) return;
     resetToHome();
   }, [location.state, resetToHome]);
@@ -256,7 +312,7 @@ export function HomePage() {
         try {
           const result = await searchChannels({
             q: keyword,
-            type: searchType === 'all' ? undefined : searchType,
+            type: searchType === "all" ? undefined : searchType,
           });
           if (requestId !== suggestRequestId.current) return;
           setSuggestions(result.items.slice(0, SUGGEST_LIMIT));
@@ -264,7 +320,8 @@ export function HomePage() {
           if (requestId !== suggestRequestId.current) return;
           setSuggestions([]);
         } finally {
-          if (requestId === suggestRequestId.current) setSuggestionsLoading(false);
+          if (requestId === suggestRequestId.current)
+            setSuggestionsLoading(false);
         }
       })();
     }, SUGGEST_DEBOUNCE_MS);
@@ -296,7 +353,7 @@ export function HomePage() {
       try {
         const page = await getHomeFeed({
           type: feedType,
-          cursor: reset ? undefined : feedCursor ?? undefined,
+          cursor: reset ? undefined : (feedCursor ?? undefined),
           limit: 20,
         });
         setFeed((prev) => (reset ? page.items : [...prev, ...page.items]));
@@ -337,13 +394,16 @@ export function HomePage() {
           void loadFeed(false);
         }
       },
-      { rootMargin: '120px' },
+      { rootMargin: "120px" },
     );
     io.observe(el);
     return () => io.disconnect();
   }, [feedCursor, feedMore, feedLoading, loadFeed]);
 
-  const topChannels = useMemo(() => (home?.topChannels ?? []).slice(0, 5), [home]);
+  const topChannels = useMemo(
+    () => (home?.topChannels ?? []).slice(0, 5),
+    [home],
+  );
   useEffect(() => {
     if (topChannels.length < 2) return;
     const t = window.setInterval(() => {
@@ -354,13 +414,12 @@ export function HomePage() {
 
   const handleQueryChange = (value: string) => {
     setQuery(value);
-    if (!value.trim() && view === 'search') {
+    if (!value.trim() && view === "search") {
       resetToHome();
       return;
     }
     if (value.trim()) setShowSuggestions(true);
   };
-
 
   const handleSearch = () => {
     const keyword = query.trim();
@@ -380,7 +439,7 @@ export function HomePage() {
 
   const handleRecommend = async (id: string) => {
     if (recommendedIds.has(id)) {
-      notifyUser(webApp, isLocalBrowser, '이미 추천한 채널/그룹입니다.');
+      notifyUser(webApp, isLocalBrowser, "이미 추천한 채널/그룹입니다.");
       return;
     }
     try {
@@ -388,16 +447,20 @@ export function HomePage() {
       await loadSearch(query.trim(), false);
       hapticSuccess(webApp, isLocalBrowser);
     } catch {
-      notifyUser(webApp, isLocalBrowser, '이미 추천했거나 추천 처리에 실패했습니다.');
+      notifyUser(
+        webApp,
+        isLocalBrowser,
+        "이미 추천했거나 추천 처리에 실패했습니다.",
+      );
       await loadRecommended();
     }
   };
 
   const handleToggleFavorite = async (id: string) => {
-    if (authStatus === 'loading') return;
+    if (authStatus === "loading") return;
     if (!isLoggedIn) {
       openLoginPrompt({
-        reason: '로그인하면 즐겨찾기가 저장돼요',
+        reason: "로그인하면 즐겨찾기가 저장돼요",
         onSuccess: async () => {
           await toggleFavorite(id).catch(() => undefined);
         },
@@ -408,12 +471,16 @@ export function HomePage() {
       await toggleFavorite(id);
       hapticSuccess(webApp, isLocalBrowser);
     } catch {
-      notifyUser(webApp, isLocalBrowser, '즐겨찾기 변경에 실패했습니다.');
+      notifyUser(webApp, isLocalBrowser, "즐겨찾기 변경에 실패했습니다.");
       await loadFavoriteIds();
     }
   };
 
-  const goChannel = (item: { id?: string; username: string | null; link?: string }) => {
+  const goChannel = (item: {
+    id?: string;
+    username: string | null;
+    link?: string;
+  }) => {
     const path = channelDetailPath({
       id: item.id,
       username: item.username,
@@ -427,8 +494,8 @@ export function HomePage() {
     onChange: handleQueryChange,
     onSearch: handleSearch,
     isLoading: searchLoading,
-    variant: 'dashboard' as const,
-    placeholder: 'TellLink',
+    variant: "dashboard" as const,
+    placeholder: "TellLink",
     linkType: searchType,
     onLinkTypeChange: setSearchType,
     suggestions,
@@ -444,19 +511,24 @@ export function HomePage() {
       <div className="nl-hide-fs relative flex h-[52px] items-center justify-center px-2">
         <button
           type="button"
-          onClick={() => navigate('/my')}
+          onClick={() => navigate("/my")}
           className="absolute left-3 h-8 rounded-lg bg-[#2aabee] px-3 text-[13px] font-bold text-white shadow-[0_2px_10px_rgba(42,171,238,0.35)]"
         >
-          {isLoggedIn ? 'MY' : '로그인'}
+          {isLoggedIn ? "MY" : "로그인"}
         </button>
-        <button type="button" onClick={resetToHome} aria-label="홈" className="flex items-center">
+        <button
+          type="button"
+          onClick={resetToHome}
+          aria-label="홈"
+          className="flex items-center"
+        >
           <NewLinkLogo compact />
         </button>
       </div>
     </header>
   );
 
-  if (view === 'search') {
+  if (view === "search") {
     return (
       <div className="flex min-h-[calc(100dvh-68px)] flex-col bg-nl-bg">
         {header}
@@ -472,7 +544,11 @@ export function HomePage() {
           onRecommend={handleRecommend}
           onToggleFavorite={handleToggleFavorite}
           sectionTitle="검색 결과"
-          totalCount={searchLoading || blockedMessage ? undefined : searchTotal ?? undefined}
+          totalCount={
+            searchLoading || blockedMessage
+              ? undefined
+              : (searchTotal ?? undefined)
+          }
           footer={
             !searchLoading && searchPage < searchTotalPages ? (
               <div className="px-4 pt-2">
@@ -483,22 +559,30 @@ export function HomePage() {
                   className="h-12 w-full rounded-2xl bg-nl-card text-[15px] font-semibold text-nl-text ring-1 ring-nl-line disabled:opacity-60"
                 >
                   {searchMoreLoading
-                    ? '불러오는 중…'
-                    : `더 보기 (${searchChannelsList.length.toLocaleString('ko-KR')} / ${(searchTotal ?? 0).toLocaleString('ko-KR')})`}
+                    ? "불러오는 중…"
+                    : `더 보기 (${searchChannelsList.length.toLocaleString("ko-KR")} / ${(searchTotal ?? 0).toLocaleString("ko-KR")})`}
                 </button>
               </div>
             ) : undefined
           }
-          emptyMessage={blockedMessage ?? '검색 결과가 없습니다.'}
+          emptyMessage={blockedMessage ?? "검색 결과가 없습니다."}
           emptyBlocked={Boolean(blockedMessage)}
           emptyAction={
             blockedMessage ? undefined : (
               <div className="mt-4 rounded-[20px] bg-nl-card p-5 text-center ring-1 ring-nl-line">
-                <p className="text-[15px] font-bold text-nl-text">찾는 방이 아직 없나요?</p>
-                <p className="mt-1 text-[13px] text-nl-muted">링크를 알려 주시면 확인해서 등록해 드려요.</p>
+                <p className="text-[15px] font-bold text-nl-text">
+                  찾는 방이 아직 없나요?
+                </p>
+                <p className="mt-1 text-[13px] text-nl-muted">
+                  링크를 알려 주시면 확인해서 등록해 드려요.
+                </p>
                 <button
                   type="button"
-                  onClick={() => navigate('/submit', { state: { prefillLink: query.trim() } })}
+                  onClick={() =>
+                    navigate("/submit", {
+                      state: { prefillLink: query.trim() },
+                    })
+                  }
                   className="mt-4 h-11 w-full rounded-xl bg-[#229af0] text-[14px] font-bold text-white"
                 >
                   이 방 제보하기
@@ -511,14 +595,17 @@ export function HomePage() {
     );
   }
 
-
-  const top = topChannels.length > 0 ? topChannels[topIndex % topChannels.length] : null;
+  const top =
+    topChannels.length > 0 ? topChannels[topIndex % topChannels.length] : null;
   const topRank = top ? (topIndex % topChannels.length) + 1 : 0;
   const hasBanner = Boolean(bannerAds && bannerAds.banners.length > 0);
   // 배너 광고는 맨 위(검색창 바로 위)
   const banner = hasBanner && bannerAds && (
     <div className="px-4 pt-1 pb-2">
-      <BannerCarousel banners={bannerAds.banners} rotateSeconds={bannerAds.rotateSeconds} />
+      <BannerCarousel
+        banners={bannerAds.banners}
+        rotateSeconds={bannerAds.rotateSeconds}
+      />
     </div>
   );
 
@@ -534,48 +621,61 @@ export function HomePage() {
         </div>
       </div>
 
-      <nav aria-label="홈 메뉴" className="flex border-b border-nl-line">
-        {HOME_TABS.map((tab) =>
-          tab.to === '/' ? (
-            <span
-              key={tab.label}
-              aria-current="page"
-              className="-mb-px flex-1 border-b border-nl-text py-2.5 text-center text-[14px] font-bold text-nl-text"
-            >
-              {tab.label}
-            </span>
-          ) : (
-            <Link
-              key={tab.label}
-              to={tab.to}
-              className="flex-1 py-2.5 text-center text-[14px] font-medium whitespace-nowrap text-nl-muted"
-            >
-              {tab.label}
-            </Link>
-          ),
-        )}
-      </nav>
+      {SHOW_HOME_TOP_ROWS && (
+        <>
+          <nav aria-label="홈 메뉴" className="flex border-b border-nl-line">
+            {HOME_TABS.map((tab) =>
+              tab.to === "/" ? (
+                <span
+                  key={tab.label}
+                  aria-current="page"
+                  className="-mb-px flex-1 border-b border-nl-text py-2.5 text-center text-[14px] font-bold text-nl-text"
+                >
+                  {tab.label}
+                </span>
+              ) : (
+                <Link
+                  key={tab.label}
+                  to={tab.to}
+                  className="flex-1 py-2.5 text-center text-[14px] font-medium whitespace-nowrap text-nl-muted"
+                >
+                  {tab.label}
+                </Link>
+              ),
+            )}
+          </nav>
 
-      {homeLoading ? (
-        <div className="flex items-center gap-2.5 border-b border-nl-line px-4 py-3">
-          <span className="h-4 w-16 animate-pulse rounded bg-nl-elev" />
-          <span className="h-[22px] w-[22px] animate-pulse rounded-full bg-nl-elev" />
-          <span className="h-4 flex-1 animate-pulse rounded bg-nl-elev" />
-        </div>
-      ) : top ? (
-        <button
-          type="button"
-          onClick={() => goChannel(top)}
-          className="flex w-full items-center gap-2.5 border-b border-nl-line px-4 py-3 text-left"
-        >
-          <span className="shrink-0 text-[12px] font-bold text-nl-muted">이번 주 {topRank}위</span>
-          <span key={top.id} className="flex min-w-0 flex-1 items-center gap-2 nl-fade-in">
-            <Avatar channel={top} size="xs" />
-            <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-nl-text">{top.title}</span>
-          </span>
-          <span className="shrink-0 text-[12px] text-nl-muted">{formatMembers(top.memberCount)}</span>
-        </button>
-      ) : null}
+          {homeLoading ? (
+            <div className="flex items-center gap-2.5 border-b border-nl-line px-4 py-3">
+              <span className="h-4 w-16 animate-pulse rounded bg-nl-elev" />
+              <span className="h-[22px] w-[22px] animate-pulse rounded-full bg-nl-elev" />
+              <span className="h-4 flex-1 animate-pulse rounded bg-nl-elev" />
+            </div>
+          ) : top ? (
+            <button
+              type="button"
+              onClick={() => goChannel(top)}
+              className="flex w-full items-center gap-2.5 border-b border-nl-line px-4 py-3 text-left"
+            >
+              <span className="shrink-0 text-[12px] font-bold text-nl-muted">
+                이번 주 {topRank}위
+              </span>
+              <span
+                key={top.id}
+                className="flex min-w-0 flex-1 items-center gap-2 nl-fade-in"
+              >
+                <Avatar channel={top} size="xs" />
+                <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-nl-text">
+                  {top.title}
+                </span>
+              </span>
+              <span className="shrink-0 text-[12px] text-nl-muted">
+                {formatMembers(top.memberCount)}
+              </span>
+            </button>
+          ) : null}
+        </>
+      )}
 
       <section aria-label="최근 활발한 채널">
         {feedLoading && feed.length === 0
@@ -600,22 +700,31 @@ export function HomePage() {
               </Fragment>
             ))}
         {!feedLoading && feed.length === 0 && (
-          <p className="px-4 py-10 text-center text-[13px] text-nl-muted">최근 활동 기록이 있는 채널이 없습니다.</p>
+          <p className="px-4 py-10 text-center text-[13px] text-nl-muted">
+            최근 활동 기록이 있는 채널이 없습니다.
+          </p>
         )}
         <div ref={sentinelRef} className="h-4" />
-        {feedMore && <p className="py-2 text-center text-[12px] text-nl-muted">더 불러오는 중…</p>}
+        {feedMore && (
+          <p className="py-2 text-center text-[12px] text-nl-muted">
+            더 불러오는 중…
+          </p>
+        )}
       </section>
     </div>
   );
 }
 
+/** 홈 피드가 "고른 방 최신 글" 방식이 되면서 탭 줄·이번 주 순위 줄은 숨김 (다시 보이려면 true) */
+const SHOW_HOME_TOP_ROWS = false;
+
 /** 홈 위 탭: 피드는 이 화면, 나머지는 해당 화면으로 이동 */
 const HOME_TABS = [
-  { to: '/', label: '피드' },
-  { to: '/ranking', label: '랭킹' },
-  { to: '/ranking?sort=rising', label: '급상승' },
-  { to: '/ranking?type=group', label: '그룹' },
-  { to: '/weekly', label: '주간 변화' },
+  { to: "/", label: "피드" },
+  { to: "/ranking", label: "랭킹" },
+  { to: "/ranking?sort=rising", label: "급상승" },
+  { to: "/ranking?type=group", label: "그룹" },
+  { to: "/weekly", label: "주간 변화" },
 ];
 
 /**
@@ -636,7 +745,7 @@ function ThreadItem({
   const { webApp, isLocalBrowser } = useTelegram();
   const post = item.latestPost ?? null;
   const deltaLine = formatDeltaLine(
-    '7일',
+    "7일",
     resolveMemberDelta(item.memberDelta7d, item.memberCount, item.growth7d),
   );
   const openRoom = () => {
@@ -645,26 +754,45 @@ function ThreadItem({
   };
   // 아이폰은 텔레그램 게시글 상자(iframe)가 터치를 가로채서, 글·사진을 우리가 직접 그린다
   const ios = isIosDevice(webApp);
-  const postUrl = post && item.username && !ios ? `https://t.me/${item.username}/${post.messageId}` : null;
+  const postUrl =
+    post && item.username && !ios
+      ? `https://t.me/${item.username}/${post.messageId}`
+      : null;
   const ownPreview = Boolean(post && ios && item.username);
   const mediaLabel = post ? MEDIA_LABEL[post.mediaType] : undefined;
 
   return (
     <article className="flex gap-3 px-4 pt-3.5">
       <div className="flex shrink-0 flex-col items-center">
-        <button type="button" onClick={onOpen} aria-label={`${item.title} 채널 정보`} className="rounded-full">
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`${item.title} 채널 정보`}
+          className="rounded-full"
+        >
           <Avatar channel={item} size="thread" />
         </button>
-        <span aria-hidden className="mt-2 w-0.5 flex-1 rounded-full bg-nl-line" />
+        <span
+          aria-hidden
+          className="mt-2 w-0.5 flex-1 rounded-full bg-nl-line"
+        />
       </div>
       <div className="min-w-0 flex-1 border-b border-nl-line pb-3.5">
-        <button type="button" onClick={onOpen} className="flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 text-left">
-          <span className="text-[15px] font-bold break-keep text-nl-text [overflow-wrap:anywhere]">{item.title}</span>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 text-left"
+        >
+          <span className="text-[15px] font-bold break-keep text-nl-text [overflow-wrap:anywhere]">
+            {item.title}
+          </span>
           <PublicPrivateBadge link={item.link} />
-          <span className="shrink-0 text-[13px] text-nl-muted">{formatRelativeKo(post?.postedAt ?? item.lastPostAt)}</span>
+          <span className="shrink-0 text-[13px] text-nl-muted">
+            {formatRelativeKo(post?.postedAt ?? item.lastPostAt)}
+          </span>
         </button>
         <p className="truncate text-[12px] text-nl-muted">
-          {item.username ? `@${item.username} · ` : ''}
+          {item.username ? `@${item.username} · ` : ""}
           {item.category}
         </p>
 
@@ -674,7 +802,12 @@ function ThreadItem({
               url={postUrl}
               onOpenRoom={openRoom}
               title={item.title}
-              fallback={<PostTextFallback text={post?.text ?? null} mediaType={post?.mediaType ?? 'text'} />}
+              fallback={
+                <PostTextFallback
+                  text={post?.text ?? null}
+                  mediaType={post?.mediaType ?? "text"}
+                />
+              }
             />
           </div>
         ) : ownPreview ? (
@@ -688,16 +821,22 @@ function ThreadItem({
           <div className="mt-1">
             {post.text ? (
               <p className="line-clamp-6 whitespace-pre-line break-words text-[15px] leading-[1.5] text-nl-text">
-                {post.text.replace(/\n{2,}/g, '\n').trim()}
+                {post.text.replace(/\n{2,}/g, "\n").trim()}
               </p>
             ) : (
-              <p className="text-[14px] text-nl-muted">{MEDIA_ONLY_LABEL[post.mediaType] ?? '글 내용 없는 게시글'}</p>
+              <p className="text-[14px] text-nl-muted">
+                {MEDIA_ONLY_LABEL[post.mediaType] ?? "글 내용 없는 게시글"}
+              </p>
             )}
-            {mediaLabel && post.text && <p className="mt-1 text-[12px] text-nl-muted">{mediaLabel}</p>}
+            {mediaLabel && post.text && (
+              <p className="mt-1 text-[12px] text-nl-muted">{mediaLabel}</p>
+            )}
           </div>
         ) : (
           <p className="mt-1 text-[14px] text-nl-muted">
-            {item.activityKind === 'members' ? '인원 수가 바뀌었어요' : '새 게시글이 올라왔어요'}
+            {item.activityKind === "members"
+              ? "인원 수가 바뀌었어요"
+              : "새 게시글이 올라왔어요"}
           </p>
         )}
 
@@ -706,13 +845,17 @@ function ThreadItem({
             type="button"
             onClick={onToggleFavorite}
             aria-pressed={favorite}
-            aria-label={favorite ? `${item.title} 즐겨찾기 해제` : `${item.title} 즐겨찾기 추가`}
+            aria-label={
+              favorite
+                ? `${item.title} 즐겨찾기 해제`
+                : `${item.title} 즐겨찾기 추가`
+            }
             className="-m-2 flex h-9 w-9 items-center justify-center"
           >
             <svg
               viewBox="0 0 24 24"
-              className={`h-[21px] w-[21px] ${favorite ? 'text-amber-400' : 'text-nl-text'}`}
-              fill={favorite ? 'currentColor' : 'none'}
+              className={`h-[21px] w-[21px] ${favorite ? "text-amber-400" : "text-nl-text"}`}
+              fill={favorite ? "currentColor" : "none"}
               stroke="currentColor"
               strokeWidth="1.8"
               strokeLinejoin="round"
@@ -721,10 +864,12 @@ function ThreadItem({
               <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" />
             </svg>
           </button>
-          {post?.views != null && <span>조회 {post.views.toLocaleString('ko-KR')}</span>}
+          {post?.views != null && (
+            <span>조회 {post.views.toLocaleString("ko-KR")}</span>
+          )}
           <span className="min-w-0 truncate">
             {formatMembers(item.memberCount)}
-            {deltaLine ? ` · ${deltaLine}` : ''}
+            {deltaLine ? ` · ${deltaLine}` : ""}
           </span>
           <span className="flex-1" />
           {/* 텔레그램 게시글 상자에는 오른쪽 위 로고가 이미 있어서, 아래 버튼은 상자가 없을 때만 */}
@@ -735,7 +880,12 @@ function ThreadItem({
               aria-label={`${item.title} 텔레그램에서 열기`}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2AABEE] text-white"
             >
-              <svg viewBox="0 0 24 24" className="-ml-px h-[15px] w-[15px]" fill="currentColor" aria-hidden>
+              <svg
+                viewBox="0 0 24 24"
+                className="-ml-px h-[15px] w-[15px]"
+                fill="currentColor"
+                aria-hidden
+              >
                 <path d={TG_PATH} />
               </svg>
             </button>
@@ -746,18 +896,29 @@ function ThreadItem({
   );
 }
 
-
 /** 텔레그램 게시글 상자가 다 받아지기 전에 먼저 보여 주는 글 (사진·영상 글은 자리만) */
-function PostTextFallback({ text, mediaType }: { text: string | null; mediaType: string }) {
-  const clean = (text ?? '').replace(/\n{2,}/g, '\n').trim();
+function PostTextFallback({
+  text,
+  mediaType,
+}: {
+  text: string | null;
+  mediaType: string;
+}) {
+  const clean = (text ?? "").replace(/\n{2,}/g, "\n").trim();
   return (
     <div className="rounded-[15px] bg-nl-card px-3.5 py-3 ring-1 ring-nl-line">
       {clean ? (
-        <p className="line-clamp-6 whitespace-pre-line break-words text-[15px] leading-[1.5] text-nl-text">{clean}</p>
+        <p className="line-clamp-6 whitespace-pre-line break-words text-[15px] leading-[1.5] text-nl-text">
+          {clean}
+        </p>
       ) : (
-        <p className="text-[14px] text-nl-muted">{MEDIA_ONLY_LABEL[mediaType] ?? '게시글 불러오는 중…'}</p>
+        <p className="text-[14px] text-nl-muted">
+          {MEDIA_ONLY_LABEL[mediaType] ?? "게시글 불러오는 중…"}
+        </p>
       )}
-      {mediaType !== 'text' && <div className="mt-2.5 h-40 w-full animate-pulse rounded-xl bg-nl-elev" />}
+      {mediaType !== "text" && (
+        <div className="mt-2.5 h-40 w-full animate-pulse rounded-xl bg-nl-elev" />
+      )}
     </div>
   );
 }
