@@ -30,6 +30,8 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
+  // 고른 방 보기: 카테고리 칸으로 거르기 (화면에서만)
+  const [pickedCat, setPickedCat] = useState('');
   const [rooms, setRooms] = useState<AdminFeedRoom[]>([]);
   const [total, setTotal] = useState(0);
   const [pickedTotal, setPickedTotal] = useState(0);
@@ -105,6 +107,34 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
         </div>
       </div>
 
+      {view === 'picked' && rooms.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-semibold text-subtle">카테고리별 고른 방</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {[
+              ['', rooms.length] as const,
+              ...Object.entries(
+                rooms.reduce<Record<string, number>>((m, r) => {
+                  m[r.category] = (m[r.category] ?? 0) + 1;
+                  return m;
+                }, {}),
+              ).sort((a, b) => b[1] - a[1]),
+            ].map(([name, n]) => (
+              <button
+                key={name || 'all'}
+                type="button"
+                onClick={() => setPickedCat(name)}
+                className={`h-9 rounded-xl px-3.5 text-sm font-semibold ${
+                  pickedCat === name ? 'bg-primary text-white' : 'bg-muted text-foreground hover:bg-muted/70'
+                }`}
+              >
+                {name || '전체'} <span className="ml-0.5 opacity-80">{n}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {view === 'search' && (
         <div className="mt-4 space-y-3">
           <form
@@ -154,7 +184,15 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
             {view === 'picked' ? '아직 고른 방이 없어요. [방 찾기]에서 골라 주세요.' : '찾는 방이 없어요.'}
           </p>
         ) : (
-          rooms.map((room) => (
+          rooms
+            .filter(
+              (room) =>
+                view !== 'picked' ||
+                !pickedCat ||
+                !rooms.some((r) => r.category === pickedCat) ||
+                room.category === pickedCat,
+            )
+            .map((room) => (
             <div
               key={room.id}
               className={`flex items-start gap-3 rounded-xl p-3 ring-1 ${room.feedPicked ? 'bg-primary/5 ring-primary/40' : 'bg-background ring-border'}`}
