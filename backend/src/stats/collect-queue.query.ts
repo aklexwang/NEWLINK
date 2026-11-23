@@ -94,6 +94,34 @@ export async function selectDueChannels(
     .getMany();
 }
 
+/** 홈 피드에 고른 방: light 회차(3시간)마다 다시 읽는다 (피드 최신 글이 밀리지 않게) */
+export const FEED_PICKED_REFRESH_MS = 150 * 60 * 1000;
+export const FEED_PICKED_REFRESH_MAX = 40;
+
+export async function selectDueFeedPicked(
+  repository: Repository<Channel>,
+  now: Date = new Date(),
+  limit = FEED_PICKED_REFRESH_MAX,
+): Promise<Channel[]> {
+  const cutoff = new Date(now.getTime() - FEED_PICKED_REFRESH_MS);
+  return repository
+    .createQueryBuilder('c')
+    .select(COLLECT_QUEUE_COLUMNS.map((column) => `c.${column}`))
+    .where('c.status = :active', { active: ChannelStatus.ACTIVE })
+    .andWhere('c.feedPicked = :picked', { picked: true })
+    .andWhere(
+      '(c.collectStatus IS NULL OR c.collectStatus NOT IN (:...skip))',
+      { skip: ['merged', 'invalid', 'gone', 'invite_expired'] },
+    )
+    .andWhere('(c.lastCollectedAt IS NULL OR c.lastCollectedAt <= :cutoff)', {
+      cutoff,
+    })
+    .orderBy('(CASE WHEN c.lastCollectedAt IS NULL THEN 0 ELSE 1 END)', 'ASC')
+    .addOrderBy('c.lastCollectedAt', 'ASC')
+    .limit(limit)
+    .getMany();
+}
+
 /** light 회차마다 먼저 첫 수집해 주는 새 그룹·초대방 최대 수 (MTProto 한도 보호) */
 export const LIGHT_FIRST_COLLECT_MAX_DEFAULT = 60;
 const FIRST_COLLECT_RETRY_MS = 12 * 60 * 60 * 1000;

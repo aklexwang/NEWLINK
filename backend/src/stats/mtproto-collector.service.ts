@@ -765,6 +765,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       invitesToday: this.invitesToday,
       inviteDailyLimit: this.inviteCheckDailyLimit(),
       nowMs: Date.now(),
+      staleDays: channel.feedPicked ? 1 : undefined,
     });
   }
 

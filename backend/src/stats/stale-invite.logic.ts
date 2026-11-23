@@ -15,6 +15,8 @@ export function shouldRecheckStaleInvite(input: {
   invitesToday: number;
   inviteDailyLimit: number;
   nowMs: number;
+  /** 기본 3일. 홈 피드에 고른 방은 더 빨리(1일) */
+  staleDays?: number;
 }): boolean {
   if (!input.isChannel) return false;
   if (input.rechecksToday >= STALE_INVITE_RECHECK_DAILY_MAX) return false;

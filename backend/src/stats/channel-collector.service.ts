@@ -46,6 +46,7 @@ import {
   lightFirstCollectMax,
   selectDueChannels,
   selectFirstSeenNonLight,
+  selectDueFeedPicked,
 } from './collect-queue.query';
 import {
   needsExactMemberFetch,
@@ -263,6 +264,39 @@ export class ChannelCollectorService {
       );
     }
     return { ok, fail, ids };
+  }
+
+  /** light 회차: 홈 피드에 고른 방을 다시 읽는다 (어드민 [지금 수집]과 같은 길: 초대방·미리보기 막힌 방은 수집 계정) */
+  async collectFeedPicked(options?: {
+    deadlineMs?: number;
+  }): Promise<{ ok: number; fail: number }> {
+    const channels = await selectDueFeedPicked(this.channelRepository);
+    let ok = 0;
+    let fail = 0;
+    for (let i = 0; i < channels.length; i += 1) {
+      if (i > 0 && isCollectBudgetOver(options?.deadlineMs)) break;
+      try {
+        const result = await withTimeout(
+          this.collectPublicPageNow(channels[i]),
+          CHANNEL_COLLECT_TIMEOUT_MS,
+          'timeout:channel',
+        );
+        if (result.ok) ok += 1;
+        else fail += 1;
+      } catch (error) {
+        fail += 1;
+        this.logger.warn(
+          `피드 방 수집 실패(${channels[i].id}): ${error instanceof Error ? error.message : error}`,
+        );
+      }
+      if (i < channels.length - 1) await sleep(CHANNEL_GAP_MS);
+    }
+    if (channels.length > 0) {
+      this.logger.log(
+        `홈 피드 방 수집: 성공 ${ok} / 실패 ${fail} (대상 ${channels.length})`,
+      );
+    }
+    return { ok, fail };
   }
 
   private async collectQueued(

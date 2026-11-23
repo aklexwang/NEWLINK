@@ -468,6 +468,17 @@ export class StatsJobService implements OnModuleInit {
       // 새로 들어온 그룹·초대방은 light 미리보기로 못 읽어 새벽까지 회원 페이지에 안 보인다 → 먼저 첫 수집
       await this.inspectQueuedInvitesLight();
       await this.collectFirstSeenGroupsAndInvites();
+      // 홈 피드에 고른 방은 3시간마다 최신 글을 다시 읽는다
+      try {
+        const picked = await this.collector.collectFeedPicked({
+          deadlineMs: Date.now() + LIGHT_FIRST_COLLECT_BUDGET_MS,
+        });
+        if (picked.ok > 0) this.publicStats.clearPublicCaches();
+      } catch (error) {
+        this.logger.warn(
+          `홈 피드 방 수집 실패: ${error instanceof Error ? error.message : error}`,
+        );
+      }
       // 대기 중인 입장 요청이 승인됐는지 확인(승인됐으면 글·조회까지 읽어 "승인됨")
       await this.recheckPendingJoinRequests();
       await this.collector.collectLightAll(
