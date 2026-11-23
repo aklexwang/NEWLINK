@@ -61,11 +61,9 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
     setBusy(room.id);
     try {
       await setAdminFeedPicked(room.id, !room.feedPicked);
-      setRooms((list) =>
-        view === 'picked' && room.feedPicked
-          ? list.filter((r) => r.id !== room.id)
-          : list.map((r) => (r.id === room.id ? { ...r, feedPicked: !r.feedPicked } : r)),
-      );
+      // 방 찾기에서 넣으면 목록에서 사라지고, 고른 방에서 빼면 거기서 사라진다
+      setRooms((list) => list.filter((r) => r.id !== room.id));
+      if (view === 'search') setTotal((n) => Math.max(0, n - 1));
       setPickedTotal((n) => n + (room.feedPicked ? -1 : 1));
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '바꾸지 못했습니다.'));

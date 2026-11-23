@@ -859,7 +859,10 @@ export class PublicStatsService implements OnApplicationBootstrap {
       );
     }
     // 최근 30일 글이 없는 방은 찾기 목록에서 뺀다 (고른 방 목록에는 그대로 둬서 뺄 수 있게)
-    if (!opts.pickedOnly) channels = channels.filter((c) => lastAt.has(c.id));
+    // 방 찾기에는 이미 고른 방(홈에 나오는 방)은 빼고, 최근 30일 글이 있는 방만
+    // (고른 방은 [고른 방] 목록에서 보고 뺄 수 있다)
+    if (!opts.pickedOnly)
+      channels = channels.filter((c) => !c.feedPicked && lastAt.has(c.id));
     const total = channels.length;
     channels.sort(
       (a, b) =>
