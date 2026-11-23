@@ -448,11 +448,15 @@ export class MtprotoCollectorService implements OnModuleInit {
 
   /** 키워드 검색·초대 링크 확인·가입·발견용으로 남겨 두는 요청 수 */
   specialReserve(): number {
+    // 오늘 "남은" 확인·가입·검색·조회만큼만 남긴다. 하루 전체 한도로 잡으면 이미 다 쓴 오후에도
+    // 예비분이 그대로라 수집(이미 가입한 방 다시 읽기)이 막혀 글이 며칠씩 밀렸다
+    this.rollDailyCounter();
+    const left = (limit: number, used: number) => Math.max(0, limit - used);
     return mtprotoSpecialReserve({
-      inviteCheckDaily: this.inviteCheckDailyLimit(),
-      joinDaily: this.joinDailyLimit(),
-      keywordSearchDaily: this.searchDailyLimit(),
-      resolveDaily: this.resolveDailyLimit(),
+      inviteCheckDaily: left(this.inviteCheckDailyLimit(), this.invitesToday),
+      joinDaily: left(this.joinDailyLimit(), this.currentJoinsToday()),
+      keywordSearchDaily: left(this.searchDailyLimit(), this.searchesToday),
+      resolveDaily: left(this.resolveDailyLimit(), this.resolvesToday),
     });
   }
 
