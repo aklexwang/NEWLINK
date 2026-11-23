@@ -74,18 +74,18 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
               : '아직 고른 방이 없어서 지금은 아래 "광고 거르기" 자동 피드가 나와요.'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <button
             type="button"
             onClick={() => setView('search')}
-            className={`h-10 rounded-xl px-4 text-sm font-semibold ${view === 'search' ? 'bg-primary text-white' : 'bg-muted text-subtle'}`}
+            className={`h-14 rounded-2xl px-7 text-lg font-bold ${view === 'search' ? 'bg-primary text-white' : 'bg-muted text-subtle'}`}
           >
             🔍 방 찾기
           </button>
           <button
             type="button"
             onClick={() => setView('picked')}
-            className={`h-10 rounded-xl px-4 text-sm font-semibold ${view === 'picked' ? 'bg-primary text-white' : 'bg-muted text-subtle'}`}
+            className={`h-14 rounded-2xl px-7 text-lg font-bold ${view === 'picked' ? 'bg-primary text-white' : 'bg-muted text-subtle'}`}
           >
             ✅ 고른 방 {pickedTotal}
           </button>
