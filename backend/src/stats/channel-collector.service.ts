@@ -682,6 +682,11 @@ export class ChannelCollectorService {
           ...viaMember,
           note: 'MTProto · 서버 계정이 회원이라 글 정보까지 읽음',
         };
+      if (viaMember.reason === 'invalid') {
+        // 텔레그램이 "초대 링크가 유효하지 않거나 만료" 라고 답함 → 만료로 표시(회원 화면에서 숨김, 7일 뒤 다시 확인)
+        await this.markInviteExpired(channel);
+        return { ok: false, reason: 'invite_expired' };
+      }
       if (viaMember.reason === 'not_member') {
         inviteMeta = viaMember.inviteMeta;
         note = inviteMeta
