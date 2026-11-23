@@ -18,7 +18,7 @@ services:
   - type: web
     name: newlink-api
     runtime: node
-    plan: starter
+    plan: standard
     region: oregon
     rootDir: backend
     # NODE_ENV=production 이어도 nest/typescript(devDependency)를 설치해야 빌드됩니다.
