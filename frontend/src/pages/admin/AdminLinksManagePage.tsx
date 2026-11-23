@@ -474,6 +474,37 @@ export function AdminLinksManagePage() {
   /** [확인]: 안내를 보여 준 뒤 저장하고 다음 방으로 */
   const confirmPick = async () => {
     if (!focusedChannel || !pickedName || confirming) return;
+    if (selectedIds.size > 0) {
+      // 체크한 방이 있으면 체크한 방 전체에 적용(저장·고정)
+      setConfirming(true);
+      const targets = channels.filter((c) => selectedIds.has(c.id));
+      const ids = [...selectedIds];
+      setMoveNotice(`체크한 ${ids.length}개 방 → [${pickedName}] 카테고리로 넘어갑니다`);
+      let ok = 0;
+      try {
+        for (const id of ids) {
+          try {
+            await updateAdminChannel(id, { category: pickedName, categoryLocked: true });
+            ok += 1;
+          } catch {
+            // 하나 실패해도 나머지는 계속
+          }
+        }
+        setChannels((prev) => prev.map((c) => (selectedIds.has(c.id) ? { ...c, category: pickedName } : c)));
+        setMessage(
+          `체크한 ${ids.length}개 중 ${ok}개를 [${pickedName}](으)로 옮겼어요. (고정됨)` +
+            (targets.length ? ` · ${targets.slice(0, 3).map((c) => c.title).join(', ')}${targets.length > 3 ? ' 외' : ''}` : ''),
+        );
+        setSelectedIds(new Set());
+        void load({ silent: true });
+        await new Promise((resolve) => setTimeout(resolve, 900));
+      } finally {
+        setPick(null);
+        setMoveNotice(null);
+        setConfirming(false);
+      }
+      return;
+    }
     setConfirming(true);
     setMoveNotice(`"${focusedChannel.title}" → [${pickedName}] 카테고리로 넘어갑니다`);
     const index = channels.findIndex((c) => c.id === focusedChannel.id);
@@ -887,7 +918,13 @@ export function AdminLinksManagePage() {
                         {pickedName ? (
                           <>
                             고른 카테고리: <b className="text-foreground">{pickedName}</b>
-                            {pickedName === focusedChannel.category ? ' (지금과 같아요)' : ''}
+                            {selectedIds.size > 0 ? (
+                              <b className="ml-1 text-primary">· 체크한 {selectedIds.size}개 방에 적용</b>
+                            ) : pickedName === focusedChannel.category ? (
+                              ' (지금과 같아요)'
+                            ) : (
+                              ''
+                            )}
                           </>
                         ) : (
                           '카테고리를 고르세요.'
