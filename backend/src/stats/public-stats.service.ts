@@ -660,14 +660,18 @@ export class PublicStatsService implements OnApplicationBootstrap {
       .createQueryBuilder('post')
       .select('post.channel_id', 'channelId')
       .addSelect('MAX(post.posted_at)', 'lastPostAt');
+    // 순서는 피드에 보이는 글 기준: 지워진 글·알림(service) 글은 빼고 최신 글 시각
+    lastQuery
+      .andWhere('post.deleted_at IS NULL')
+      .andWhere("post.media_type <> 'service'");
     if (pickMode) {
       // 고른 방은 글이 오래됐어도 최신 글로 나온다
-      lastQuery.where('post.channel_id IN (:...ids)', {
+      lastQuery.andWhere('post.channel_id IN (:...ids)', {
         ids: picked.map((c) => c.id),
       });
     } else {
       // 피드는 최근 활동만 보면 되므로 최근 며칠 글만 훑는다 (게시글이 쌓여도 느려지지 않게)
-      lastQuery.where('post.posted_at >= :since', {
+      lastQuery.andWhere('post.posted_at >= :since', {
         since: new Date(Date.now() - FEED_LOOKBACK_DAYS * 86_400_000),
       });
     }
