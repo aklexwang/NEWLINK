@@ -28,7 +28,9 @@ export type ChannelCollectStatus =
   | 'invalid'
   | 'invite_only'
   | 'invite_expired'
-  | 'merged';
+  | 'merged'
+  /** 텔레그램이 약관 위반으로 막은 방 (앱에서 "표시할 수 없습니다") */
+  | 'restricted';
 
 export type ChannelClassifiedKind = 'channel' | 'group' | 'invalid';
 

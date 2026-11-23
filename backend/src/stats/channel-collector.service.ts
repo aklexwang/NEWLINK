@@ -543,21 +543,31 @@ export class ChannelCollectorService {
    * 아니면 공개 초대 페이지(제목·사진·회원 수)만 읽는다. 정기 수집·관리자 "지금 수집" 공통.
    */
   /** 어드민 수동 입장 요청(승인 필요 비공개 방). */
-  async requestJoin(channelId: string): Promise<{ ok: boolean; outcome: string }> {
+  async requestJoin(
+    channelId: string,
+  ): Promise<{ ok: boolean; outcome: string }> {
     return this.mtproto.requestJoinForChannel(channelId);
   }
 
   /** 오늘 입장 요청 사용량/한도(버튼 비활성화·안내용) — DB 기준(서버 요청 + 앱에서 직접 한 것) */
-  joinRequestBudget(): Promise<{ today: number; limit: number; auto: boolean }> {
+  joinRequestBudget(): Promise<{
+    today: number;
+    limit: number;
+    auto: boolean;
+  }> {
     return this.mtproto.joinRequestBudget();
   }
 
   /** 앱에서 직접 입장 요청한 방을 "요청함"으로 표시(텔레그램에는 아무것도 안 보냄) */
-  markJoinRequested(channelId: string): Promise<{ ok: boolean; outcome: string }> {
+  markJoinRequested(
+    channelId: string,
+  ): Promise<{ ok: boolean; outcome: string }> {
     return this.mtproto.markJoinRequestedManually(channelId);
   }
 
-  unmarkJoinRequested(channelId: string): Promise<{ ok: boolean; outcome: string }> {
+  unmarkJoinRequested(
+    channelId: string,
+  ): Promise<{ ok: boolean; outcome: string }> {
     return this.mtproto.unmarkJoinRequested(channelId);
   }
 
@@ -585,9 +595,12 @@ export class ChannelCollectorService {
       .andWhere(
         "(c.collectStatus IS NULL OR c.collectStatus NOT IN ('merged', 'invite_expired', 'gone', 'invalid'))",
       )
-      .andWhere('(c.lastCollectedAt IS NULL OR c.lastCollectedAt < :staleBefore)', {
-        staleBefore,
-      })
+      .andWhere(
+        '(c.lastCollectedAt IS NULL OR c.lastCollectedAt < :staleBefore)',
+        {
+          staleBefore,
+        },
+      )
       // 한 번도 확인 안 한 방(NULL)부터, 그다음 오래된 순(DB 종류와 무관하게)
       .orderBy('CASE WHEN c.last_collected_at IS NULL THEN 0 ELSE 1 END', 'ASC')
       .addOrderBy('c.lastCollectedAt', 'ASC')
@@ -604,7 +617,8 @@ export class ChannelCollectorService {
           'timeout:channel',
         );
         checked += 1;
-        if (result.ok && result.mode === 'mtproto') approvedIds.push(channel.id);
+        if (result.ok && result.mode === 'mtproto')
+          approvedIds.push(channel.id);
       } catch (error) {
         checked += 1;
         this.logger.warn(
@@ -1523,7 +1537,8 @@ export class ChannelCollectorService {
     if (info.telegramChatId != null)
       channel.telegramChatId = info.telegramChatId;
     channel.lastCollectedAt = now;
-    channel.collectStatus = 'ok';
+    // 텔레그램 차단 방은 MTProto 수집만 풀 수 있다 (웹 미리보기로는 차단 여부를 모름)
+    if (channel.collectStatus !== 'restricted') channel.collectStatus = 'ok';
     channel.collectError = null;
     channel.collectFailCount = 0;
     channel.collectGoneCount = 0;

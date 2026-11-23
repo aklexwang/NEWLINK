@@ -20,6 +20,7 @@ const COLLECT_STATUS_REASON: Record<string, string> = {
   gone: '사라진 채널',
   merged: '합쳐진 채널',
   invite_expired: '초대 만료',
+  restricted: '텔레그램 약관 위반으로 차단된 방',
 };
 
 export const MEMBER_PAGE_REASON = {

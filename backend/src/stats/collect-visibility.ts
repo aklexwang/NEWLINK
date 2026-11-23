@@ -5,6 +5,7 @@ const HIDDEN_COLLECT: ReadonlySet<string> = new Set([
   'gone',
   'merged',
   'invite_expired',
+  'restricted',
 ]);
 
 function isCollectOk(channel: {
@@ -42,4 +43,5 @@ export const HIDDEN_COLLECT_STATUSES = [
   'gone',
   'merged',
   'invite_expired',
+  'restricted',
 ] as const;

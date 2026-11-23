@@ -4,6 +4,18 @@ import type { CategoryItem } from '../../types/categoryItem';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 
+/** 텔레그램 방을 오른쪽 작은 새 창으로 */
+function openTelegramWindow(e: { preventDefault(): void }, link: string) {
+  const w = 560;
+  const h = Math.min(820, window.screen.availHeight - 80);
+  const left = Math.max(0, window.screen.availWidth - w - 40);
+  const win = window.open(link, 'telllink_telegram', `popup=yes,width=${w},height=${h},left=${left},top=40`);
+  if (win) {
+    e.preventDefault();
+    win.focus();
+  }
+}
+
 function ago(iso: string): string {
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
   if (m < 60) return `${m}분 전`;
@@ -152,7 +164,19 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
                 <div className="h-11 w-11 shrink-0 rounded-full bg-muted" />
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-bold text-foreground">{room.title}</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="truncate text-[15px] font-bold text-foreground">{room.title}</p>
+                  <a
+                    href={room.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => openTelegramWindow(e, room.link)}
+                    title={room.link}
+                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg bg-[#2AABEE] px-2.5 text-xs font-bold text-white hover:bg-[#229ED9]"
+                  >
+                    ✈ 텔레그램 열기
+                  </a>
+                </div>
                 <p className="mt-0.5 text-xs text-subtle">
                   {room.category} · 구독 {(room.memberCount ?? 0).toLocaleString()}
                   {room.username && (

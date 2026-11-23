@@ -1,4 +1,5 @@
 import { shouldRecheckStaleInvite } from './stale-invite.logic';
+import { isTelegramRestricted } from './telegram-restricted.logic';
 import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { DailyCounterStore } from '../daily-counters/daily-counter-store.service';
 import { InviteDiscoveryQueueService } from './invite-discovery-queue.service';
@@ -209,6 +210,8 @@ type ResolvedPublicChannel = {
   linkedChat: LinkedChatInfo | null;
   /** 상단 고정 글 번호(없으면 null) */
   pinnedMsgId?: number | null;
+  /** 텔레그램이 약관 위반으로 막은 방 */
+  restricted?: boolean;
 };
 
 type HistoryPost = {
@@ -1535,6 +1538,8 @@ export class MtprotoCollectorService implements OnModuleInit {
         username?: string | null;
         megagroup?: boolean;
         broadcast?: boolean;
+        restricted?: boolean;
+        restrictionReason?: Array<{ platform?: string; reason?: string }>;
       }>;
     };
     // chats[] 에는 연결된 대화방도 같이 온다. 순서에 기대지 말고 id 로 고른다
@@ -1560,6 +1565,7 @@ export class MtprotoCollectorService implements OnModuleInit {
         full.fullChat.pinnedMsgId > 0
           ? full.fullChat.pinnedMsgId
           : null,
+      restricted: isTelegramRestricted(chat),
     };
   }
 
@@ -1768,6 +1774,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       inputChannel: { channelId: unknown; accessHash: unknown };
       linkType: LinkType;
       linkedChat?: LinkedChatInfo | null;
+      restricted?: boolean;
       posts: HistoryPost[];
       activity: GroupActivityCounts;
       groupLanguage?: GroupHistorySummary['language'];
@@ -1920,7 +1927,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       channel.linkType = data.linkType;
     }
     channel.lastCollectedAt = now;
-    channel.collectStatus = 'ok';
+    channel.collectStatus = data.restricted ? 'restricted' : 'ok';
     channel.collectError = null;
     channel.collectFailCount = 0;
     channel.collectGoneCount = 0;
