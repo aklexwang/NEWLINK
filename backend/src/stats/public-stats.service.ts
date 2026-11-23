@@ -480,6 +480,11 @@ export class PublicStatsService implements OnApplicationBootstrap {
     };
   }
 
+  /** 홈 피드만 "오래됨" 표시 (홈 전체 다시 계산 없이 가볍게) */
+  clearFeedCache() {
+    for (const entry of this.feedCache.values()) entry.expiresAt = 0;
+  }
+
   clearPublicCaches() {
     this.rankAdCache.clear();
     this.summaryCache.clear();
@@ -825,13 +830,21 @@ export class PublicStatsService implements OnApplicationBootstrap {
     limit?: number;
   }) {
     const limit = Math.min(Math.max(opts.limit ?? 60, 1), 200);
-    let channels = await this.channelRepository.find({
-      where: { status: ChannelStatus.ACTIVE },
-    });
-    // 관리자 고르기 목록: 채널만(그룹 제외). 성인 카테고리도 보여 준다(회원 일반 목록에선 숨는 방)
-    channels = selectMemberVisibleRows(channels, ADULT_CATEGORY).filter(
-      (c) => c.linkType === LinkType.CHANNEL,
+    // 무거운 부분(전체 방 + 방별 최근 글 시각)은 2분 동안 다시 쓰고, 고른 표시만 새로 읽는다
+    const base = await this.adminFeedBase();
+    const pickedIds = new Set(
+      (
+        await this.channelRepository.find({
+          select: ['id'],
+          where: { feedPicked: true },
+        })
+      ).map((c) => c.id),
     );
+    let channels = base.channels.map((c) => ({
+      ...c,
+      feedPicked: pickedIds.has(c.id),
+    })) as typeof base.channels;
+    const lastAt = base.lastAt;
     const pickedTotal = channels.filter((c) => c.feedPicked).length;
     if (opts.pickedOnly) channels = channels.filter((c) => c.feedPicked);
     if (opts.category)
@@ -844,25 +857,6 @@ export class PublicStatsService implements OnApplicationBootstrap {
           (c.username ?? '').toLowerCase().includes(q) ||
           (c.link ?? '').toLowerCase().includes(q),
       );
-    }
-    // 방마다 최근 글 시각 (최근 30일). 최근 글 올라온 순으로 줄 세운다
-    const recent = await this.postRepository
-      .createQueryBuilder('post')
-      .select('post.channel_id', 'channelId')
-      .addSelect('MAX(post.posted_at)', 'lastAt')
-      .where('post.posted_at >= :since', {
-        since: new Date(Date.now() - 30 * 86_400_000),
-      })
-      .andWhere('post.deleted_at IS NULL')
-      .andWhere("post.media_type <> 'service'")
-      .groupBy('post.channel_id')
-      .getRawMany<Record<string, unknown>>();
-    const lastAt = new Map<string, number>();
-    for (const r of recent) {
-      const raw = r.lastAt ?? r.lastat ?? r.last_at;
-      const ms = raw ? new Date(raw as string | Date).getTime() : NaN;
-      if (Number.isFinite(ms))
-        lastAt.set(asText(r.channelId ?? r.channel_id), ms);
     }
     // 최근 30일 글이 없는 방은 찾기 목록에서 뺀다 (고른 방 목록에는 그대로 둬서 뺄 수 있게)
     if (!opts.pickedOnly) channels = channels.filter((c) => lastAt.has(c.id));
@@ -892,6 +886,45 @@ export class PublicStatsService implements OnApplicationBootstrap {
     };
   }
 
+  private adminFeedBaseCache: {
+    at: number;
+    data: { channels: Channel[]; lastAt: Map<string, number> };
+  } | null = null;
+
+  /** 홈 피드 방 고르기 목록의 바탕: 회원에게 보이는 채널(성인 포함) + 방별 최근 30일 글 시각 */
+  private async adminFeedBase() {
+    if (
+      this.adminFeedBaseCache &&
+      Date.now() - this.adminFeedBaseCache.at < 120_000
+    )
+      return this.adminFeedBaseCache.data;
+    const all = await this.channelRepository.find({
+      where: { status: ChannelStatus.ACTIVE, linkType: LinkType.CHANNEL },
+    });
+    const channels = selectMemberVisibleRows(all, ADULT_CATEGORY);
+    const recent = await this.postRepository
+      .createQueryBuilder('post')
+      .select('post.channel_id', 'channelId')
+      .addSelect('MAX(post.posted_at)', 'lastAt')
+      .where('post.posted_at >= :since', {
+        since: new Date(Date.now() - 30 * 86_400_000),
+      })
+      .andWhere('post.deleted_at IS NULL')
+      .andWhere("post.media_type <> 'service'")
+      .groupBy('post.channel_id')
+      .getRawMany<Record<string, unknown>>();
+    const lastAt = new Map<string, number>();
+    for (const r of recent) {
+      const raw = r.lastAt ?? r.lastat ?? r.last_at;
+      const ms = raw ? new Date(raw as string | Date).getTime() : NaN;
+      if (Number.isFinite(ms))
+        lastAt.set(asText(r.channelId ?? r.channel_id), ms);
+    }
+    const data = { channels, lastAt };
+    this.adminFeedBaseCache = { at: Date.now(), data };
+    return data;
+  }
+
   /** 홈 피드에 넣기/빼기 */
   async setFeedPicked(id: string, picked: boolean) {
     const result = await this.channelRepository.update(
@@ -899,7 +932,7 @@ export class PublicStatsService implements OnApplicationBootstrap {
       { feedPicked: picked },
     );
     if (!result.affected) throw new NotFoundException('방을 찾지 못했어요.');
-    this.clearPublicCaches();
+    this.clearFeedCache();
     return { id, feedPicked: picked };
   }
 

@@ -114,7 +114,8 @@ export class FeedRefreshService {
         if (result.ok) changed += 1;
       }
     }
-    if (changed > 0) this.publicStats.clearPublicCaches();
+    // 홈 피드만 새로 (홈 전체 캐시를 다시 계산하면 작은 서버가 버거워진다)
+    if (checked > 0) this.publicStats.clearFeedCache();
     if (checked > 0)
       this.logger.log(`홈 피드 방 새 글 확인: ${checked}개 (바뀜 ${changed})`);
     return { checked, changed };

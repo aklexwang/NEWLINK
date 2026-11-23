@@ -473,7 +473,7 @@ export class StatsJobService implements OnModuleInit {
         const picked = await this.collector.collectFeedPicked({
           deadlineMs: Date.now() + LIGHT_FIRST_COLLECT_BUDGET_MS,
         });
-        if (picked.ok > 0) this.publicStats.clearPublicCaches();
+        if (picked.ok > 0) this.publicStats.clearFeedCache();
       } catch (error) {
         this.logger.warn(
           `홈 피드 방 수집 실패: ${error instanceof Error ? error.message : error}`,
