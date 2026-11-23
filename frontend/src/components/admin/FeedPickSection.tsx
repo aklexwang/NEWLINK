@@ -141,7 +141,7 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            방 {total.toLocaleString()}개{total > rooms.length ? ` · 구독자 많은 순 ${rooms.length}개까지 보여요 (검색으로 좁히세요)` : ''}
+            채널 {total.toLocaleString()}개 · 최근 글 올라온 순{total > rooms.length ? ` · 최근 글 순 ${rooms.length}개까지 보여요 (검색으로 좁히세요)` : ''}
           </p>
         </div>
       )}
