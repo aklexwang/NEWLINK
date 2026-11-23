@@ -63,7 +63,11 @@ export class FeedRefreshService {
       await this.channelRepository.find({
         where: { status: ChannelStatus.ACTIVE, feedPicked: true },
       })
-    ).filter((c) => !SKIP_STATUSES.has(c.collectStatus ?? ''));
+    ).filter(
+      (c) =>
+        !SKIP_STATUSES.has(c.collectStatus ?? '') &&
+        c.linkType === LinkType.CHANNEL,
+    );
     const isGroup = (c: Channel) => c.linkType === LinkType.GROUP;
     const needsAccount = (c: Channel) =>
       !isGroup(c) && (isInviteOnlyLink(c.link) || isPreviewBlocked(c));

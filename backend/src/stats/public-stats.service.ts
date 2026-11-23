@@ -645,7 +645,7 @@ export class PublicStatsService implements OnApplicationBootstrap {
     // 관리자가 홈 피드 방을 골라 두었으면 고른 방만 (tele.wiki 처럼 방마다 최신 글 1개, 새 글 순).
     // 관리자가 직접 고른 방은 성인·그룹도 나온다
     const picked = selectMemberVisibleRows(allRows, ADULT_CATEGORY).filter(
-      (c) => c.feedPicked,
+      (c) => c.feedPicked && c.linkType === LinkType.CHANNEL,
     );
     const pickMode = picked.length > 0;
     // 회원 노출 규칙은 한 곳(describeMemberPageVisibility), 같은 링크는 가장 좋은 행 1개
@@ -824,8 +824,10 @@ export class PublicStatsService implements OnApplicationBootstrap {
     let channels = await this.channelRepository.find({
       where: { status: ChannelStatus.ACTIVE },
     });
-    // 관리자 고르기 목록: 성인 카테고리도 보여 준다(회원 일반 목록에선 숨는 방)
-    channels = selectMemberVisibleRows(channels, ADULT_CATEGORY);
+    // 관리자 고르기 목록: 채널만(그룹 제외). 성인 카테고리도 보여 준다(회원 일반 목록에선 숨는 방)
+    channels = selectMemberVisibleRows(channels, ADULT_CATEGORY).filter(
+      (c) => c.linkType === LinkType.CHANNEL,
+    );
     const pickedTotal = channels.filter((c) => c.feedPicked).length;
     if (opts.pickedOnly) channels = channels.filter((c) => c.feedPicked);
     if (opts.category)
@@ -839,47 +841,35 @@ export class PublicStatsService implements OnApplicationBootstrap {
           (c.link ?? '').toLowerCase().includes(q),
       );
     }
-    if (!opts.pickedOnly) {
-      // 최근 30일 글이 없는 방은 찾기 목록에서 뺀다 (고른 방 목록에는 그대로 둬서 뺄 수 있게)
-      const recent = await this.postRepository
-        .createQueryBuilder('post')
-        .select('DISTINCT post.channel_id', 'channelId')
-        .where('post.posted_at >= :since', {
-          since: new Date(Date.now() - 30 * 86_400_000),
-        })
-        .andWhere('post.deleted_at IS NULL')
-        .andWhere("post.media_type <> 'service'")
-        .getRawMany<Record<string, unknown>>();
-      const active = new Set(
-        recent.map((r) => asText(r.channelId ?? r.channel_id)),
-      );
-      if (this.groupMessageRepository) {
-        const groupRecent = await this.groupMessageRepository
-          .createQueryBuilder('m')
-          .select('DISTINCT m.channel_id', 'channelId')
-          .where('m.posted_at >= :since', {
-            since: new Date(Date.now() - 30 * 86_400_000),
-          })
-          .getRawMany<Record<string, unknown>>();
-        for (const r of groupRecent)
-          active.add(asText(r.channelId ?? r.channel_id));
-      }
-      channels = channels.filter((c) => active.has(c.id));
+    // 방마다 최근 글 시각 (최근 30일). 최근 글 올라온 순으로 줄 세운다
+    const recent = await this.postRepository
+      .createQueryBuilder('post')
+      .select('post.channel_id', 'channelId')
+      .addSelect('MAX(post.posted_at)', 'lastAt')
+      .where('post.posted_at >= :since', {
+        since: new Date(Date.now() - 30 * 86_400_000),
+      })
+      .andWhere('post.deleted_at IS NULL')
+      .andWhere("post.media_type <> 'service'")
+      .groupBy('post.channel_id')
+      .getRawMany<Record<string, unknown>>();
+    const lastAt = new Map<string, number>();
+    for (const r of recent) {
+      const raw = r.lastAt ?? r.lastat ?? r.last_at;
+      const ms = raw ? new Date(raw as string | Date).getTime() : NaN;
+      if (Number.isFinite(ms))
+        lastAt.set(asText(r.channelId ?? r.channel_id), ms);
     }
+    // 최근 30일 글이 없는 방은 찾기 목록에서 뺀다 (고른 방 목록에는 그대로 둬서 뺄 수 있게)
+    if (!opts.pickedOnly) channels = channels.filter((c) => lastAt.has(c.id));
     const total = channels.length;
     channels.sort(
       (a, b) =>
-        Number(b.feedPicked) - Number(a.feedPicked) ||
+        (lastAt.get(b.id) ?? 0) - (lastAt.get(a.id) ?? 0) ||
         (b.memberCount ?? 0) - (a.memberCount ?? 0),
     );
     const page = channels.slice(0, limit);
-    const posts = await this.latestPostsFor(
-      page.filter((c) => c.linkType === LinkType.CHANNEL).map((c) => c.id),
-    );
-    const groupPosts = await this.latestGroupMessagesFor(
-      page.filter((c) => c.linkType === LinkType.GROUP).map((c) => c.id),
-    );
-    for (const [id, g] of groupPosts) posts.set(id, g);
+    const posts = await this.latestPostsFor(page.map((c) => c.id));
     return {
       pickedTotal,
       total,
