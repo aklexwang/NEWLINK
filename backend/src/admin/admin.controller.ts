@@ -222,7 +222,12 @@ export class AdminController {
   }
 
   @Post(':id/collect')
-  async collectOne(@Param('id', ParseUUIDPipe) id: string) {
+  async collectOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('fresh') fresh?: string,
+  ) {
+    // fresh=1: 저장된 접근 정보를 버리고 초대 링크로 다시 확인 (다른 방을 읽고 있을 때)
+    if (fresh === '1') await this.channelsService.clearTelegramAccess(id);
     const channel = await this.adminCollect.collectOne(id);
     const memberPageInfo = describeAdminMemberVisibility(channel);
     return {
