@@ -54,6 +54,14 @@ export function AdminCategoryChipBar({
           )}
         </button>
         {[...categories]
+          // 방이 0개인 카테고리는 숨김 (지금 고른 것·분류대기는 남김)
+          .filter(
+            (c) =>
+              !counts ||
+              (counts[c.name] ?? 0) > 0 ||
+              c.name === selected ||
+              c.name === PENDING,
+          )
           // 분류대기는 늘 [전체] 바로 옆, 나머지는 방 많은 카테고리부터
           .sort(
             (a, b) =>

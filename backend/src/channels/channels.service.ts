@@ -1188,20 +1188,26 @@ export class ChannelsService implements OnModuleInit {
     const needsMemory =
       Boolean(filters.memberPage) || Boolean(filters.hideReason);
 
+    // 카테고리 칩 숫자는 "카테고리를 고르기 전" 기준(다른 조건은 그대로). 하나를 골라도 다른 칩이 0 이 되지 않게
+    const countFilters = { ...filters, category: undefined };
     if (needsMemory) {
-      let matched = await this.buildAdminListQuery(filters).getMany();
-      matched = matched.filter((channel) =>
+      const memberFilter = (channel: Channel) =>
         matchesMemberPageFilter(channel, {
           memberPage: filters.memberPage,
           hideReason: filters.hideReason,
-        }),
-      );
-      matched = sortAdminListItems(matched, sort);
-      const categoryCounts: Record<string, number> = { '': matched.length };
-      for (const item of matched) {
+        });
+      const all = (
+        await this.buildAdminListQuery(countFilters).getMany()
+      ).filter(memberFilter);
+      const categoryCounts: Record<string, number> = { '': all.length };
+      for (const item of all) {
         categoryCounts[item.category] =
           (categoryCounts[item.category] ?? 0) + 1;
       }
+      let matched = filters.category
+        ? all.filter((c) => c.category === filters.category)
+        : all;
+      matched = sortAdminListItems(matched, sort);
       const paged = paginateItems(matched, page, pageSize);
       const items = paged.items.map((item) =>
         this.sanitizeChannelForResponse(item),
@@ -1216,14 +1222,15 @@ export class ChannelsService implements OnModuleInit {
     }
 
     const total = await this.buildAdminListQuery(filters).getCount();
-    const catRows = await this.buildAdminListQuery(filters)
+    const catRows = await this.buildAdminListQuery(countFilters)
       .select('channel.category', 'category')
       .addSelect('COUNT(*)', 'cnt')
       .groupBy('channel.category')
       .getRawMany<{ category: string; cnt: string }>();
-    const categoryCounts: Record<string, number> = { '': total };
+    const categoryCounts: Record<string, number> = { '': 0 };
     for (const row of catRows) {
       categoryCounts[row.category] = Number(row.cnt);
+      categoryCounts[''] += Number(row.cnt);
     }
     const listQb = this.buildAdminListQuery(filters);
     this.applyAdminListSort(listQb, sort);
