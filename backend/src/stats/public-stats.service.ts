@@ -820,6 +820,22 @@ export class PublicStatsService implements OnApplicationBootstrap {
           (c.link ?? '').toLowerCase().includes(q),
       );
     }
+    if (!opts.pickedOnly) {
+      // 최근 30일 글이 없는 방은 찾기 목록에서 뺀다 (고른 방 목록에는 그대로 둬서 뺄 수 있게)
+      const recent = await this.postRepository
+        .createQueryBuilder('post')
+        .select('DISTINCT post.channel_id', 'channelId')
+        .where('post.posted_at >= :since', {
+          since: new Date(Date.now() - 30 * 86_400_000),
+        })
+        .andWhere('post.deleted_at IS NULL')
+        .andWhere("post.media_type <> 'service'")
+        .getRawMany<Record<string, unknown>>();
+      const active = new Set(
+        recent.map((r) => asText(r.channelId ?? r.channel_id)),
+      );
+      channels = channels.filter((c) => active.has(c.id));
+    }
     const total = channels.length;
     channels.sort(
       (a, b) =>
