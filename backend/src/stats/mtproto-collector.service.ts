@@ -1,3 +1,4 @@
+import { shouldRecheckStaleInvite } from './stale-invite.logic';
 import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { DailyCounterStore } from '../daily-counters/daily-counter-store.service';
 import { InviteDiscoveryQueueService } from './invite-discovery-queue.service';
@@ -258,6 +259,9 @@ export class MtprotoCollectorService implements OnModuleInit {
   private joinsToday = 0;
   /** CheckChatInvite(초대 링크 확인) 오늘 수. resolve 한도와 따로 센다 */
   private invitesToday = 0;
+  /** 멈춘 비공개 채널 재확인: 오늘 수 / 방별 마지막 재확인 시각 */
+  private staleRechecksToday = 0;
+  private readonly staleRecheckAt = new Map<string, number>();
   private joinDay = '';
   private joinedTotal = 0;
   private lastJoinAt = 0;
@@ -574,11 +578,20 @@ export class MtprotoCollectorService implements OnModuleInit {
       const Api = await this.api();
       let resolved: ResolvedPublicChannel | null = null;
       // 저장 hash 는 받은 계정으로만 쓸 수 있다(주인이 다르면 재사용하지 않고 초대 링크로 다시 확인)
-      const storedUsable =
+      let storedUsable =
         stored != null &&
         canReuseStoredAccess(stored) &&
         (stored.telegramAccessAccount == null ||
           stored.telegramAccessAccount === memberIdx);
+      let staleRecheck = false;
+      if (storedUsable && (await this.isStaleInviteChannel(channel))) {
+        // 저장 접근 정보가 멈춘(다른) 방을 가리킬 수 있다 → 이번엔 초대 링크로 다시 확인
+        storedUsable = false;
+        staleRecheck = true;
+        this.staleRechecksToday += 1;
+        this.staleRecheckAt.set(channel.id, Date.now());
+        this.logger.log(`멈춘 비공개 채널 초대 링크로 재확인: ${channel.id}`);
+      }
       if (storedUsable && !this.canSpendCollect()) {
         // 이미 가입한 방 다시 읽기는 "수집"이라 예비분을 건드리지 않는다
         return { ok: false, reason: 'skipped' };
@@ -616,13 +629,27 @@ export class MtprotoCollectorService implements OnModuleInit {
         if (this.invitesToday >= this.inviteCheckDailyLimit()) {
           return { ok: false, reason: 'skipped' };
         }
-        const invite = await this.call(
-          'messages.CheckChatInvite',
-          new Api.messages.CheckChatInvite({ hash }),
-        );
-        await this.noteInviteRequestNeeded(channel, invite);
-        let chat = memberChatFromInvite(invite);
-        if (chat) {
+        let invite: unknown;
+        try {
+          invite = await this.call(
+            'messages.CheckChatInvite',
+            new Api.messages.CheckChatInvite({ hash }),
+          );
+        } catch (error) {
+          // 재확인 중 초대 링크가 만료·무효여도 방을 "무효"로 만들지 않고 저장 접근 정보로 읽는다
+          if (!staleRecheck || !stored) throw error;
+          if (
+            isMtprotoAuthFatal(error) ||
+            error instanceof FloodWaitTooLongError
+          )
+            throw error;
+          invite = null;
+        }
+        if (invite != null) await this.noteInviteRequestNeeded(channel, invite);
+        let chat = invite == null ? null : memberChatFromInvite(invite);
+        if (invite == null) {
+          // 위에서 저장 접근 정보로 읽는다
+        } else if (chat) {
           this.noteJoinOutcome('이미 회원');
         } else if (isJoinableChannelInvite(invite)) {
           // 비공개 채널: 하루 한도·전체 950·간격 3분 안에서 가입하고 글까지 읽는다
@@ -647,7 +674,15 @@ export class MtprotoCollectorService implements OnModuleInit {
         } else {
           this.noteJoinOutcome(describeUnjoinableInvite(invite));
         }
-        if (!chat) {
+        if (!chat && staleRecheck && stored) {
+          // 재확인으로 못 들어가면 예전처럼 저장 접근 정보로 읽는다 (상태를 망가뜨리지 않게)
+          resolved = await this.fetchFullFromInput(
+            Api,
+            '',
+            stored.telegramChatId,
+            stored.telegramAccessHash,
+          );
+        } else if (!chat) {
           // 엿보기·가입이 안 돼도 CheckChatInvite 가 준 제목·소개·회원수는 넘겨준다(A안)
           return {
             ok: false,
@@ -655,19 +690,21 @@ export class MtprotoCollectorService implements OnModuleInit {
             inviteMeta: inviteMetadata(invite) ?? undefined,
           };
         }
-        resolved = await this.fetchFullFromInput(
-          Api,
-          '',
-          chat.id,
-          chat.accessHash,
-          {
-            title: chat.title,
-            date: chat.date,
-            megagroup: chat.megagroup,
-            broadcast: chat.broadcast,
-          },
-        );
+        if (chat)
+          resolved = await this.fetchFullFromInput(
+            Api,
+            '',
+            chat.id,
+            chat.accessHash,
+            {
+              title: chat.title,
+              date: chat.date,
+              megagroup: chat.megagroup,
+              broadcast: chat.broadcast,
+            },
+          );
       }
+      if (!resolved) return { ok: false, reason: 'failed' };
       const history = await this.fetchHistory(resolved);
       await this.persist(channel, { ...resolved, ...history });
       await this.mergeSameTelegramChat(channel);
@@ -698,6 +735,34 @@ export class MtprotoCollectorService implements OnModuleInit {
     } finally {
       this.pinnedAccountIndex = prevPin;
     }
+  }
+
+  /** 비공개 채널인데 마지막 저장 글이 3일 넘게 멈췄는지 (하루 20개·같은 방 3일에 한 번) */
+  private async isStaleInviteChannel(channel: Channel): Promise<boolean> {
+    if (channel.linkType !== LinkType.CHANNEL) return false;
+    this.rollDailyCounter();
+    let latestPostAtMs: number | null = null;
+    try {
+      const row = await this.postRepository
+        .createQueryBuilder('post')
+        .select('MAX(post.posted_at)', 'at')
+        .where('post.channel_id = :id', { id: channel.id })
+        .getRawOne<Record<string, unknown>>();
+      const raw = row?.at;
+      const ms = raw ? new Date(raw as string | Date).getTime() : NaN;
+      latestPostAtMs = Number.isFinite(ms) ? ms : null;
+    } catch {
+      return false;
+    }
+    return shouldRecheckStaleInvite({
+      isChannel: true,
+      latestPostAtMs,
+      lastRecheckAtMs: this.staleRecheckAt.get(channel.id) ?? null,
+      rechecksToday: this.staleRechecksToday,
+      invitesToday: this.invitesToday,
+      inviteDailyLimit: this.inviteCheckDailyLimit(),
+      nowMs: Date.now(),
+    });
   }
 
   /** 초대 링크가 "입장 요청 필요"인지 저장(대시보드 비공개 입장요청 분류·입장 요청 메뉴용). DB 만 쓴다 */
@@ -2272,6 +2337,7 @@ export class MtprotoCollectorService implements OnModuleInit {
       this.resolvesToday = 0;
       this.searchesToday = 0;
       this.invitesToday = 0;
+      this.staleRechecksToday = 0;
       if (this.lastError === 'daily_limit') {
         this.stopped = false;
         this.lastError = null;
