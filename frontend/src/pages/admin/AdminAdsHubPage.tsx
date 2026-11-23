@@ -3,18 +3,20 @@ import { AdminBannerAdsPage } from './AdminBannerAdsPage';
 import { AdminRankAdsPage } from './AdminRankAdsPage';
 
 const TABS = [
-  { id: 'banner', label: '🖼️ 배너 광고', desc: '회원 홈 · 카테고리 화면 슬라이드 배너' },
+  { id: 'banner', label: '🖼️ 배너 광고', desc: '회원 홈 맨 위 슬라이드 배너' },
+  { id: 'category', label: '🗂️ 카테고리 배너 광고', desc: '카테고리 화면 얇은 배너 · 전체 / 각 카테고리' },
   { id: 'rooms', label: '📢 텔레그램방 광고', desc: '카테고리 목록 1~5위 자리' },
 ] as const;
 
-/** 어드민 > 광고 관리: 배너 광고 / 텔레그램방 광고 */
+/** 어드민 > 광고 관리: 배너 광고 / 카테고리 배너 광고 / 텔레그램방 광고 */
 export function AdminAdsHubPage() {
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'rooms' ? 'rooms' : 'banner';
+  const raw = params.get('tab');
+  const tab = raw === 'rooms' || raw === 'category' ? raw : 'banner';
 
   return (
     <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         {TABS.map((item) => {
           const active = tab === item.id;
           return (
@@ -32,7 +34,13 @@ export function AdminAdsHubPage() {
           );
         })}
       </div>
-      {tab === 'banner' ? <AdminBannerAdsPage /> : <AdminRankAdsPage />}
+      {tab === 'banner' ? (
+        <AdminBannerAdsPage key="home" mode="home" />
+      ) : tab === 'category' ? (
+        <AdminBannerAdsPage key="category" mode="category" />
+      ) : (
+        <AdminRankAdsPage />
+      )}
     </div>
   );
 }

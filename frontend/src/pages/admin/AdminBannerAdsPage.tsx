@@ -31,10 +31,16 @@ const inputClass =
 /** 배너 하나 추가·수정 칸 */
 function BannerEditor({
   banner,
+  mode,
+  defaultPlacement,
+  categoryNames,
   onDone,
   onCancel,
 }: {
   banner?: AdminBanner;
+  mode: BannerMode;
+  defaultPlacement: string;
+  categoryNames: string[];
   onDone: () => void;
   onCancel?: () => void;
 }) {
@@ -44,16 +50,10 @@ function BannerEditor({
   const [endsOn, setEndsOn] = useState(kstDateInput(banner?.endsAt ?? null, true));
   const [sortOrder, setSortOrder] = useState(String(banner?.sortOrder ?? 0));
   const [isActive, setIsActive] = useState(banner?.isActive ?? true);
-  const [placement, setPlacement] = useState(banner?.placement ?? 'home');
+  const [placement, setPlacement] = useState(banner?.placement ?? defaultPlacement);
   // 카테고리 자리는 얇은 배너(카테고리 선택 상자와 같은 높이)
   const slim = placement.startsWith('category:');
   const size = slim ? { w: 1200, h: 228, ratio: 1200 / 228, label: '1200×228px (얇은 배너)' } : { w: BANNER_SIZE.width, h: BANNER_SIZE.height, ratio: 3, label: `${BANNER_SIZE.width}×${BANNER_SIZE.height}px (3:1)` };
-  const [categoryNames, setCategoryNames] = useState<string[]>([]);
-  useEffect(() => {
-    void getAdminCategories()
-      .then((list) => setCategoryNames(list.filter((c) => c.isActive !== false).map((c) => c.name)))
-      .catch(() => undefined);
-  }, []);
   const [paidUsdt, setPaidUsdt] = useState(banner?.paidUsdt != null ? String(banner.paidUsdt) : '');
   const [paidOn, setPaidOn] = useState(banner?.paidOn ?? '');
   const [advertiser, setAdvertiser] = useState(
@@ -142,14 +142,14 @@ function BannerEditor({
         {sizeNote && <p className="mt-1.5 text-xs text-subtle">{sizeNote}</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
+        {mode === 'category' && (
         <label className="block text-sm font-medium text-subtle sm:col-span-2">
           광고 자리
           <select value={placement} onChange={(e) => setPlacement(e.target.value)} className={inputClass}>
-            <option value="home">홈 (회원 홈 맨 위)</option>
-            <option value="category:all">카테고리 메인 (카테고리 화면 · 전용 광고 없는 카테고리에도 나옴)</option>
+            <option value="category:all">전체 (카테고리 메인 · 전용 광고 없는 카테고리에도 나옴)</option>
             {categoryNames.map((name) => (
               <option key={name} value={`category:${name}`}>
-                카테고리 · {name} (그 카테고리를 볼 때만)
+                {name} (이 카테고리에 들어갔을 때만)
               </option>
             ))}
             {placement.startsWith('category:') &&
@@ -157,6 +157,7 @@ function BannerEditor({
               !categoryNames.includes(placement.slice(9)) && <option value={placement}>{bannerPlacementLabel(placement)}</option>}
           </select>
         </label>
+        )}
         <label className="block text-sm font-medium text-subtle">
           광고 이름 (관리용)
           <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} placeholder="예: AXPAY 11월" />
@@ -207,8 +208,21 @@ function BannerEditor({
   );
 }
 
-/** 어드민 > 광고 관리: 홈 배너 광고 */
-export function AdminBannerAdsPage() {
+export type BannerMode = 'home' | 'category';
+
+const isCategoryPlacement = (p: string | undefined) => (p ?? 'home').startsWith('category:');
+
+/** 어드민 > 광고 관리: 홈 배너 광고(mode=home) / 카테고리 배너 광고(mode=category) */
+export function AdminBannerAdsPage({ mode = 'home' }: { mode?: BannerMode }) {
+  // 카테고리 배너: 전체(category:all) 또는 각 카테고리(category:이름)
+  const [scope, setScope] = useState('category:all');
+  const [categoryNames, setCategoryNames] = useState<string[]>([]);
+  useEffect(() => {
+    if (mode !== 'category') return;
+    void getAdminCategories()
+      .then((list) => setCategoryNames(list.filter((c) => c.isActive !== false).map((c) => c.name)))
+      .catch(() => undefined);
+  }, [mode]);
   const [banners, setBanners] = useState<AdminBanner[]>([]);
   const [rotate, setRotate] = useState(3);
   const [loading, setLoading] = useState(true);
@@ -248,20 +262,54 @@ export function AdminBannerAdsPage() {
     await load();
   };
 
-  const liveCount = banners.filter((b) => b.live).length;
+  const modeBanners = banners.filter((b) => (mode === 'category') === isCategoryPlacement(b.placement));
+  const shown = mode === 'category' ? modeBanners.filter((b) => b.placement === scope) : modeBanners;
+  const liveCount = shown.filter((b) => b.live).length;
+  const countFor = (p: string) => modeBanners.filter((b) => b.placement === p).length;
+  const defaultPlacement = mode === 'category' ? scope : 'home';
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          노출 중 {liveCount}개 · 전체 {banners.length}개 · 홈 {banners.filter((b) => (b.placement ?? 'home') === 'home').length} · 카테고리{' '}
-          {banners.filter((b) => (b.placement ?? 'home') !== 'home').length}
+          {mode === 'category' ? `${bannerPlacementLabel(scope)} · ` : '회원 홈 맨 위 · '}노출 중 {liveCount}개 · 전체 {shown.length}개
         </p>
         <button type="button" onClick={() => setAdding((v) => !v)} className="h-11 rounded-xl bg-primary px-5 text-[15px] font-semibold text-white">
           {adding ? '닫기' : '+ 배너 추가'}
         </button>
       </div>
       {message && <p className="text-sm text-foreground">{message}</p>}
+
+      {mode === 'category' && (
+        <div className="rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
+          <p className="text-base font-bold text-foreground">카테고리 고르기</p>
+          <p className="mt-1 text-sm text-subtle">
+            전체 = 카테고리 메인 광고(전용 광고가 없는 카테고리에도 나와요). 각 카테고리 광고가 있으면 그 카테고리에선 그 광고가 먼저 나와요.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {['category:all', ...categoryNames.map((n) => `category:${n}`)].map((p) => {
+              const n = countFor(p);
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => {
+                    setScope(p);
+                    setAdding(false);
+                    setEditingId(null);
+                  }}
+                  className={`h-9 rounded-xl px-3.5 text-sm font-semibold ${
+                    scope === p ? 'bg-primary text-white' : n > 0 ? 'bg-sky-100 text-sky-800' : 'bg-muted text-subtle hover:bg-muted/70'
+                  }`}
+                >
+                  {p === 'category:all' ? '전체' : p.slice(9)}
+                  {n > 0 && <span className="ml-1 opacity-80">{n}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
         <p className="text-base font-bold text-foreground">넘김 간격</p>
@@ -284,6 +332,9 @@ export function AdminBannerAdsPage() {
 
       {adding && (
         <BannerEditor
+          mode={mode}
+          defaultPlacement={defaultPlacement}
+          categoryNames={categoryNames}
           onDone={() => {
             setAdding(false);
             void load();
@@ -294,17 +345,22 @@ export function AdminBannerAdsPage() {
 
       {loading ? (
         <p className="text-sm text-muted-foreground">불러오는 중…</p>
-      ) : banners.length === 0 ? (
+      ) : shown.length === 0 ? (
         <p className="rounded-2xl bg-card p-8 text-center text-sm text-muted-foreground shadow-[var(--hz-shadow)]">
-          아직 배너가 없어요. [+ 배너 추가]로 넣어 주세요.
+          {mode === 'category' && scope !== 'category:all'
+            ? '이 카테고리 전용 광고가 없어요. 지금은 "전체" 광고가 나와요. [+ 배너 추가]로 넣어 주세요.'
+            : '아직 배너가 없어요. [+ 배너 추가]로 넣어 주세요.'}
         </p>
       ) : (
         <div className="space-y-4">
-          {banners.map((banner) =>
+          {shown.map((banner) =>
             editingId === banner.id ? (
               <BannerEditor
                 key={banner.id}
                 banner={banner}
+                mode={mode}
+                defaultPlacement={defaultPlacement}
+                categoryNames={categoryNames}
                 onDone={() => {
                   setEditingId(null);
                   void load();
