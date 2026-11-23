@@ -50,6 +50,7 @@ import { AddGroupMessages1761900000000 } from './1761900000000-AddGroupMessages'
 import { AddChannelInviteRequestNeeded1762000000000 } from './1762000000000-AddChannelInviteRequestNeeded';
 import { AddPromo1762100000000 } from './1762100000000-AddPromo';
 import { AddBannerPlacement1762200000000 } from './1762200000000-AddBannerPlacement';
+import { AddChannelFeedPicked1762300000000 } from './1762300000000-AddChannelFeedPicked';
 export const ALL_MIGRATIONS = [
   AddChannelStats1760852400000,
   AddChannelVerified1760860800000,
@@ -96,4 +97,5 @@ export const ALL_MIGRATIONS = [
   AddChannelInviteRequestNeeded1762000000000,
   AddPromo1762100000000,
   AddBannerPlacement1762200000000,
+  AddChannelFeedPicked1762300000000,
 ];

@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { FeedFilterService } from './feed-filter.service';
@@ -31,5 +40,33 @@ export class AdminFeedFilterController {
     // 홈 피드에 바로 반영
     this.publicStats.clearPublicCaches();
     return saved;
+  }
+
+  /** 홈 피드 방 고르기: 검색·카테고리로 찾기 (picked=1 이면 고른 방만) */
+  @Get('rooms')
+  rooms(
+    @Query('q') q?: string,
+    @Query('category') category?: string,
+    @Query('picked') picked?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.publicStats.adminFeedRooms({
+      q: typeof q === 'string' ? q.slice(0, 100) : undefined,
+      category:
+        typeof category === 'string' && category
+          ? category.slice(0, 60)
+          : undefined,
+      pickedOnly: picked === '1' || picked === 'true',
+      limit: Number(limit) || undefined,
+    });
+  }
+
+  /** 홈 피드에 넣기/빼기 */
+  @Put('rooms/:id')
+  setPicked(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: { picked?: unknown },
+  ) {
+    return this.publicStats.setFeedPicked(id, body?.picked === true);
   }
 }

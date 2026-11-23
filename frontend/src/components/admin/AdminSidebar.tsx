@@ -67,7 +67,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { to: '/admin/categories', label: '카테고리 설정', icon: <FolderCog /> },
       { to: '/admin/search-terms', label: '검색 금지어', icon: <SearchX /> },
-      { to: '/admin/feed-filter', label: '홈 피드 광고 거르기', icon: <Filter /> },
+      { to: '/admin/feed-filter', label: '홈 피드 방 고르기', icon: <Filter /> },
       { to: '/admin/security', label: '보안 설정', icon: <ShieldCheck /> },
     ],
   },

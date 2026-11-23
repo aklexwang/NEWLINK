@@ -7,6 +7,7 @@ import {
 } from '../../api/admin';
 import type { CategoryItem } from '../../types/categoryItem';
 import { adminApiErrorMessage } from '../../utils/adminApiError';
+import { FeedPickSection } from '../../components/admin/FeedPickSection';
 
 /** 홈 "최근 활발한 채널"에서 광고성 채널·글을 빼는 설정 */
 export function AdminFeedFilterPage() {
@@ -65,8 +66,10 @@ export function AdminFeedFilterPage() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-10 md:px-7">
-      <p className="text-sm text-muted-foreground">
-        회원 홈 “최근 활발한 채널”에만 적용돼요. 카테고리·랭킹·검색에는 그대로 나와요.
+      <FeedPickSection categories={categories} />
+      <p className="mt-8 text-[15px] font-bold text-foreground">광고 거르기 (고른 방이 하나도 없을 때만 쓰여요)</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        회원 홈 피드에만 적용돼요. 카테고리·랭킹·검색에는 그대로 나와요.
       </p>
       {message && (
         <p className="mt-4 rounded-xl bg-primary/10 px-4 py-3 text-sm font-medium ring-1 ring-primary/30">{message}</p>

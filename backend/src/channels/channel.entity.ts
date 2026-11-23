@@ -153,6 +153,10 @@ export class Channel {
   @Column({ name: 'invite_request_needed', type: 'boolean', nullable: true })
   inviteRequestNeeded: boolean | null;
 
+  /** 홈 피드에 나올 방 (관리자가 고름). 하나라도 고르면 홈 피드는 고른 방의 최신 글만 */
+  @Column({ name: 'feed_picked', type: 'boolean', default: false })
+  feedPicked: boolean;
+
   /** 그룹: 최근 7일 대화(최근 50개 안)에 글을 쓴 사람 수. 누구인지는 저장하지 않는다 */
   @Column({ name: 'group_active_senders', type: 'integer', nullable: true })
   groupActiveSenders: number | null;

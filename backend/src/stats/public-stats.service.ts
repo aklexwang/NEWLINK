@@ -649,14 +649,27 @@ export class PublicStatsService implements OnApplicationBootstrap {
       channels = channels.filter((c) => c.linkType === LinkType.GROUP);
     }
 
-    const lastPosts = await this.postRepository
+    // 관리자가 홈 피드 방을 골라 두었으면 고른 방만 (tele.wiki 처럼 방마다 최신 글 1개, 새 글 순)
+    const picked = channels.filter((c) => c.feedPicked);
+    const pickMode = picked.length > 0;
+    if (pickMode) channels = picked;
+
+    const lastQuery = this.postRepository
       .createQueryBuilder('post')
       .select('post.channel_id', 'channelId')
-      .addSelect('MAX(post.posted_at)', 'lastPostAt')
+      .addSelect('MAX(post.posted_at)', 'lastPostAt');
+    if (pickMode) {
+      // 고른 방은 글이 오래됐어도 최신 글로 나온다
+      lastQuery.where('post.channel_id IN (:...ids)', {
+        ids: picked.map((c) => c.id),
+      });
+    } else {
       // 피드는 최근 활동만 보면 되므로 최근 며칠 글만 훑는다 (게시글이 쌓여도 느려지지 않게)
-      .where('post.posted_at >= :since', {
+      lastQuery.where('post.posted_at >= :since', {
         since: new Date(Date.now() - FEED_LOOKBACK_DAYS * 86_400_000),
-      })
+      });
+    }
+    const lastPosts = await lastQuery
       .groupBy('post.channel_id')
       .getRawMany<Record<string, unknown>>();
     const lastMap = new Map<string, Date>();
@@ -720,7 +733,8 @@ export class PublicStatsService implements OnApplicationBootstrap {
     }
 
     // 광고 거르기: 제외 카테고리는 빼고, 최근 글에 광고 단어가 여러 개면 뺀다 (모자라면 다음 줄에서 채움)
-    const filter = await this.feedFilter?.get();
+    // 고른 방 모드는 관리자가 직접 고른 것이므로 광고 거르기를 하지 않는다
+    const filter = pickMode ? undefined : await this.feedFilter?.get();
     const excluded = new Set(filter?.excludeCategories ?? []);
     const slice: typeof rows = [];
     const latestPosts = new Map<string, LatestFeedPost>();
@@ -777,6 +791,69 @@ export class PublicStatsService implements OnApplicationBootstrap {
       data,
     });
     return data;
+  }
+
+  /** 어드민 홈 피드 방 고르기: 회원에게 보이는 채널을 검색·카테고리로 찾는다 */
+  async adminFeedRooms(opts: {
+    q?: string;
+    category?: string;
+    pickedOnly?: boolean;
+    limit?: number;
+  }) {
+    const limit = Math.min(Math.max(opts.limit ?? 60, 1), 200);
+    let channels = await this.channelRepository.find({
+      where: { status: ChannelStatus.ACTIVE },
+    });
+    channels = selectMemberVisibleRows(channels).filter(
+      (c) => c.linkType === LinkType.CHANNEL,
+    );
+    const pickedTotal = channels.filter((c) => c.feedPicked).length;
+    if (opts.pickedOnly) channels = channels.filter((c) => c.feedPicked);
+    if (opts.category)
+      channels = channels.filter((c) => c.category === opts.category);
+    const q = (opts.q ?? '').trim().toLowerCase();
+    if (q) {
+      channels = channels.filter(
+        (c) =>
+          (c.title ?? '').toLowerCase().includes(q) ||
+          (c.username ?? '').toLowerCase().includes(q) ||
+          (c.link ?? '').toLowerCase().includes(q),
+      );
+    }
+    const total = channels.length;
+    channels.sort(
+      (a, b) =>
+        Number(b.feedPicked) - Number(a.feedPicked) ||
+        (b.memberCount ?? 0) - (a.memberCount ?? 0),
+    );
+    const page = channels.slice(0, limit);
+    const posts = await this.latestPostsFor(page.map((c) => c.id));
+    return {
+      pickedTotal,
+      total,
+      items: page.map((c) => ({
+        id: c.id,
+        title: c.title,
+        username: c.username ?? extractTelegramUsernameFromLink(c.link),
+        link: c.link,
+        avatarUrl: this.channelsService.getListAvatarUrl(c),
+        category: c.category,
+        memberCount: c.memberCount,
+        feedPicked: c.feedPicked,
+        latestPost: posts.get(c.id) ?? null,
+      })),
+    };
+  }
+
+  /** 홈 피드에 넣기/빼기 */
+  async setFeedPicked(id: string, picked: boolean) {
+    const result = await this.channelRepository.update(
+      { id },
+      { feedPicked: picked },
+    );
+    if (!result.affected) throw new NotFoundException('방을 찾지 못했어요.');
+    this.clearPublicCaches();
+    return { id, feedPicked: picked };
   }
 
   /** 채널마다 지워지지 않은 가장 최근 글 하나 */

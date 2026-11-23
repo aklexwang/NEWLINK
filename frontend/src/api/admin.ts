@@ -1433,3 +1433,38 @@ export async function disableAdminOtp(code: string): Promise<{ ok: boolean }> {
   );
   return data;
 }
+
+export interface AdminFeedRoom {
+  id: string;
+  title: string;
+  username: string | null;
+  link: string;
+  avatarUrl: string | null;
+  category: string;
+  memberCount: number | null;
+  feedPicked: boolean;
+  latestPost: { text: string | null; mediaType: string; postedAt: string } | null;
+}
+
+/** 홈 피드 방 고르기: 검색·카테고리 (picked=true 면 고른 방만) */
+export async function getAdminFeedRooms(params: {
+  q?: string;
+  category?: string;
+  picked?: boolean;
+  limit?: number;
+}): Promise<{ pickedTotal: number; total: number; items: AdminFeedRoom[] }> {
+  const { data } = await apiClient.get('/admin/feed-filter/rooms', {
+    headers: getAdminAuthHeaders(),
+    params: {
+      q: params.q || undefined,
+      category: params.category || undefined,
+      picked: params.picked ? '1' : undefined,
+      limit: params.limit,
+    },
+  });
+  return data;
+}
+
+export async function setAdminFeedPicked(id: string, picked: boolean): Promise<void> {
+  await apiClient.put(`/admin/feed-filter/rooms/${id}`, { picked }, { headers: getAdminAuthHeaders() });
+}
