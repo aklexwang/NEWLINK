@@ -756,11 +756,11 @@ function ThreadItem({
   const ios = isIosDevice(webApp);
   // 그룹 글은 텔레그램 상자(원문, 개인정보 그대로) 대신 저장된 가림 글을 그린다
   const isGroupItem = item.linkType === "group";
-  const postUrl =
-    post && item.username && !ios && !isGroupItem
-      ? `https://t.me/${item.username}/${post.messageId}`
-      : null;
-  const ownPreview = Boolean(post && ios && item.username && !isGroupItem);
+  // 텔레그램 게시글 상자(iframe)는 성인·보호 채널에서 "VIEW IN TELEGRAM" 만 떠서 홈에선 쓰지 않는다.
+  // 모든 기기에서 서버가 읽은 글·사진(없으면 저장된 글)을 우리가 직접 그린다
+  void ios;
+  const postUrl: string | null = null;
+  const ownPreview = Boolean(post && item.username && !isGroupItem);
   const mediaLabel = post ? MEDIA_LABEL[post.mediaType] : undefined;
 
   return (
