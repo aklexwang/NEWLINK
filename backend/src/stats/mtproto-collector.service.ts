@@ -452,22 +452,37 @@ export class MtprotoCollectorService implements OnModuleInit {
     // 예비분이 그대로라 수집(이미 가입한 방 다시 읽기)이 막혀 글이 며칠씩 밀렸다
     this.rollDailyCounter();
     const left = (limit: number, used: number) => Math.max(0, limit - used);
-    return mtprotoSpecialReserve({
-      inviteCheckDaily: left(this.inviteCheckDailyLimit(), this.invitesToday),
-      joinDaily: left(this.joinDailyLimit(), this.currentJoinsToday()),
-      keywordSearchDaily: left(this.searchDailyLimit(), this.searchesToday),
-      resolveDaily: left(this.resolveDailyLimit(), this.resolvesToday),
-    });
+    // 하루가 저물수록 남겨 둘 몫도 줄인다 (밤 10시에 아침 몫까지 남겨 두면 수집이 멈춘다)
+    const nowKst = new Date(Date.now() + 9 * 3_600_000);
+    const hoursLeft = 24 - (nowKst.getUTCHours() + nowKst.getUTCMinutes() / 60);
+    const dayFactor = Math.min(1, Math.max(0.15, hoursLeft / 18));
+    return Math.ceil(
+      dayFactor *
+        mtprotoSpecialReserve({
+          inviteCheckDaily: left(
+            this.inviteCheckDailyLimit(),
+            this.invitesToday,
+          ),
+          joinDaily: left(this.joinDailyLimit(), this.currentJoinsToday()),
+          keywordSearchDaily: left(this.searchDailyLimit(), this.searchesToday),
+          resolveDaily: left(this.resolveDailyLimit(), this.resolvesToday),
+        }),
+    );
   }
 
   /** 수집(채널 정보·글 읽기)은 예비분을 남기고 쓴다 */
-  private canSpendCollect(): boolean {
+  /**
+   * 수집에 써도 되는지. 홈 피드에 고른 방(priority)은 예비분과 상관없이 하루 한도 안이면 읽는다
+   * (홈 피드는 늦으면 안 된다).
+   */
+  private canSpendCollect(priority = false): boolean {
+    if (priority) return this.remainingRequests() > 0;
     return canSpendForCollect(this.remainingRequests(), this.specialReserve());
   }
 
   canCollect(channel: Channel): boolean {
     if (!this.canUseMtproto()) return false;
-    if (!this.canSpendCollect()) return false;
+    if (!this.canSpendCollect(Boolean(channel.feedPicked))) return false;
     if (isInviteOnlyLink(channel.link)) return false;
     if (channel.collectStatus === 'invite_expired') return false;
     return Boolean(this.resolveUsername(channel));
@@ -557,7 +572,9 @@ export class MtprotoCollectorService implements OnModuleInit {
   refreshRecentPosts(
     channel: Channel,
   ): Promise<{ ok: boolean; reason?: string; newPosts?: number }> {
-    return this.exclusive(() => this.refreshRecentPostsInner(channel)) as Promise<{
+    return this.exclusive(() =>
+      this.refreshRecentPostsInner(channel),
+    ) as Promise<{
       ok: boolean;
       reason?: string;
       newPosts?: number;
@@ -567,7 +584,7 @@ export class MtprotoCollectorService implements OnModuleInit {
   private async refreshRecentPostsInner(
     channel: Channel,
   ): Promise<{ ok: boolean; reason?: string; newPosts?: number }> {
-    if (!this.canUseMtproto() || !this.canSpendCollect())
+    if (!this.canUseMtproto() || !this.canSpendCollect(true))
       return { ok: false, reason: 'skipped' };
     if (channel.linkType !== LinkType.CHANNEL)
       return { ok: false, reason: 'skipped' };
@@ -695,7 +712,7 @@ export class MtprotoCollectorService implements OnModuleInit {
         this.staleRecheckAt.set(channel.id, Date.now());
         this.logger.log(`멈춘 비공개 채널 초대 링크로 재확인: ${channel.id}`);
       }
-      if (storedUsable && !this.canSpendCollect()) {
+      if (storedUsable && !this.canSpendCollect(Boolean(channel.feedPicked))) {
         // 이미 가입한 방 다시 읽기는 "수집"이라 예비분을 건드리지 않는다
         return { ok: false, reason: 'skipped' };
       }
