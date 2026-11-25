@@ -25,6 +25,9 @@ const SORT_CHIPS: { id: RankingSort; label: string }[] = [
   { id: 'newest', label: '신규' },
 ];
 
+/** 정렬 칸(종합·회원 수·조회율…) 숨김. 다시 보이려면 true (숨긴 동안은 종합 순) */
+const SHOW_SORT_CHIPS = false;
+
 const SORT_IDS = new Set(SORT_CHIPS.map((c) => c.id));
 
 function parseSort(raw: string | null): RankingSort {
@@ -166,6 +169,7 @@ export function CategoriesPage() {
         }}
       />
 
+      {SHOW_SORT_CHIPS && (
       <div className="scrollbar-none flex gap-1.5 overflow-x-auto px-4 py-2">
         {SORT_CHIPS.map((chip) => {
           const active = sort === chip.id;
@@ -183,6 +187,7 @@ export function CategoriesPage() {
           );
         })}
       </div>
+      )}
 
       <div className="min-h-0 flex-1 bg-tg-bg">
         {isLoading ? (
