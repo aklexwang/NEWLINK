@@ -282,6 +282,7 @@ export class AdminDashboardService {
       },
       memberVisible: member.visible,
       memberHidden: member.hidden,
+      memberAdminOnly: member.adminOnly,
       memberAdultOnly: member.adultOnly,
       memberDuplicateExcess: member.duplicateExcess,
       memberListTotal: member.listTotal,

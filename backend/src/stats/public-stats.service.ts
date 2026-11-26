@@ -1,4 +1,7 @@
-import { ADULT_CATEGORY } from '../channels/auto-expose.logic';
+import {
+  ADULT_CATEGORY,
+  isAdminOnlyCategory,
+} from '../channels/auto-expose.logic';
 import {
   BadRequestException,
   Injectable,
@@ -212,7 +215,9 @@ export class PublicStatsService implements OnApplicationBootstrap {
       .andWhere('LOWER(channel.username) = :username', { username })
       .getMany();
     // 같은 username 행이 여럿이면 노출 가능한 행을 먼저, 그다음 가장 좋은 행
-    const channel = pickBestMemberRow(rows);
+    const channel = pickBestMemberRow(
+      rows.filter((r) => !isAdminOnlyCategory(r.category)),
+    );
     if (!channel) {
       throw new NotFoundException('채널을 찾을 수 없습니다.');
     }
@@ -1593,7 +1598,8 @@ export class PublicStatsService implements OnApplicationBootstrap {
     const channel = await this.channelRepository.findOne({
       where: { id, status: ChannelStatus.ACTIVE },
     });
-    if (!channel) {
+    // 마약 카테고리 방은 회원 화면에서 상세·글·통계 모두 없음으로
+    if (!channel || isAdminOnlyCategory(channel.category)) {
       throw new NotFoundException('채널을 찾을 수 없습니다.');
     }
     return channel;

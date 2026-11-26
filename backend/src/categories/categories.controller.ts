@@ -1,5 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
-import { PENDING_CATEGORY } from '../channels/auto-expose.logic';
+import {
+  PENDING_CATEGORY,
+  isAdminOnlyCategory,
+} from '../channels/auto-expose.logic';
 import { CategoriesService } from './categories.service';
 
 @Controller('categories')
@@ -9,6 +12,9 @@ export class CategoriesController {
   @Get()
   async findAll() {
     const items = await this.categoriesService.findActive();
-    return items.filter((item) => item.name !== PENDING_CATEGORY);
+    return items.filter(
+      (item) =>
+        item.name !== PENDING_CATEGORY && !isAdminOnlyCategory(item.name),
+    );
   }
 }

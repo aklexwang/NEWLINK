@@ -34,6 +34,8 @@ function isActiveRow(row: { status?: string | null }): boolean {
 type LinkedRow = MemberPageRow & { link: string };
 
 export type MemberVisibilitySummary = {
+  /** 마약(어드민 전용) 카테고리 방 수. 노출·숨김 어디에도 세지 않는다 */
+  adminOnly: number;
   /** 행(채널) 기준 노출 수. describeMemberPageVisibility 로 한 건씩 판정 */
   visible: number;
   hidden: number;
@@ -61,8 +63,14 @@ export function summarizeMemberVisibility(
   let visible = 0;
   let hidden = 0;
   let adultOnly = 0;
+  let adminOnly = 0;
   for (const row of rows) {
     const vis = describeMemberPageVisibility(row);
+    if (vis.reasonKey === MEMBER_PAGE_REASON.adminOnly) {
+      // 마약 방: 숨김 숫자에 섞지 않고 따로 센다 (어드민 구분용)
+      adminOnly += 1;
+      continue;
+    }
     if (vis.visible) {
       visible += 1;
       visibleRows.add(row);
@@ -90,6 +98,7 @@ export function summarizeMemberVisibility(
   }
 
   return {
+    adminOnly,
     visible,
     hidden,
     adultOnly,

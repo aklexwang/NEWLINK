@@ -148,6 +148,8 @@ export interface AdminDashboard {
   groupCount: number;
   memberVisible: number;
   memberHidden: number;
+  /** 마약(어드민 전용) 카테고리 방 수 — 노출·숨김 어디에도 안 섞음 */
+  memberAdminOnly?: number;
   /** 노출 조건은 통과했지만 같은 링크의 대표가 따로 있어 회원 화면에서 빠지는 수 */
   memberDuplicateExcess: number;
   /** 노출 중 성인 카테고리 안에서만 보이는 수 */

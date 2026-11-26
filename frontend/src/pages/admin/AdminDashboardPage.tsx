@@ -210,7 +210,11 @@ export function AdminDashboardPage() {
                 // 첫 수집 전인 방은 수집되면 자동으로 노출된다 → 진짜 숨김과 나눠 보여 준다
                 const waiting = data.hiddenReasons['아직 수집되지 않음'] ?? 0;
                 const hidden = Math.max(0, data.memberHidden - waiting);
-                return `⏳ 수집 대기 ${waiting.toLocaleString('ko-KR')} (자동 노출 예정) · 🚫 숨김 ${hidden.toLocaleString('ko-KR')}`;
+                const drug = data.memberAdminOnly ?? 0;
+                return (
+                  `⏳ 수집 대기 ${waiting.toLocaleString('ko-KR')} (자동 노출 예정) · 🚫 숨김 ${hidden.toLocaleString('ko-KR')}` +
+                  (drug > 0 ? ` · 💊 마약 ${drug.toLocaleString('ko-KR')} (따로)` : '')
+                );
               })()}
             />
             <StatCard to="/admin/links?status=pending" label="승인 대기" icon={<ClipboardList />} value={data.pendingCount} />

@@ -10,6 +10,13 @@ export const CATEGORY_CONFIDENCE_MIN = 0.7;
 export const PENDING_CATEGORY = '분류대기';
 
 export const ADULT_CATEGORY = '성인';
+/** 마약 관련 방: 회원에게 절대 안 보이고 어드민 구분용으로만 쓰는 카테고리 */
+export const DRUG_CATEGORY = '마약';
+
+/** 회원 화면 어디에도(목록·검색·상세·카테고리 칸) 나오면 안 되는 카테고리 */
+export function isAdminOnlyCategory(name: string | null | undefined): boolean {
+  return (name ?? '').trim() === DRUG_CATEGORY;
+}
 
 export type AutoExposeKind = 'channel' | 'group' | 'invalid' | 'unknown';
 

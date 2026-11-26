@@ -1,5 +1,6 @@
 import {
   allowAdultInList,
+  isAdminOnlyCategory,
   isPendingCategory,
 } from '../channels/auto-expose.logic';
 import {
@@ -36,6 +37,7 @@ export const MEMBER_PAGE_REASON = {
   pendingCategory: '분류대기',
   adult: '성인 카테고리',
   illegal: ILLEGAL_HIDE_REASON,
+  adminOnly: '마약(어드민 전용)',
 } as const;
 
 export type MemberPageReasonKey =
@@ -64,6 +66,10 @@ export function describeMemberPageVisibility(channel: {
   description?: string | null;
   illegalCleared?: boolean | null;
 }): MemberPageVisibility {
+  // 마약 카테고리는 무엇보다 먼저: 회원에게 절대 안 보인다
+  if (isAdminOnlyCategory(channel.category)) {
+    return hidden(MEMBER_PAGE_REASON.adminOnly);
+  }
   if (channel.status && channel.status !== (ChannelStatus.ACTIVE as string)) {
     return hidden(MEMBER_PAGE_REASON.notApproved);
   }

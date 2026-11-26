@@ -121,3 +121,18 @@ describe('describeMemberPageVisibility', () => {
     });
   });
 });
+
+describe('마약(어드민 전용) 카테고리', () => {
+  it('is never visible to members, before any other rule', () => {
+    const vis = describeMemberPageVisibility({
+      status: 'active',
+      isVisible: true,
+      firstObservedAt: new Date(),
+      collectStatus: 'ok',
+      language: 'ko',
+      category: '마약',
+    });
+    expect(vis.visible).toBe(false);
+    expect(vis.reasonKey).toBe('마약(어드민 전용)');
+  });
+});
