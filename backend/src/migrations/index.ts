@@ -51,6 +51,7 @@ import { AddChannelInviteRequestNeeded1762000000000 } from './1762000000000-AddC
 import { AddPromo1762100000000 } from './1762100000000-AddPromo';
 import { AddBannerPlacement1762200000000 } from './1762200000000-AddBannerPlacement';
 import { AddChannelFeedPicked1762300000000 } from './1762300000000-AddChannelFeedPicked';
+import { AddNotices1762400000000 } from './1762400000000-AddNotices';
 export const ALL_MIGRATIONS = [
   AddChannelStats1760852400000,
   AddChannelVerified1760860800000,
@@ -98,4 +99,5 @@ export const ALL_MIGRATIONS = [
   AddPromo1762100000000,
   AddBannerPlacement1762200000000,
   AddChannelFeedPicked1762300000000,
+  AddNotices1762400000000,
 ];

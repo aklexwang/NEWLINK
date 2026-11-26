@@ -19,6 +19,7 @@ import {
 import { ChannelList } from "../components/ChannelList";
 import { PublicPrivateBadge } from "../components/PublicPrivateBadge";
 import { NewLinkLogo } from "../components/NewLinkLogo";
+import { NoticeButton } from "../components/NoticePanel";
 import {
   OwnPostPreview,
   TelegramPostEmbed,
@@ -495,7 +496,7 @@ export function HomePage() {
     onSearch: handleSearch,
     isLoading: searchLoading,
     variant: "dashboard" as const,
-    placeholder: "TellLink",
+    placeholder: "TellLink로 검색하세요",
     linkType: searchType,
     onLinkTypeChange: setSearchType,
     suggestions,
@@ -524,6 +525,7 @@ export function HomePage() {
         >
           <NewLinkLogo compact />
         </button>
+        <NoticeButton className="absolute right-3" />
       </div>
     </header>
   );

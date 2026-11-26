@@ -1,3 +1,4 @@
+import { NoticeButton, NoticePanel } from './NoticePanel';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
@@ -121,13 +122,16 @@ function TelegramBarContent() {
       >
         <NewLinkLogo compact />
       </button>
-      <button
-        type="button"
-        onClick={() => navigate('/my')}
-        className="h-8 rounded-lg bg-[#2aabee] px-3 text-[13px] font-bold text-white shadow-[0_2px_10px_rgba(42,171,238,0.35)]"
-      >
-        {isLoggedIn ? 'MY' : '로그인'}
-      </button>
+      <div className="flex items-center gap-2">
+        <NoticeButton />
+        <button
+          type="button"
+          onClick={() => navigate('/my')}
+          className="h-8 rounded-lg bg-[#2aabee] px-3 text-[13px] font-bold text-white shadow-[0_2px_10px_rgba(42,171,238,0.35)]"
+        >
+          {isLoggedIn ? 'MY' : '로그인'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -150,6 +154,7 @@ export function AppLayout() {
       </div>
       <Outlet />
       <ScrollTopButton />
+      <NoticePanel />
       <BottomNav />
     </div>
   );

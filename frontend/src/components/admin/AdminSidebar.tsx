@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   ClipboardList,
   Filter,
+  BellRing,
   FolderCog,
   LayoutDashboard,
   Link2,
@@ -68,6 +69,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
       { to: '/admin/categories', label: '카테고리 설정', icon: <FolderCog /> },
       { to: '/admin/search-terms', label: '검색 금지어', icon: <SearchX /> },
       { to: '/admin/feed-filter', label: '홈 피드 방 고르기', icon: <Filter /> },
+      { to: '/admin/notices', label: '공지', icon: <BellRing /> },
       { to: '/admin/security', label: '보안 설정', icon: <ShieldCheck /> },
     ],
   },
