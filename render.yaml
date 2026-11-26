@@ -83,7 +83,7 @@ services:
       - key: MTPROTO_ENABLED
         value: "false"
       - key: MTPROTO_DAILY_LIMIT
-        value: "3000"
+        value: "2400"
       - key: TELEGRAM_API_ID
         sync: false
       - key: TELEGRAM_API_HASH
