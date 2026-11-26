@@ -383,7 +383,7 @@ export function AdminBannerAdsPage({ mode = 'home' }: { mode?: BannerMode }) {
                           banner.live ? 'bg-green-100 text-green-800' : 'bg-muted text-subtle'
                         }`}
                       >
-                        {banner.live ? '노출 중' : banner.isActive ? '기간 밖' : '꺼짐'}
+                        {banner.live ? '노출 중' : banner.isActive ? '기간 밖' : '숨김'}
                       </span>
                     </p>
                     <p className="mt-1 truncate text-sm text-primary">
@@ -411,6 +411,19 @@ export function AdminBannerAdsPage({ mode = 'home' }: { mode?: BannerMode }) {
                       {kstDateInput(banner.startsAt, false) || '처음부터'} ~ {kstDateInput(banner.endsAt, true) || '계속'}
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void updateAdminBanner(banner.id, { isActive: !banner.isActive })
+                        .then(() => load())
+                        .catch((error) => setMessage(adminApiErrorMessage(error, '바꾸지 못했습니다.')))
+                    }
+                    className={`h-10 rounded-xl px-4 text-sm font-semibold ${
+                      banner.isActive ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
+                    }`}
+                  >
+                    {banner.isActive ? '숨김' : '다시 보이기'}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setPerfId((v) => (v === banner.id ? null : banner.id))}

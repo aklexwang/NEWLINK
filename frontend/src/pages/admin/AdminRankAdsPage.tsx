@@ -25,7 +25,7 @@ const STATE_LABEL: Record<RankAdState, { text: string; cls: string }> = {
   live: { text: '노출 중', cls: 'bg-green-100 text-green-800' },
   scheduled: { text: '예약', cls: 'bg-blue-100 text-blue-800' },
   ended: { text: '기간 끝', cls: 'bg-muted text-subtle' },
-  off: { text: '꺼짐', cls: 'bg-muted text-subtle' },
+  off: { text: '숨김', cls: 'bg-muted text-subtle' },
 };
 
 const STATE_ORDER: Record<RankAdState, number> = { live: 0, scheduled: 1, off: 2, ended: 3 };
@@ -269,11 +269,13 @@ function AdLine({
   readOnly,
   onEdit,
   onRemove,
+  onToggle,
 }: {
   ad: AdminRankAd;
   readOnly?: boolean;
   onEdit?: () => void;
   onRemove?: () => void;
+  onToggle?: () => void;
 }) {
   const label = STATE_LABEL[ad.state];
   const dim = ad.state === 'ended' || ad.state === 'off';
@@ -319,6 +321,15 @@ function AdLine({
             className="h-10 rounded-xl bg-sky-100 px-4 text-sm font-semibold text-sky-800"
           >
             📈 성과
+          </button>
+          <button
+            type="button"
+            onClick={onToggle}
+            className={`h-10 rounded-xl px-4 text-sm font-semibold ${
+              ad.isActive ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
+            }`}
+          >
+            {ad.isActive ? '숨김' : '다시 보이기'}
           </button>
           <button type="button" onClick={onEdit} className="h-10 rounded-xl bg-muted px-4 text-sm font-semibold text-foreground">
             수정
@@ -389,6 +400,16 @@ export function AdminRankAdsPage() {
   const remove = async (ad: AdminRankAd) => {
     if (!window.confirm(`"${ad.channel?.title ?? '광고'}" ${ad.slot}위 광고를 삭제할까요?`)) return;
     await deleteAdminRankAd(ad.id);
+    await load();
+  };
+
+  // 숨김: 광고를 지우지 않고 회원 화면에서만 내린다 (다시 보이기로 되살림)
+  const toggle = async (ad: AdminRankAd) => {
+    try {
+      await updateAdminRankAd(ad.id, { isActive: !ad.isActive });
+    } catch (error) {
+      window.alert(adminApiErrorMessage(error, '바꾸지 못했습니다.'));
+    }
     await load();
   };
 
@@ -501,7 +522,7 @@ export function AdminRankAdsPage() {
                     ))}
                     {mine.map((ad) =>
                       editor?.ad?.id === ad.id ? null : (
-                        <AdLine key={ad.id} ad={ad} onEdit={() => setEditor({ slot, ad })} onRemove={() => void remove(ad)} />
+                        <AdLine key={ad.id} ad={ad} onEdit={() => setEditor({ slot, ad })} onRemove={() => void remove(ad)} onToggle={() => void toggle(ad)} />
                       ),
                     )}
                   </div>
