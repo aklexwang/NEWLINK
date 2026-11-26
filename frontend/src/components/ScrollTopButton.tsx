@@ -32,7 +32,7 @@ export function ScrollTopButton() {
       type="button"
       aria-label="맨 위로"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      className={`fixed right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#2aabee] text-white shadow-[0_6px_20px_rgba(42,171,238,0.55)] transition-all duration-200 active:scale-95 ${
+      className={`fixed right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/85 bg-gradient-to-b from-[#5ccbf7] to-[#1d8fd6] text-white shadow-[0_6px_16px_rgba(0,0,0,0.45),0_2px_0_#16609a,inset_0_1px_0_rgba(255,255,255,0.55)] transition-all duration-150 active:translate-y-[2px] active:scale-95 active:shadow-[0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ${
         show ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-3 opacity-0'
       }`}
       style={{
