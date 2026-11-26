@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 import { getNotices, type NoticeItem } from "../api/notices";
 import { useAuth } from "../providers/AuthProvider";
 import { openLoginPrompt } from "../utils/loginPrompt";
@@ -96,20 +96,21 @@ export function NoticePanel() {
   const [shown, setShown] = useState(false);
   const [items, setItems] = useState<NoticeItem[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // 위로 밀어서 닫기: 끌고 있는 거리(px, 위로는 음수)
+  const [dragY, setDragY] = useState(0);
+  const dragStart = useRef<number | null>(null);
 
   useEffect(() => {
     const on = () => {
       setOpen(true);
       setItems(null);
+      setDragY(0);
       requestAnimationFrame(() => requestAnimationFrame(() => setShown(true)));
       getNotices()
         .then((list) => {
           setItems(list);
           setExpanded(list[0]?.id ?? null);
-          const latest = Math.max(
-            0,
-            ...list.map((n) => new Date(n.createdAt).getTime()),
-          );
+          const latest = Math.max(0, ...list.map((n) => new Date(n.createdAt).getTime()));
           markSeen(latest);
         })
         .catch(() => setItems([]));
@@ -121,12 +122,33 @@ export function NoticePanel() {
   if (!open) return null;
   const close = () => {
     setShown(false);
-    window.setTimeout(() => setOpen(false), 250);
+    dragStart.current = null;
+    window.setTimeout(() => {
+      setOpen(false);
+      setDragY(0);
+    }, 250);
+  };
+
+  const dragHandlers = {
+    onTouchStart: (e: TouchEvent) => {
+      dragStart.current = e.touches[0]?.clientY ?? null;
+    },
+    onTouchMove: (e: TouchEvent) => {
+      if (dragStart.current == null) return;
+      const dy = (e.touches[0]?.clientY ?? dragStart.current) - dragStart.current;
+      setDragY(Math.min(0, dy));
+    },
+    onTouchEnd: () => {
+      if (dragStart.current == null) return;
+      dragStart.current = null;
+      if (dragY < -50) close();
+      else setDragY(0);
+    },
   };
 
   return (
     <div
-      className={`fixed inset-0 z-[80] flex justify-center transition-colors duration-200 ${shown ? "bg-black/55" : "bg-black/0"}`}
+      className={`fixed inset-0 z-[80] flex justify-center transition-colors duration-200 ${shown ? 'bg-black/55' : 'bg-black/0'}`}
       onClick={close}
     >
       <div
@@ -134,37 +156,24 @@ export function NoticePanel() {
         aria-modal="true"
         aria-label="공지"
         onClick={(e) => e.stopPropagation()}
+        style={dragY ? { transform: `translateY(${dragY}px)`, transition: 'none' } : undefined}
         className={`flex max-h-[78vh] w-full max-w-lg flex-col rounded-b-[24px] bg-nl-card pt-[calc(var(--nl-safe-top)+12px)] ring-1 ring-nl-line transition-transform duration-250 ease-out ${
-          shown ? "translate-y-0" : "-translate-y-full"
+          shown ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
-        <div className="flex items-center justify-between px-5 pb-3">
+        <div className="px-5 pb-3" {...dragHandlers}>
           <p className="text-[18px] font-bold text-nl-text">📢 공지</p>
-          <button
-            type="button"
-            onClick={close}
-            className="h-8 rounded-lg px-3 text-[14px] font-semibold text-nl-muted"
-          >
-            닫기
-          </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
           {items === null ? (
-            <p className="py-8 text-center text-[14px] text-nl-muted">
-              불러오는 중…
-            </p>
+            <p className="py-8 text-center text-[14px] text-nl-muted">불러오는 중…</p>
           ) : items.length === 0 ? (
-            <p className="py-8 text-center text-[14px] text-nl-muted">
-              아직 공지가 없어요.
-            </p>
+            <p className="py-8 text-center text-[14px] text-nl-muted">아직 공지가 없어요.</p>
           ) : (
             items.map((n) => {
               const isOpen = expanded === n.id;
               return (
-                <div
-                  key={n.id}
-                  className="border-b border-nl-line py-3 last:border-0"
-                >
+                <div key={n.id} className="border-b border-nl-line py-3 last:border-0">
                   <button
                     type="button"
                     onClick={() => setExpanded(isOpen ? null : n.id)}
@@ -175,31 +184,31 @@ export function NoticePanel() {
                         고정
                       </span>
                     )}
-                    <span className="min-w-0 flex-1 text-[15px] font-semibold text-nl-text">
-                      {n.title}
-                    </span>
-                    <span className="shrink-0 text-[12px] text-nl-muted">
-                      {formatDate(n.createdAt)}
-                    </span>
+                    <span className="min-w-0 flex-1 text-[15px] font-semibold text-nl-text">{n.title}</span>
+                    <span className="shrink-0 text-[12px] text-nl-muted">{formatDate(n.createdAt)}</span>
                   </button>
                   {isOpen && n.body && (
-                    <p className="mt-2 whitespace-pre-line break-words text-[14px] leading-[1.6] text-nl-text/90">
-                      {n.body}
-                    </p>
+                    <p className="mt-2 whitespace-pre-line break-words text-[14px] leading-[1.6] text-nl-text/90">{n.body}</p>
                   )}
                 </div>
               );
             })
           )}
         </div>
-        <button
-          type="button"
-          onClick={close}
-          className="mx-auto mb-2 h-6 w-full"
-          aria-label="공지 닫기"
-        >
-          <span className="mx-auto block h-1 w-10 rounded-full bg-nl-line" />
-        </button>
+        {/* 아래쪽: 닫기 버튼 + 위로 밀어서 닫기 손잡이 (텔레그램 위쪽 버튼과 헷갈리지 않게 닫기는 아래에만) */}
+        <div className="px-5 pt-2 pb-1" {...dragHandlers}>
+          <button
+            type="button"
+            onClick={close}
+            className="h-12 w-full rounded-xl bg-[#2aabee] text-[15px] font-bold text-white shadow-[0_2px_10px_rgba(42,171,238,0.35)]"
+          >
+            닫기
+          </button>
+          <div className="flex flex-col items-center pt-2.5 pb-1.5">
+            <span className="block h-1.5 w-12 rounded-full bg-nl-muted/60" />
+            <span className="mt-1 text-[11px] text-nl-muted">위로 밀어서 닫기</span>
+          </div>
+        </div>
       </div>
     </div>
   );
