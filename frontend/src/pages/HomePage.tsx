@@ -718,7 +718,7 @@ export function HomePage() {
 }
 
 /** 홈 피드가 "고른 방 최신 글" 방식이 되면서 탭 줄·이번 주 순위 줄은 숨김 (다시 보이려면 true) */
-const SHOW_HOME_TOP_ROWS = false;
+const SHOW_HOME_TOP_ROWS = true;
 
 /** 홈 위 탭: 피드는 이 화면, 나머지는 해당 화면으로 이동 */
 const HOME_TABS = [
