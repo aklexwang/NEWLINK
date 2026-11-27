@@ -129,10 +129,15 @@ export function startedRecently(input: {
   mode: StatsCollectMode;
   lastStartedAtMs: number | null | undefined;
   nowMs: number;
+  /** 기본 창 대신 쓸 시간 (새벽 03시 크론은 6시간: 전날 낮에 늦게 돈 full 때문에 밀리지 않게) */
+  windowMs?: number;
 }): boolean {
   if (input.lastStartedAtMs == null) return false;
   const elapsed = input.nowMs - input.lastStartedAtMs;
-  return elapsed >= 0 && elapsed < RECENT_RUN_WINDOW_MS[input.mode];
+  return (
+    elapsed >= 0 &&
+    elapsed < (input.windowMs ?? RECENT_RUN_WINDOW_MS[input.mode])
+  );
 }
 
 /**

@@ -271,3 +271,21 @@ describe('previewMissError (두 번 연속 빈 미리보기일 때만 막힘)', 
     expect(previewMissError('preview:no_posts')).toBe('preview:no_posts');
   });
 });
+
+describe('startedRecently windowMs', () => {
+  it('nightly cron uses a short window so a late daytime full does not block 03:00', () => {
+    const now = Date.UTC(2026, 10, 27, 18, 0);
+    const lateFull = now - 16 * 3_600_000;
+    expect(
+      startedRecently({ mode: 'full', lastStartedAtMs: lateFull, nowMs: now }),
+    ).toBe(true);
+    expect(
+      startedRecently({
+        mode: 'full',
+        lastStartedAtMs: lateFull,
+        nowMs: now,
+        windowMs: 6 * 3_600_000,
+      }),
+    ).toBe(false);
+  });
+});

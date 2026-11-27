@@ -210,7 +210,12 @@ export class StatsJobService implements OnModuleInit {
     if (envFalsy(this.configService.get<string>('STATS_CRON_ENABLED'))) {
       return;
     }
-    const result = await this.startPipeline('full', { skipIfRecent: true });
+    // 새벽 03시는 "6시간 안에 full 이 돌았을 때만" 건너뛴다. 20시간으로 보면 전날 낮(GitHub 예비)에
+    // 늦게 돈 full 때문에 새벽 full 이 계속 건너뛰어지고, full 이 매일 낮 10시대로 밀렸다(11/26·27)
+    const result = await this.startPipeline('full', {
+      skipIfRecent: true,
+      recentWindowMs: 6 * 3_600_000,
+    });
     if (!result.started) {
       this.logger.warn('통계 크론을 건너뜁니다. 이미 실행 중입니다.');
     }
@@ -312,7 +317,7 @@ export class StatsJobService implements OnModuleInit {
 
   async startPipeline(
     mode: StatsCollectMode = 'full',
-    options: { skipIfRecent?: boolean } = {},
+    options: { skipIfRecent?: boolean; recentWindowMs?: number } = {},
   ): Promise<{
     started: boolean;
     skipped: boolean;
@@ -332,6 +337,7 @@ export class StatsJobService implements OnModuleInit {
         mode,
         lastStartedAtMs: this.lastStartedAt[mode],
         nowMs: Date.now(),
+        windowMs: options.recentWindowMs,
       })
     ) {
       return {
