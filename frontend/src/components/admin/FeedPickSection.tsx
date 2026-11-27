@@ -16,6 +16,11 @@ function openTelegramWindow(e: { preventDefault(): void }, link: string) {
   }
 }
 
+const STALE_DAYS = 3;
+function staleAge(room: AdminFeedRoom): number {
+  return room.latestPost ? Date.now() - new Date(room.latestPost.postedAt).getTime() : Number.MAX_SAFE_INTEGER;
+}
+
 function ago(iso: string): string {
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
   if (m < 60) return `${m}분 전`;
@@ -38,6 +43,25 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+
+  // 고른 방 중 새 글이 멈춘 방 (3일 넘게 새 글 없음): 피드 아래로 묻히니 따로 알려 준다
+  const [staleRooms, setStaleRooms] = useState<AdminFeedRoom[]>([]);
+  const loadStale = useCallback(async () => {
+    try {
+      const data = await getAdminFeedRooms({ picked: true, limit: 200 });
+      const limit = Date.now() - STALE_DAYS * 86_400_000;
+      setStaleRooms(
+        data.items
+          .filter((r) => !r.latestPost || new Date(r.latestPost.postedAt).getTime() < limit)
+          .sort((a, b) => staleAge(b) - staleAge(a)),
+      );
+    } catch {
+      // 알림 칸은 못 불러와도 괜찮다
+    }
+  }, []);
+  useEffect(() => {
+    void loadStale();
+  }, [loadStale]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,8 +89,9 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
       await setAdminFeedPicked(room.id, !room.feedPicked);
       // 방 찾기에서 넣으면 목록에서 사라지고, 고른 방에서 빼면 거기서 사라진다
       setRooms((list) => list.filter((r) => r.id !== room.id));
-      if (view === 'search') setTotal((n) => Math.max(0, n - 1));
+      if (view === 'search' && rooms.some((r) => r.id === room.id)) setTotal((n) => Math.max(0, n - 1));
       setPickedTotal((n) => n + (room.feedPicked ? -1 : 1));
+      void loadStale();
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '바꾸지 못했습니다.'));
     } finally {
@@ -171,6 +196,40 @@ export function FeedPickSection({ categories }: { categories: CategoryItem[] }) 
           <p className="text-xs text-muted-foreground">
             채널 {total.toLocaleString()}개 · 최근 글 올라온 순{total > rooms.length ? ` · 최근 글 순 ${rooms.length}개까지 보여요 (검색으로 좁히세요)` : ''}
           </p>
+        </div>
+      )}
+
+      {staleRooms.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-300">
+          <p className="text-[15px] font-bold text-amber-900">
+            ⚠️ 새 글이 멈춘 고른 방 {staleRooms.length}개
+            <span className="ml-1.5 text-sm font-medium text-amber-800">
+              ({STALE_DAYS}일 넘게 새 글 없음 · 피드 아래로 묻혀요. 빼고 활발한 방으로 바꿔 주세요)
+            </span>
+          </p>
+          <div className="mt-3 space-y-2">
+            {staleRooms.map((room) => (
+              <div key={room.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold text-foreground">{room.title}</p>
+                  <p className="text-xs text-subtle">
+                    {room.category} ·{' '}
+                    <b className="text-amber-800">
+                      {room.latestPost ? `${Math.floor(staleAge(room) / 86_400_000)}일째 새 글 없음` : '최근 30일 글 없음'}
+                    </b>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy === room.id}
+                  onClick={() => void toggle({ ...room, feedPicked: true })}
+                  className="h-9 shrink-0 rounded-xl bg-muted px-4 text-sm font-bold text-destructive disabled:opacity-50"
+                >
+                  빼기
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
