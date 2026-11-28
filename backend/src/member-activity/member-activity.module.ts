@@ -6,13 +6,20 @@ import { Channel } from '../channels/channel.entity';
 import { MemberActivity } from './member-activity.entity';
 import { MemberActivityService } from './member-activity.service';
 import { Visitor } from './visitor.entity';
+import { VisitorDaily } from './visitor-daily.entity';
 import { VisitorService } from './visitor.service';
 import { User } from '../users/user.entity';
 
 @Global()
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MemberActivity, Channel, Visitor, User]),
+    TypeOrmModule.forFeature([
+      MemberActivity,
+      Channel,
+      Visitor,
+      User,
+      VisitorDaily,
+    ]),
     StatsModule,
   ],
   providers: [MemberActivityService, RequestActorService, VisitorService],

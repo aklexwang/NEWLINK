@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { IsBoolean } from 'class-validator';
@@ -45,6 +46,13 @@ export class AdminUsersController {
   ) {}
 
   /** 미니앱 방문자(비회원 포함) 최근 순 — 텔레그램 ID·이름·@아이디·방문 날 수 */
+  /** 날짜별 방문자·신규 방문자·가입 (최근 n일) */
+  @Get('visitors/daily')
+  visitorsDaily(@Query('days') days?: string) {
+    if (!this.visitors) return [];
+    return this.visitors.dailyStats(Number(days) || 30);
+  }
+
   @Get('visitors')
   visitorList() {
     if (!this.visitors) return { total: 0, last7d: 0, today: 0, items: [] };

@@ -5,6 +5,7 @@ import { In, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { User } from '../users/user.entity';
 import { kstDay } from '../security/detail-quota.logic';
 import { Visitor } from './visitor.entity';
+import { VisitorDaily } from './visitor-daily.entity';
 
 export const VISITOR_RETENTION_DAYS = 90;
 
@@ -28,7 +29,35 @@ export class VisitorService {
     private readonly repo: Repository<Visitor>,
     @InjectRepository(User)
     private readonly users: Repository<User>,
+    @InjectRepository(VisitorDaily)
+    private readonly daily: Repository<VisitorDaily>,
   ) {}
+
+  /** 그날 방문자 수 +1 (처음 온 사람이면 신규도 +1) */
+  private async bumpDaily(today: string, isNew: boolean) {
+    const res = await this.daily
+      .createQueryBuilder()
+      .update(VisitorDaily)
+      .set({
+        visitors: () => 'visitors + 1',
+        ...(isNew ? { newVisitors: () => 'new_visitors + 1' } : {}),
+      })
+      .where('day = :today', { today })
+      .execute();
+    if (!res.affected) {
+      try {
+        await this.daily.insert({
+          day: today,
+          visitors: 1,
+          newVisitors: isNew ? 1 : 0,
+        });
+      } catch {
+        // 같은 순간 다른 요청이 먼저 만들었으면 다시 더한다
+        await this.daily.increment({ day: today }, 'visitors', 1);
+        if (isNew) await this.daily.increment({ day: today }, 'newVisitors', 1);
+      }
+    }
+  }
 
   /** 문지기에서 서명 확인된 요청마다 부른다. 실패해도 요청에는 영향 없음 */
   noteVisit(info: VisitorInfo): void {
@@ -64,8 +93,10 @@ export class VisitorService {
         visitDays: 1,
         lastDay: today,
       });
+      await this.bumpDaily(today, true);
       return;
     }
+    if (row.lastDay !== today) await this.bumpDaily(today, false);
     await this.repo.update(
       { telegramId: info.id },
       {
@@ -123,6 +154,48 @@ export class VisitorService {
         };
       }),
     };
+  }
+
+  /**
+   * 어드민: 날짜별 방문자 (최근 n일).
+   * 방문자 수는 이 기능을 켠 날부터 쌓이고, 신규 방문자는 90일 보관된 첫 방문일로도 채운다.
+   */
+  async dailyStats(days = 30) {
+    const n = Math.min(Math.max(days, 1), 90);
+    const list: string[] = [];
+    for (let i = n - 1; i >= 0; i -= 1)
+      list.push(kstDay(Date.now() - i * 86_400_000));
+    const rows = await this.daily.find({ where: { day: In(list) } });
+    const byDay = new Map(rows.map((r) => [r.day, r]));
+    // 첫 방문일(90일 보관) → 날짜별 신규
+    const since = new Date(Date.now() - n * 86_400_000);
+    const firsts = await this.repo.find({
+      select: ['firstSeenAt'],
+      where: { firstSeenAt: MoreThanOrEqual(since) },
+    });
+    const newByDay = new Map<string, number>();
+    for (const f of firsts) {
+      const d = kstDay(new Date(f.firstSeenAt).getTime());
+      newByDay.set(d, (newByDay.get(d) ?? 0) + 1);
+    }
+    const members = await this.users.find({
+      select: ['createdAt'],
+      where: { createdAt: MoreThanOrEqual(since) },
+    });
+    const signByDay = new Map<string, number>();
+    for (const m of members) {
+      const d = kstDay(new Date(m.createdAt).getTime());
+      signByDay.set(d, (signByDay.get(d) ?? 0) + 1);
+    }
+    return list.map((day) => ({
+      day,
+      visitors: byDay.get(day)?.visitors ?? null,
+      newVisitors: Math.max(
+        byDay.get(day)?.newVisitors ?? 0,
+        newByDay.get(day) ?? 0,
+      ),
+      signups: signByDay.get(day) ?? 0,
+    }));
   }
 
   /** 마지막 방문 후 90일 지난 방문자 기록 삭제 */

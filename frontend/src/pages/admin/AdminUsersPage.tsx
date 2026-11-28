@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   deleteAdminUser,
   getAdminVisitors,
+  getAdminVisitorsDaily,
   getAdminUsers,
   setAdminUserAdvertiser,
   setAdminUserBlocked,
@@ -215,7 +216,10 @@ export function AdminUsersPage() {
           으로 로그인한 텔레그램에서 직접 보내세요. @아이디가 없는 회원은 앱에서만 열려요.
         </p>
         {kind === 'visitor' ? (
-          <VisitorsPanel />
+          <>
+            <SignupsPanel users={users} />
+            <VisitorsPanel />
+          </>
         ) : (
         <>
         {kind === 'normal' && !loading && <SignupsPanel users={users} />}
@@ -575,39 +579,36 @@ function MessageButton({ telegramId, username }: { telegramId: number; username:
   );
 }
 
-/** KST 날짜 (YYYY-MM-DD) */
-function kstDay(ms: number): string {
-  return new Date(ms + 9 * 3_600_000).toISOString().slice(0, 10);
-}
-
-/** 날짜별 신규 회원 가입 (텔레그램으로 처음 로그인한 날 기준, 최근 30일) */
+/** 날짜별 방문자 · 신규 방문자 · 가입 (최근 14/30일) */
 function SignupsPanel({ users }: { users: AdminUser[] }) {
+  void users;
   const [range, setRange] = useState<14 | 30>(14);
-  const counts = new Map<string, number>();
-  for (const u of users) {
-    if (!u.createdAt) continue;
-    const day = kstDay(new Date(u.createdAt).getTime());
-    counts.set(day, (counts.get(day) ?? 0) + 1);
-  }
-  const now = Date.now();
-  const days: { day: string; n: number }[] = [];
-  for (let i = range - 1; i >= 0; i -= 1) {
-    const day = kstDay(now - i * 86_400_000);
-    days.push({ day, n: counts.get(day) ?? 0 });
-  }
-  const sumLast = (n: number) => {
-    let t = 0;
-    for (let i = 0; i < n; i += 1) t += counts.get(kstDay(now - i * 86_400_000)) ?? 0;
-    return t;
-  };
-  const max = Math.max(1, ...days.map((d) => d.n));
-  const today = days[days.length - 1]?.n ?? 0;
-  const yesterday = days[days.length - 2]?.n ?? 0;
+  const [metric, setMetric] = useState<'visitors' | 'newVisitors' | 'signups'>('visitors');
+  const [rows, setRows] = useState<{ day: string; visitors: number | null; newVisitors: number; signups: number }[]>([]);
+  useEffect(() => {
+    void getAdminVisitorsDaily(30)
+      .then(setRows)
+      .catch(() => setRows([]));
+  }, []);
+  const days = rows.slice(-range);
+  const value = (d: (typeof rows)[number]) => (metric === 'visitors' ? (d.visitors ?? 0) : d[metric]);
+  const max = Math.max(1, ...days.map(value));
+  const last = rows[rows.length - 1];
+  const prev = rows[rows.length - 2];
+  const sum = (key: 'newVisitors' | 'signups', n: number) => rows.slice(-n).reduce((t, d) => t + d[key], 0);
+  const visitSum7 = rows.slice(-7).reduce((t, d) => t + (d.visitors ?? 0), 0);
+  const fmt = (n: number | null | undefined) => (n == null ? '-' : `${n.toLocaleString('ko-KR')}명`);
+  const metrics = [
+    { id: 'visitors', label: '방문자', color: 'bg-[#2aabee]' },
+    { id: 'newVisitors', label: '신규 방문자', color: 'bg-violet-500' },
+    { id: 'signups', label: '가입', color: 'bg-emerald-500' },
+  ] as const;
+  const color = metrics.find((m) => m.id === metric)!.color;
 
   return (
     <div className="mb-5 max-w-5xl rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
       <div className="flex flex-wrap items-center gap-3">
-        <p className="min-w-0 flex-1 text-[16px] font-bold">📈 날짜별 신규 회원</p>
+        <p className="min-w-0 flex-1 text-[16px] font-bold">📈 날짜별 방문자 · 가입</p>
         <div className="flex gap-1.5">
           {([14, 30] as const).map((r) => (
             <button
@@ -623,28 +624,48 @@ function SignupsPanel({ users }: { users: AdminUser[] }) {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
-          ['오늘', today],
-          ['어제', yesterday],
-          ['최근 7일', sumLast(7)],
-          ['최근 30일', sumLast(30)],
-        ].map(([label, n]) => (
-          <div key={label as string} className="rounded-xl bg-muted/60 px-4 py-3">
+          ['오늘 방문자', fmt(last?.visitors), `어제 ${fmt(prev?.visitors)} · 7일 ${visitSum7.toLocaleString('ko-KR')}명`],
+          ['오늘 신규 방문자', fmt(last?.newVisitors), `어제 ${fmt(prev?.newVisitors)} · 7일 ${sum('newVisitors', 7).toLocaleString('ko-KR')}명`],
+          ['오늘 가입', fmt(last?.signups), `어제 ${fmt(prev?.signups)}`],
+          ['가입 7일 / 30일', `${sum('signups', 7)}명`, `30일 ${sum('signups', 30)}명`],
+        ].map(([label, n, sub]) => (
+          <div key={label} className="rounded-xl bg-muted/60 px-4 py-3">
             <p className="text-xs text-subtle">{label}</p>
-            <p className="mt-0.5 text-[22px] font-bold text-foreground">{(n as number).toLocaleString('ko-KR')}명</p>
+            <p className="mt-0.5 text-[22px] font-bold text-foreground">{n}</p>
+            <p className="text-[11px] text-muted-foreground">{sub}</p>
           </div>
         ))}
       </div>
-      <div className="mt-4 flex h-36 items-end gap-1">
-        {days.map((d) => (
-          <div key={d.day} className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end">
-            <span className="mb-0.5 text-[10px] font-semibold text-subtle">{d.n > 0 ? d.n : ''}</span>
-            <div
-              className={`w-full rounded-t-md ${d.day === kstDay(now) ? 'bg-[#2aabee]' : 'bg-primary/60'}`}
-              style={{ height: `${Math.max(d.n > 0 ? 4 : 1, (d.n / max) * 100)}%` }}
-              title={`${d.day} · ${d.n}명`}
-            />
-          </div>
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {metrics.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setMetric(m.id)}
+            className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold ${
+              metric === m.id ? 'bg-foreground text-background' : 'bg-muted text-subtle'
+            }`}
+          >
+            <span className={`h-2.5 w-2.5 rounded-full ${m.color}`} />
+            {m.label}
+          </button>
         ))}
+      </div>
+      <div className="mt-3 flex h-36 items-end gap-1">
+        {days.map((d) => {
+          const n = value(d);
+          const unknown = metric === 'visitors' && d.visitors == null;
+          return (
+            <div key={d.day} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end">
+              <span className="mb-0.5 text-[10px] font-semibold text-subtle">{unknown ? '' : n > 0 ? n : ''}</span>
+              <div
+                className={`w-full rounded-t-md ${unknown ? 'bg-muted' : color} ${d.day === last?.day ? '' : 'opacity-75'}`}
+                style={{ height: `${unknown ? 1 : Math.max(n > 0 ? 4 : 1, (n / max) * 100)}%` }}
+                title={`${d.day} · ${unknown ? '기록 전' : `${n}명`}`}
+              />
+            </div>
+          );
+        })}
       </div>
       <div className="mt-1 flex gap-1">
         {days.map((d, i) => (
@@ -654,7 +675,8 @@ function SignupsPanel({ users }: { users: AdminUser[] }) {
         ))}
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        텔레그램으로 처음 로그인(가입)한 날 기준 · 한국 시간. 막대에 마우스를 올리면 날짜·인원이 보여요.
+        방문자 = 그날 미니앱을 연 사람(하루 1번, 비회원 포함) · 신규 방문자 = 처음 온 사람 · 가입 = 텔레그램으로 처음 로그인한 사람. 한국 시간.
+        방문자 수는 11/29부터 쌓여요(그 전 날짜는 회색).
       </p>
     </div>
   );

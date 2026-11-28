@@ -1471,3 +1471,12 @@ export async function getAdminFeedRooms(params: {
 export async function setAdminFeedPicked(id: string, picked: boolean): Promise<void> {
   await apiClient.put(`/admin/feed-filter/rooms/${id}`, { picked }, { headers: getAdminAuthHeaders() });
 }
+
+/** 날짜별 방문자·신규 방문자·가입 (최근 n일). visitors 가 null 이면 그날은 기록 전 */
+export async function getAdminVisitorsDaily(days = 30) {
+  const { data } = await apiClient.get('/admin/users/visitors/daily', {
+    headers: getAdminAuthHeaders(),
+    params: { days },
+  });
+  return data as Array<{ day: string; visitors: number | null; newVisitors: number; signups: number }>;
+}
