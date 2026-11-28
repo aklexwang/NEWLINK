@@ -266,8 +266,21 @@ async function run(): Promise<void> {
   const env = loadEnvFile(ENV_PATH);
   const apiIdRaw = (env.TELEGRAM_API_ID ?? '').trim();
   const apiHash = (env.TELEGRAM_API_HASH ?? '').trim();
-  const phone = (env.TELEGRAM_COLLECTOR_PHONE ?? '').trim();
+  // --phone=+8210... 로 번호를 직접 줄 수 있다. 홍보 계정(--promo)은 수집 계정 번호로 절대 넘어가지 않게
+  // 반드시 --phone 을 받는다 (11/28: 수집 계정 번호로 코드가 가서 헷갈린 일)
+  const phoneArg = (process.argv.find((a) => a.startsWith('--phone=')) ?? '')
+    .slice('--phone='.length)
+    .replace(/[\s-]/g, '')
+    .trim();
+  const isPromo = process.argv.includes('--promo');
   const useQr = process.argv.includes('--qr');
+  if (isPromo && !phoneArg && !useQr) {
+    console.error(
+      '홍보 계정은 번호를 직접 넣어 주세요: npm run telegram:login -- --promo --phone=+국가번호전화번호',
+    );
+    process.exit(1);
+  }
+  const phone = phoneArg || (env.TELEGRAM_COLLECTOR_PHONE ?? '').trim();
   if (!/^\d+$/.test(apiIdRaw) || !apiHash) {
     console.error('TELEGRAM_API_ID, TELEGRAM_API_HASH 가 필요합니다.');
     process.exit(1);
@@ -276,7 +289,7 @@ async function run(): Promise<void> {
   const apiId = Number(apiIdRaw);
   if (!useQr) {
     if (!phone.startsWith('+')) {
-      console.error('TELEGRAM_COLLECTOR_PHONE 은 + 로 시작해야 합니다.');
+      console.error('번호는 + 와 국가번호로 시작해야 합니다. 예: --phone=+821012345678');
       process.exit(1);
     }
     console.log(`번호: ${maskPhone(phone)}`);
