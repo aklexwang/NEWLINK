@@ -583,7 +583,7 @@ function MessageButton({ telegramId, username }: { telegramId: number; username:
 function SignupsPanel({ users }: { users: AdminUser[] }) {
   void users;
   const [range, setRange] = useState<14 | 30>(14);
-  const [metric, setMetric] = useState<'visitors' | 'newVisitors' | 'signups'>('visitors');
+  const [metric, setMetric] = useState<'visitors' | 'newVisitors' | 'signups'>('newVisitors');
   const [rows, setRows] = useState<{ day: string; visitors: number | null; newVisitors: number; signups: number }[]>([]);
   useEffect(() => {
     void getAdminVisitorsDaily(30)
@@ -599,8 +599,8 @@ function SignupsPanel({ users }: { users: AdminUser[] }) {
   const visitSum7 = rows.slice(-7).reduce((t, d) => t + (d.visitors ?? 0), 0);
   const fmt = (n: number | null | undefined) => (n == null ? '-' : `${n.toLocaleString('ko-KR')}명`);
   const metrics = [
-    { id: 'visitors', label: '방문자', color: 'bg-[#2aabee]' },
     { id: 'newVisitors', label: '신규 방문자', color: 'bg-violet-500' },
+    { id: 'visitors', label: '방문자', color: 'bg-[#2aabee]' },
     { id: 'signups', label: '가입', color: 'bg-emerald-500' },
   ] as const;
   const color = metrics.find((m) => m.id === metric)!.color;
@@ -624,8 +624,8 @@ function SignupsPanel({ users }: { users: AdminUser[] }) {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
-          ['오늘 방문자', fmt(last?.visitors), `어제 ${fmt(prev?.visitors)} · 7일 ${visitSum7.toLocaleString('ko-KR')}명`],
           ['오늘 신규 방문자', fmt(last?.newVisitors), `어제 ${fmt(prev?.newVisitors)} · 7일 ${sum('newVisitors', 7).toLocaleString('ko-KR')}명`],
+          ['오늘 방문자', fmt(last?.visitors), `어제 ${fmt(prev?.visitors)} · 7일 ${visitSum7.toLocaleString('ko-KR')}명`],
           ['오늘 가입', fmt(last?.signups), `어제 ${fmt(prev?.signups)}`],
           ['가입 7일 / 30일', `${sum('signups', 7)}명`, `30일 ${sum('signups', 30)}명`],
         ].map(([label, n, sub]) => (
@@ -675,7 +675,7 @@ function SignupsPanel({ users }: { users: AdminUser[] }) {
         ))}
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        방문자 = 그날 미니앱을 연 사람(하루 1번, 비회원 포함) · 신규 방문자 = 처음 온 사람 · 가입 = 텔레그램으로 처음 로그인한 사람. 한국 시간.
+        신규 방문자 = 처음 온 사람 · 방문자 = 그날 미니앱을 연 사람(하루 1번, 비회원 포함) · 가입 = 텔레그램으로 처음 로그인한 사람. 한국 시간.
         방문자 수는 11/29부터 쌓여요(그 전 날짜는 회색).
       </p>
     </div>
