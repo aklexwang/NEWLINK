@@ -21,7 +21,9 @@ function who(p: Person): string {
 /**
  * 관리자 알림 전용 봇 (ALERT_BOT_TOKEN).
  * ⛔ TellLink 제품 봇(TELEGRAM_BOT_TOKEN)은 절대 쓰지 않는다. 같은 토큰이면 아예 보내지 않는다.
- * 받는 사람은 @Kplay33 한 명: 그 계정이 알림 봇에 [시작]을 누르면 채팅 번호를 찾아 저장한다.
+ * 받는 사람은 @Kplay33 한 명뿐: 그 계정이 알림 봇에 [시작]을 누르면 채팅 번호를 찾아 저장한다.
+ * 저장된 채팅도 @Kplay33 의 1:1 채팅인지 확인한 뒤에만 보낸다. 다른 사람·그룹·채널로는 절대 안 보낸다.
+ * 보내는 내용은 회원 알림(신규 방문·가입·하루 요약)뿐.
  */
 @Injectable()
 export class AlertBotService implements OnModuleDestroy {
@@ -79,10 +81,11 @@ export class AlertBotService implements OnModuleDestroy {
   /** 받는 사람 채팅 번호: 저장된 값 → 없으면 봇에 온 /start 에서 @Kplay33 을 찾는다 */
   private async resolveChatId(): Promise<string | null> {
     if (this.chatId) return this.chatId;
-    const fixed = (this.config.get<string>('ALERT_CHAT_ID') ?? '').trim();
-    if (fixed) return (this.chatId = fixed);
+    // 저장된 채팅도 정말 @Kplay33 인지 텔레그램에 다시 물어보고 나서만 쓴다(서버 켤 때 한 번)
     const saved = await this.settings.findOne({ where: { key: CHAT_KEY } });
-    if (saved?.value) return (this.chatId = saved.value);
+    if (saved?.value && (await this.isTargetChat(saved.value))) {
+      return (this.chatId = saved.value);
+    }
     const updates = await this.api<
       Array<{
         message?: { chat?: { id: number; type: string; username?: string } };
@@ -97,6 +100,22 @@ export class AlertBotService implements OnModuleDestroy {
     this.chatId = String(hit.message.chat.id);
     await this.settings.save({ key: CHAT_KEY, value: this.chatId });
     return this.chatId;
+  }
+
+  /** 이 채팅이 @Kplay33 의 1:1 채팅인지 */
+  private async isTargetChat(chatId: string): Promise<boolean> {
+    try {
+      const chat = await this.api<{ type?: string; username?: string }>(
+        'getChat',
+        { chat_id: chatId },
+      );
+      return (
+        chat?.type === 'private' &&
+        (chat.username ?? '').toLowerCase() === ALERT_TARGET_USERNAME
+      );
+    } catch {
+      return false;
+    }
   }
 
   /** 지금 바로 보내기 (실패해도 서비스에는 영향 없음) */
