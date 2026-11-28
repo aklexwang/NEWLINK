@@ -591,16 +591,19 @@ function SignupsPanel({ users }: { users: AdminUser[] }) {
       .catch(() => setRows([]));
   }, []);
   const days = rows.slice(-range);
-  const value = (d: (typeof rows)[number]) => (metric === 'visitors' ? (d.visitors ?? 0) : d[metric]);
+  // 재방문자 = 그날 방문자 중 예전에도 왔던 사람
+  const returning = (d: (typeof rows)[number] | undefined) =>
+    d == null || d.visitors == null ? null : Math.max(0, d.visitors - d.newVisitors);
+  const value = (d: (typeof rows)[number]) => (metric === 'visitors' ? (returning(d) ?? 0) : d[metric]);
   const max = Math.max(1, ...days.map(value));
   const last = rows[rows.length - 1];
   const prev = rows[rows.length - 2];
   const sum = (key: 'newVisitors' | 'signups', n: number) => rows.slice(-n).reduce((t, d) => t + d[key], 0);
-  const visitSum7 = rows.slice(-7).reduce((t, d) => t + (d.visitors ?? 0), 0);
+  const visitSum7 = rows.slice(-7).reduce((t, d) => t + (returning(d) ?? 0), 0);
   const fmt = (n: number | null | undefined) => (n == null ? '-' : `${n.toLocaleString('ko-KR')}명`);
   const metrics = [
     { id: 'newVisitors', label: '신규 방문자', color: 'bg-violet-500' },
-    { id: 'visitors', label: '방문자', color: 'bg-[#2aabee]' },
+    { id: 'visitors', label: '재방문자', color: 'bg-[#2aabee]' },
     { id: 'signups', label: '가입', color: 'bg-emerald-500' },
   ] as const;
   const color = metrics.find((m) => m.id === metric)!.color;
@@ -608,7 +611,7 @@ function SignupsPanel({ users }: { users: AdminUser[] }) {
   return (
     <div className="mb-5 max-w-5xl rounded-2xl bg-card p-5 shadow-[var(--hz-shadow)]">
       <div className="flex flex-wrap items-center gap-3">
-        <p className="min-w-0 flex-1 text-[16px] font-bold">📈 날짜별 방문자 · 가입</p>
+        <p className="min-w-0 flex-1 text-[16px] font-bold">📈 날짜별 신규 방문자 · 재방문자 · 가입</p>
         <div className="flex gap-1.5">
           {([14, 30] as const).map((r) => (
             <button
@@ -625,7 +628,7 @@ function SignupsPanel({ users }: { users: AdminUser[] }) {
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           ['오늘 신규 방문자', fmt(last?.newVisitors), `어제 ${fmt(prev?.newVisitors)} · 7일 ${sum('newVisitors', 7).toLocaleString('ko-KR')}명`],
-          ['오늘 방문자', fmt(last?.visitors), `어제 ${fmt(prev?.visitors)} · 7일 ${visitSum7.toLocaleString('ko-KR')}명`],
+          ['오늘 재방문자', fmt(returning(last)), `어제 ${fmt(returning(prev))} · 7일 ${visitSum7.toLocaleString('ko-KR')}명`],
           ['오늘 가입', fmt(last?.signups), `어제 ${fmt(prev?.signups)}`],
           ['가입 7일 / 30일', `${sum('signups', 7)}명`, `30일 ${sum('signups', 30)}명`],
         ].map(([label, n, sub]) => (
@@ -675,8 +678,8 @@ function SignupsPanel({ users }: { users: AdminUser[] }) {
         ))}
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        신규 방문자 = 처음 온 사람 · 방문자 = 그날 미니앱을 연 사람(하루 1번, 비회원 포함) · 가입 = 텔레그램으로 처음 로그인한 사람. 한국 시간.
-        방문자 수는 11/29부터 쌓여요(그 전 날짜는 회색).
+        신규 방문자 = 처음 온 사람 · 재방문자 = 예전에도 왔다가 그날 다시 연 사람(하루 1번, 비회원 포함) · 가입 = 텔레그램으로 처음 로그인한 사람. 한국 시간.
+        재방문자 수는 11/29부터 쌓여요(그 전 날짜는 회색).
       </p>
     </div>
   );
