@@ -76,11 +76,12 @@ const PALETTES: Record<PromoImageStyle, Palette> = {
 };
 
 /** 이미지 큰 글씨 후보(줄바꿈 \n) */
-export function promoHeadlines(rooms: number): string[] {
-  const r = rooms >= 1000 ? `${(Math.floor(rooms / 100) * 100).toLocaleString('ko-KR')}개+` : `${rooms}개`;
+export function promoHeadlines(_rooms?: number): string[] {
+  // 방 개수는 알리지 않는다(운영 방침)
+  void _rooms;
   return [
     '텔레그램 방 찾기,\n이제 TellLink',
-    rooms >= 100 ? `채널·그룹 ${r}\n한 번에 검색` : '텔레그램 채널·그룹\n한 번에 검색',
+    '텔레그램 채널·그룹\n한 번에 검색',
     '요즘 뜨는 텔레그램 방\n랭킹으로 한눈에',
     '내 채널·그룹도\n무료로 등록',
     '카테고리별\n텔레그램 방 모음',

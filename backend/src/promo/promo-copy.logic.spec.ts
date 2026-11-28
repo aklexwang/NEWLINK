@@ -15,7 +15,8 @@ describe('promo-copy.logic', () => {
     expect(list.length).toBeGreaterThanOrEqual(5);
     expect(new Set(list).size).toBe(list.length);
     for (const t of list) expect(t).toContain(input.link);
-    expect(list[0]).toContain('5,700개+');
+    // 방 개수는 쓰지 않는다
+    expect(list.join('\n')).not.toMatch(/\d개\+|5,700/);
   });
   it('AI 답 나누기 · 링크 붙이기 · 번호 지우기', () => {
     const raw =
