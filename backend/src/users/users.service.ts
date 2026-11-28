@@ -3,8 +3,10 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { AlertBotService } from '../alert-bot/alert-bot.service';
 import { Repository } from 'typeorm';
 import { TelegramUser } from '../auth/interfaces/telegram-user.interface';
 import { telegramIdKey } from '../common/telegram-id';
@@ -17,6 +19,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @Optional() private readonly alert?: AlertBotService,
   ) {}
 
   toPublicUser(user: User) {
@@ -65,8 +68,14 @@ export class UsersService {
       isBlocked: false,
     });
 
+    const saved = await this.userRepository.save(created);
+    this.alert?.noteSignup({
+      id: Number(telegramUser.id),
+      firstName: telegramUser.first_name ?? null,
+      username: telegramUser.username ?? null,
+    });
     return {
-      user: await this.userRepository.save(created),
+      user: saved,
       isNewUser: true,
     };
   }
@@ -81,6 +90,11 @@ export class UsersService {
         username: telegramUser.username ?? null,
         isRegistered: false,
         isBlocked: false,
+      });
+      this.alert?.noteSignup({
+        id: Number(telegramUser.id),
+        firstName: telegramUser.first_name ?? null,
+        username: telegramUser.username ?? null,
       });
     } else {
       user.firstName = telegramUser.first_name ?? user.firstName;

@@ -5,6 +5,7 @@ import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module';
 import { AdsModule } from './ads/ads.module';
 import { NoticesModule } from './notices/notices.module';
+import { AlertBotModule } from './alert-bot/alert-bot.module';
 import { DailyCountersModule } from './daily-counters/daily-counters.module';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
@@ -99,6 +100,7 @@ function truthy(value: string | undefined): boolean {
     AdminModule,
     AdsModule,
     NoticesModule,
+    AlertBotModule,
     DailyCountersModule,
     StoredImagesModule,
     MemberActivityModule,

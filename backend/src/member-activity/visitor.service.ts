@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { AlertBotService } from '../alert-bot/alert-bot.service';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
@@ -31,6 +32,7 @@ export class VisitorService {
     private readonly users: Repository<User>,
     @InjectRepository(VisitorDaily)
     private readonly daily: Repository<VisitorDaily>,
+    @Optional() private readonly alert?: AlertBotService,
   ) {}
 
   /** 그날 방문자 수 +1 (처음 온 사람이면 신규도 +1) */
@@ -94,6 +96,11 @@ export class VisitorService {
         lastDay: today,
       });
       await this.bumpDaily(today, true);
+      this.alert?.noteNewVisitor({
+        id: info.id,
+        firstName: info.firstName,
+        username: info.username,
+      });
       return;
     }
     if (row.lastDay !== today) await this.bumpDaily(today, false);
@@ -196,6 +203,19 @@ export class VisitorService {
       ),
       signups: signByDay.get(day) ?? 0,
     }));
+  }
+
+  /** 밤 11시: 오늘 신규 방문자 · 재방문자 · 가입 요약을 알림 봇으로 */
+  @Cron('0 23 * * *', { timeZone: 'Asia/Seoul' })
+  async dailySummary(): Promise<void> {
+    if (!this.alert?.isConfigured()) return;
+    const [today] = (await this.dailyStats(1)).slice(-1);
+    if (!today) return;
+    const visitors = today.visitors ?? 0;
+    const returning = Math.max(0, visitors - today.newVisitors);
+    await this.alert.send(
+      `📊 TellLink 오늘 요약 (${today.day})\n\n🆕 신규 방문자 ${today.newVisitors}명\n🔁 재방문자 ${returning}명\n✅ 가입 ${today.signups}명\n👀 전체 방문 ${visitors}명`,
+    );
   }
 
   /** 마지막 방문 후 90일 지난 방문자 기록 삭제 */
