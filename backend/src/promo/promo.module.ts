@@ -6,6 +6,8 @@ import { Channel } from '../channels/channel.entity';
 import { StatsModule } from '../stats/stats.module';
 import { PromoController } from './promo.controller';
 import { PromoCreative } from './promo-creative.entity';
+import { PromoJoinAttempt } from './promo-join-attempt.entity';
+import { PromoJoinService } from './promo-join.service';
 import { PromoPostLog } from './promo-post-log.entity';
 import { PromoTarget } from './promo-target.entity';
 import { PromoTelegramService } from './promo-telegram.service';
@@ -18,6 +20,7 @@ import { PromoService } from './promo.service';
       PromoTarget,
       PromoCreative,
       PromoPostLog,
+      PromoJoinAttempt,
       AppSetting,
       Channel,
       CategoryEntity,
@@ -25,6 +28,6 @@ import { PromoService } from './promo.service';
     StatsModule,
   ],
   controllers: [PromoController],
-  providers: [PromoService, PromoTelegramService],
+  providers: [PromoService, PromoTelegramService, PromoJoinService],
 })
 export class PromoModule {}

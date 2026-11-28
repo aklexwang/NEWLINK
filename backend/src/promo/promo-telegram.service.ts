@@ -10,7 +10,7 @@ import { CustomFile } from 'telegram/client/uploads';
  * 수집 풀(TELEGRAM_SESSION, TELEGRAM_SESSION_2..)에 절대 섞이지 않는다.
  * 이 계정이 정지돼도 수집은 영향 없다. 반대로 수집 계정은 여기서 절대 쓰지 않는다.
  *
- * 하는 일: 들어가 있는 그룹 목록 읽기, 그룹 소개글 읽기, 글 올리기. 가입·검색 같은 건 하지 않는다.
+ * 하는 일: 들어가 있는 그룹 목록 읽기, 그룹 소개글 읽기, 글 올리기, 공개 홍보방 천천히 가입하기.
  */
 export type PromoPeer = {
   peerType: 'channel' | 'chat';
@@ -168,6 +168,37 @@ export class PromoTelegramService implements OnModuleDestroy {
       channelId: BigInt(peer.peerId) as never,
       accessHash: BigInt(peer.accessHash ?? '0') as never,
     });
+  }
+
+  /**
+   * 공개 그룹(@아이디) 가입. 그룹이 아니면(방송 채널) 'not a group' 으로 거절한다.
+   * 승인제 방이면 텔레그램이 INVITE_REQUEST_SENT 오류를 준다(가입 신청은 된 것).
+   */
+  async joinPublicGroup(username: string): Promise<{ title: string }> {
+    const client = await this.getClient();
+    const resolved = await withTimeout(
+      client.invoke(new Api.contacts.ResolveUsername({ username })),
+      CALL_TIMEOUT_MS,
+      'timeout:resolve',
+    );
+    const chat = resolved.chats.find(
+      (c): c is Api.Channel => c instanceof Api.Channel,
+    );
+    if (!chat) throw new Error('not a group');
+    if (!chat.megagroup) throw new Error('not a group (broadcast channel)');
+    await withTimeout(
+      client.invoke(
+        new Api.channels.JoinChannel({
+          channel: new Api.InputChannel({
+            channelId: chat.id,
+            accessHash: chat.accessHash ?? (BigInt(0) as never),
+          }),
+        }),
+      ),
+      CALL_TIMEOUT_MS,
+      'timeout:join',
+    );
+    return { title: chat.title ?? username };
   }
 
   /** 그룹 소개글(규칙 읽기용) */

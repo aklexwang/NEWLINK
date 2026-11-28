@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   bulkPromoTargets,
+  getPromoJoin,
+  promoJoinNow,
+  updatePromoJoin,
+  type PromoJoinStatus,
   createPromoCreative,
   deletePromoCreative,
   getPromoCreatives,
@@ -60,6 +64,7 @@ export function AdminPromoPage() {
   const [targets, setTargets] = useState<PromoTarget[]>([]);
   const [creatives, setCreatives] = useState<PromoCreative[]>([]);
   const [logs, setLogs] = useState<PromoLog[]>([]);
+  const [join, setJoin] = useState<PromoJoinStatus | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [newText, setNewText] = useState('');
@@ -78,6 +83,7 @@ export function AdminPromoPage() {
       setTargets(t);
       setCreatives(c);
       setLogs(l);
+      setJoin(await getPromoJoin().catch(() => null));
     } catch (error) {
       setMessage(adminApiErrorMessage(error, '불러오지 못했어요.'));
     }
@@ -411,6 +417,108 @@ export function AdminPromoPage() {
           ))}
         </div>
       </div>
+
+      {/* 홍보방 자동 가입 */}
+      {join && (
+        <div className={card}>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="min-w-0 flex-1 text-[16px] font-bold">🤝 홍보방 자동 가입</p>
+            <button
+              type="button"
+              className={join.settings.enabled ? btnPrimary : btnGhost}
+              disabled={busy != null}
+              onClick={() =>
+                void run('join', async () => {
+                  await updatePromoJoin({ enabled: !join.settings.enabled });
+                  return join.settings.enabled ? '자동 가입을 껐어요.' : '자동 가입을 켰어요.';
+                })
+              }
+            >
+              {join.settings.enabled ? '● 자동 가입 켜짐' : '○ 자동 가입 꺼짐'}
+            </button>
+            <button
+              type="button"
+              className={btnGhost}
+              disabled={busy != null}
+              onClick={() => void run('join', async () => (await promoJoinNow()).message)}
+            >
+              지금 1곳 가입
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            우리 DB의 "홍보" 카테고리 공개 그룹(회원 많은 순)에 홍보 계정이 천천히 들어가요. 가입 사이 1시간~1시간 30분, 활동
+            시간에만. 들어간 방은 아래 홍보방 목록에 꺼진 상태로 추가돼요. 텔레그램이 경고하면 가입만 자동으로 멈춰요.
+          </p>
+          {join.settings.pausedUntil && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-300">
+              ⏸ 가입 멈춤: {join.settings.pauseReason} · {new Date(join.settings.pausedUntil).toLocaleString('ko-KR')} 까지
+              <button
+                type="button"
+                className="ml-auto rounded-lg bg-white px-3 py-1 text-xs font-semibold ring-1 ring-amber-300"
+                onClick={() => void run('join', async () => (await updatePromoJoin({ resume: true }), '가입 멈춤을 풀었어요.'))}
+              >
+                멈춤 풀기
+              </button>
+            </div>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <label className="flex items-center gap-2">
+              하루 가입
+              <select
+                value={join.settings.daily}
+                disabled={busy != null}
+                onChange={(e) =>
+                  void run('join', async () => {
+                    await updatePromoJoin({ daily: Number(e.target.value) });
+                    return `하루 ${e.target.value}곳으로 바꿨어요.`;
+                  })
+                }
+                className="h-9 rounded-lg border border-border bg-card px-2"
+              >
+                {[3, 5, 8, 10, 15, 20].map((n) => (
+                  <option key={n} value={n}>
+                    {n}곳{n === 5 ? ' (새 계정 권장)' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span>
+              오늘 <b>{join.today}</b> / {join.settings.daily}
+            </span>
+            <span>
+              들어감 <b>{join.totals.joined}</b> · 승인 대기 <b>{join.totals.requested}</b> · 못 들어감{' '}
+              <b>{join.totals.failed}</b>
+            </span>
+            <span className="text-muted-foreground">남은 후보 {join.candidatesLeft}곳</span>
+          </div>
+          {join.recent.length > 0 && (
+            <div className="mt-3 divide-y divide-border rounded-xl ring-1 ring-border">
+              {join.recent.map((a, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
+                  <span
+                    className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${
+                      a.status === 'joined'
+                        ? 'bg-green-100 text-green-800'
+                        : a.status === 'requested'
+                          ? 'bg-sky-100 text-sky-800'
+                          : 'bg-muted text-subtle'
+                    }`}
+                  >
+                    {a.status === 'joined' ? '들어감' : a.status === 'requested' ? '승인 대기' : '못 들어감'}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {a.title} <span className="text-muted-foreground">@{a.username}</span>
+                    {a.status === 'failed' && a.error && <span className="ml-1 text-xs text-muted-foreground">({a.error})</span>}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {new Date(a.attemptedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 홍보방 */}
       <div className={card}>

@@ -16,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { TelegramAdminGuard } from '../auth/telegram-admin.guard';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
+import { PromoJoinService } from './promo-join.service';
 import { PromoService, PromoSettings } from './promo.service';
 
 const IMAGE_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -24,7 +25,29 @@ const IMAGE_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 @Controller('admin/promo')
 @UseGuards(TelegramAuthGuard, TelegramAdminGuard)
 export class PromoController {
-  constructor(private readonly promo: PromoService) {}
+  constructor(
+    private readonly promo: PromoService,
+    private readonly joins: PromoJoinService,
+  ) {}
+
+  /** 홍보방 자동 가입 상태 */
+  @Get('join')
+  joinStatus() {
+    return this.joins.getStatus();
+  }
+
+  @Patch('join')
+  joinSettings(
+    @Body() body: { enabled?: boolean; daily?: number; resume?: boolean },
+  ) {
+    return this.joins.updateSettings(body ?? {});
+  }
+
+  /** 지금 1곳 가입 (하루 한도·멈춤은 지킨다) */
+  @Post('join/now')
+  joinNow() {
+    return this.joins.joinNext();
+  }
 
   @Get('status')
   status() {

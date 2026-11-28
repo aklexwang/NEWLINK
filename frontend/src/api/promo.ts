@@ -136,3 +136,21 @@ export async function promoSendNow() {
 export async function getPromoLogs(limit = 50) {
   return (await apiClient.get<PromoLog[]>(`/admin/promo/logs?limit=${limit}`, h())).data;
 }
+
+export type PromoJoinStatus = {
+  settings: { enabled: boolean; daily: number; pausedUntil: string | null; pauseReason: string | null };
+  today: number;
+  totals: { joined: number; requested: number; failed: number };
+  candidatesLeft: number;
+  recent: { title: string; username: string; status: string; error: string | null; attemptedAt: string }[];
+};
+
+export async function getPromoJoin(): Promise<PromoJoinStatus> {
+  return (await apiClient.get('/admin/promo/join', h())).data;
+}
+export async function updatePromoJoin(patch: { enabled?: boolean; daily?: number; resume?: boolean }): Promise<PromoJoinStatus> {
+  return (await apiClient.patch('/admin/promo/join', patch, h())).data;
+}
+export async function promoJoinNow(): Promise<{ ok: boolean; message: string }> {
+  return (await apiClient.post('/admin/promo/join/now', {}, h())).data;
+}

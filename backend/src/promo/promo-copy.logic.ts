@@ -14,7 +14,6 @@ export type PromoCopyInput = {
   link: string;
 };
 
-
 /** 기본 문구 여러 버전(AI 없이). 방 개수·카테고리 개수는 알리지 않는다(운영 방침) */
 export function buildTemplateCopies(input: PromoCopyInput): string[] {
   const link = input.link;
